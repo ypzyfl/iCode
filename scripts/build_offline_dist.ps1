@@ -150,11 +150,14 @@ try {
         # platform, but this distribution only ever runs on the platform it is
         # built on.  Ask find_rg's own platform table which binary that is, so
         # the two can never drift apart, and drop the rest.
+        # [AIxCoding M-006] Double quotes are collapsed by PowerShell's native
+        # command-argument quoting (the child receives an unbalanced literal);
+        # use single-quoted Python string literals instead.
         $KeepRg = & $Py -c @'
 import platform
 from chrys.foundation.vendor import _TRIPLE_MAP
 names = _TRIPLE_MAP.get((platform.system(), platform.machine()))
-print(names[0] if names else "")
+print(names[0] if names else '')
 '@
         $RgDir = Join-Path $SitePackages "chrys\foundation\vendor\ripgrep"
         if ($KeepRg -and (Test-Path $RgDir)) {

@@ -193,6 +193,22 @@ def _expand_template(value: str, *, workspace_cwd: str, chrys_home: Path, sessio
     )
 
 
+def _detached_worker_executable() -> str:
+    # [AIxCoding M-004] Windows: the detached worker runs console-less; spawning
+    # a console-subsystem interpreter there opens a visible Windows-Terminal
+    # window on machines whose default terminal is WT (STARTUPINFO SW_HIDE is
+    # ignored, and venv python.exe launchers re-create a console one hop later
+    # even when the launcher itself got DETACHED_PROCESS). The GUI-subsystem
+    # sibling never creates a console at either hop while stdio still flows
+    # through the inherited log-file handles. Falls back to sys.executable
+    # whenever pythonw.exe is unavailable (e.g. frozen runtime aliases).
+    if sys.platform == "win32":
+        windowless = Path(sys.executable).with_name("pythonw.exe")
+        if windowless.is_file():
+            return str(windowless)
+    return sys.executable
+
+
 def _resolve_script_path(rel_or_abs: str, hooks_dir: Path) -> Path:
     p = Path(rel_or_abs)
     if p.is_absolute():
@@ -416,11 +432,12 @@ class HookRunner:
             log_file = _open_owner_only_append(log_path)
             worker_env = os.environ.copy()
             strip_python_runtime_overrides(worker_env)
+            worker_exe = _detached_worker_executable()
             if is_frozen_runtime(worker_env):
-                worker_cmd = [sys.executable, "-s", "-m", "chrys.service.hooks.detached_worker", str(invocation_path)]
+                worker_cmd = [worker_exe, "-s", "-m", "chrys.service.hooks.detached_worker", str(invocation_path)]
                 worker_env["PYTHONNOUSERSITE"] = "1"
             else:
-                worker_cmd = [sys.executable, "-m", "chrys.service.hooks.detached_worker", str(invocation_path)]
+                worker_cmd = [worker_exe, "-m", "chrys.service.hooks.detached_worker", str(invocation_path)]
             worker_env["PYTHONUTF8"] = "1"
             worker_env["PYTHONIOENCODING"] = "utf-8"
 

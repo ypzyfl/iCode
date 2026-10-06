@@ -703,7 +703,12 @@ async def test_session_transition_sweep_settles_retry_post_admission_wait_before
 
 @pytest.mark.asyncio
 async def test_start_without_hooks_config_does_not_create_hook_runtime_dirs(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, agent_engine, *, engine_services
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    agent_engine,
+    *,
+    engine_services,
+    _no_aixcoding_telemetry_install: None,  # [AIxCoding M-005] opt out of the fork's installer
 ) -> None:
     import chrys.foundation.platform as platform_mod
     from chrys.foundation.models.workspace import Workspace

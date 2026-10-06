@@ -259,7 +259,11 @@ try {
     # executable.  Run through a sibling alias so broad `taskkill /IM python.exe`
     # cleanup scripts do not kill the live Chrys process.
     Write-Host "==> Patching PyApp to run Chrys through renamed Python..."
-    $AppSource = Get-Content $AppRs -Raw
+    # [AIxCoding M-006] Patch 4 uses multi-line here-strings with literal
+    # String.Replace, so the pattern must match the PyApp sources' LF line
+    # endings regardless of how this script was checked out (autocrlf=true
+    # checkouts yield CRLF here-strings that silently never match).
+    $AppSource = (Get-Content $AppRs -Raw).Replace("`r`n", "`n")
     $OldPythonPath = @'
 pub fn python_path() -> PathBuf {
     install_dir().join(installation_python_path())
@@ -270,6 +274,7 @@ pub fn pythonw_path() -> PathBuf {
     install_dir().join(installation_pythonw_path())
 }
 '@
+    $OldPythonPath = $OldPythonPath.Replace("`r`n", "`n")
     $NewPythonPath = @'
 pub fn python_path() -> PathBuf {
     install_dir().join(installation_python_path())
@@ -325,7 +330,7 @@ pub fn runtime_pythonw_path() -> PathBuf {
     Set-Content $AppRs $AppSource -NoNewline
 
     $DistributionRs = Join-Path $PyAppDir "src\distribution.rs"
-    $DistributionSource = Get-Content $DistributionRs -Raw
+    $DistributionSource = (Get-Content $DistributionRs -Raw).Replace("`r`n", "`n")
     $OldRunProject = @'
 pub fn run_project() -> Result<()> {
     let mut command = python_command(&app::python_path());
@@ -337,6 +342,7 @@ pub fn run_project() -> Result<()> {
         }
     }
 '@
+    $OldRunProject = $OldRunProject.Replace("`r`n", "`n")
     $NewRunProject = @'
 #[cfg(any(windows, target_os = "macos", target_os = "linux"))]
 fn link_or_copy_file(source: &Path, target: &Path) -> Result<()> {
@@ -421,6 +427,7 @@ pub fn run_project() -> Result<()> {
 
     FileExt::unlock(&lock_file)
 '@
+    $OldEnsureReady = $OldEnsureReady.Replace("`r`n", "`n")
     $NewEnsureReady = @'
     if !app::install_dir().is_dir() {
         materialize()?;

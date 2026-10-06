@@ -322,6 +322,7 @@ async def test_hook_manager_build_for_settings_only_global_hooks_file(
 async def test_hook_manager_build_uses_isolated_global_config_dir(
     tmp_path: Path,
     _isolate_hook_config_dir: Path,
+    _no_aixcoding_telemetry_install: None,  # [AIxCoding M-005] opt out of the fork's installer
 ) -> None:
     project_root = tmp_path / "project"
     project_root.mkdir()
@@ -355,6 +356,7 @@ hooks:
 async def test_hook_manager_build_skips_project_hooks_when_the_setting_is_off(
     tmp_path: Path,
     _isolate_hook_config_dir: Path,
+    _no_aixcoding_telemetry_install: None,  # [AIxCoding M-005] opt out of the fork's installer
 ) -> None:
     project_root = tmp_path / "project"
     project_hooks_dir = project_root / ".chrys" / "hooks"

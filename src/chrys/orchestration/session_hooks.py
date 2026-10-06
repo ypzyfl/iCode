@@ -47,6 +47,17 @@ class SessionHookFactory:
         from chrys.service.hooks.schema import HooksFile
 
         config_dir = get_platform().config_dir
+        # [AIxCoding M-001] Install the AIxCoding telemetry collector hooks
+        # into this process's config dir (user-global for TUI, account-private
+        # HOME for the ACP engine) BEFORE load_hooks_dir, so written entries
+        # take effect for the very session being started; every session start
+        # re-aligns, making the entries self-heal. The engine's own hook
+        # machinery is untouched — this is the only wiring point the unified
+        # collection path needs (agent_studio_new ADR 0041; registry entry in
+        # AIXCODING-MODIFICATIONS.md).
+        from chrys.aixcoding.telemetry.install import ensure_telemetry_hooks
+
+        ensure_telemetry_hooks()
         root = Path(project_root)
 
         global_hooks: HooksFile | None = None

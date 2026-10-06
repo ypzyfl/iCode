@@ -589,7 +589,7 @@ async def test_detached_spawn_uses_windows_creation_flags(monkeypatch: pytest.Mo
 
     cmd = seen["cmd"]
     assert isinstance(cmd, list)
-    assert cmd[:4] == [sys.executable, "-s", "-m", "chrys.service.hooks.detached_worker"]
+    assert cmd[:4] == [runner_mod._detached_worker_executable(), "-s", "-m", "chrys.service.hooks.detached_worker"]
     assert len(cmd) == 5
     kwargs = seen["kwargs"]
     assert isinstance(kwargs, dict)
@@ -638,7 +638,7 @@ async def test_detached_spawn_keeps_user_site_for_non_frozen_runtime(
 
     cmd = seen["cmd"]
     assert isinstance(cmd, list)
-    assert cmd[:3] == [sys.executable, "-m", "chrys.service.hooks.detached_worker"]
+    assert cmd[:3] == [runner_mod._detached_worker_executable(), "-m", "chrys.service.hooks.detached_worker"]
     assert len(cmd) == 4
     kwargs = seen["kwargs"]
     assert isinstance(kwargs, dict)

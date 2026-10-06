@@ -31,6 +31,9 @@ SRC = SRC_ROOT / "chrys"
 FOUNDATION = "foundation"
 KERNEL = "kernel"
 SERVICE = "service"
+# [AIxCoding M-002] Fork-local additions; service tier by permission set
+# (foundation + service only). See AIXCODING-MODIFICATIONS.md.
+AIXCODING = "aixcoding"
 ORCHESTRATION = "orchestration"
 APP = "app"
 ROOT_INIT = "__root__"
@@ -44,6 +47,7 @@ TIER_ORDER = {
     SERVICE: 2,
     # src/chrys/workflows.py re-exports the service-tier SDK for workflow files.
     WORKFLOWS_FACADE: 2,
+    AIXCODING: 2,
     ORCHESTRATION: 3,
     APP: 4,
 }

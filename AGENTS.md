@@ -2,6 +2,15 @@
 
 Chrys is a Python 3.14+ agent platform: Textual TUI, headless CLI and ACP server. Users see it as **iCode** / `icode` (`foundation/branding.py`; `msg()` fallbacks write `{app}`, bound with `app=APP_DISPLAY_NAME`); the package, the `chrys` command, `~/.chrys`, `CHRYS_*`, wire/header names and data keys keep `chrys`. `pyproject.toml` is the source of truth for version and deps. Paths are under `src/chrys/` unless they start with `tests/`, `scripts/`, `docs/`, `locales/`, `.github/` or name a root file; a bare file name continues the directory named just before it.
 
+## AIxCoding fork-local changes (mandatory)
+
+Every AIxCoding-specific change to this fork must follow the owner-namespace discipline (borrowed from the `aixcoding-continue` practice). This is a fork of an upstream repo: the rules exist so that upstream merges never conflict with our additions and so every deviation from upstream stays auditable.
+
+1. **New files live under `src/chrys/aixcoding/`** (subpackages per domain, e.g. `telemetry/`, `auth/`), never scattered into functional locations the upstream may also grow (`service/telemetry/` would collide if upstream adds one; `chrys/aixcoding/` can never be touched by upstream because upstream will not create that package). New fork-local docs go into the registry (rule 2), not into `docs/en`+`docs/zh-Hans` (that tree is the i18n-mirrored user guide).
+2. **Every change to an existing upstream file is registered in `AIXCODING-MODIFICATIONS.md`** (repo root) with a stable id (`M-001`, `M-002`, …): what changed (file:line), which AIxCoding capability it serves, why modifying upstream code was unavoidable, and cross-repo references written as plain text (e.g. `agent_studio_new docs/adr/0041`), never relative links. Edits to fork-local (`chrys/aixcoding/`) files need no registry entry — the namespace itself is the record.
+3. **Each modification site carries a marker comment** `# [AIxCoding M-xxx] <why this change is required>` referencing its registry id; keep it adjacent to the diff when the code moves.
+4. **Audit by grep, not by memory**: `grep -rn "\[AIxCoding\]" src/` must enumerate exactly the registered upstream-file modifications; reconcile the grep output against the registry before any upstream sync or release cut ("changed but unregistered" and "registered but gone" are both defects).
+
 ## Commands
 ```bash
 uv sync --extra all                  # setup, as CI; bare `uv sync` uninstalls the extras
@@ -69,6 +78,7 @@ foundation → {}
 - Below `app/`, import optional-extra packages (textual, watchdog, psutil, OTel SDK, doc converters) only lazily — inside functions or under `TYPE_CHECKING` (`tests/architecture/test_hygiene_optional_imports.py`).
 
 ## Source map (`src/chrys/`)
+- **aixcoding/** (tier 2, fork-local): AIxCoding fork additions — new code goes here, never scattered into upstream functional locations (see "AIxCoding fork-local changes" above and `AIXCODING-MODIFICATIONS.md`). Currently `telemetry/install.py` (session-telemetry hook installer).
 - **foundation/** (tier 0): config, events, models (session_env, workspace, turns, history_markers), i18n, trajectory, platform, patches, tool_kinds.
 - **kernel/** (tier 1): flat, no subpackages — agent, loop, client, tools, compaction, exchanges, identity, middleware. Its `_*.py` modules are private: outside `kernel/` import through `chrys.kernel` (exceptions: `_KERNEL_PRIVATE_IMPORT_ALLOWLIST`).
 - **service/** (tier 2): llm, profiles, tools (builtins incl. web), mcp, skills, hooks, approval, session, state, context (compaction), mutations, agent_middleware, acp_client, workflows (SDK, graph, scheduler, protocol, worker host).

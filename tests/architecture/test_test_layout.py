@@ -22,6 +22,9 @@ _TARGET_TOP_LEVEL = {
     "kernel",
     "foundation",
     "integration",
+    # [AIxCoding M-003] fork-local test tree mirroring src/chrys/aixcoding —
+    # upstream never creates this top level, so zero merge surface.
+    "aixcoding",
 }
 
 
