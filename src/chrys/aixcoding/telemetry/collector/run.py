@@ -147,10 +147,17 @@ def run_collector(args: CollectorArguments, options: CollectorRunOptions | None 
         account_id = attribution_result.account_id
     # Channel common fields: userId comes from attribution.json
     # (account-level attribution, U4); channelType derives from scope
-    # (acp = desktop, tui = cli).
+    # (acp = desktop, tui = cli); channelName follows the K2
+    # proceed-by-default values (registration table §3.8). channelVersion
+    # is left to the analysis layer's engine-version fallback: the K2
+    # default asks for the desktop build number on ACP, which the engine
+    # side cannot obtain — the engine version is the recorded interim
+    # value, corrected via ANALYSIS_VERSION re-report once the D1
+    # review settles the channel.
     attribution = ReportAttribution(
         user_id=account_id,
         channel_type="desktop" if args.scope == "acp" else "cli",
+        channel_name="aixcoding-desktop" if args.scope == "acp" else "icode",
     )
     client: httpx.Client | None = None
     default_sink = effective.sink

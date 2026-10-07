@@ -76,9 +76,14 @@ class EventCommonContext:
     # filepath fallback basis).
     primary_cwd: str | None
     # tool-detail git context (resolved once per run per primary_cwd;
-    # M5 plan §7). remoteUrl is the registration-focus field and never
-    # enters events or payloads.
+    # M5 plan §7). remoteUrl feeds the registration-focus gitRemote
+    # common field (M4, gated behind the HTTP sink's
+    # focus_fields_enabled switch).
     git: GitRepositoryInfo | None
+    # Repository root of primary_cwd (relativization basis for the
+    # focus-field value/fileName, focus_fields.relativize_tool_path);
+    # resolved through the same per-run cache as productName's root.
+    git_root: str | None = None
 
 
 def build_event_common(context: EventCommonContext, turn_id: str) -> dict[str, Any]:
@@ -106,6 +111,8 @@ def build_event_common(context: EventCommonContext, turn_id: str) -> dict[str, A
     if context.plugin_version is not None:
         common["pluginVersion"] = context.plugin_version
     if git is not None:
+        if git.remote_url is not None:
+            common["gitRemote"] = git.remote_url
         if git.branch is not None:
             common["gitBranch"] = git.branch
         if git.revision is not None:

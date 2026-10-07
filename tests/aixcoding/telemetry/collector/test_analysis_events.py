@@ -265,7 +265,7 @@ class TestProjectName:
 
 
 class TestBuildEventCommon:
-    def test_full_assembly_omits_none_and_registration_focus_fields(self) -> None:
+    def test_full_assembly_omits_none_and_carries_git_remote(self) -> None:
         git = GitRepositoryInfo(
             remote_url="https://host/o/r",
             revision="64704138a5deed7f83c88a45695308f6f5675d04",
@@ -300,6 +300,9 @@ class TestBuildEventCommon:
             "channelVersion": "1.2.3",
             "userId": "ehr-1",
             "pluginVersion": "9.9.9",
+            # Registration-focus common field (M4): constructed here,
+            # gated by the HTTP sink's focus_fields_enabled switch.
+            "gitRemote": "https://host/o/r",
             "gitBranch": "master",
             "gitRevision": "64704138a5deed7f83c88a45695308f6f5675d04",
             "gitOwner": "o",

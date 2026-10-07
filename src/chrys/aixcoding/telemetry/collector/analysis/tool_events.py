@@ -11,9 +11,10 @@ default → 1). The line-count columns' mutation ownership matching lives
 in mutation_matching.py (exact call_id first; on an ID-system break,
 uniqueness/timing-window fallbacks); mutations with missing blobs are
 skipped without blocking. Focus fields (value/fileName/extra/
-funcErrorMessage) are kept out by the core event types
-(focusFieldsEnabled=false holds at compile time in the TS reference;
-here by construction — never added).
+funcErrorMessage) are constructed with the registration redaction
+rules (focus_fields.py, M4); the HTTP sink's focus_fields_enabled
+switch (default False) keeps them out of the remote payload while
+the file sink observes them locally.
 """
 
 from __future__ import annotations
@@ -23,6 +24,10 @@ from typing import Any
 from chrys.aixcoding.telemetry.collector.analysis.attachments import MutationBlobReader, split_lines
 from chrys.aixcoding.telemetry.collector.analysis.context import EventCommonContext, build_event_common
 from chrys.aixcoding.telemetry.collector.analysis.exchanges import ToolTriple, build_tool_triples
+from chrys.aixcoding.telemetry.collector.analysis.focus_fields import (
+    derive_func_error_message,
+    derive_save_focus_fields,
+)
 from chrys.aixcoding.telemetry.collector.analysis.line_diff import compute_line_diff
 from chrys.aixcoding.telemetry.collector.analysis.mutation_matching import (
     MutationMatching,
@@ -192,15 +197,21 @@ def build_tool_events(
         }
         if request_id is not None:
             save["requestId"] = request_id
+        save.update(derive_save_focus_fields(triple.call, context.git_root, context.primary_cwd))
         events.append(save)
         if triple.result is not None:
+            code_status = _derive_code_status(triple.result)
             line_counts = _collect_line_counts(match_mutations(triple, matching), blob_reader)
             update: ToolEvent = {
                 "kind": "tool-status-updated",
                 "funcId": func_id,
-                "codeStatus": _derive_code_status(triple.result),
+                "codeStatus": code_status,
             }
             if line_counts is not None:
                 update.update(line_counts)
+            if code_status == 2:
+                error_message = derive_func_error_message(triple.result)
+                if error_message is not None:
+                    update["funcErrorMessage"] = error_message
             events.append(update)
     return events

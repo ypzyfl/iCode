@@ -271,7 +271,12 @@ def test_maps_code_status(
         ]
     )
     update = updates(events)[0]
-    assert update == {"kind": "tool-status-updated", "funcId": "op-1", "codeStatus": expected}
+    expected_update: dict[str, Any] = {"kind": "tool-status-updated", "funcId": "op-1", "codeStatus": expected}
+    # Failure evidence (M4): codeStatus 2 attaches funcErrorMessage when
+    # a source exists — the exception override is the only case here.
+    if expected == 2 and overrides is not None and "exception" in overrides:
+        expected_update["funcErrorMessage"] = overrides["exception"]
+    assert update == expected_update
 
 
 def test_produces_only_a_save_for_calls_without_results() -> None:

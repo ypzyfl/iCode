@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from chrys.aixcoding.telemetry.collector.analysis.ai_code_events import AiCodeEventInputs, build_ai_code_events
@@ -219,7 +219,18 @@ def analyze_session_revision(input: SessionRevisionInput) -> dict[str, Any]:
     else:
         parts = [part for part in _PATH_SPLIT.split(product_root) if part]
         product_name = parts[-1] if parts else ""
+    # Focus-field relativization basis (value/fileName): primary_cwd's
+    # repository root (same per-run cache as the forDirectory call above
+    # — no extra spawn).
+    git_root = git_context.for_file(primary_cwd).root if primary_cwd is not None else None
     attribution = input.attribution
+    # channelVersion fallback (K2 proceed-by-default): the engine
+    # version (meta.app_version) when the run layer did not supply one —
+    # the TUI default (--version output) equals it, and on ACP the
+    # desktop build number is not obtainable engine-side (recorded
+    # interim difference, corrected after the D1 review).
+    if attribution is not None and attribution.channel_version is None and facts["appVersion"] is not None:
+        attribution = replace(attribution, channel_version=facts["appVersion"])
     event_context = EventCommonContext(
         session_id=input.session_id,
         attribution=attribution,
@@ -232,6 +243,7 @@ def analyze_session_revision(input: SessionRevisionInput) -> dict[str, Any]:
         ),
         primary_cwd=primary_cwd,
         git=tool_detail_git,
+        git_root=git_root,
     )
     blob_reader = input.blob_reader if input.blob_reader is not None else NULL_BLOB_READER
     analysis_version = input.analysis_version if input.analysis_version is not None else ANALYSIS_VERSION

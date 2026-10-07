@@ -197,7 +197,9 @@ class TestBuildAiCodeEvents:
         assert event["requestId"] == "wire-1"
         assert event["sessionId"] == SESSION_ID
         assert UUID_FORM.fullmatch(event["reportId"])
-        assert event["blocks"] == [{"rangeStart": 2, "rangeEnd": 3}]
+        # M4 focus field: the after-side snippet rides along (gated by
+        # the HTTP sink's focus_fields_enabled switch).
+        assert event["blocks"] == [{"rangeStart": 2, "rangeEnd": 3, "snippet": "x"}]
         assert result.truncated_paths == []
 
     def test_missing_before_hash_treated_as_create_whole_range(self) -> None:
@@ -208,7 +210,7 @@ class TestBuildAiCodeEvents:
             {after_hash: "x\ny\n"},
         )
         assert result.events[0]["language"] == "python"
-        assert result.events[0]["blocks"] == [{"rangeStart": 1, "rangeEnd": 2}]
+        assert result.events[0]["blocks"] == [{"rangeStart": 1, "rangeEnd": 2, "snippet": "x\ny\n"}]
 
     def test_skips_delete_and_net_zero_changes(self) -> None:
         before_hash = sha256("a\n")
@@ -278,7 +280,7 @@ class TestBuildAiCodeEvents:
         assert len(result.events) == 1
         # Merge: earliest snapshot v1 vs final v3 — the v2 middle state
         # does not participate.
-        assert result.events[0]["blocks"] == [{"rangeStart": 1, "rangeEnd": 2}]
+        assert result.events[0]["blocks"] == [{"rangeStart": 1, "rangeEnd": 2, "snippet": "v3"}]
 
     def test_falls_back_to_first_mutation_before_hash_without_snapshot(self) -> None:
         first_before = sha256("a\n")
@@ -296,7 +298,7 @@ class TestBuildAiCodeEvents:
             {first_before: "a\n", after: "a\nb\n"},
         )
         assert len(result.events) == 1
-        assert result.events[0]["blocks"] == [{"rangeStart": 2, "rangeEnd": 2}]
+        assert result.events[0]["blocks"] == [{"rangeStart": 2, "rangeEnd": 2, "snippet": "b"}]
 
     def test_move_compares_against_old_path_content(self) -> None:
         before_hash = sha256("old-a\nold-b\n")
@@ -315,7 +317,7 @@ class TestBuildAiCodeEvents:
             ),
             {before_hash: "old-a\nold-b\n", after_hash: "new-a\nnew-b\nnew-c\n"},
         )
-        assert result.events[0]["blocks"] == [{"rangeStart": 1, "rangeEnd": 5}]
+        assert result.events[0]["blocks"] == [{"rangeStart": 1, "rangeEnd": 5, "snippet": "new-a\nnew-b\nnew-c"}]
 
     def test_keeps_event_but_drops_blocks_when_blobs_missing(self) -> None:
         before_hash = sha256("a\n")
@@ -632,7 +634,7 @@ class TestBuildAiCodeEvents:
         )
         # \r stays inside line content without changing line counts:
         # same range basis as LF-equivalent content (plan §6.3 item 8).
-        assert result.events[0]["blocks"] == [{"rangeStart": 2, "rangeEnd": 3}]
+        assert result.events[0]["blocks"] == [{"rangeStart": 2, "rangeEnd": 3, "snippet": "x\r"}]
 
     def test_normalizes_fallback_filepath_separators_for_report_id(self) -> None:
         outside_git = FakeGitContext(git_root=None)

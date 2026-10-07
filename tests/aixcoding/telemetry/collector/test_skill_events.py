@@ -123,8 +123,11 @@ class TestBuildSkillEvents:
         assert event["gitRevision"] == "rev-1"
         assert event["gitOwner"] == "team"
         assert event["gitRepo"] == "proj"
-        # Never carried (contract §2.3).
-        for key in ("funcId", "value", "extra", "fileName", "requestId", "gitRemote"):
+        # Never carried (contract §2.3). gitRemote IS constructed here
+        # (registration-focus common field, M4) and gated by the HTTP
+        # sink's focus_fields_enabled switch, not by this layer.
+        assert event["gitRemote"] == "https://cnb.boecy.cn/team/proj"
+        for key in ("funcId", "value", "extra", "fileName", "requestId"):
             assert key not in event
 
     def test_accepts_full_width_slash_and_bare_token(self) -> None:

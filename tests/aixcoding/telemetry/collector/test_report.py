@@ -71,6 +71,21 @@ AI_CODE_SAVED: dict[str, Any] = {
     "blocks": [{"rangeStart": 1, "rangeEnd": 12}],
 }
 
+# Registration-focus fields (registration table §3.1): the analysis
+# layer constructs them, the HTTP sink's focus_fields_enabled switch
+# (default False) keeps them out of the remote payload.
+FOCUS_SAVE: dict[str, Any] = {
+    "value": "src/a.ts",
+    "fileName": "src/a.ts",
+    "extra": {"mcpUri": "mcp://docs/tool"},
+    "gitRemote": "https://cnb.example.com/team/proj",
+}
+FOCUS_UPDATE: dict[str, Any] = {"funcErrorMessage": "boom"}
+FOCUS_AI_CODE: dict[str, Any] = {
+    "filepath": "src/a.ts",
+}
+FOCUS_AI_CODE_BLOCKS: list[dict[str, Any]] = [{"rangeStart": 1, "rangeEnd": 3, "snippet": "new line"}]
+
 
 def report_of(events: list[dict[str, Any]]) -> SessionTelemetryReport:
     return SessionTelemetryReport(
@@ -209,6 +224,44 @@ class TestPlanReportRequests:
 
     def test_returns_no_requests_for_empty_events(self) -> None:
         assert plan_report_requests([]) == []
+
+    def test_focus_fields_stay_out_of_the_remote_payload_by_default(self) -> None:
+        requests = plan_report_requests(
+            [
+                {**TOOL_USE_SAVED, **FOCUS_SAVE},
+                {**INPUT_TRIGGERED_USE, "gitRemote": FOCUS_SAVE["gitRemote"]},
+                {**TOOL_STATUS_UPDATED, **FOCUS_UPDATE},
+                {**AI_CODE_SAVED, **FOCUS_AI_CODE, "blocks": FOCUS_AI_CODE_BLOCKS},
+            ]
+        )
+        save_body, batch_body, update_body, ai_code_body = (request.body for request in requests)
+        for key in ("value", "fileName", "extra", "gitRemote"):
+            assert key not in save_body
+        assert "gitRemote" not in batch_body[0]
+        assert "funcErrorMessage" not in update_body
+        assert "filepath" not in ai_code_body
+        # The per-block snippet alone is gated; the ranges stay.
+        assert ai_code_body["blocks"] == [{"rangeStart": 1, "rangeEnd": 3}]
+
+    def test_focus_fields_enter_the_remote_payload_when_enabled(self) -> None:
+        requests = plan_report_requests(
+            [
+                {**TOOL_USE_SAVED, **FOCUS_SAVE},
+                {**INPUT_TRIGGERED_USE, "gitRemote": FOCUS_SAVE["gitRemote"]},
+                {**TOOL_STATUS_UPDATED, **FOCUS_UPDATE},
+                {**AI_CODE_SAVED, **FOCUS_AI_CODE, "blocks": FOCUS_AI_CODE_BLOCKS},
+            ],
+            focus_fields_enabled=True,
+        )
+        save_body, batch_body, update_body, ai_code_body = (request.body for request in requests)
+        assert save_body["value"] == "src/a.ts"
+        assert save_body["fileName"] == "src/a.ts"
+        assert save_body["extra"] == {"mcpUri": "mcp://docs/tool"}
+        assert save_body["gitRemote"] == FOCUS_SAVE["gitRemote"]
+        assert batch_body[0]["gitRemote"] == FOCUS_SAVE["gitRemote"]
+        assert update_body["funcErrorMessage"] == "boom"
+        assert ai_code_body["filepath"] == "src/a.ts"
+        assert ai_code_body["blocks"] == FOCUS_AI_CODE_BLOCKS
 
     def test_attaches_version_headers_to_saves_only_with_planning(self) -> None:
         content_hash = "a" * 64

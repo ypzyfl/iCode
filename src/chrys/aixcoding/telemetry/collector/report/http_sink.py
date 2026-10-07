@@ -32,6 +32,13 @@ class HttpReportSinkOptions:
     token: str | None
     client: httpx.Client
     timeout_ms: int = 10_000
+    # Registration-focus fields (value/fileName/extra/gitRemote/
+    # funcErrorMessage/filepath/blocks[].snippet) stay out of the
+    # remote payload until the D1 registration table is approved (ADR
+    # 0041 decision 4 allowlist boundary; the file sink observes them
+    # locally regardless). Flipping this plus advancing
+    # ANALYSIS_VERSION releases them in one shot.
+    focus_fields_enabled: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,12 +66,15 @@ class ReportRequestPlanning:
 def plan_report_requests(
     events: list[dict[str, Any]],
     planning: ReportRequestPlanning | None = None,
+    focus_fields_enabled: bool = False,
 ) -> list[PlannedReportRequest]:
     """Events → request sequence. Consecutive input-triggered-use
     events aggregate into a batch-save array. Body construction omits
     absent/None event fields (the TS omitUndefined parity: event dicts
     never carry explicit null values — the analysis constructors add
-    keys conditionally)."""
+    keys conditionally). focus_fields_enabled gates the
+    registration-focus fields out of the remote payload (registration
+    table §3.1; the file sink observes them locally)."""
     requests: list[PlannedReportRequest] = []
     pending_batch: list[dict[str, Any]] | None = None
 
@@ -92,7 +102,7 @@ def plan_report_requests(
             # None-narrowing does not survive across statements — bind
             # a local alias.
             batch = pending_batch if pending_batch is not None else []
-            batch.append(_input_triggered_use_body(event))
+            batch.append(_input_triggered_use_body(event, focus_fields_enabled))
             pending_batch = batch
             continue
         flush_batch()
@@ -100,17 +110,22 @@ def plan_report_requests(
             requests.append(
                 PlannedReportRequest(
                     path="tool-detail/save",
-                    body=_tool_use_saved_body(event),
+                    body=_tool_use_saved_body(event, focus_fields_enabled),
                     headers=version_headers(event),
                 )
             )
         elif kind == "tool-status-updated":
-            requests.append(PlannedReportRequest(path="tool-detail/update", body=_tool_status_updated_body(event)))
+            requests.append(
+                PlannedReportRequest(
+                    path="tool-detail/update",
+                    body=_tool_status_updated_body(event, focus_fields_enabled),
+                )
+            )
         else:
             requests.append(
                 PlannedReportRequest(
                     path="ai-code/save",
-                    body=_ai_code_saved_body(event),
+                    body=_ai_code_saved_body(event, focus_fields_enabled),
                     headers=version_headers(event),
                 )
             )
@@ -124,6 +139,7 @@ class HttpReportSink:
         self._token = options.token
         self._client = options.client
         self._timeout_ms = options.timeout_ms
+        self._focus_fields_enabled = options.focus_fields_enabled
 
     def report(self, event: SessionTelemetryReport) -> PortResult:
         # Version idempotency headers (contract §2.1): save/ai-code
@@ -136,7 +152,7 @@ class HttpReportSink:
             analysis_version=event.analysis_version,
             content_hash_by_span_id=content_hash_by_span_id,
         )
-        for request in plan_report_requests(event.report_events, planning):
+        for request in plan_report_requests(event.report_events, planning, self._focus_fields_enabled):
             result = self._send(request)
             if not result.success:
                 return result
@@ -189,83 +205,95 @@ def _pick(event: dict[str, Any], keys: tuple[str, ...]) -> dict[str, Any]:
     return {key: event[key] for key in keys if event.get(key) is not None}
 
 
-def _input_triggered_use_body(event: dict[str, Any]) -> dict[str, Any]:
-    return _pick(
-        event,
-        (
-            "funcType",
-            "funcName",
-            "spanId",
-            "sessionId",
-            "userId",
-            "projectName",
-            "channelType",
-            "channelName",
-            "channelVersion",
-            "pluginVersion",
-            "gitBranch",
-            "gitRevision",
-            "gitOwner",
-            "gitRepo",
-        ),
+def _input_triggered_use_body(event: dict[str, Any], focus_fields_enabled: bool = False) -> dict[str, Any]:
+    keys = (
+        "funcType",
+        "funcName",
+        "spanId",
+        "sessionId",
+        "userId",
+        "projectName",
+        "channelType",
+        "channelName",
+        "channelVersion",
+        "pluginVersion",
+        "gitBranch",
+        "gitRevision",
+        "gitOwner",
+        "gitRepo",
     )
+    if focus_fields_enabled:
+        keys += ("gitRemote",)
+    return _pick(event, keys)
 
 
-def _tool_use_saved_body(event: dict[str, Any]) -> dict[str, Any]:
-    return _pick(
-        event,
-        (
-            "productName",
-            "projectName",
-            "funcType",
-            "funcName",
-            "funcId",
-            "requestId",
-            "spanId",
-            "sessionId",
-            "userId",
-            "codeStatus",
-            "channelType",
-            "channelName",
-            "channelVersion",
-            "pluginVersion",
-            "gitBranch",
-            "gitRevision",
-            "gitOwner",
-            "gitRepo",
-        ),
+def _tool_use_saved_body(event: dict[str, Any], focus_fields_enabled: bool = False) -> dict[str, Any]:
+    keys = (
+        "productName",
+        "projectName",
+        "funcType",
+        "funcName",
+        "funcId",
+        "requestId",
+        "spanId",
+        "sessionId",
+        "userId",
+        "codeStatus",
+        "channelType",
+        "channelName",
+        "channelVersion",
+        "pluginVersion",
+        "gitBranch",
+        "gitRevision",
+        "gitOwner",
+        "gitRepo",
     )
+    if focus_fields_enabled:
+        keys += ("value", "fileName", "extra", "gitRemote")
+    return _pick(event, keys)
 
 
-def _tool_status_updated_body(event: dict[str, Any]) -> dict[str, Any]:
-    return _pick(
-        event,
-        (
-            "funcId",
-            "codeStatus",
-            "originalLines",
-            "addedLines",
-            "deletedLines",
-        ),
+def _tool_status_updated_body(event: dict[str, Any], focus_fields_enabled: bool = False) -> dict[str, Any]:
+    keys = (
+        "funcId",
+        "codeStatus",
+        "originalLines",
+        "addedLines",
+        "deletedLines",
     )
+    if focus_fields_enabled:
+        keys += ("funcErrorMessage",)
+    return _pick(event, keys)
 
 
-def _ai_code_saved_body(event: dict[str, Any]) -> dict[str, Any]:
-    return _pick(
-        event,
-        (
-            "reportId",
-            "sessionId",
-            "spanId",
-            "requestId",
-            "blocks",
-            "sourceType",
-            "channelType",
-            "inputMethod",
-            "language",
-            "remoteUrl",
-            "branch",
-            "gitUserName",
-            "gitUserEmail",
-        ),
+def _ai_code_saved_body(event: dict[str, Any], focus_fields_enabled: bool = False) -> dict[str, Any]:
+    keys = (
+        "reportId",
+        "sessionId",
+        "spanId",
+        "requestId",
+        "blocks",
+        "sourceType",
+        "channelType",
+        "inputMethod",
+        "language",
+        "remoteUrl",
+        "branch",
+        "gitUserName",
+        "gitUserEmail",
     )
+    if focus_fields_enabled:
+        keys += ("filepath",)
+    body = _pick(event, keys)
+    if not focus_fields_enabled:
+        blocks = body.get("blocks")
+        if blocks:
+            # The per-block snippet is a registration-focus field:
+            # strip it while the ranges stay (the block itself is not
+            # gated — the snippet source alone is).
+            body["blocks"] = [
+                {key: value for key, value in block.items() if key != "snippet"}
+                for block in blocks
+                if isinstance(block, dict)
+            ]
+    return body

@@ -14,8 +14,10 @@ revision-level retries recompute the same value. Scale caps (blob 2MB /
 blocks 64 / files 256): deterministic truncation, lossy but
 successful; truncated paths surface via truncatedPaths (the
 orchestration layer logs them; the ledger still writes).
-``filepath``/``blocks[].snippet`` are registration-focus fields and do
-not enter the payload.
+``filepath``/``blocks[].snippet`` are registration-focus fields,
+constructed with the redaction rules (M4) and gated behind the HTTP
+sink's focus_fields_enabled switch (default False, remote payload
+excluded; the file sink observes them locally).
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ from typing import Any
 from chrys.aixcoding.telemetry.collector.analysis.attachments import MutationBlobReader, split_lines
 from chrys.aixcoding.telemetry.collector.analysis.context import EventCommonContext, build_event_common
 from chrys.aixcoding.telemetry.collector.analysis.exchanges import ToolTriple, build_tool_triples
+from chrys.aixcoding.telemetry.collector.analysis.focus_fields import clip_snippet
 from chrys.aixcoding.telemetry.collector.analysis.git_context import GitContextResolver
 from chrys.aixcoding.telemetry.collector.analysis.line_diff import compute_line_diff
 from chrys.aixcoding.telemetry.collector.analysis.mutation_matching import (
@@ -231,24 +234,35 @@ def _group_net_changes(
     return changes
 
 
-def _diff_blocks(before_text: str, after_text: str) -> list[dict[str, int]]:
+def _diff_blocks(before_text: str, after_text: str) -> list[dict[str, Any]]:
     """Diff op sequence → changed line ranges (1-based, contiguous edit
-    runs merged)."""
+    runs merged) with the after-side snippet per block (M4 focus field,
+    clipped to 64KB — focus_fields.clip_snippet)."""
     before_lines = split_lines(before_text)
     after_lines = split_lines(after_text)
     ops = compute_line_diff(before_lines, after_lines)
     if ops is None:
         return []
-    blocks: list[dict[str, int]] = []
+    blocks: list[dict[str, Any]] = []
     index = 0
+    after_index = 0
     while index < len(ops):
         if ops[index] not in ("+", "-"):
+            if ops[index] == "=":
+                after_index += 1
             index += 1
             continue
         end = index
+        snippet_lines: list[str] = []
         while end < len(ops) and ops[end] in ("+", "-"):
+            if ops[end] == "+":
+                snippet_lines.append(after_lines[after_index])
+                after_index += 1
             end += 1
-        blocks.append({"rangeStart": index + 1, "rangeEnd": end})
+        block: dict[str, Any] = {"rangeStart": index + 1, "rangeEnd": end}
+        if snippet_lines:
+            block["snippet"] = clip_snippet("\n".join(snippet_lines))
+        blocks.append(block)
         index = end
     return blocks[:MAX_BLOCKS_PER_FILE]
 
@@ -372,7 +386,7 @@ def build_ai_code_events(inputs: AiCodeEventInputs) -> AiCodeEventResult:
         # blocks: before/after blob line diff; blob missing/skipped/over
         # cap → blocks=[] (the event survives, only the ranges are
         # lost).
-        blocks: list[dict[str, int]] = []
+        blocks: list[dict[str, Any]] = []
         if change.initial_hash is None:
             after_text = (
                 blob_reader.read_blob_text(change.final_after_hash) if change.final_after_hash is not None else None
@@ -380,7 +394,13 @@ def build_ai_code_events(inputs: AiCodeEventInputs) -> AiCodeEventResult:
             if after_text is not None:
                 line_count = len(split_lines(after_text))
                 if line_count > 0:
-                    blocks = [{"rangeStart": 1, "rangeEnd": line_count}]
+                    blocks = [
+                        {
+                            "rangeStart": 1,
+                            "rangeEnd": line_count,
+                            "snippet": clip_snippet(after_text),
+                        }
+                    ]
         elif change.final_after_hash is not None:
             before_text = blob_reader.read_blob_text(change.initial_hash)
             after_text = blob_reader.read_blob_text(change.final_after_hash)
@@ -405,6 +425,10 @@ def build_ai_code_events(inputs: AiCodeEventInputs) -> AiCodeEventResult:
             "sourceType": "edit",
             "inputMethod": "agent",
             "blocks": blocks,
+            # M4 focus field: the K5 relativized form (the reportId
+            # derivation input, contract §3.5); the HTTP sink gates it
+            # behind focus_fields_enabled.
+            "filepath": filepath,
         }
         if request_id is not None:
             event["requestId"] = request_id
