@@ -53,7 +53,11 @@ __all__ = [
 
 # Compile-time built-in analysis version; upgrade re-analysis triggers
 # via the ledger's analysis_version comparison.
-ANALYSIS_VERSION = 1
+# v2 (M4): the K2 channelName/channelVersion columns entered the remote
+# payload (proceed-by-default); already-reported sessions re-report under
+# this version so the backend records the new columns (idempotency key
+# includes the version).
+ANALYSIS_VERSION = 2
 
 _TITLE_MAX_LENGTH = 200
 _PATH_SPLIT = re.compile(r"[\\/]")

@@ -300,7 +300,7 @@ class TestAnalyzeSessionRevision:
             )
 
         assert run() == run()
-        assert ANALYSIS_VERSION == 1
+        assert ANALYSIS_VERSION == 2
 
     def test_session_level_fields_never_enter_turn_content_hash(self) -> None:
         first = analyze_session_revision(
