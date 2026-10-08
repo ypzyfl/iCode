@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -14,7 +15,7 @@ from chrys.foundation.config.settings import Settings
 from chrys.foundation.config.settings_store import LoadedSettings, SettingsHandle
 from chrys.foundation.events.bus import EventBus
 from chrys.foundation.events.types import AGENT_LOAD_STATUS_DONE, AgentLoadProgress, Warning
-from chrys.foundation.i18n import DisplayBlock, Localizer
+from chrys.foundation.i18n import DisplayBlock, DisplayPath, Localizer
 from chrys.foundation.models.workspace import Workspace
 from chrys.orchestration import session_hooks
 from chrys.orchestration.engine.assembly import assemble_agent_engine
@@ -24,12 +25,9 @@ from chrys.orchestration.engine.build.loaded import CompletedBuild
 from chrys.orchestration.engine.engine import AgentEngine
 from chrys.orchestration.engine.loader import AgentLoader
 from chrys.orchestration.engine.trajectory import TrajectoryRecorder
-from chrys.service.agent_middleware.system_reminder import (
-    CATALOG_POINTER_RECORD_COUNT_STATE_KEY,
-    DropRoundBreakerState,
-    ManifestEntry,
-    SystemReminderMiddleware,
-)
+from chrys.orchestration.invoker.runtime import restore_phase4_state
+from chrys.service.agent_middleware.reminders.archive_pointer import CATALOG_POINTER_RECORD_COUNT_STATE_KEY
+from chrys.service.context.compaction.last_words_state import DropRoundBreakerState, ManifestEntry
 from chrys.service.hooks.events import HookEvent
 from chrys.service.hooks.loader import merge_hooks_files
 from chrys.service.hooks.manager import HookManager
@@ -38,6 +36,7 @@ from chrys.service.profiles.agents.schema import AgentProfile
 from chrys.service.state.store import JsonFileStateStore
 from chrys.service.trajectory.session import SessionTrajectory
 from tests.support.loaded_agents import install_loaded_agent, make_loaded_agent, make_manifest
+from tests.support.reminder_stack import reminder_pair
 from tests.support.waiting import wait_until
 
 
@@ -278,7 +277,7 @@ async def test_hook_manager_build_normalizes_missing_global_hooks_to_none(
     monkeypatch.setattr("chrys.service.hooks.loader.merge_hooks_files", _fake_merge_hooks_files)
 
     with pytest.raises(_StopStartup):
-        await engine.loader.build_hook_manager(project_root=str(project_root))
+        await engine.loader.build_hook_manager(project_root=str(project_root), project_hooks_enabled=True)
 
     assert seen["project"] is None
     assert seen["global_"] is None
@@ -312,7 +311,7 @@ async def test_hook_manager_build_for_settings_only_global_hooks_file(
     monkeypatch.setattr("chrys.service.hooks.loader.load_hooks_dir", _fake_load_hooks_dir)
     monkeypatch.setattr("chrys.service.hooks.loader.load_hooks_project", _fake_load_hooks_project)
 
-    manager = await engine.loader.build_hook_manager(project_root=str(project_root))
+    manager = await engine.loader.build_hook_manager(project_root=str(project_root), project_hooks_enabled=True)
 
     assert manager is not None
     assert manager.file.settings.shutdown_grace_seconds == 9.0
@@ -327,7 +326,7 @@ async def test_hook_manager_build_uses_isolated_global_config_dir(
     project_root.mkdir()
     engine = _Engine(project_root)
 
-    assert await engine.loader.build_hook_manager(project_root=str(project_root)) is None
+    assert await engine.loader.build_hook_manager(project_root=str(project_root), project_hooks_enabled=True) is None
 
     hooks_dir = _isolate_hook_config_dir / "hooks"
     hooks_dir.mkdir(parents=True)
@@ -344,7 +343,7 @@ hooks:
         encoding="utf-8",
     )
 
-    manager = await engine.loader.build_hook_manager(project_root=str(project_root))
+    manager = await engine.loader.build_hook_manager(project_root=str(project_root), project_hooks_enabled=True)
 
     assert manager is not None
     assert [hook.id for hook in manager.file.hooks] == ["isolated-global-hook"]
@@ -373,7 +372,7 @@ hooks:
     )
     engine = _Engine(project_root)
 
-    with_project = await engine.loader.build_hook_manager(project_root=str(project_root))
+    with_project = await engine.loader.build_hook_manager(project_root=str(project_root), project_hooks_enabled=True)
     assert with_project is not None
     assert [hook.id for hook in with_project.file.hooks] == ["project-hook"]
 
@@ -412,7 +411,7 @@ async def test_settings_reload_flipping_project_hooks_rebuilds_the_hook_manager(
     await engine.loader.reload(
         profile,
         operation="settings_reload",
-        staged_loaded=LoadedSettings(settings=Settings(project_hooks_enabled=True), provenance={}),
+        staged_loaded=LoadedSettings(settings=Settings(project_hooks_enabled=False), provenance={}),
     )
     assert builds == []
     assert engine.session.hook_manager is old_manager
@@ -420,12 +419,12 @@ async def test_settings_reload_flipping_project_hooks_rebuilds_the_hook_manager(
     await engine.loader.reload(
         profile,
         operation="settings_reload",
-        staged_loaded=LoadedSettings(settings=Settings(project_hooks_enabled=False), provenance={}),
+        staged_loaded=LoadedSettings(settings=Settings(project_hooks_enabled=True), provenance={}),
     )
     if engine.session.outbox_recovery_task is not None:
         await engine.session.outbox_recovery_task
 
-    assert builds == [(workspace.primary_cwd, False)]
+    assert builds == [(workspace.primary_cwd, True)]
     assert old_manager.closed is True
     assert engine.session.hook_manager is new_manager
 
@@ -466,7 +465,7 @@ async def test_hook_manager_config_warning_keeps_legacy_text_and_semantics(
     monkeypatch.setattr("chrys.service.hooks.loader.load_hooks_dir", _load_global)
     monkeypatch.setattr("chrys.service.hooks.loader.load_hooks_project", _load_project)
 
-    assert await engine.loader.build_hook_manager(project_root=str(project_root)) is None
+    assert await engine.loader.build_hook_manager(project_root=str(project_root), project_hooks_enabled=True) is None
 
     assert len(warnings) == 1
     if invalid_source == "global":
@@ -491,6 +490,68 @@ async def test_hook_manager_config_warning_keeps_legacy_text_and_semantics(
     assert reference is not None
     assert reference.definition.key == expected_key
     assert dict(reference.args) == {"detail": DisplayBlock(expected_detail)}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["global", "project"])
+async def test_hook_with_an_invalid_regex_is_skipped_with_a_warning_naming_it_and_its_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source: str,
+) -> None:
+    config_dir = tmp_path / "config"
+    project_root = tmp_path / "project"
+    hooks_dir = config_dir / "hooks" if source == "global" else project_root / ".chrys" / "hooks"
+    hooks_dir.mkdir(parents=True)
+    project_root.mkdir(exist_ok=True)
+    hooks_path = hooks_dir / "hooks.yaml"
+    hooks_path.write_text(
+        "version: 1\n"
+        "hooks:\n"
+        "  - id: guard\n"
+        "    event: before_tool_call\n"
+        "    match: {args: {command: {regex: 'rm (-rf'}}}\n"
+        "    run: {type: command, argv: [/bin/true]}\n"
+        "  - id: guard-sudo\n"
+        "    event: before_tool_call\n"
+        "    match: {args: {command: {regex: '^sudo '}}}\n"
+        "    run: {type: command, argv: [/bin/true]}\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(re.error) as regex_error:
+        re.compile("rm (-rf")
+    reason = f"match.args.command.regex is not a valid regular expression: {regex_error.value}"
+    engine = _Engine(project_root)
+    warnings: list[Warning] = []
+
+    async def _capture(event: Warning) -> None:
+        warnings.append(event)
+
+    def _fake_get_platform() -> SimpleNamespace:
+        return SimpleNamespace(config_dir=config_dir)
+
+    await engine.event_bus.subscribe(Warning, _capture)
+    monkeypatch.setattr(session_hooks, "get_platform", _fake_get_platform)
+
+    manager = await engine.loader.build_hook_manager(project_root=str(project_root), project_hooks_enabled=True)
+
+    assert manager is not None
+    assert [hook.id for hook in manager.file.hooks] == ["guard-sudo"]
+    assert [(warning.code, warning.message, warning.session_id) for warning in warnings] == [
+        (
+            "hook_skipped",
+            f"Hook 'guard' in {hooks_path} was skipped: {reason}. The other hooks in this file still run.",
+            "session-1",
+        )
+    ]
+    reference = warnings[0].display_message
+    assert reference is not None
+    assert reference.definition.key == "construction.hook_skipped"
+    assert dict(reference.args) == {
+        "hook_id": "guard",
+        "path": DisplayPath(str(hooks_path)),
+        "detail": DisplayBlock(reason),
+    }
 
 
 @pytest.mark.asyncio
@@ -683,8 +744,9 @@ async def test_soft_restart_rearms_preserved_phase4_state(
         "last_words_manifest": [entry.to_state()],
         "last_words_breaker": breaker.to_state(),
     }
-    install_loaded_agent(engine, reminder_middleware=SystemReminderMiddleware())
-    engine.current.loaded.reminder_middleware.restore_catalog_pointer_record_count(7)
+    reminder, last_words = reminder_pair()
+    install_loaded_agent(engine, reminder_middleware=reminder, last_words=last_words)
+    engine.current.loaded.reminder_middleware.sources.archive_pointer.restore_record_count(7)
 
     async def _fake_build_agent(
         _profile: AgentProfile,
@@ -695,12 +757,13 @@ async def test_soft_restart_rearms_preserved_phase4_state(
     ) -> CompletedBuild:
         candidate = _completed_build(engine, staged, engine_services=engine_services)
         candidate = replace(candidate, loaded=replace(candidate.loaded, bindings=_FakeExecutor()))
-        install_loaded_agent(engine, reminder_middleware=SystemReminderMiddleware())
+        displaced_reminder, displaced_last_words = reminder_pair()
+        install_loaded_agent(engine, reminder_middleware=displaced_reminder, last_words=displaced_last_words)
         # Mirror the real commit tail: the preserved conversation and phase-4
         # state go live with the executor, and the manager binds that dict.
         if preserved_history is not None:
             candidate.loaded.bindings.backend.history_state = preserved_history
-            candidate.loaded.reminder_middleware.restore_phase4_state(preserved_history)
+            restore_phase4_state(candidate.loaded.reminder_middleware, candidate.loaded.last_words, preserved_history)
         return candidate
 
     monkeypatch.setattr(engine.loader, "build", _fake_build_agent)
@@ -708,19 +771,20 @@ async def test_soft_restart_rearms_preserved_phase4_state(
     await engine.loader.reload(profile, operation="model_switch")
 
     middleware = engine.current.loaded.reminder_middleware
+    state = engine.current.loaded.last_words
     assert middleware is not None
-    assert middleware.get_last_words() == "[LAST_WORDS] resume from step 3"
-    assert middleware.get_last_words_manifest()[0]["record_id"] == "r1"
-    assert middleware.get_drop_round_breaker() == breaker
-    assert middleware.get_catalog_pointer_record_count_state() == 7
+    assert state.get_last_words() == "[LAST_WORDS] resume from step 3"
+    assert state.get_last_words_manifest()[0]["record_id"] == "r1"
+    assert state.get_drop_round_breaker() == breaker
+    assert middleware.sources.archive_pointer.record_count_state() == 7
     assert engine.current.loaded.bindings.backend.history_state[CATALOG_POINTER_RECORD_COUNT_STATE_KEY] == 7
 
     middleware.prepare_turn(usage={}, preserve_last_words=True)
 
-    assert middleware.get_last_words() == "[LAST_WORDS] resume from step 3"
-    assert middleware.get_last_words_manifest()[0]["record_id"] == "r1"
-    assert middleware.get_drop_round_breaker() == breaker
-    assert middleware.get_catalog_pointer_record_count_state() == 7
+    assert state.get_last_words() == "[LAST_WORDS] resume from step 3"
+    assert state.get_last_words_manifest()[0]["record_id"] == "r1"
+    assert state.get_drop_round_breaker() == breaker
+    assert middleware.sources.archive_pointer.record_count_state() == 7
 
 
 @pytest.mark.asyncio

@@ -75,8 +75,9 @@ from chrys.service.agent_middleware import (
     TodoMiddleware,
 )
 from chrys.service.agent_middleware.injection import InjectionMiddleware
-from chrys.service.agent_middleware.system_reminder import DropRoundBreakerState, SystemReminderMiddleware
+from chrys.service.agent_middleware.system_reminder import SystemReminderMiddleware
 from chrys.service.approval.policy import ApprovalMode, ApprovalPolicy
+from chrys.service.context.compaction.last_words_state import DropRoundBreakerState, LastWordsState
 from chrys.service.context.compaction.spill import COMPACTIONS_DIR_NAME
 from chrys.service.context.memory_loader import load_memory_content, memory_truncated_warning
 from chrys.service.llm.clients import create_client, effective_model_base_url
@@ -218,6 +219,7 @@ class AgentBuildResult:
     runtime: SessionEnvironment
     loop_recorder: LoopRecorder
     reminder_middleware: SystemReminderMiddleware
+    last_words: LastWordsState
     sub_agent_tools: SubAgentTools | None
     mcp_adapter: MCPAdapter | None
     skills_provider: ChrysSkillsProvider | None
@@ -682,6 +684,7 @@ async def build_agent(
         mcp_tools_by_server: dict[str, list[str]] = {}
         if profile.tools.mcp:
             from chrys.service.mcp.adapter import MCPAdapter
+            from chrys.service.mcp.thinking_warning import warn_if_tool_loading_unbinds_thinking
 
             reserved_tool_names = chrys_reserved_tool_names()
             reserved_tool_names.update(tool.name for tool in tools)
@@ -731,6 +734,7 @@ async def build_agent(
             mcp_tools = await mcp_adapter.connect_all(profile.tools.mcp, progress=_mcp_progress)
             mcp_tools_by_server = mcp_adapter.tool_names_by_server
             tools.extend(mcp_tools)
+            warn_if_tool_loading_unbinds_thinking(profile, active_profile, chat_options, mcp_tools_by_server)
 
         # Build skills provider (if configured)
         await _progress(AGENT_LOAD_PHASE_SKILLS, "Loading skills", status=AGENT_LOAD_STATUS_RUNNING)
@@ -741,6 +745,7 @@ async def build_agent(
             profile.skills,
             runtime=runtime,
             session_dir=effective_session_dir,
+            project_skills_enabled=settings.project_skills_enabled,
         )
         if skills_provider is not None:
             context_providers.append(skills_provider)
@@ -942,6 +947,7 @@ async def build_agent(
             raise RuntimeError("The main agent assembly requires response validation middleware.")
         agent = assembled.agent
         reminder_middleware = assembled.reminder
+        last_words = assembled.last_words
         await agent.__aenter__()
         # Register agent cleanup BEFORE anything below can fail — an un-exited
         # Agent leaks its transport/session.
@@ -1029,6 +1035,7 @@ async def build_agent(
             runtime=runtime,
             loop_recorder=loop_recorder,
             reminder_middleware=reminder_middleware,
+            last_words=last_words,
             sub_agent_tools=sub_agent_tools,
             mcp_adapter=mcp_adapter,
             skills_provider=skills_provider,

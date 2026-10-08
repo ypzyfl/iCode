@@ -338,7 +338,7 @@ def test_spill_fsyncs_records_catalog_and_directory_entries(tmp_path: Path, monk
         fsynced_files.add((stat.st_dev, stat.st_ino))
 
     monkeypatch.setattr(spill_mod.os, "fsync", remember_fsync)
-    monkeypatch.setattr(spill_mod, "_fsync_dir", fsynced_directories.append)
+    monkeypatch.setattr(spill_mod, "fsync_directory", fsynced_directories.append)
 
     result = write_spill_batch(
         tmp_path,
@@ -756,7 +756,7 @@ def test_manifest_display_argument_per_key_caps_and_truncation_styles(tmp_path: 
     """Paths get the wide cap with middle truncation (filename tail survives);
     commands keep the default cap with end truncation; shell calls append the
     ``reason`` segment under its own cap."""
-    from chrys.service.agent_middleware.system_reminder import (
+    from chrys.service.context.compaction.spill import (
         DISPLAY_ARGUMENT_DEFAULT_MAX_CHARS,
         DISPLAY_ARGUMENT_PATH_MAX_CHARS,
         DISPLAY_ARGUMENT_REASON_MAX_CHARS,
