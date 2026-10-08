@@ -183,6 +183,8 @@ ignore = [
 "tests/**" = ["S", "PERF401"]
 # Golden workflow example: user-facing Chinese prose keeps its full-width punctuation
 "tests/service/workflows/fixtures/*" = ["RUF001"]
+# AIxCoding TUI: user-facing Chinese prose keeps its full-width punctuation
+"aixcoding/tui/*" = ["RUF001"]
 [tool.ruff.lint.isort]
 known-first-party = ["chrys"]
 
