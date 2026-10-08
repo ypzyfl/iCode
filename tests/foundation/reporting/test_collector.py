@@ -8,13 +8,13 @@ from collections.abc import Iterator
 
 import httpx
 import pytest
-from scripts import telemetry_mock
-from scripts.telemetry_mock import RunningTelemetryMock
 
 from chrys.foundation.events.bus import EventBus
 from chrys.foundation.events.types import InvocationToolCallResult, InvocationToolCallStart
 from chrys.foundation.models.invocations import InvocationOrigin
 from chrys.foundation.reporting.collector import ReportCollectorConfig, TelemetryReportCollector
+from mock_server.chrys_telemetry import server as chrys_telemetry_server
+from mock_server.chrys_telemetry.server import RunningTelemetryMock
 from tests.support.waiting import wait_for
 
 
@@ -26,7 +26,7 @@ async def _set_fault(mock: RunningTelemetryMock, **config: object) -> None:
 
 @pytest.fixture
 def mock() -> Iterator[RunningTelemetryMock]:
-    running = telemetry_mock.start_telemetry_mock(port=0, quiet=True)
+    running = chrys_telemetry_server.start(port=0, quiet=True)
     yield running
     running.close()
 

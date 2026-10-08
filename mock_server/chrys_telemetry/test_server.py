@@ -1,6 +1,6 @@
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 
-"""Integration tests for the Chrys session reporting mock server (scripts/telemetry_mock.py).
+"""Integration tests for the Chrys session reporting mock server (mock_server/chrys_telemetry/server.py).
 
 Conventions: bind port 0 (kernel-assigned), loopback only; every HTTP call
 goes through ``direct_route`` (bypassing environment/system proxies).
@@ -14,8 +14,9 @@ from typing import Any
 
 import httpx
 import pytest
-from scripts import telemetry_mock
-from scripts.telemetry_mock import RunningTelemetryMock
+
+from mock_server.chrys_telemetry import server as chrys_telemetry_server
+from mock_server.chrys_telemetry.server import RunningTelemetryMock
 
 _CONTENT_HASH = "ab" * 32
 
@@ -26,7 +27,7 @@ def mock_factory() -> Iterator[Callable[..., RunningTelemetryMock]]:
     started: list[RunningTelemetryMock] = []
 
     def _factory(**kwargs: Any) -> RunningTelemetryMock:
-        running = telemetry_mock.start_telemetry_mock(quiet=True, **kwargs)
+        running = chrys_telemetry_server.start(quiet=True, **kwargs)
         started.append(running)
         return running
 
@@ -207,7 +208,7 @@ async def test_debug_dump_and_clear(mock: RunningTelemetryMock, direct_route: No
 
 def test_rejects_non_loopback_host() -> None:
     with pytest.raises(ValueError, match="loopback"):
-        telemetry_mock.start_telemetry_mock(host="0.0.0.0", quiet=True)
+        chrys_telemetry_server.start(host="0.0.0.0", quiet=True)
 
 
 async def test_invalid_fault_config_is_rejected(mock: RunningTelemetryMock, direct_route: None) -> None:

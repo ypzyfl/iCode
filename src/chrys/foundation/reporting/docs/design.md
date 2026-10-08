@@ -31,7 +31,7 @@ iCode（Chrys）需要把会话中的工具调用与代码生成活动上报到 
 |---|---|
 | `src/chrys/foundation/reporting/schemas.py` | 契约单一事实源：端点常量、请求体校验、响应包络判定、幂等头解析。纯 stdlib。 |
 | `src/chrys/foundation/reporting/collector.py` | 发送端：订阅 Invocation 工具事件 → 投影为上报报文 → 后台异步发送。 |
-| `scripts/telemetry_mock.py` | 本地接收端 mock（调试工具，不随产品分发）：stdlib `http.server` + `sqlite3`，导入 schemas 做同一份校验。 |
+| `mock_server/chrys_telemetry/server.py` | 本地接收端 mock（调试工具，不随产品分发）：stdlib `http.server` + `sqlite3`，导入 schemas 做同一份校验；与之配套的集成测试、夹具、README 同目录（`mock_server/chrys_telemetry/`），整个 mock 自包含于该子包。未来新增 mock 按"一服务一子包"分级落位于 `mock_server/`。 |
 | `tests/foundation/reporting/` | 三层测试：schema 单测、mock 集成、collector 端到端（真 EventBus → 真 mock）。 |
 
 分层约束：`reporting` 位于 foundation（tier 0），只依赖 stdlib、httpx（核心依赖）与
@@ -65,7 +65,7 @@ DAG 边界。未来引擎装配（orchestration）引用它属于合法的 `orch
 | `ai-code/save` | `reportId`（主键） | 折叠 |
 | `tool-detail/update` | —（回写该 funcId 最新 save 行） | last-write-wins |
 
-## 4. Mock server（scripts/telemetry_mock.py）
+## 4. Mock server（mock_server/chrys_telemetry/）
 
 - 仅允许 loopback 绑定（127.0.0.1/::1，启动即拒绝其它地址）；默认端口 4321，
   `--port 0` 由内核分配（测试约定）。
@@ -84,7 +84,7 @@ DAG 边界。未来引擎装配（orchestration）引用它属于合法的 `orch
 用法：
 
 ```bash
-uv run python scripts/telemetry_mock.py --port 4321 --db /tmp/chrys-telemetry.db
+uv run python mock_server/chrys_telemetry/server.py --port 4321 --db /tmp/chrys-telemetry.db
 ```
 
 ## 5. Collector（foundation/reporting/collector.py）
@@ -150,7 +150,7 @@ aclose；可选 `bypass_proxy`（复用 `BYPASS_PROXY_MOUNTS`，对齐 MCP trans
 
 ```bash
 # mock server 手工联调
-uv run python scripts/telemetry_mock.py            # 终端摘要
+uv run python mock_server/chrys_telemetry/server.py            # 终端摘要
 open http://127.0.0.1:4321/                        # 观察页
 
 # 指向 mock（第二阶段设置项落地后）
@@ -159,7 +159,7 @@ CHRYS_TELEMETRY_REPORT_ENDPOINT=http://127.0.0.1:4321 uv run icode
 # 回归
 uv run pytest tests/foundation/reporting/ -n 0
 uv run python scripts/chrys_test.py --smart --paths \
-  src/chrys/foundation/reporting scripts/telemetry_mock.py tests/foundation/reporting
+  src/chrys/foundation/reporting mock_server tests/foundation/reporting
 ```
 
 测试约定遵守：mock 绑定端口 0；loopback 出网不触发 integration mark；HTTP 测试带
