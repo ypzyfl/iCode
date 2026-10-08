@@ -1,0 +1,14 @@
+{
+  "models": [
+    {
+       "title": "Granite 4.0 H Micro (Paid, cheapest)",
+      "provider": "openrouter",
+      "model": "ibm-granite/granite-4.0-h-micro",
+      "apiBase": "https://openrouter.ai/api/v1",
+      "contextLength": 256000
+    }
+  ],
+  "aa": {
+    "test": "as"
+  }
+}
