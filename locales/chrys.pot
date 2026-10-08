@@ -4536,6 +4536,18 @@ msgstr ""
 msgid "tui.commands.description.language"
 msgstr ""
 
+#. English: Log in with your AIxCoding account
+#. chrys-meta={"fingerprint":"59c25fea67e0ef15ec30ccad028c05f250a1627534ec8a5f602b7c12c17e497c","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/commands.py
+msgid "tui.commands.description.login"
+msgstr ""
+
+#. English: Log out and clear the stored credential
+#. chrys-meta={"fingerprint":"dc3410e084943b3b4cb322cd1e6ba10ffa2c6266de94ad430186778e7d480200","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/commands.py
+msgid "tui.commands.description.logout"
+msgstr ""
+
 #. English: Show manual page for a command
 #. chrys-meta={"fingerprint":"33b413cc648122d8bbafdb627cad520b9e034ef3ce7fb8a3fd4886f64656f4be","multiline":false,"placeholders":[]}
 #: src/chrys/app/tui/screens/main/commands.py
@@ -6010,6 +6022,24 @@ msgstr ""
 msgid "tui.loading.label"
 msgstr ""
 
+#. English: Logged out
+#. chrys-meta={"fingerprint":"418bf6d8560f18bd77d4ff228ba64ea64333694937a75f1c165b0c81287f3c49","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/screen.py
+msgid "tui.login.logged_out"
+msgstr ""
+
+#. English: Not logged in yet
+#. chrys-meta={"fingerprint":"71356279f75e4fa9a63e34b45d5737dd3ee52f477482b9e0aa37baa0e30c701b","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/screen.py
+msgid "tui.login.not_logged_in"
+msgstr ""
+
+#. English: Logged in as {name}
+#. chrys-meta={"fingerprint":"86611287d072dfcc1ae8375671222dfbba43a8beb053a2c7e46d85056f9bff72","multiline":false,"placeholders":["name"]}
+#: src/chrys/app/tui/screens/main/screen.py
+msgid "tui.login.succeeded"
+msgstr ""
+
 #. English: Copied {count} line from '{module}'
 #. English-plural: Copied {count} lines from '{module}'
 #. chrys-meta={"fingerprint":"4aab8fbc259e563f04cbc3e5e78344e455d645881f14e24a92b4865d68e6aeee","multiline":false,"placeholders":["module"]}
@@ -6345,6 +6375,24 @@ msgstr ""
 #. chrys-meta={"fingerprint":"3f7c56ae96e99b1a79a79fe00abb65869ff28f5086d1820586b4e6603a78b972","multiline":true,"placeholders":["app"]}
 #: src/chrys/app/tui/screens/main/commands.py
 msgid "tui.man.language.body"
+msgstr ""
+
+#. English: Open the AIxCoding device-code login dialog.  The dialog shows a
+#. user code and opens the verification page in your browser automatically;
+#. confirm the grant there to finish logging in.  The credential is stored with
+#. OS-level encryption and is validated silently on the next start. Cancelling
+#. the dialog stores nothing.
+#. chrys-meta={"fingerprint":"4fe2c4d1362b77b33c2fcfa97b7f969e4f0189d6ad9cb85d0560571930fc7186","multiline":true,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/commands.py
+msgid "tui.man.login.body"
+msgstr ""
+
+#. English: Clear the stored AIxCoding credential for the current environment
+#. and log out.  Running this while already logged out is safe: the command
+#. reports the state and does nothing.
+#. chrys-meta={"fingerprint":"8cfd2d4c4f9cf9e63cb26480a6560f73d4a051cc746b676798290dc267574e5d","multiline":true,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/commands.py
+msgid "tui.man.logout.body"
 msgstr ""
 
 #. English: Display detailed documentation for {app} commands.      Without

@@ -123,6 +123,8 @@ def _slash_actions(warn: Any) -> SlashCommandActions:
         configure_settings=lambda _tab: None,
         show_manual_pages=noop,
         warn=warn,
+        open_login=noop,
+        perform_account_logout=noop,
     )
 
 
