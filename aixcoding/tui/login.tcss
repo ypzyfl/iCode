@@ -27,11 +27,17 @@ LoginDialog {
     margin-bottom: 1;
 }
 
-/* Hidden until the device code arrives (toggled from login.py). */
+/* Hidden until the device code arrives; the dialog then adds ``login-coded``. */
 #login-code,
 #login-uri,
 #login-open {
     display: none;
+}
+
+LoginDialog.login-coded #login-code,
+LoginDialog.login-coded #login-uri,
+LoginDialog.login-coded #login-open {
+    display: block;
 }
 
 #login-code {

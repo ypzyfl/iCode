@@ -70,17 +70,26 @@ class LoginDialog(BaseDialog[AccountInfo | None]):
         self._session = session if session is not None else get_login_session()
         self._open_browser = open_browser if open_browser is not None else webbrowser.open
         self._cancel_event = asyncio.Event()
-        self._task: asyncio.Task[None] | None = None
+        # Not ``_task``: that slot belongs to MessagePump's own loop task, and
+        # clobbering it makes every settled-wait read this screen as eternally
+        # busy (the cancel flow then deadlocks inside Pilot's barrier).
+        self._login_task: asyncio.Task[None] | None = None
         self._uri = ""
         super().__init__()
 
     def compose(self) -> ComposeResult:
+        # Hold direct references: the login task starts at Mount -- possibly
+        # before compose() children attach -- so it must never query the DOM.
+        # Visibility is class-driven (login.tcss keys off ``login-coded``).
         with VerticalGroup(id="login-container") as container:
             container.border_title = Text(_TITLE)
             with VerticalGroup(id="login-inner"):
-                yield Static(_STATUS_CONNECTING, id="login-status")
-                yield Static("", id="login-code")
-                yield Static("", id="login-uri")
+                self._status = Static(_STATUS_CONNECTING, id="login-status")
+                yield self._status
+                self._code_view = Static("", id="login-code")
+                yield self._code_view
+                self._uri_view = Static("", id="login-uri")
+                yield self._uri_view
                 yield DialogButtonRow(
                     DialogButtonSpec(_OPEN_BUTTON, id="login-open", variant="primary"),
                     DialogButtonSpec(_CANCEL_BUTTON, id="login-cancel", variant="warning"),
@@ -88,10 +97,7 @@ class LoginDialog(BaseDialog[AccountInfo | None]):
                 )
 
     def on_mount(self) -> None:
-        # No widget queries here: children may not be mounted yet when the
-        # screen's Mount dispatches. The initial hidden state lives in the
-        # tcss; the task only touches widgets after its first await.
-        self._task = asyncio.create_task(self._run_login())
+        self._login_task = asyncio.create_task(self._run_login())
 
     async def _run_login(self) -> None:
         try:
@@ -113,24 +119,18 @@ class LoginDialog(BaseDialog[AccountInfo | None]):
         if self.dismiss_requested:
             return
         self._uri = code.verification_uri_complete or code.verification_uri
-        self.query_one("#login-status", Static).update(_STATUS_WAITING)
-        code_view = self.query_one("#login-code", Static)
-        code_view.update(Text(code.user_code, style="bold"))
-        code_view.display = True
-        uri_view = self.query_one("#login-uri", Static)
-        uri_view.update(self._uri)
-        uri_view.display = True
-        self.query_one("#login-open", Button).display = True
+        self._status.update(_STATUS_WAITING)
+        self._code_view.update(Text(code.user_code, style="bold"))
+        self._uri_view.update(self._uri)
+        self.add_class("login-coded")
         if self._uri:
             self._open_browser(self._uri)
 
     def _show_failure(self, message: str) -> None:
         if self.dismiss_requested:
             return
-        self.query_one("#login-status", Static).update(Text(message, style="red"))
-        for widget_id in ("#login-code", "#login-uri"):
-            self.query_one(widget_id, Static).display = False
-        self.query_one("#login-open", Button).display = False
+        self.remove_class("login-coded")
+        self._status.update(Text(message, style="red"))
 
     @on(Button.Pressed, "#login-open")
     def _on_open(self, _event: Button.Pressed) -> None:
