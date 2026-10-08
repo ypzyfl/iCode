@@ -41,8 +41,9 @@ from aixcoding.auth.types import (
     StoredCredential,
 )
 
-#: Seed interval when the server did not send one.
-DEFAULT_POLL_INTERVAL = 5.0
+#: Fixed poll cadence: the production reference ignores the server-sent
+#: ``result.interval`` and repolls every second.
+DEFAULT_POLL_INTERVAL = 1.0
 
 
 def _default_backend() -> ProtectBackend:
@@ -139,7 +140,7 @@ class LoginSession:
         client = self._make_client()
         token = await client.poll_token(
             device_code.device_code,
-            interval=device_code.interval if device_code.interval > 0 else DEFAULT_POLL_INTERVAL,
+            interval=DEFAULT_POLL_INTERVAL,
             cancel_event=cancel_event,
         )
         account = await client.fetch_user_info(token.token)

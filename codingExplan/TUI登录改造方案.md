@@ -38,9 +38,9 @@ iCode 目前**没有任何 TUI 登录**，所以这不是"改造"而是**新增�
 | 2 | `{authUrl}/auth/device/token` | `{"grant_type":"urn:ietf:params:oauth:grant-type:device_code","device_code":X}` | `{success, result:{error, token, access_token, refresh_token}}`                               |
 | 3 | `{dataUrl}/user/info`         | `{"token": T}`                                                                  | 用户信息，`ehr` 是稳定账号标识                                                                            |
 
-轮询状态机：按服务端 `interval`（1–30s）起步；`authorization_pending` 继续等；`slow_down` 则 interval +5s（上限 30s）；`access_denied` / `expired_token` 立即终止；成功取 `result.token ?? result.access_token`；总超时 15 分钟。
+轮询状态机：固定 1s 间隔起步（忽略服务端 `interval`）；`authorization_pending` 继续等；`slow_down` 则 +5s（上限 30s，兼容保留，正常流程不触发）；`access_denied` / `expired_token` 立即终止；成功取 `result.token ?? result.access_token`；总超时 5 分钟。
 
-**注意**：`aixcoding-continue` 的 `WorkOsAuthProvider.ts:802-851` 用固定 1000ms 轮询、5 分钟超时，而 `agent_studio_new` 用服务端 `interval` + 15 分钟。**本方案取后者**（更规范）。
+**注意**：`aixcoding-continue` 的 `WorkOsAuthProvider.ts:802-851` 用固定 1000ms 轮询、5 分钟超时，而 `agent_studio_new` 用服务端 `interval` + 15 分钟。本方案最初取后者（更规范）。**as-built 修正（2026-10-08）**：按生产对齐要求，改为与 `aixcoding-continue` 一致——固定 1s 轮询 + 5 分钟总超时，忽略服务端 `interval`；`slow_down` 退避作为兼容行为保留。
 
 ### 1.2 环境地址
 
