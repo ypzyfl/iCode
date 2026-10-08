@@ -1,5 +1,5 @@
 {
-  "inventory_sha256": "08b59eaeb036f6e325f5d2a0dc31022ffc3cf9e6f20dbe17247381816676e261",
+  "inventory_sha256": "fc04debf6ccfebce0b837d67f1e485ccb6b88f55529045851bac92f7c676750b",
   "nodes": [
     {
       "cases": [
@@ -1039,6 +1039,226 @@
       "qualname": "wait_for_subprocess",
       "source_column": 12,
       "source_line": 973,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._ensure_client().post(f'{self._config.endpoint}{report.endpoint}', json=report.body, headers=headers)",
+      "identity": "chrys.foundation.reporting.collector:TelemetryReportCollector._post:1",
+      "module": "chrys.foundation.reporting.collector",
+      "ordinal": 1,
+      "primitive": "awaitable",
+      "qualname": "TelemetryReportCollector._post",
+      "source_column": 19,
+      "source_line": 298,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._post(report)",
+      "identity": "chrys.foundation.reporting.collector:TelemetryReportCollector._send:1",
+      "module": "chrys.foundation.reporting.collector",
+      "ordinal": 1,
+      "primitive": "wrapper",
+      "qualname": "TelemetryReportCollector._send",
+      "source_column": 19,
+      "source_line": 276,
+      "wrapper_target": "chrys.foundation.reporting.collector.TelemetryReportCollector._post"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await asyncio.sleep(delays[attempt])",
+      "identity": "chrys.foundation.reporting.collector:TelemetryReportCollector._send:2",
+      "module": "chrys.foundation.reporting.collector",
+      "ordinal": 2,
+      "primitive": "sleep",
+      "qualname": "TelemetryReportCollector._send",
+      "source_column": 16,
+      "source_line": 285,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await queue.get()",
+      "identity": "chrys.foundation.reporting.collector:TelemetryReportCollector._sender_loop:1",
+      "module": "chrys.foundation.reporting.collector",
+      "ordinal": 1,
+      "primitive": "queue",
+      "qualname": "TelemetryReportCollector._sender_loop",
+      "source_column": 21,
+      "source_line": 266,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._send(report)",
+      "identity": "chrys.foundation.reporting.collector:TelemetryReportCollector._sender_loop:2",
+      "module": "chrys.foundation.reporting.collector",
+      "ordinal": 2,
+      "primitive": "wrapper",
+      "qualname": "TelemetryReportCollector._sender_loop",
+      "source_column": 16,
+      "source_line": 268,
+      "wrapper_target": "chrys.foundation.reporting.collector.TelemetryReportCollector._send"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await bus.subscribe(InvocationToolCallStart, self._on_tool_call_start)",
+      "identity": "chrys.foundation.reporting.collector:TelemetryReportCollector.start:1",
+      "module": "chrys.foundation.reporting.collector",
+      "ordinal": 1,
+      "primitive": "awaitable",
+      "qualname": "TelemetryReportCollector.start",
+      "source_column": 8,
+      "source_line": 161,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await bus.subscribe(InvocationToolCallResult, self._on_tool_call_result)",
+      "identity": "chrys.foundation.reporting.collector:TelemetryReportCollector.start:2",
+      "module": "chrys.foundation.reporting.collector",
+      "ordinal": 2,
+      "primitive": "awaitable",
+      "qualname": "TelemetryReportCollector.start",
+      "source_column": 8,
+      "source_line": 162,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await bus.unsubscribe(InvocationToolCallStart, self._on_tool_call_start)",
+      "identity": "chrys.foundation.reporting.collector:TelemetryReportCollector.stop:1",
+      "module": "chrys.foundation.reporting.collector",
+      "ordinal": 1,
+      "primitive": "awaitable",
+      "qualname": "TelemetryReportCollector.stop",
+      "source_column": 12,
+      "source_line": 168,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await bus.unsubscribe(InvocationToolCallResult, self._on_tool_call_result)",
+      "identity": "chrys.foundation.reporting.collector:TelemetryReportCollector.stop:2",
+      "module": "chrys.foundation.reporting.collector",
+      "ordinal": 2,
+      "primitive": "awaitable",
+      "qualname": "TelemetryReportCollector.stop",
+      "source_column": 12,
+      "source_line": 169,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await task",
+      "identity": "chrys.foundation.reporting.collector:TelemetryReportCollector.stop:3",
+      "module": "chrys.foundation.reporting.collector",
+      "ordinal": 3,
+      "primitive": "future",
+      "qualname": "TelemetryReportCollector.stop",
+      "source_column": 16,
+      "source_line": 174,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await client.aclose()",
+      "identity": "chrys.foundation.reporting.collector:TelemetryReportCollector.stop:4",
+      "module": "chrys.foundation.reporting.collector",
+      "ordinal": 4,
+      "primitive": "awaitable",
+      "qualname": "TelemetryReportCollector.stop",
+      "source_column": 16,
+      "source_line": 178,
       "wrapper_target": null
     },
     {
