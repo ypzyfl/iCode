@@ -156,6 +156,29 @@
         ["awaitable", "await monitor", "unresolved"]
       ]
     },
+    "chrys.foundation.reporting.collector": {
+      "TelemetryReportCollector._post": [
+        ["awaitable", "await self._ensure_client().post(f'{self._config.endpoint}{report.endpoint}', json=report.body, headers=headers)", "unresolved"]
+      ],
+      "TelemetryReportCollector._send": [
+        ["wrapper", "await self._post(report)", "unresolved", "chrys.foundation.reporting.collector.TelemetryReportCollector._post"],
+        ["sleep", "await asyncio.sleep(delays[attempt])", "unresolved"]
+      ],
+      "TelemetryReportCollector._sender_loop": [
+        ["queue", "await queue.get()", "unresolved"],
+        ["wrapper", "await self._send(report)", "unresolved", "chrys.foundation.reporting.collector.TelemetryReportCollector._send"]
+      ],
+      "TelemetryReportCollector.start": [
+        ["awaitable", "await bus.subscribe(InvocationToolCallStart, self._on_tool_call_start)", "unresolved"],
+        ["awaitable", "await bus.subscribe(InvocationToolCallResult, self._on_tool_call_result)", "unresolved"]
+      ],
+      "TelemetryReportCollector.stop": [
+        ["awaitable", "await bus.unsubscribe(InvocationToolCallStart, self._on_tool_call_start)", "unresolved"],
+        ["awaitable", "await bus.unsubscribe(InvocationToolCallResult, self._on_tool_call_result)", "unresolved"],
+        ["future", "await task", "unresolved"],
+        ["awaitable", "await client.aclose()", "unresolved"]
+      ]
+    },
     "chrys.foundation.retry": {
       "StreamRetryLoop.run": [
         ["awaitable", "await attempt_fn()", "unresolved"],
