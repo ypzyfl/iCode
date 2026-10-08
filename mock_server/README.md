@@ -9,6 +9,7 @@
 | 子包 | 模拟目标 | 端点前缀 |
 |---|---|---|
 | `chrys_telemetry/` | Chrys 会话数据上报后端 | `/csas/telemetry/api/v1/...` |
+| `aixcoding_auth/` | AIxCoding 设备码登录认证服务 | `/api/v1/auth/...`、`/api/v1/user/info` |
 
 未来新增（命名遵循下面的约定）：`oauth/`、`csas/<service>/`、`llm/`、
 `update_server/` 等。
@@ -25,6 +26,10 @@ mock_server/
 │   ├── conftest.py         # pytest 夹具（direct_route，与 tests/conftest.py 同步）
 │   ├── test_server.py      # 集成测试
 │   └── README.md           # 具体端点 / 故障模式 / CLI 用法
+├── aixcoding_auth/         # AIxCoding 登录认证 mock
+│   ├── __init__.py
+│   ├── server.py           # HTTP server、授权状态机、本地验证页
+│   └── README.md           # 具体端点 / 模式 / CLI 用法（测试在 tests/app/aixcoding/）
 └── <future>/               # 未来 mock，每个都按 chrys_telemetry/ 的五件套
 ```
 

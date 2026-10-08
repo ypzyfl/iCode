@@ -124,12 +124,41 @@ def test_build_slash_commands_uses_agents_and_no_legacy_entries() -> None:
     assert "fork" in names
     assert "clear" in names
     assert "rename" in names
+    assert "login" in names
+    assert "logout" in names
     assert "agent" not in names  # "agent" is now an alias, not a primary name
     assert "agent_config" not in names
     assert "mcp" not in names
     assert "skills" not in names
     language = next(command for command in commands if command.name == "language")
     assert language.synopsis == "/language [locale]"
+
+
+def test_login_command_opens_login_dialog() -> None:
+    """/login hands the dialog open to the screen; login/logout stay usable while running."""
+    screen = make_suggestion_screen()
+    handler = make_suggestion_handler(screen)
+
+    commands = handler.build_slash_commands()
+    login = next(command for command in commands if command.name == "login")
+
+    assert login.allow_while_running
+    login.action("")
+    login.action("ignored")
+    assert screen.login_dialog_requests == 2
+
+
+def test_logout_command_performs_logout() -> None:
+    """/logout hands the credential clear to the screen; usable while running."""
+    screen = make_suggestion_screen()
+    handler = make_suggestion_handler(screen)
+
+    commands = handler.build_slash_commands()
+    logout = next(command for command in commands if command.name == "logout")
+
+    assert logout.allow_while_running
+    logout.action("")
+    assert screen.logout_requests == 1
 
 
 def test_rename_command_opens_session_title_editor() -> None:

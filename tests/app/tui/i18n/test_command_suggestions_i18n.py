@@ -164,6 +164,8 @@ def test_manual_pages_render_english_byte_identically_and_translate_at_display(
         "  /fork         - Fork the current session\n"
         "  /rename       - Set or clear a custom session title\n"
         "  /sessions     - Browse saved sessions\n"
+        "  /login        - Log in with your AIxCoding account\n"
+        "  /logout       - Log out and clear the stored credential\n"
         "  /theme        - Set color theme\n"
         "  /language     - Set display language\n"
         "  /chdir        - Change working directory\n"

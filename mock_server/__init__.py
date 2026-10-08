@@ -16,6 +16,8 @@ Current subpackages:
 
 - :mod:`mock_server.chrys_telemetry` — Chrys session reporting endpoints
   (``/csas/telemetry/api/v1/...``)
+- :mod:`mock_server.aixcoding_auth` — AIxCoding device-code auth service
+  (``/api/v1/auth/...``, ``/api/v1/user/info``)
 
 Conventions for new subpackages:
 

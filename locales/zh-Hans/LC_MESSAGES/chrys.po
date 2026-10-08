@@ -4668,6 +4668,18 @@ msgstr "打开用户指南"
 msgid "tui.commands.description.language"
 msgstr "设置显示语言"
 
+#. English: Log in with your AIxCoding account
+#. chrys-meta={"fingerprint":"59c25fea67e0ef15ec30ccad028c05f250a1627534ec8a5f602b7c12c17e497c","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/commands.py
+msgid "tui.commands.description.login"
+msgstr "登录 AIxCoding 账户"
+
+#. English: Log out and clear the stored credential
+#. chrys-meta={"fingerprint":"dc3410e084943b3b4cb322cd1e6ba10ffa2c6266de94ad430186778e7d480200","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/commands.py
+msgid "tui.commands.description.logout"
+msgstr "退出登录并清除存储的凭据"
+
 #. English: Show manual page for a command
 #. chrys-meta={"fingerprint":"33b413cc648122d8bbafdb627cad520b9e034ef3ce7fb8a3fd4886f64656f4be","multiline":false,"placeholders":[]}
 #: src/chrys/app/tui/screens/main/commands.py
@@ -6259,6 +6271,24 @@ msgstr "显示语言"
 msgid "tui.loading.label"
 msgstr "正在加载..."
 
+#. English: Logged out
+#. chrys-meta={"fingerprint":"418bf6d8560f18bd77d4ff228ba64ea64333694937a75f1c165b0c81287f3c49","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/screen.py
+msgid "tui.login.logged_out"
+msgstr "已退出登录"
+
+#. English: Not logged in yet
+#. chrys-meta={"fingerprint":"71356279f75e4fa9a63e34b45d5737dd3ee52f477482b9e0aa37baa0e30c701b","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/screen.py
+msgid "tui.login.not_logged_in"
+msgstr "尚未登录"
+
+#. English: Logged in as {name}
+#. chrys-meta={"fingerprint":"86611287d072dfcc1ae8375671222dfbba43a8beb053a2c7e46d85056f9bff72","multiline":false,"placeholders":["name"]}
+#: src/chrys/app/tui/screens/main/screen.py
+msgid "tui.login.succeeded"
+msgstr "已登录：{name}"
+
 #. English: Copied {count} line from '{module}'
 #. English-plural: Copied {count} lines from '{module}'
 #. chrys-meta={"fingerprint":"4aab8fbc259e563f04cbc3e5e78344e455d645881f14e24a92b4865d68e6aeee","multiline":false,"placeholders":["module"]}
@@ -6670,6 +6700,35 @@ msgstr ""
 "指定支持的区域设置时，直接确认该语言。\n"
 "\n"
 "在 /language 后使用 Tab 补全可列出可用区域设置。"
+
+#. English: Open the AIxCoding device-code login dialog.  The dialog shows a
+#. user code and opens the verification page in your browser automatically;
+#. confirm the grant there to finish logging in.  The credential is stored with
+#. OS-level encryption and is validated silently on the next start. Cancelling
+#. the dialog stores nothing.
+#. chrys-meta={"fingerprint":"4fe2c4d1362b77b33c2fcfa97b7f969e4f0189d6ad9cb85d0560571930fc7186","multiline":true,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/commands.py
+msgid "tui.man.login.body"
+msgstr ""
+"打开 AIxCoding 设备码登录对话框。\n"
+"\n"
+"对话框会显示用户码，并自动在浏览器中打开\n"
+"验证页面；在页面上确认授权即可完成登录。\n"
+"\n"
+"凭据以操作系统级加密存储，下次启动时静默校验。\n"
+"取消对话框不会存储任何内容。"
+
+#. English: Clear the stored AIxCoding credential for the current environment
+#. and log out.  Running this while already logged out is safe: the command
+#. reports the state and does nothing.
+#. chrys-meta={"fingerprint":"8cfd2d4c4f9cf9e63cb26480a6560f73d4a051cc746b676798290dc267574e5d","multiline":true,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/commands.py
+msgid "tui.man.logout.body"
+msgstr ""
+"清除当前环境存储的 AIxCoding 凭据并退出登录。\n"
+"\n"
+"未登录时执行该命令是安全的：仅提示当前\n"
+"状态，不做任何操作。"
 
 #. English: Display detailed documentation for {app} commands.      Without
 #. arguments, shows a list of all available commands.     With a command name,
