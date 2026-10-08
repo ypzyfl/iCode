@@ -73,20 +73,19 @@ class AuthClient:
         self._http = http
         self._timeout = timeout
 
-    async def _client(self) -> httpx.AsyncClient:
-        """The caller's client when injected, else a fresh one (not closed).
-
-        ``trust_env=False``: proxy env vars must not hijack auth traffic. The
-        endpoints are intranet/loopback services a proxy cannot reach; with
-        ``trust_env`` on, a local dev proxy answering ``502`` + plain text
-        would masquerade as a server error and silently log the user out.
-        """
-        if self._http is not None:
-            return self._http
-        return httpx.AsyncClient(timeout=self._timeout, trust_env=False)
-
     async def _post_json(self, url: str, payload: dict[str, Any]) -> dict[str, Any]:
-        client = await self._client()
+        if self._http is not None:
+            return await self._post_on(self._http, url, payload)
+        # A self-created client lives for exactly one request: the poll loop
+        # used to leak one client (and its SSL context) per iteration. Also
+        # ``trust_env=False``: proxy env vars must not hijack auth traffic --
+        # these endpoints are intranet/loopback services a proxy cannot reach,
+        # and a dev proxy answering 502 + plain text would masquerade as a
+        # server error and silently log the user out.
+        async with httpx.AsyncClient(timeout=self._timeout, trust_env=False) as client:
+            return await self._post_on(client, url, payload)
+
+    async def _post_on(self, client: httpx.AsyncClient, url: str, payload: dict[str, Any]) -> dict[str, Any]:
         try:
             response = await client.post(url, json=payload)
         except httpx.HTTPError as exc:

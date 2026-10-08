@@ -14,6 +14,8 @@ from mock_server.aixcoding_auth.server import MockAuthConfig, create_server
 from textual.app import App
 from textual.widgets import Static
 
+from tests.support.waiting import wait_until
+
 pytestmark = pytest.mark.asyncio
 
 
@@ -47,14 +49,6 @@ def make_session(tmp_path, base_url: str) -> LoginSession:
     )
 
 
-async def _wait_until(pilot, predicate, attempts: int = 300, delay: float = 0.02) -> bool:
-    for _ in range(attempts):
-        if predicate():
-            return True
-        await pilot.pause(delay)
-    return predicate()
-
-
 async def test_login_dialog_success_flow(tmp_path) -> None:
     with MockServer(mode="auto", interval=0) as mock:
         session = make_session(tmp_path, mock.base_url)
@@ -65,7 +59,7 @@ async def test_login_dialog_success_flow(tmp_path) -> None:
             dialog = LoginDialog(session=session, open_browser=opened.append)
             app.push_screen(dialog, results.append)
 
-            done = await _wait_until(pilot, lambda: bool(results))
+            done = await wait_until(lambda: bool(results), pilot=pilot, timeout=10)
             assert done, "dialog should dismiss with the account after the mock grants"
 
             account = results[0]
@@ -89,15 +83,19 @@ async def test_login_dialog_cancel_stops_without_storing(tmp_path) -> None:
             app.push_screen(dialog, results.append)
             await pilot.pause()  # let the screen compose before querying widgets
 
-            # Wait until the user code is on screen, then cancel.
+            # Wait until the user code is on screen, then cancel. Content (not
+            # display) is the signal: visibility is class-driven via the tcss.
+            assert await wait_until(lambda: bool(dialog.children), pilot=pilot, timeout=10), (
+                "dialog compose children should mount"
+            )
             code_view = dialog.query_one("#login-code", Static)
-            shown = await _wait_until(pilot, lambda: code_view.display)
+            shown = await wait_until(lambda: bool(str(code_view.content).strip()), pilot=pilot, timeout=10)
             assert shown, "user code should appear once the device code arrives"
 
             await pilot.press("escape")
-            await pilot.pause()
-
-            assert results == [None]
+            assert await wait_until(lambda: results == [None], pilot=pilot, timeout=5), (
+                "cancelling should dismiss the dialog with None"
+            )
             assert session.stored_token is None
 
 
@@ -115,7 +113,9 @@ async def test_login_dialog_shows_error_when_unreachable(tmp_path) -> None:
         def failed() -> bool:
             return "无法获取登录码" in str(status.content)
 
-        assert await _wait_until(pilot, failed), "unreachable server should surface as an error message"
+        assert await wait_until(failed, pilot=pilot, timeout=10), (
+            "unreachable server should surface as an error message"
+        )
 
         await pilot.press("escape")
         await pilot.pause()
