@@ -97,7 +97,11 @@ artifacts = ["src/chrys/foundation/vendor/ripgrep/*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests"]
+# ``mock_server`` is the dev-only Chrys session reporting mock server
+# (lives at the repo root with its source and tests co-located); see
+# mock_server/README.md for layout. The full product test surface remains
+# under ``tests/``.
+testpaths = ["tests", "mock_server"]
 addopts = "-n 8 --strict-markers"
 # ``build`` is intentionally omitted from pytest's default ``norecursedirs`` so
 # tests/orchestration/engine/build/ (mirroring src/chrys/orchestration/engine/build/) is collected.
@@ -123,7 +127,7 @@ markers = [
 [tool.ruff]
 target-version = "py314"
 line-length = 120
-src = ["src", "tests"]
+src = ["src", "tests", "mock_server"]
 fix = true
 
 [tool.ruff.per-file-target-version]
@@ -181,12 +185,15 @@ ignore = [
 "src/chrys/service/workflows/worker_host.py" = ["UP", "B905", "RUF007"]
 # Tests — relax security checks, tolerate loop-append pattern
 "tests/**" = ["S", "PERF401"]
+# Dev-only mock server (repo root): same relaxations as tests/ since it ships
+# pytest assertions and synthesised token strings, but no real credentials.
+"mock_server/**" = ["S", "PERF401"]
 # Golden workflow example: user-facing Chinese prose keeps its full-width punctuation
 "tests/service/workflows/fixtures/*" = ["RUF001"]
 # AIxCoding TUI: user-facing Chinese prose keeps its full-width punctuation
 "aixcoding/tui/*" = ["RUF001"]
 [tool.ruff.lint.isort]
-known-first-party = ["chrys"]
+known-first-party = ["chrys", "mock_server"]
 
 # OTLP HTTP exporters are optional observability dependencies and are imported
 # only after their matching feature gate is enabled.

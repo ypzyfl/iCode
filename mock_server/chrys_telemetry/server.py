@@ -381,7 +381,7 @@ class TelemetryStore:
         with self._lock:
             # Table and column names come from the closed literal maps above;
             # every value rides the parameter list.
-            query = f"SELECT * FROM {SQL_TABLE_BY_INTERFACE[interface]}{where_clause} ORDER BY id DESC LIMIT ?"  # noqa: S608
+            query = f"SELECT * FROM {SQL_TABLE_BY_INTERFACE[interface]}{where_clause} ORDER BY id DESC LIMIT ?"
             cursor = self._database.execute(query, parameters)
             columns = [description[0] for description in cursor.description]
             rows = cursor.fetchall()
@@ -394,7 +394,7 @@ class TelemetryStore:
         with self._lock:
             for interface in REPORT_INTERFACES:
                 # Table names come from the closed literal map above.
-                self._database.execute(f"DELETE FROM {SQL_TABLE_BY_INTERFACE[interface]}")  # noqa: S608
+                self._database.execute(f"DELETE FROM {SQL_TABLE_BY_INTERFACE[interface]}")
             self._database.commit()
 
     def close(self) -> None:
@@ -913,7 +913,7 @@ def _render_view_page() -> str:
 # --------------------------------------------------------------------------
 
 
-def start_telemetry_mock(
+def start(
     *,
     host: str = "127.0.0.1",
     port: int = 0,
@@ -963,7 +963,7 @@ def _build_argument_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = _build_argument_parser().parse_args(argv)
     try:
-        running = start_telemetry_mock(
+        running = start(
             port=args.port,
             database_path=args.db,
             require_token=args.require_token,
