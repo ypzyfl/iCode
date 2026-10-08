@@ -199,6 +199,7 @@ class MacOSSecurity:
     def _run(self, args: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
         return subprocess.run(  # noqa: S603 - fixed binary, fixed args
             ["/usr/bin/security", *args],
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             timeout=self._TIMEOUT_SECONDS,
