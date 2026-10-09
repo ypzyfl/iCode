@@ -57,6 +57,7 @@ async def test_complete_login_stores_credential_and_returns_account(tmp_path) ->
         assert stored.token == token
         assert stored.environment_id == "local"
         assert stored.ehr == "8769092"
+        assert session.stored_user_id == "8769092"
 
 
 async def test_check_silent_round_trips_after_login(tmp_path) -> None:
@@ -102,6 +103,7 @@ async def test_stored_token_none_when_expired(tmp_path) -> None:
             StoredCredential.issued_now(environment_id="local", user_id="8769092", token="tok-old", ttl_seconds=-10),
         )
         assert session.stored_token is None
+        assert session.stored_user_id is None  # same liveness predicate as the token
         assert await session.check_silent() is None
 
 
