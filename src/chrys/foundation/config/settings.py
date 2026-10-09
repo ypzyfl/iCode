@@ -642,6 +642,7 @@ def probe_session_root(raw: str) -> Path | None:
 # field without one.
 
 _LABEL_MODEL_PROFILE_ACTIVE = msg("settings.model.profile.active.label", fallback="Active model profile")
+_LABEL_MODEL_CATALOG_BASE_URL = msg("settings.model.catalog.base_url.label", fallback="Model catalog base URL")
 _LABEL_AGENT_DEFAULT_PROFILE = msg("settings.agent.default_profile.label", fallback="Default agent")
 _LABEL_MODEL_ROLE_APPROVAL_JUDGE = msg("settings.model.role.approval_judge.label", fallback="Approval judge model")
 _LABEL_MODEL_ROLE_SESSION_TITLE = msg("settings.model.role.session_title.label", fallback="Session title model")
@@ -827,6 +828,26 @@ class Settings:
             group="model",
             kind=Kind.BOOL,
             persist=False,
+        ),
+    )
+
+    # Base URL of the model catalog. Empty means no catalog source, except
+    # under ``CHRYS_ENVIRONMENT=local``, which falls back to the loopback mock.
+    # RESTART: the sync runs in the bootstrap, so a value it reads once per
+    # process cannot be one the settings panel changes underneath it.
+    # A repository does not get to name the host the client pulls its model
+    # list from, hence ``ProjectMerge.DENY``.
+    model_catalog_base_url: str = field(
+        default="",
+        metadata=spec(
+            key="model.catalog.base_url",
+            label=_LABEL_MODEL_CATALOG_BASE_URL,
+            env="CHRYS_MODEL_CATALOG_BASE_URL",
+            coerce=text_coercer(),
+            apply=Apply.RESTART,
+            group="model",
+            kind=Kind.TEXT,
+            project_merge=ProjectMerge.DENY,
         ),
     )
 

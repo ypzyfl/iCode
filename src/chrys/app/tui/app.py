@@ -1288,6 +1288,12 @@ def main(app_cls: type[ChrysApp] = ChrysApp) -> None:
             apply_saved_model_on_restore=not bool(args.model.strip()),
             session_title_updater=session_title_updater,
         )
+        # The catalog is polled, not fetched once: the bootstrap above ran the
+        # "immediately" sync, this keeps a long-lived session current without a
+        # restart. Stopped with the app, so nothing outlives the terminal.
+        from chrys.service.profiles.models.catalog import start_periodic_sync
+
+        stop_catalog_sync = start_periodic_sync(on_applied=lambda _result: model_registry.replace_profiles())
         try:
             # On Windows, the ProactorEventLoop shutdown can raise KeyboardInterrupt
             # from GetQueuedCompletionStatus when a pending signal races with asyncio
@@ -1295,6 +1301,8 @@ def main(app_cls: type[ChrysApp] = ChrysApp) -> None:
             with contextlib.suppress(KeyboardInterrupt):
                 app.run()
         finally:
+            if stop_catalog_sync is not None:
+                stop_catalog_sync.set()
             # Safety net: ensure terminal is fully restored after native Textual exits.
             # Textual should handle this, but shell PTY activity during shutdown can
             # race with cleanup, leaving mouse tracking, focus reports, or alt screen on.
