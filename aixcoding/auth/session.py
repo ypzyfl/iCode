@@ -16,6 +16,10 @@ binds them into the single object the rest of the app talks to::
     token = session.stored_token                # downstream consumers attach this
     session.logout()                            # /logout
 
+When iCode runs as a child of the AIxCoding desktop, the parent's login is
+detected as a :class:`~aixcoding.auth.delegation.DelegatedCredential` and
+shadows the store -- see :mod:`aixcoding.auth.delegation` for the contract.
+
 The module-level :func:`get_login_session` is a process-wide singleton on
 purpose: when the crypto backend degrades to :class:`~aixcoding.auth.crypto.MemoryBackend`
 the credential lives inside the backend instance, so every caller must share
@@ -31,6 +35,7 @@ import httpx
 
 from aixcoding.auth.client import AuthClient
 from aixcoding.auth.crypto import ProtectBackend
+from aixcoding.auth.delegation import DelegatedCredential, detect_delegation
 from aixcoding.auth.environments import resolve_endpoints, resolve_environment
 from aixcoding.auth.errors import AuthError, AuthServerError
 from aixcoding.auth.storage import CredentialStore, default_config_dir
@@ -64,12 +69,15 @@ class LoginSession:
         config_dir: Path | None = None,
         backend: ProtectBackend | None = None,
         http: httpx.AsyncClient | None = None,
+        delegated: DelegatedCredential | None = None,
     ) -> None:
         """Build a session; every argument is optional (tests inject fakes).
 
         ``endpoints`` overrides environment-based URL resolution with an
         explicit ``(auth_url, data_url)`` -- used by tests against the loopback
-        mock and by any deployment with unusual addressing.
+        mock and by any deployment with unusual addressing.  ``delegated``
+        pins a parent-provided credential; ``None`` (the default) auto-detects
+        one from the frozen process environment.
         """
         self.environment = environment or resolve_environment()
         self._endpoints = endpoints
@@ -78,6 +86,8 @@ class LoginSession:
             backend if backend is not None else _default_backend(),
         )
         self._http = http
+        self._delegated = delegated if delegated is not None else detect_delegation()
+        self._delegated_rejected = False
 
     @property
     def store(self) -> CredentialStore:
@@ -85,12 +95,34 @@ class LoginSession:
         return self._store
 
     @property
+    def _active_delegated(self) -> DelegatedCredential | None:
+        if self._delegated is None or self._delegated_rejected:
+            return None
+        return self._delegated
+
+    @property
+    def delegated_credential(self) -> DelegatedCredential | None:
+        """The parent-provided credential while it shadows the store.
+
+        ``None`` covers both "standalone process" and "the parent's token was
+        rejected server-side" -- after a rejection the session falls back to
+        the stored credential, if any, instead of reporting a login that no
+        longer works.
+        """
+        return self._active_delegated
+
+    @property
     def stored_token(self) -> str | None:
         """The live token, or ``None`` when absent/expired/corrupt.
 
-        This is the hand-off point for downstream consumers (post-login
-        features attach it to their requests); it never performs network I/O.
+        A delegation (desktop parent) wins over the store; after the server
+        rejects the delegated token the store answers again.  This is the
+        hand-off point for downstream consumers (post-login features attach
+        it to their requests); it never performs network I/O.
         """
+        delegated = self._active_delegated
+        if delegated is not None:
+            return delegated.token
         credential = self._store.load(self.environment)
         if credential is None or credential.is_expired or not credential.token:
             return None
@@ -104,13 +136,25 @@ class LoginSession:
         return AuthClient(auth_url, data_url, http=self._http)
 
     async def check_silent(self) -> AccountInfo | None:
-        """Startup check: a stored credential validated against ``user/info``.
+        """Startup check: the live credential validated against ``user/info``.
 
-        ``None`` means "needs a login": nothing stored, TTL elapsed, or the
-        server could not be reached. A server-side rejection (``用户不存在``)
-        additionally clears the dead credential so the next login starts
-        clean; a network failure keeps it -- being offline is not a logout.
+        ``None`` means "needs a login": nothing live, TTL elapsed, or the
+        server could not be reached.  A stored credential the server rejects
+        (``用户不存在``) is cleared so the next login starts clean, while a
+        network failure keeps it -- being offline is not a logout.  A
+        delegated credential follows the same split with one difference: the
+        parent owns it, so a rejection only stops it from shadowing the store
+        (nothing local is destroyed; the parent's re-login respawns us).
         """
+        delegated = self._active_delegated
+        if delegated is not None:
+            try:
+                return await self._make_client().fetch_user_info(delegated.token)
+            except AuthServerError:
+                self._delegated_rejected = True
+                return None
+            except AuthError:
+                return None
         credential = self._store.load(self.environment)
         if credential is None or credential.is_expired or not credential.token:
             return None
@@ -135,7 +179,9 @@ class LoginSession:
         """Poll the grant to its end, store the credential, return the user.
 
         Raises on every non-happy path (:class:`~aixcoding.auth.errors.AuthError`
-        family); nothing is stored unless the full chain succeeds.
+        family); nothing is stored unless the full chain succeeds.  Under an
+        active delegation the store write still happens but stays shadowed
+        until the delegated token is rejected -- the parent's session wins.
         """
         client = self._make_client()
         token = await client.poll_token(
@@ -157,7 +203,14 @@ class LoginSession:
         return account
 
     def logout(self) -> None:
-        """Remove the credential for this environment (idempotent)."""
+        """Remove the credential for this environment (idempotent).
+
+        A no-op while a delegation is active: the parent app owns that
+        session, and only its own logout (or expiry) can end it -- the child
+        cannot revoke the token server-side anyway.
+        """
+        if self._active_delegated is not None:
+            return
         self._store.clear(self.environment)
 
 
