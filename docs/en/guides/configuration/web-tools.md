@@ -2,7 +2,7 @@
 
 The web tools let an agent look things up on the internet: `web_search` finds pages and returns their URLs and summaries, and `web_fetch` reads the text of a page at a known URL. This guide explains how to turn them on for an agent, where their requests go, and how to choose a search provider and limit network access.
 
-**Web tools are off by default.** No agent shipped with iCode (Code, QA, Explore, or General) includes them, so iCode sends no search queries and fetches no pages until you enable the tools for an agent.
+**Web tools are off by default.** No agent shipped with AIxCoding (Code, QA, Explore, or General) includes them, so AIxCoding sends no search queries and fetches no pages until you enable the tools for an agent.
 
 `web_search` is separate from the "File search" tools (`grep` and `glob`), which only search files on your machine.
 
@@ -19,7 +19,7 @@ tools:
   builtins: [filesystem.read, search, web_search, web_fetch]
 ```
 
-Web tools belong to each agent separately. A sub-agent such as General gets them only if its own profile includes them. To add them to a built-in agent, edit and save it in the TUI; iCode then saves your own copy of that agent (see [Override built-in agents](../../reference/agent-profile.md#override-built-in-agents)).
+Web tools belong to each agent separately. A sub-agent such as General gets them only if its own profile includes them. To add them to a built-in agent, edit and save it in the TUI; AIxCoding then saves your own copy of that agent (see [Override built-in agents](../../reference/agent-profile.md#override-built-in-agents)).
 
 ### Turn a web tool off
 
@@ -37,7 +37,7 @@ Changes in **Settings** apply when you close the dialog. Changes to an agent's t
 
 ## Where web requests go
 
-With `web_search` turned on and no provider configured, the default mode `auto` sends your search queries to **Exa's public, anonymous search endpoint at `https://mcp.exa.ai/mcp`**. Exa is a third-party search service. No API key or account is needed. iCode sends only what the agent searches for and how many results it wants, not your files or the conversation itself; the agent writes the queries, so they can include details from your task. The service has free-tier rate limits and can be unavailable. To send queries somewhere else, [choose a search provider](#choose-a-search-provider); to stop searching, set the mode to `off`.
+With `web_search` turned on and no provider configured, the default mode `auto` sends your search queries to **Exa's public, anonymous search endpoint at `https://mcp.exa.ai/mcp`**. Exa is a third-party search service. No API key or account is needed. AIxCoding sends only what the agent searches for and how many results it wants, not your files or the conversation itself; the agent writes the queries, so they can include details from your task. The service has free-tier rate limits and can be unavailable. To send queries somewhere else, [choose a search provider](#choose-a-search-provider); to stop searching, set the mode to `off`.
 
 `web_fetch` requests each URL directly from the website that hosts it, or through the [web proxy](#control-network-access) if you set one. Requests identify themselves with the user agent `Chrys-Web/1.0` and never send cookies or stored credentials.
 
@@ -49,7 +49,7 @@ The `web_search` and `web_fetch` kinds require approval by default. This default
 
 - In manual mode, each web tool call opens the **Approval Required** dialog.
 - In automatic mode, the approval judge model may approve the call.
-- In bypass mode, including the headless CLI `icode run`, web tool calls run without asking.
+- In bypass mode, including the headless CLI `aixcoding run`, web tool calls run without asking.
 
 To stop being asked about searches, set an override in the agent profile, for example `approval.overrides: {web_search: auto}`. See [Configure approval modes](./approval.md).
 
@@ -65,7 +65,7 @@ Configure search providers in the agent profile under `tools.web_search`. The fi
 
 `true` and `false` are also accepted: `true` means `auto` (`on` for `web_fetch`) and `false` means `off`.
 
-If the combination is invalid, such as `auto` with a `providers` map but no `fallback_chain`, the agent starts without its web tools and iCode shows a warning with the reason (see [When web tools do not appear](#when-web-tools-do-not-appear)). An unknown mode or a malformed provider entry makes the whole profile invalid instead.
+If the combination is invalid, such as `auto` with a `providers` map but no `fallback_chain`, the agent starts without its web tools and AIxCoding shows a warning with the reason (see [When web tools do not appear](#when-web-tools-do-not-appear)). An unknown mode or a malformed provider entry makes the whole profile invalid instead.
 
 ### Search services that need no key
 
@@ -114,11 +114,11 @@ tools:
         api_key_env: EXA_API_KEY
 ```
 
-iCode reads the key from the environment that started iCode or from your user `.env` file (macOS / Linux: `~/.chrys/.env`; Windows: `%APPDATA%\chrys\.env`). A variable set in the starting environment takes precedence, even when it is empty. A `.env` file in the working directory cannot provide web credentials. The user `.env` file is read each time the agent is built, so after changing it, save the agent again or restart iCode. Only the keys of the providers the agent actually uses are read.
+AIxCoding reads the key from the environment that started AIxCoding or from your user `.env` file (macOS / Linux: `~/.chrys/.env`; Windows: `%APPDATA%\chrys\.env`). A variable set in the starting environment takes precedence, even when it is empty. A `.env` file in the working directory cannot provide web credentials. The user `.env` file is read each time the agent is built, so after changing it, save the agent again or restart AIxCoding. Only the keys of the providers the agent actually uses are read.
 
 ### Fall back to another provider
 
-In `auto` mode, iCode tries the providers in `fallback_chain` in order and returns the first answer, including an empty one. It moves on to the next provider when:
+In `auto` mode, AIxCoding tries the providers in `fallback_chain` in order and returns the first answer, including an empty one. It moves on to the next provider when:
 
 - The provider runs out of its share of the time limit (see [Time limits and retries](#time-limits-and-retries)).
 - A connection error, HTTP 5xx, 408, or 429 persists after one retry.
@@ -127,7 +127,7 @@ In `auto` mode, iCode tries the providers in `fallback_chain` in order and retur
 - The provider redirects, returns a captcha or consent page, or sends a response that is too large, uses an unsupported compression, or cannot be read.
 - `exa_mcp`, `bing_html`, or `duckduckgo_html` returns any HTTP 4xx error, or `exa_mcp` reports that the search failed (for example, its free rate limit was reached). An empty result from `exa_mcp` is an answer, so the chain stops there.
 
-For keyed and custom providers, an HTTP 4xx error usually means a configuration problem, such as a wrong key, so the chain stops and the agent receives the error with its status, for example `Error: http_4xx (HTTP 403)`. Errors caused by the request itself, such as an empty query, also stop the chain. There is no hidden fallback: iCode tries only the providers you list.
+For keyed and custom providers, an HTTP 4xx error usually means a configuration problem, such as a wrong key, so the chain stops and the agent receives the error with its status, for example `Error: http_4xx (HTTP 403)`. Errors caused by the request itself, such as an empty query, also stop the chain. There is no hidden fallback: AIxCoding tries only the providers you list.
 
 ### Use your own search endpoint
 
@@ -207,10 +207,10 @@ List entries are origins: a scheme, host, and optional port, such as `https://do
 The rules work as follows:
 
 - **HTTPS only**: plain `http://` is refused unless the origin is in `http_origins`.
-- **Public addresses only**: before connecting, iCode resolves the host name and refuses private, loopback, link-local, and other non-public addresses unless the origin is in `private_origins`. iCode then connects to the address it checked, while keeping the original host name for the request and TLS certificate checks. With **Web proxy DNS** set to `remote`, the proxy resolves the name instead; see [Use a fake-IP proxy](#use-a-fake-ip-proxy).
+- **Public addresses only**: before connecting, AIxCoding resolves the host name and refuses private, loopback, link-local, and other non-public addresses unless the origin is in `private_origins`. AIxCoding then connects to the address it checked, while keeping the original host name for the request and TLS certificate checks. With **Web proxy DNS** set to `remote`, the proxy resolves the name instead; see [Use a fake-IP proxy](#use-a-fake-ip-proxy).
 - **Fetch lists**: `denied_origins` always wins. When `allowed_origins` is not empty, `web_fetch` reads only from those origins.
 - **Search and fetch are separate**: an exemption for search never lets `web_fetch` reach that origin, and the reverse.
-- **Proxy**: web tools ignore proxy variables such as `HTTP_PROXY` and `HTTPS_PROXY`. To use a proxy, set **Web proxy URL** (`tools.web_egress.proxy_url`) to an `http://` or `https://` proxy address without credentials or a path. It applies only to web tools. With **Web proxy DNS** at its default `local`, iCode reaches a site through the proxy at its IPv4 addresses only, so a site that has only IPv6 addresses fails with `proxy_ipv6_unsupported`. With `remote`, the proxy resolves the name and may reach such a site over IPv6. In either mode, a URL that names an IPv6 address directly, such as `https://[2001:db8::1]/`, cannot go through the proxy. Certificate settings from the environment, such as `SSL_CERT_FILE`, are still honored.
+- **Proxy**: web tools ignore proxy variables such as `HTTP_PROXY` and `HTTPS_PROXY`. To use a proxy, set **Web proxy URL** (`tools.web_egress.proxy_url`) to an `http://` or `https://` proxy address without credentials or a path. It applies only to web tools. With **Web proxy DNS** at its default `local`, AIxCoding reaches a site through the proxy at its IPv4 addresses only, so a site that has only IPv6 addresses fails with `proxy_ipv6_unsupported`. With `remote`, the proxy resolves the name and may reach such a site over IPv6. In either mode, a URL that names an IPv6 address directly, such as `https://[2001:db8::1]/`, cannot go through the proxy. Certificate settings from the environment, such as `SSL_CERT_FILE`, are still honored.
 - Host names may contain underscores, such as `http://search_box:8080`, in tool URLs, origin lists, and the proxy URL.
 
 For example, to use a SearXNG instance at `http://127.0.0.1:8080/search`, grant that endpoint in `custom_endpoints` and add `http://127.0.0.1:8080` to both `tools.web_search.private_origins` and `tools.web_search.http_origins`.
@@ -229,16 +229,16 @@ tools:
     proxy_dns: remote
 ```
 
-With `remote`, iCode sends the host name to the proxy, and the proxy decides which address it finally connects to. Blocking private and other non-public destinations for a name is then the proxy's job, not iCode's. iCode still applies every other rule: HTTPS only, the origin lists, redirect checks, and TLS certificate checks against the host name. It also still refuses URLs that name a non-public address directly, such as `https://127.0.0.1` or `https://localhost`, unless the origin is in `private_origins`. An IPv6 address written in a URL still cannot go through a proxy and fails with `proxy_ipv6_unsupported`.
+With `remote`, AIxCoding sends the host name to the proxy, and the proxy decides which address it finally connects to. Blocking private and other non-public destinations for a name is then the proxy's job, not AIxCoding's. AIxCoding still applies every other rule: HTTPS only, the origin lists, redirect checks, and TLS certificate checks against the host name. It also still refuses URLs that name a non-public address directly, such as `https://127.0.0.1` or `https://localhost`, unless the origin is in `private_origins`. An IPv6 address written in a URL still cannot go through a proxy and fails with `proxy_ipv6_unsupported`.
 
-iCode never switches to `remote` on its own. Adding the fake-IP range to `private_origins` is not a substitute: the lists hold single origins, and exempting the range would also let names that resolve to your own network through.
+AIxCoding never switches to `remote` on its own. Adding the fake-IP range to `private_origins` is not a substitute: the lists hold single origins, and exempting the range would also let names that resolve to your own network through.
 
 ## Filter search results by domain
 
-The agent can limit a search to `allowed_domains` or exclude `blocked_domains`, but not both at once. A domain also covers its subdomains. iCode always checks the results itself, and how much the provider helps depends on the provider:
+The agent can limit a search to `allowed_domains` or exclude `blocked_domains`, but not both at once. A domain also covers its subdomains. AIxCoding always checks the results itself, and how much the provider helps depends on the provider:
 
 - Tavily and the Exa API filter by domain themselves.
-- Exa's public endpoint cannot filter, so iCode asks it for more results and keeps only the matching ones.
+- Exa's public endpoint cannot filter, so AIxCoding asks it for more results and keeps only the matching ones.
 - Other providers receive the filter as `site:` and `-site:` terms in the query.
 
 When the filter removes results, the search output reports how many.
@@ -263,19 +263,19 @@ Set these limits in the user `settings.yaml` (`tools.web_search.timeout_seconds`
 - A fetched page returns at most 16,000 tokens by default (`tools.web_fetch.max_tokens`, up to 64,000). The agent can ask for less, but not more. Search output is limited to about 8,000 tokens.
 - Fetched pages are reused for 15 minutes (up to 64 pages and 16 MiB), and URLs that differ only in the `#fragment` share one copy.
 - Web search and web fetch share 3 simultaneous connections per agent, and an agent can make at most 20 searches in one turn.
-- iCode does not run JavaScript, does not read `robots.txt`, and does not summarize pages. Use `denied_origins` to keep `web_fetch` away from specific origins. Each entry matches exactly one origin: it does not cover subdomains or the `www.` variant, so list each one you mean.
+- AIxCoding does not run JavaScript, does not read `robots.txt`, and does not summarize pages. Use `denied_origins` to keep `web_fetch` away from specific origins. Each entry matches exactly one origin: it does not cover subdomains or the `www.` variant, so list each one you mean.
 
-Search results and page text come from outside sources. iCode marks them as untrusted data for the agent; check the source links before relying on important claims.
+Search results and page text come from outside sources. AIxCoding marks them as untrusted data for the agent; check the source links before relying on important claims.
 
 ## Provider-run search
 
-Some model services can run web search themselves. When a model profile declares such a tool in its `chat_options`, for example `{"tools": [{"type": "web_search"}]}`, the provider's tool takes over that name. If the agent also includes the matching iCode tool, the local tool is turned off for that run and iCode shows a notice once. This works per name: a provider-run `web_search` leaves a local `web_fetch` in place.
+Some model services can run web search themselves. When a model profile declares such a tool in its `chat_options`, for example `{"tools": [{"type": "web_search"}]}`, the provider's tool takes over that name. If the agent also includes the matching AIxCoding tool, the local tool is turned off for that run and AIxCoding shows a notice once. This works per name: a provider-run `web_search` leaves a local `web_fetch` in place.
 
-Provider-run search happens on the model provider's side, so iCode's approval rules and network settings do not apply to it. To use iCode's own tools instead, remove the declaration from the model's `chat_options`.
+Provider-run search happens on the model provider's side, so AIxCoding's approval rules and network settings do not apply to it. To use AIxCoding's own tools instead, remove the declaration from the model's `chat_options`.
 
 ## When web tools do not appear
 
-If iCode cannot set up an agent's web tools, for example because a key variable is missing or a custom endpoint is not granted, the agent still starts without them and iCode shows a warning that names the agent and the reason. Fix the configuration, then save the agent again or restart iCode.
+If AIxCoding cannot set up an agent's web tools, for example because a key variable is missing or a custom endpoint is not granted, the agent still starts without them and AIxCoding shows a warning that names the agent and the reason. Fix the configuration, then save the agent again or restart AIxCoding.
 
 Also check that:
 

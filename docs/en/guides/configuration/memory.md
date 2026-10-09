@@ -4,13 +4,13 @@ This guide explains how to configure memory for the main agent.
 
 ## Prepare memory content
 
-**Memory is added to the system prompt when the main agent loads.** iCode reads the memory files configured for the current main agent and provides their content to the agent as reference material. Memory content uses part of the model's context window and is sent to the model service with requests. Avoid including sensitive information such as secret keys or access tokens in memory.
+**Memory is added to the system prompt when the main agent loads.** AIxCoding reads the memory files configured for the current main agent and provides their content to the agent as reference material. Memory content uses part of the model's context window and is sent to the model service with requests. Avoid including sensitive information such as secret keys or access tokens in memory.
 
 **Sub-agents do not load memory.** Sub-agents neither inherit the main agent's loaded memory nor load memory from their own agent profiles. Agent nodes in [workflows](../running/workflows.md), however, load the memory configured in their agent profiles.
 
-**Memory is suited to stable, reusable information.** iCode only loads memory files with the `.md` or `.txt` extension. Memory should contain information that can be reused across tasks, such as project conventions, background material, and frequently needed information. Keep it brief, clear, and up to date; instructions for a temporary task are better included directly in the current request.
+**Memory is suited to stable, reusable information.** AIxCoding only loads memory files with the `.md` or `.txt` extension. Memory should contain information that can be reused across tasks, such as project conventions, background material, and frequently needed information. Keep it brief, clear, and up to date; instructions for a temporary task are better included directly in the current request.
 
-**The default agents already use AGENTS.md as memory.** The main agents included with iCode, such as Code Agent, load `AGENTS.md` from the working directory. To add general project instructions, start by maintaining this file. If it is not needed, remove its entry from the "Memory" tab.
+**The default agents already use AGENTS.md as memory.** The main agents included with AIxCoding, such as Code Agent, load `AGENTS.md` from the working directory. To add general project instructions, start by maintaining this file. If it is not needed, remove its entry from the "Memory" tab.
 
 ## Add a memory file
 
@@ -25,15 +25,15 @@ This guide explains how to configure memory for the main agent.
 
 To load a set of reference files, click "+ Add Folder" in the "Folders" section. With "Workspace relative" selected, enter a relative path; otherwise, enter an absolute path. When finished, click "Save", then close the agent configuration window.
 
-iCode first loads the `.md` and `.txt` files directly in the folder, then scans subfolders one level at a time. For each configured folder, it scans at most two levels of subfolders and loads at most 100 files. If an important file may fall outside these limits, add it separately in the "Files" section.
+AIxCoding first loads the `.md` and `.txt` files directly in the folder, then scans subfolders one level at a time. For each configured folder, it scans at most two levels of subfolders and loads at most 100 files. If an important file may fall outside these limits, add it separately in the "Files" section.
 
 ## Load and reload memory
 
-If the same file is both added individually and discovered in a folder, it is loaded only once. The combined content from all memory sources is limited to 35,000 tokens. Individually added files load first, then folders. Once a file would exceed the limit, that file and all remaining files are skipped, and iCode displays a warning.
+If the same file is both added individually and discovered in a folder, it is loaded only once. The combined content from all memory sources is limited to 35,000 tokens. Individually added files load first, then folders. Once a file would exceed the limit, that file and all remaining files are skipped, and AIxCoding displays a warning.
 
-After switching working directories or changing the current agent profile, iCode reloads memory using the new paths.
+After switching working directories or changing the current agent profile, AIxCoding reloads memory using the new paths.
 
-iCode does not monitor loaded memory files for changes. After editing a file directly on disk, reload the main agent for the changes to take effect. For example, restart iCode, switch working directories, modify and save the current agent profile, or switch to another main agent and then switch back.
+AIxCoding does not monitor loaded memory files for changes. After editing a file directly on disk, reload the main agent for the changes to take effect. For example, restart AIxCoding, switch working directories, modify and save the current agent profile, or switch to another main agent and then switch back.
 
 ## Verify that memory is loaded
 

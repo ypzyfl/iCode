@@ -1,64 +1,62 @@
-# 开始使用 iCode
+# 开始使用 AIxCoding-CLI
 
-本教程介绍如何安装 iCode、配置模型，并在项目中使用智能体完成一次开发任务。
+本教程介绍如何安装 AIxCoding、配置模型，并在项目中使用智能体完成一次开发任务。
 
-## 1. 安装 iCode
+## 1. 安装 AIxCoding-CLI
 
-iCode 为 macOS、Linux 和 Windows 提供预构建的离线安装包。安装包已包含 Python 和运行依赖，无需另行安装 Python。
-
-请从 [iCode Releases](https://github.com/0x7c13/chrys/releases) 下载最新版本。当前不要运行 `pip install chrys`：PyPI 上的这个名称属于另一个项目。
+AIxCoding 为 macOS、Linux 和 Windows 提供预构建的离线安装包。安装包已包含 Python 和运行依赖，无需另行安装 Python。
 
 以下命令中的 `<version>` 和 `<architecture>` 是占位符，请替换为下载文件名中的实际值。
 
 ### macOS
 
-根据处理器选择 `icode-macos-aarch64-v<version>-offline.tar.gz`（Apple 芯片）或 `icode-macos-x86_64-v<version>-offline.tar.gz`（Intel），然后在下载目录运行：
+根据处理器选择 `aixcoding-macos-aarch64-v<version>-offline.tar.gz`（Apple 芯片）或 `aixcoding-macos-x86_64-v<version>-offline.tar.gz`（Intel），然后在下载目录运行：
 
 ```bash
-tar xzf icode-macos-<architecture>-v<version>-offline.tar.gz
-chmod +x ./icode
-./icode install
+tar xzf aixcoding-macos-<architecture>-v<version>-offline.tar.gz
+chmod +x ./aixcoding
+./aixcoding install
 ```
 
 ### Linux
 
-根据处理器选择 `icode-linux-x86_64-v<version>-offline.tar.gz` 或 `icode-linux-aarch64-v<version>-offline.tar.gz`，然后在下载目录运行：
+根据处理器选择 `aixcoding-linux-x86_64-v<version>-offline.tar.gz` 或 `aixcoding-linux-aarch64-v<version>-offline.tar.gz`，然后在下载目录运行：
 
 ```bash
-tar xzf icode-linux-<architecture>-v<version>-offline.tar.gz
-chmod +x ./icode
-./icode install
+tar xzf aixcoding-linux-<architecture>-v<version>-offline.tar.gz
+chmod +x ./aixcoding
+./aixcoding install
 ```
 
 Linux x86-64 安装包要求 glibc 2.17 或更高版本，ARM64 安装包要求 glibc 2.18 或更高版本。Alpine Linux 等只提供 musl 的发行版不在预构建包的支持范围内。
 
 ### Windows
 
-下载 `icode-windows-x86_64-v<version>-offline.zip` 并解压，在 PowerShell 中进入解压目录，然后运行：
+下载 `aixcoding-windows-x86_64-v<version>-offline.zip` 并解压，在 PowerShell 中进入解压目录，然后运行：
 
 ```powershell
-.\icode.exe install
+.\aixcoding.exe install
 ```
 
-安装器会尝试将 iCode 加入当前用户的 `PATH`。安装完成后，请打开一个新终端。
+安装器会尝试将 AIxCoding 加入当前用户的 `PATH`。安装完成后，请打开一个新终端。
 
 ### 验证安装
 
 ```shell
-icode --version
+aixcoding --version
 ```
 
-命令应输出 iCode 的版本号。在 macOS 或 Linux 上，如果系统找不到 `icode`，请按安装器的提示将 `~/.local/bin` 加入 `PATH`；如果安装器提示 `~/.local/bin/icode` 已存在，该命令会启动其他程序，请改用 `chrys` 命令。在 Windows 上请打开新的终端；如果安装器提示更新用户 PATH 失败，请手动将 `%LOCALAPPDATA%\chrys\bin` 加入用户 `PATH`。
+命令应输出 AIxCoding 的版本号。在 macOS 或 Linux 上，如果系统找不到 `aixcoding`，请按安装器的提示将 `~/.local/bin` 加入 `PATH`；如果安装器提示 `~/.local/bin/aixcoding` 已存在，该命令会启动其他程序，请改用 `chrys` 命令。在 Windows 上请打开新的终端；如果安装器提示更新用户 PATH 失败，请手动将 `%LOCALAPPDATA%\chrys\bin` 加入用户 `PATH`。
 
-## 2. 在项目中启动 iCode
+## 2. 在项目中启动 AIxCoding-CLI
 
 建议在使用 Git 管理或能够安全恢复的项目中开始本教程。在让智能体修改文件前，请先保存尚未写入磁盘的内容，并使用 Git commit 记录已有变更，以便区分智能体所做的修改，并在需要时恢复到修改前的状态。
 
-在终端中进入要处理的项目目录并启动 iCode：
+在终端中进入要处理的项目目录并启动 AIxCoding：
 
 ```shell
 cd <project-directory>
-icode
+aixcoding
 ```
 
 将 `<project-directory>` 替换为项目目录的实际路径。启动后如需切换目录，请参阅[工作目录](../guides/daily-use/workspaces.md)。
@@ -85,13 +83,13 @@ icode
 你好
 ```
 
-iCode 应正常返回问候回复。若模型服务返回错误，请重新检查模型 ID、服务地址、API 密钥等模型配置。
+AIxCoding 应正常返回问候回复。若模型服务返回错误，请重新检查模型 ID、服务地址、API 密钥等模型配置。
 
 ## 4. 使用智能体
 
 ### 选择智能体
 
-iCode 默认提供两个主智能体：Q&A Agent（问答智能体）和 Code Agent（代码智能体）。两者都可以阅读项目、分析代码和讨论方案，但定位和可用工具不同：Q&A Agent 主要提供只读能力，适合了解项目、解释代码和分析问题；Code Agent 则可以修改文件、运行命令，适合编写、审查、重构、调试和验证代码。
+AIxCoding 默认提供两个主智能体：Q&A Agent（问答智能体）和 Code Agent（代码智能体）。两者都可以阅读项目、分析代码和讨论方案，但定位和可用工具不同：Q&A Agent 主要提供只读能力，适合了解项目、解释代码和分析问题；Code Agent 则可以修改文件、运行命令，适合编写、审查、重构、调试和验证代码。
 
 当前没有正在运行的智能体任务时，可以切换智能体。在输入栏中输入 `#`，输入栏上方会显示智能体列表，可以通过鼠标点击，或使用上下方向键并按回车进行选择。也可以点击输入栏上方状态栏中的智能体名称，在智能体选择窗口中进行切换。
 
@@ -127,11 +125,11 @@ Q&A Agent 给出实现方案后，可以在同一会话中切换到 **Code Agent
 
 ## 5. 结束本次使用
 
-若要结束本次使用，输入 `/exit` 或按 `Ctrl+Q` 退出 iCode。
+若要结束本次使用，输入 `/exit` 或按 `Ctrl+Q` 退出 AIxCoding。
 
 ## 下一步
 
-至此，已经完成 iCode 的安装和模型配置，并了解了 Q&A Agent 和 Code Agent 的基本使用方式，以及如何在同一会话中配合完成开发任务。
+至此，已经完成 AIxCoding 的安装和模型配置，并了解了 Q&A Agent 和 Code Agent 的基本使用方式，以及如何在同一会话中配合完成开发任务。
 
 接下来，可以继续探索：
 
@@ -139,4 +137,4 @@ Q&A Agent 给出实现方案后，可以在同一会话中切换到 **Code Agent
 - [配置模型](../guides/configuration/models.md)，连接并切换不同的模型服务
 - [工作目录](../guides/daily-use/workspaces.md)
 - [配置审批模式](../guides/configuration/approval.md)
-- 通过 [Skills](../guides/extensions/skills.md) 和 [MCP](../guides/extensions/mcp.md) 扩展 iCode
+- 通过 [Skills](../guides/extensions/skills.md) 和 [MCP](../guides/extensions/mcp.md) 扩展 AIxCoding
