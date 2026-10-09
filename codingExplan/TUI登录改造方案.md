@@ -52,7 +52,7 @@ auth 与 data 是**两套不同服务**，host 相同、path 前缀不同：
 | DEV                | `http://81.89.182.150/csas/api/v1` | `http://81.89.182.150/aicoding/api/v1` |
 | PROD               | `http://82.187.34.98/csas/api/v1`  | `http://82.187.34.98/aicoding/api/v1`  |
 
-> PROD 已确认取 `82.187.34.98`（agent_studio_new release-flavors.json）。aixcoding-continue 里的 `22.189.54.139` 作为备用保留在常量表注释中。
+> PROD 已确认取 `82.187.34.98`（agent_studio_new release-flavors.json）。aixcoding-continue 里的 `22.189.54.139` 曾作为备用保留在常量表中；**as-built 修正（2026-10-09）：该地址将废弃，备用常量已删除**，换指向一律走 `CHRYS_AUTH_SERVER_URL`。
 
 **LOCAL 档的 `7777` 与参考项目 mockServer 端口完全一致**，所以外网开发时不需要改任何地址，只需把 `auth.environment` 设为 `local`。
 
@@ -237,7 +237,6 @@ curl -X POST http://82.187.34.98/csas/api/v1/auth/device/code \
 
 - 凭据按环境隔离：prod 档存 `<config_dir>/users/prod/`（Windows `%APPDATA%\chrys\users\prod\`），与 local/dev 互不干扰；
 - 显式指定（等价于默认）：`set CHRYS_AUTH_ENVIRONMENT=prod`；临时改指向用 `CHRYS_AUTH_SERVER_URL=http://<host>[:port]`（只替换 protocol+host，保留 `/csas` 与 `/aicoding` path 前缀；非法值被忽略回落默认）；
-- 不通时改用备用 `22.189.54.139`：`set CHRYS_AUTH_SERVER_URL=22.189.54.139` 即可，无需改代码；
 - 认证请求 `trust_env=False`（`aixcoding/auth/client.py`）：**不走系统/环境代理**——HTTP(S)_PROXY 指向本地代理时不会劫持登录流量（本地代理答 502 明文会被误判为服务端错误、静默登出），内网直连即预期行为；
 - **当前发布 wheel 不含 `aixcoding`**（打包只含 `src/chrys`），打包产物上的 `/login` 同样会 `ModuleNotFoundError`——内网验证 `/login` 前需先落地 §9 的打包修复（开发机源码方式则按 §2.4 加 `PYTHONPATH`）；普通对话不受影响。
 
@@ -580,4 +579,4 @@ curl -X POST http://82.187.34.98/csas/api/v1/auth/device/code \
   -H "Content-Type: application/json" -d '{"client_id":78}'
 ```
 
-若不通，改用备用 `22.189.54.139`（改 `environments.py` 一行常量即可）。
+若不通，用 `CHRYS_AUTH_SERVER_URL=http://<host>[:port]` 临时换指向（备用地址 `22.189.54.139` 已废弃，不再保留常量）。
