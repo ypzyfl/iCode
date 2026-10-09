@@ -97,6 +97,25 @@ def test_immediate_syncs_before_the_first_sleep(monkeypatch: pytest.MonkeyPatch)
         stop.set()
 
 
+def test_sync_now_pulls_one_catalog_ahead_of_the_clock(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A login wakes a loop that is already running: the list arrives now, not at the next tick."""
+    monkeypatch.setattr(catalog_module, "catalog_url", lambda: "http://127.0.0.1:1/base")
+    monkeypatch.setattr(catalog_module, "sync_catalog_blocking", lambda **_kwargs: _result("a"))
+
+    seen: list[CatalogSyncResult] = []
+    stop = start_periodic_sync(interval=60, on_applied=seen.append)
+    try:
+        assert stop is not None, "a credentialed source must start the loop"
+        # The interval is a minute: on the clock alone nothing arrives in time.
+        time.sleep(5 * _POLL_INTERVAL)
+        assert not seen, "an untouched interval must not sync early"
+        stop.sync_now()
+        assert _wait_for(lambda: len(seen) >= 1, timeout=2.0), "sync_now never synced"
+        assert len(seen) == 1, "one request is one sync, not a loop restart"
+    finally:
+        stop.set()
+
+
 def test_the_interval_is_the_environments_or_the_default(monkeypatch: pytest.MonkeyPatch) -> None:
     """The variable shortens the wait for debugging; a bad value must not."""
     monkeypatch.delenv(catalog_module.SYNC_INTERVAL_ENV, raising=False)
@@ -157,11 +176,12 @@ def test_the_tier_is_auths_tier(monkeypatch: pytest.MonkeyPatch) -> None:
     """One deployment, one variable: the catalog must not name its own."""
     from aixcoding.auth import environments
     from aixcoding.auth.types import Environment
+
     from chrys.foundation.config import process_settings as process_settings_module
 
     assert catalog_module.ENVIRONMENT_ENV == environments.ENVIRONMENT_VARIABLE
     assert set(catalog_module._CATALOG_BASES) == {tier.value for tier in Environment}
-    assert catalog_module.DEFAULT_ENVIRONMENT == Environment.PROD.value
+    assert Environment.PROD.value == catalog_module.DEFAULT_ENVIRONMENT
 
     class _NoConfiguredBase:
         model_catalog_base_url = ""

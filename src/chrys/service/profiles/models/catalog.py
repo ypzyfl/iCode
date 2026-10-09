@@ -32,10 +32,10 @@ import os
 import re
 import threading
 from collections.abc import Callable
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
 
@@ -686,13 +686,67 @@ def sync_interval_seconds() -> float:
     return value
 
 
+class CatalogSyncHandle:
+    """Controls a running :func:`start_periodic_sync` loop.
+
+    Returned instead of a bare stop event so a caller that is already polling
+    can ask for an extra sync without starting a second thread: a login
+    changes whose catalog is served and that must land now rather than at the
+    next tick, while two threads would both rewrite the model directory and
+    race the registry they refresh. Waking the existing thread keeps every
+    sync serial, on the one thread that already owns the loop.
+
+    ``set()`` stays available so callers written against the event it replaces
+    keep working; it means stop.
+    """
+
+    def __init__(self) -> None:
+        self._cv = threading.Condition()
+        self._stopped = False
+        self._pending = False
+
+    def stop(self) -> None:
+        """End the loop; the thread wakes at once instead of at the next tick."""
+        with self._cv:
+            self._stopped = True
+            self._cv.notify_all()
+
+    def set(self) -> None:
+        """Stop, under the :class:`threading.Event` spelling this replaces."""
+        self.stop()
+
+    def sync_now(self) -> None:
+        """Run one sync as soon as the loop can, then resume the interval."""
+        with self._cv:
+            if self._stopped:
+                return
+            self._pending = True
+            self._cv.notify_all()
+
+    def _wait(self, interval: float) -> bool:
+        """Wait for the interval, a :meth:`sync_now`, or a stop.
+
+        Returns ``False`` when the loop must end, ``True`` when it owes a sync
+        — either the interval elapsed or one was requested.
+        """
+        with self._cv:
+            if self._stopped:
+                return False
+            if not self._pending:
+                self._cv.wait(interval)
+                if self._stopped:
+                    return False
+            self._pending = False
+        return True
+
+
 def start_periodic_sync(
     *,
     interval: float | None = None,
     immediate: bool = False,
     timeout: float = _DEFAULT_FETCH_TIMEOUT,
     on_applied: Callable[[CatalogSyncResult], None] | None = None,
-) -> threading.Event | None:
+) -> CatalogSyncHandle | None:
     """Re-sync the catalog every *interval* seconds on a daemon thread.
 
     *interval* defaults to :func:`sync_interval_seconds` — the environment's
@@ -716,8 +770,9 @@ def start_periodic_sync(
     the sync thread, so it must be thread-safe; an exception from it must not
     kill the loop.
 
-    Set the returned event to stop the loop (the reference client calls
-    ``stopAutoSync()`` from ``Core.dispose()``).
+    Returns :class:`CatalogSyncHandle`, whose ``sync_now()`` pulls one catalog
+    ahead of the clock — a login changes whose models are served — and whose
+    ``stop()`` ends the loop; or ``None`` when there is nothing to poll.
     """
     if not catalog_url():
         logger.info("Model catalog sync not started: no catalog source is configured.")
@@ -732,7 +787,7 @@ def start_periodic_sync(
         interval,
         ", with one now" if immediate else "",
     )
-    stop = threading.Event()
+    handle = CatalogSyncHandle()
 
     def _sync_once() -> None:
         result = sync_catalog_blocking(timeout=timeout)
@@ -746,9 +801,9 @@ def start_periodic_sync(
     def _run() -> None:
         if immediate:
             _sync_once()
-        while not stop.wait(interval):
+        while handle._wait(interval):
             _sync_once()
         logger.info("Model catalog sync stopped.")
 
     threading.Thread(target=_run, name="chrys-model-catalog-sync", daemon=True).start()
-    return stop
+    return handle
