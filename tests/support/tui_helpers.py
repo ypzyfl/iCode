@@ -1030,6 +1030,15 @@ class SuggestionScreen:
     def _fork_current_session(self) -> None:
         self.fork_requests += 1
 
+    def open_login_dialog(self) -> None:
+        self.login_dialog_requests += 1
+
+    def perform_logout(self) -> None:
+        self.logout_requests += 1
+
+    def open_title_editor(self) -> None:
+        self.title_editor_requests += 1
+
     def _open_session_title_editor(self) -> None:
         self.title_editor_requests += 1
 

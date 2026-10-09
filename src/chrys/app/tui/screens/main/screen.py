@@ -141,6 +141,7 @@ from chrys.service.profiles.models.schema import UNCONFIGURED_MODEL_ID, is_model
 from chrys.service.session.sub_agent_transcript import load_persisted_sub_agent_transcript
 
 if TYPE_CHECKING:
+    from aixcoding.auth import AccountInfo
     from textual.app import ComposeResult
     from textual.theme import Theme
 
@@ -2190,17 +2191,19 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
 
         from aixcoding.tui import LoginDialog
 
-        def _on_login_dismiss(account: object | None) -> None:
-            if account is None:
-                return
+        def _on_login_success(account: AccountInfo) -> None:
             # The catalog endpoint is authenticated: a session that had no
             # credential at startup starts polling here, and fetches at once
             # rather than waiting out a whole interval.
             cast("ChrysApp", self.app).start_catalog_sync(immediate=True)
+
+        def _on_login_dismiss(account: object | None) -> None:
+            if account is None:
+                return
             display_name = getattr(account, "display_name", "") or ""
             self.notify(render_str(self._language_localizer(), _LOGIN_SUCCEEDED.bind(name=display_name)))
 
-        self.app.push_screen(LoginDialog(), _on_login_dismiss)
+        self.app.push_screen(LoginDialog(on_login_success=_on_login_success), _on_login_dismiss)
 
     def _perform_logout(self) -> None:
         """Clear the stored AIxCoding credential (/logout)."""
