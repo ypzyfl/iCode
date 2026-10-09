@@ -183,9 +183,9 @@ def _sync_model_catalog() -> None:
     """Replace ``~/.chrys/models`` with the server catalog before anything loads it.
 
     Best effort: an unreachable server leaves the previous list in place, so an
-    offline start still has models.  Doing it in the one bootstrap every
-    entrypoint shares is what lets every later registry load see the catalog
-    without each of them repeating the call.
+    offline start still has models.  Only a frontend that owns the model
+    directory asks for this — see :func:`bootstrap_runtime`, which is why it is
+    opt-in and no longer something every entrypoint shares.
     """
     from chrys.service.profiles.models.catalog import sync_catalog_blocking
 
@@ -201,6 +201,7 @@ def bootstrap_runtime(
     setup_telemetry: bool = True,
     eval_context: EvalContext = DEFAULT_EVAL_CONTEXT,
     project_root: Path | None = None,
+    sync_model_catalog: bool = False,
 ) -> RuntimeBootstrap:
     """Load environment, apply process patches, and build settings.
 
@@ -218,6 +219,14 @@ def bootstrap_runtime(
             deliberately project-free because each session derives its own
             root, and a manager-level project layer would leak one session's
             trust decisions into every other.
+        sync_model_catalog: Replace ``~/.chrys/models`` with the server catalog
+            before the first registry load. Off by default: the sync is a
+            wholesale replacement, so it is only safe for a frontend that owns
+            that directory. The TUI owns it and asks for it. A host that spawns
+            Chrys over ACP — a desktop app, an editor extension — writes the
+            profiles itself and would lose them to the first sync, so opting in
+            is the caller's decision rather than something every host has to
+            remember to switch off.
     """
     set_process_title()
 
@@ -265,6 +274,7 @@ def bootstrap_runtime(
 
         setup_otel(loaded.settings)
 
-    _sync_model_catalog()
+    if sync_model_catalog:
+        _sync_model_catalog()
 
     return RuntimeBootstrap(loaded=loaded, warnings=warnings)

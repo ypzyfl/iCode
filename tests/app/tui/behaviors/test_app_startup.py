@@ -138,6 +138,15 @@ def test_main_restores_terminal_when_app_run_raises(
             calls.append("run")
             raise RuntimeError("boom")
 
+        # ``main`` starts and stops the catalog poll around ``run``; these
+        # stubs stay silent so this test keeps asserting the terminal-restore
+        # sequence alone.
+        def start_catalog_sync(self, *, immediate: bool = False) -> None:
+            return None
+
+        def stop_catalog_sync(self) -> None:
+            return None
+
     class _Registry:
         def load_all(self) -> None:
             return
@@ -152,7 +161,7 @@ def test_main_restores_terminal_when_app_run_raises(
     monkeypatch.setattr(
         startup_mod,
         "bootstrap_runtime",
-        lambda *, dotenv_override, project_root: RuntimeBootstrap(
+        lambda *, dotenv_override, project_root, **_kwargs: RuntimeBootstrap(
             loaded=LoadedSettings(settings=Settings(), provenance={})
         ),
     )
@@ -200,6 +209,13 @@ def test_main_passes_startup_args_to_app(
             calls.append(f"cwd:{Path.cwd()}")
             calls.append("run")
 
+        # Silent: ``main`` drives the poll, but this test asserts startup args.
+        def start_catalog_sync(self, *, immediate: bool = False) -> None:
+            return None
+
+        def stop_catalog_sync(self) -> None:
+            return None
+
     class _AgentRegistry:
         def load_all(self) -> None:
             return
@@ -241,10 +257,14 @@ def test_main_passes_startup_args_to_app(
     monkeypatch.setattr("chrys.foundation.platform.get_platform", lambda: fake_platform(config_dir=tmp_path))
     monkeypatch.setattr(startup_mod, "configure_utf8_stdio", lambda: None)
     bootstrap_roots: list[Path] = []
+    bootstrap_catalog_sync: list[bool] = []
 
-    def _fake_bootstrap(*, dotenv_override: bool, project_root: Path) -> RuntimeBootstrap:
+    def _fake_bootstrap(
+        *, dotenv_override: bool, project_root: Path, sync_model_catalog: bool = False
+    ) -> RuntimeBootstrap:
         _ = dotenv_override
         bootstrap_roots.append(project_root)
+        bootstrap_catalog_sync.append(sync_model_catalog)
         return RuntimeBootstrap(loaded=LoadedSettings(settings=Settings(), provenance={}))
 
     monkeypatch.setattr(startup_mod, "bootstrap_runtime", _fake_bootstrap)
@@ -271,6 +291,11 @@ def test_main_passes_startup_args_to_app(
     # ``-C`` must chdir before bootstrap: the workdir names the project
     # trust domain the settings load reads from.
     assert bootstrap_roots == [workdir]
+    # The TUI owns ~/.chrys/models, so it is the one entrypoint that opts into
+    # the startup catalog sync. Bootstrap defaults it off for every other
+    # entrypoint, so this assertion is what keeps the TUI's opt-in from being
+    # dropped unnoticed.
+    assert bootstrap_catalog_sync == [True]
     loaded = captured_engine_kwargs["loaded_settings"]
     assert isinstance(loaded, LoadedSettings)
     # The app must read through the engine's own handle. Anything else — even
