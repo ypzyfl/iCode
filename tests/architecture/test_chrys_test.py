@@ -23,10 +23,61 @@ pytestmark = CI_LINUX_ONLY
 _AGENTS_NUMERIC_ANCHOR = re.compile(r"AGENTS[.]md:\d+")
 
 
+@pytest.fixture(autouse=True)
+def priority_lowerings(monkeypatch: pytest.MonkeyPatch) -> list[None]:
+    """Record ``main()``'s priority drop instead of lowering the test worker's own priority for good."""
+    lowerings: list[None] = []
+    monkeypatch.setattr(chrys_test, "_lower_priority", lambda: lowerings.append(None))
+    return lowerings
+
+
 def _write(root: Path, relative: str, source: str = "") -> None:
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(source, encoding="utf-8")
+
+
+def test_main_runs_below_normal_priority(monkeypatch: pytest.MonkeyPatch, priority_lowerings: list[None]) -> None:
+    monkeypatch.setattr(chrys_test, "changes_from_paths", lambda paths: ())
+
+    assert chrys_test.main(["--smart", "--paths", "README.md"]) == 0
+    assert len(priority_lowerings) == 1
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX niceness")
+@pytest.mark.parametrize("start", [None, chrys_test._BELOW_NORMAL_NICENESS + 5])
+def test_lowered_priority_reaches_the_processes_tests_start(start: int | None) -> None:
+    # A separate interpreter: lowering this worker's priority could not be undone.
+    probe = dedent(
+        f"""
+        import os, subprocess, sys
+        from scripts import chrys_test
+        if {start!r} is not None:
+            os.setpriority(os.PRIO_PROCESS, 0, max({start!r}, os.getpriority(os.PRIO_PROCESS, 0)))
+        before = os.getpriority(os.PRIO_PROCESS, 0)
+        chrys_test._lower_priority()
+        child = subprocess.run(
+            [sys.executable, "-c", "import os; print(os.getpriority(os.PRIO_PROCESS, 0))"],
+            stdin=subprocess.DEVNULL, capture_output=True, text=True, check=True,
+        )
+        print(before, child.stdout.strip())
+        """
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=REPO_ROOT,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    before, child = (int(value) for value in result.stdout.split())
+    # Lowered to the floor, never raised above where it already was. Under a
+    # parent already at the floor (Smart Test itself) the default case only
+    # shows inheritance; at normal priority, as in CI, it shows the drop.
+    assert child == max(before, chrys_test._BELOW_NORMAL_NICENESS)
 
 
 def test_every_architecture_test_has_an_explicit_smart_test_classification() -> None:
@@ -964,6 +1015,7 @@ def test_builtin_profiles_select_service_engine_and_application_consumers() -> N
     path = "src/chrys/service/profiles/agents/builtins/Code.yaml"
     expected = {
         "tests/app/acp/test_session_manager_profiles.py",
+        "tests/app/cli/test_workflow_validate.py",
         "tests/app/tui/behaviors/test_chrys_themes.py",
         "tests/app/tui/screens",
         "tests/orchestration/engine/build",
@@ -979,6 +1031,61 @@ def test_builtin_profiles_select_service_engine_and_application_consumers() -> N
     assert all((REPO_ROOT / target).exists() for target in expected)
 
 
+def _selects(selection: chrys_test.Selection, test_path: str) -> bool:
+    return any(test_path == target or test_path.startswith(f"{target}/") for target in selection.regular)
+
+
+def _select_alone(path: str) -> chrys_test.Selection:
+    # No import edges: these consumers start a worker or discover a template by path. The nearby-directory
+    # fallback is off, so only the rules can select them.
+    return chrys_test.select_smart_tests(
+        (chrys_test.Change(path, frozenset({"changed"})),),
+        chrys_test.ImportGraph({}, {}, {}, ()),
+        defer_fixture_fallbacks=True,
+    )
+
+
+@pytest.mark.parametrize(
+    "path", ["src/chrys/service/workflows/worker_host.py", "src/chrys/service/workflows/sdk/_builder.py"]
+)
+def test_a_worker_host_or_sdk_change_selects_the_tests_that_start_a_real_worker(path: str) -> None:
+    selection = _select_alone(path)
+
+    for consumer in (
+        "tests/orchestration/workflows/test_catalog.py",
+        "tests/orchestration/workflows/test_preview_trust.py",
+        "tests/orchestration/workflows/test_run_faults.py",
+        "tests/orchestration/workflows/test_worker_diagnostics.py",
+        "tests/app/cli/test_workflow.py",
+        "tests/app/cli/test_workflow_validate.py",
+        "tests/app/tui/screens/main/test_workflow_chrome.py",
+        "tests/app/tui/widgets/test_workflow_transcript_order.py",
+        "tests/service/workflows/test_py39_harness.py",
+    ):
+        assert (REPO_ROOT / consumer).exists()
+        assert _selects(selection, consumer), consumer
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "src/chrys/service/workflows/builtins/demo-workflow.py",
+        "src/chrys/service/workflows/builtins/demo-workflow.manifest.json",
+    ],
+)
+def test_a_builtin_workflow_change_selects_the_tests_that_discover_it(path: str) -> None:
+    selection = _select_alone(path)
+
+    for consumer in (
+        "tests/orchestration/workflows/test_catalog.py",
+        "tests/app/tui/screens/main/test_workflow_run_settings.py",
+        "tests/app/cli/test_workflow.py",
+    ):
+        assert (REPO_ROOT / consumer).exists()
+        assert _selects(selection, consumer), consumer
+    assert all((REPO_ROOT / target).exists() for target in chrys_test._BUILTIN_WORKFLOW_TEST_TARGETS)
+
+
 @pytest.mark.parametrize(
     "changed_path",
     [
@@ -986,6 +1093,7 @@ def test_builtin_profiles_select_service_engine_and_application_consumers() -> N
         "scripts/build.ps1",
         "scripts/build_offline_dist.sh",
         "scripts/build_offline_dist.ps1",
+        "scripts/offline_wheel_overrides.txt",
         ".github/workflows/ci.yml",
         ".github/workflows/cd.yml",
     ],
@@ -1035,6 +1143,14 @@ def test_runtime_asset_without_a_subsystem_scope_reports_the_gap() -> None:
         (
             "src/chrys/app/features/session_title/generator.py",
             "tests/architecture/test_trajectory_wait_inventory.py::test_pending_retry_clear_calls_declare_a_terminal_reason",
+        ),
+        (
+            "src/chrys/kernel/loop.py",
+            "tests/architecture/test_trajectory_wait_inventory.py::test_wait_manifest_matches_source",
+        ),
+        (
+            "src/chrys/kernel/loop.py",
+            "tests/architecture/test_trajectory_wait_inventory.py::test_wait_inventory_covers_every_explicit_and_implicit_async_wait",
         ),
     ],
 )

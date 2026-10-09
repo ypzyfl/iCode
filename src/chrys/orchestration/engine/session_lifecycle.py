@@ -35,7 +35,7 @@ from chrys.foundation.events.types import (
     SessionRestored,
     Warning,
 )
-from chrys.foundation.i18n import DisplayBlock, DisplaySequence, MessageRef, msg
+from chrys.foundation.i18n import DisplayBlock, DisplayPath, DisplaySequence, MessageRef, msg
 from chrys.foundation.i18n.formatting import format_message
 from chrys.foundation.models.history_markers import SUB_AGENT_STATE_DISCARDED_MESSAGE, HistoryMarkerKind
 from chrys.foundation.models.workspace import WorkingDir, Workspace
@@ -43,9 +43,11 @@ from chrys.foundation.platform import safe_getcwd
 from chrys.foundation.platform.files import surrogate_safe_text
 from chrys.foundation.trajectory.event_types import RuntimeFinishReason as TrajectoryRuntimeFinishReason
 from chrys.foundation.util.lock import FileLock
+from chrys.foundation.util.session_ids import session_short_id
 from chrys.orchestration.engine.state import lifecycle_permits
 from chrys.orchestration.engine.state.machine import Trigger
 from chrys.orchestration.invoker.contracts import AbortCause
+from chrys.orchestration.invoker.runtime import restore_phase4_state
 from chrys.service.context.compaction.spill import SpillReconciliationResult, reconcile_spill_storage
 from chrys.service.mutations.store import SnapshotPolicy, SnapshotStore
 from chrys.service.mutations.tracker import MutationTracker
@@ -173,6 +175,10 @@ _RESTORE_AGENT_PROFILE_UNRESOLVED_USING_CURRENT = msg(
 _RESTORE_AGENT_PROFILE_UNRESOLVED = msg(
     "restore.agent_profile_unresolved",
     fallback="The saved agent profile {saved} could not be uniquely resolved. Session restore was stopped.",
+)
+_RESTORE_SESSION_CWD_MISSING = msg(
+    "restore.session_cwd_missing",
+    fallback="The working directory of this session no longer exists: {path}",
 )
 _RESTORE_REQUESTED_AGENT_PROFILE_UNRESOLVED = msg(
     "restore.requested_agent_profile_unresolved",
@@ -1264,7 +1270,8 @@ class SessionLifecycle:
                 state["chrys_todos"] = copy.deepcopy(todo_state)
             self._current.loaded.bindings.backend.history_state = state
             if self._current.loaded is not None:
-                self._current.loaded.reminder_middleware.restore_phase4_state(state)
+                loaded = self._current.loaded
+                restore_phase4_state(loaded.reminder_middleware, loaded.last_words, state)
             stamp_history_item_ids(self._current.loaded.bindings.backend.history_state)
             self._history.bind(self._current.loaded.bindings.backend.history_state)
 
@@ -1409,6 +1416,22 @@ class SessionLifecycle:
             target_cwd = event.primary_cwd or saved_cwd or self._workspace_cwd()
             target_cwd_exists = os.path.isdir(target_cwd)
             if target_cwd and not target_cwd_exists:
+                if not restoring_current:
+                    # Never switch to a session whose directory is gone; the
+                    # frontend lets the user pick another one (``primary_cwd``).
+                    # Rolling back the current session keeps it and only warns.
+                    await self._bus.publish(
+                        Error(
+                            code="session_cwd_missing",
+                            message=(
+                                f"Working directory of session {session_short_id(event.session_id)} "
+                                f"no longer exists: {surrogate_safe_text(target_cwd)}"
+                            ),
+                            display_message=_RESTORE_SESSION_CWD_MISSING.bind(path=DisplayPath(target_cwd)),
+                            session_id=event.session_id,
+                        )
+                    )
+                    return
                 cwd_warning = f"Working directory no longer exists: {surrogate_safe_text(target_cwd)}"
 
             profile_name = event.profile_name or (meta.agent_profile if meta else "")
@@ -1658,8 +1681,9 @@ class SessionLifecycle:
             self._session.mutation_tracker = MutationTracker.deserialize(state["chrys_mutations"], snapshot_store)
         else:
             self._session.mutation_tracker = MutationTracker(snapshot_store)
-        # Hydrate todos before ``restore_last_words`` below: the reminder
-        # middleware re-captures the todo section from the tracker at restore.
+        # Hydrate todos before ``restore_phase4_state`` below:
+        # ``LastWordsState.restore_last_words`` re-captures the restored note's
+        # todo section from the tracker.
         self._session.todo_tracker = TodoTracker()
         if state:
             await self._session.todo_tracker.restore(state.get("chrys_todos"))
@@ -1690,7 +1714,7 @@ class SessionLifecycle:
                     _rollback_reapplied_model_profile(rollback_token)
                 raise
             if profile_switch is not None and self._current.loaded is not None:
-                self._current.loaded.reminder_middleware.set_profile_switch(*profile_switch)
+                self._current.loaded.reminder_middleware.sources.profile_switch.set_profile_switch(*profile_switch)
         else:
             # Nothing to build, so no commit will install the staged load; this
             # degenerate path installs it directly, like a reload with nothing
@@ -1712,7 +1736,10 @@ class SessionLifecycle:
         if self._current.loaded is not None and state:
             self._current.loaded.bindings.backend.history_state = state
             if self._current.loaded is not None:
-                self._current.loaded.reminder_middleware.restore_phase4_state(
+                loaded = self._current.loaded
+                restore_phase4_state(
+                    loaded.reminder_middleware,
+                    loaded.last_words,
                     state,
                     available_relative_paths=spill_reconciliation.available_relative_paths,
                 )
@@ -1865,7 +1892,7 @@ class SessionLifecycle:
             ),
         )
         # Restore-time UsageUpdate must follow SessionRestored so the TUI has
-        # already bound the new ``_main_usage_source_id`` before classifying it as
+        # already bound the new ``main_usage_source_id`` before classifying it as
         # the session window — otherwise the chat panel keeps stale window tokens
         # from the previous session.  Route through the ordered chain so any
         # pending sub-agent UsageUpdate that was in-flight before the switch can't
