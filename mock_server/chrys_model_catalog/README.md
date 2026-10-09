@@ -23,7 +23,7 @@ uv run python mock_server/chrys_model_catalog/server.py --no-auth  # 只挂目�
 然后让 iCode 指向它：
 
 ```bash
-CHRYS_ENVIRONMENT=local CHRYS_AUTH_ENVIRONMENT=local uv run icode
+CHRYS_AUTH_ENVIRONMENT=local uv run icode
 ```
 
 ## 端点
