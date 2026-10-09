@@ -960,6 +960,7 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
             self._state.runtime.profile,
             self._language_localizer(),
             runtime_confirmed=self._state.runtime.details_confirmed,
+            model_registry=self._services.model_registry,
         )
         self.query_one(StatusBar).set_model(state)
 
