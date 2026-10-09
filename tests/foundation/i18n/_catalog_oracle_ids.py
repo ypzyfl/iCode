@@ -526,6 +526,8 @@ _message_ids: set[str | tuple[str, str]] = {
     "tui.language_picker.title",
     "tui.loading.label",
     "tui.login.logged_out",
+    "tui.login.logout_managed_by_desktop",
+    "tui.login.managed_by_desktop",
     "tui.login.not_logged_in",
     "tui.login.succeeded",
     ("tui.logs.copy.copied_lines", "tui.logs.copy.copied_lines#plural"),

@@ -86,6 +86,10 @@ async def test_projects_and_sends_tool_call_save_then_update(mock: RunningTeleme
             return bool(mock.store.query("tool-detail/save")) and bool(mock.store.query("tool-detail/update"))
 
         await wait_for(_both_rows_present)
+        # The mock stores a row in its HTTP thread before the sender loop has
+        # processed the response, so sent_count may trail the store by a tick
+        # (deterministically so on a loaded linux runner).
+        await wait_for(lambda: collector.sent_count == 2)
 
         save_rows = mock.store.query("tool-detail/save", session_id="session-1")
         assert len(save_rows) == 1

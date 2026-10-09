@@ -84,7 +84,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/chrys"]
+packages = ["src/chrys", "aixcoding"]
 
 [tool.hatch.build.targets.wheel.force-include]
 # The /help user guide reads docs/ at runtime; installed builds carry it here

@@ -15,9 +15,10 @@ Endpoint               Request body                Answer envelope
 ``{data}/user/info``            ``{"token": T}``               ``data``
 =====================  ==========================  =========================
 
-The poll loop implements the reference state machine (the stricter of the two
-reference projects): server-driven interval, ``slow_down`` adds 5s capped at
-30s, terminal errors end the wait immediately, and a 15-minute overall budget
+The poll loop matches the production reference (aixcoding-continue's
+``WorkOsAuthProvider``): a fixed 1-second cadence regardless of any
+server-sent interval, ``slow_down`` still backs off 5s at a time capped at
+30s, terminal errors end the wait immediately, and a 5-minute overall budget
 guards against a forgotten browser tab.
 """
 
@@ -42,8 +43,8 @@ from aixcoding.auth.types import AccountInfo, DeviceCode, TokenResult
 CLIENT_ID = 78
 DEVICE_CODE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
 
-#: Overall polling budget: 15 minutes, matching the reference client.
-TOTAL_POLL_TIMEOUT_SECONDS = 15 * 60
+#: Overall polling budget: 5 minutes, the production reference's hard timeout.
+TOTAL_POLL_TIMEOUT_SECONDS = 5 * 60
 
 #: ``slow_down`` grows the interval by this much, up to the cap.
 SLOW_DOWN_STEP_SECONDS = 5
@@ -72,20 +73,19 @@ class AuthClient:
         self._http = http
         self._timeout = timeout
 
-    async def _client(self) -> httpx.AsyncClient:
-        """The caller's client when injected, else a fresh one (not closed).
-
-        ``trust_env=False``: proxy env vars must not hijack auth traffic. The
-        endpoints are intranet/loopback services a proxy cannot reach; with
-        ``trust_env`` on, a local dev proxy answering ``502`` + plain text
-        would masquerade as a server error and silently log the user out.
-        """
-        if self._http is not None:
-            return self._http
-        return httpx.AsyncClient(timeout=self._timeout, trust_env=False)
-
     async def _post_json(self, url: str, payload: dict[str, Any]) -> dict[str, Any]:
-        client = await self._client()
+        if self._http is not None:
+            return await self._post_on(self._http, url, payload)
+        # A self-created client lives for exactly one request: the poll loop
+        # used to leak one client (and its SSL context) per iteration. Also
+        # ``trust_env=False``: proxy env vars must not hijack auth traffic --
+        # these endpoints are intranet/loopback services a proxy cannot reach,
+        # and a dev proxy answering 502 + plain text would masquerade as a
+        # server error and silently log the user out.
+        async with httpx.AsyncClient(timeout=self._timeout, trust_env=False) as client:
+            return await self._post_on(client, url, payload)
+
+    async def _post_on(self, client: httpx.AsyncClient, url: str, payload: dict[str, Any]) -> dict[str, Any]:
         try:
             response = await client.post(url, json=payload)
         except httpx.HTTPError as exc:
@@ -110,7 +110,7 @@ class AuthClient:
         self,
         device_code: str,
         *,
-        interval: float = 5.0,
+        interval: float = 1.0,
         total_timeout: float = TOTAL_POLL_TIMEOUT_SECONDS,
         cancel_event: asyncio.Event | None = None,
         sleep: Sleep = asyncio.sleep,
@@ -118,10 +118,11 @@ class AuthClient:
     ) -> TokenResult:
         """Poll until the grant resolves; every ending is an exception or a token.
 
-        ``interval`` seeds the wait (the server's ``result.interval``), grows
-        by 5s on ``slow_down`` up to 30s, and the whole loop must finish
-        inside ``total_timeout``. ``cancel_event`` short-circuits the wait the
-        moment a dialog closes.
+        ``interval`` seeds the wait; the production reference polls on a fixed
+        1-second cadence and ignores the server-sent ``result.interval``. The
+        wait grows by 5s on ``slow_down`` up to 30s, and the whole loop must
+        finish inside ``total_timeout``. ``cancel_event`` short-circuits the
+        wait the moment a dialog closes.
         """
         started = clock()
         wait = max(float(interval), 0.0)
