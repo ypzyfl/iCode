@@ -832,7 +832,8 @@ class Settings:
     )
 
     # Base URL of the model catalog. Empty means no catalog source, except
-    # under ``CHRYS_ENVIRONMENT=local``, which falls back to the loopback mock.
+    # under ``CHRYS_AUTH_ENVIRONMENT=local``, which falls back to the loopback
+    # mock.
     # RESTART: the sync runs in the bootstrap, so a value it reads once per
     # process cannot be one the settings panel changes underneath it.
     # A repository does not get to name the host the client pulls its model

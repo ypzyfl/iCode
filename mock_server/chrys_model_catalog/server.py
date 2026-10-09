@@ -23,7 +23,7 @@ Usage::
                   [--catalog FILE] [--mode {ok,empty,invalid,error,slow,stale}]
                   [--no-auth] [--auth-mode {auto,manual}]
 
-    CHRYS_ENVIRONMENT=local CHRYS_AUTH_ENVIRONMENT=local uv run icode
+    CHRYS_AUTH_ENVIRONMENT=local uv run icode
 
 Endpoints::
 
@@ -94,6 +94,63 @@ _LOOPBACK_HOSTS = ("127.0.0.1", "::1")
 AUTH_ROUTE_PREFIXES = (AUTH_API_PREFIX, "/device")
 
 MAX_CONTROL_BYTES = 64 * 1024
+
+#: Headers whose value is mostly hidden in the log: a catalog request carries
+#: the caller's token, and an access log is not a credential store.
+_MASKED_HEADERS = frozenset(
+    {
+        "authorization",
+        "proxy-authorization",
+        "cookie",
+        "set-cookie",
+        "x-api-key",
+        "api-key",
+        "x-auth-token",
+    }
+)
+
+#: A credential arrives under many names besides ``Authorization`` —
+#: ``X-Access-Token``, ``X-Api-Key``, ``X-Session-Token`` and whatever the next
+#: gateway invents — so a name is also matched by what it contains. Anything
+#: that slips past both would be logged in the clear, which is the one thing
+#: this function must never do.
+_CREDENTIAL_NAME_PARTS = ("auth", "token", "key", "secret", "credential", "password", "cookie", "signature")
+
+
+def _is_credential_header(name: str) -> bool:
+    """Return whether *name* names a credential, by exact match or by content."""
+    lowered = name.lower()
+    return lowered in _MASKED_HEADERS or any(part in lowered for part in _CREDENTIAL_NAME_PARTS)
+
+
+#: How much of a credential both ends keep, and the length below which none of
+#: it is shown: hiding only the middle of a short secret leaves little enough
+#: that the ends give it away.
+_MASK_HEAD = 8
+_MASK_TAIL = 4
+_MASK_MIN_LENGTH = 16
+
+
+def _mask_value(value: str) -> str:
+    """Hide the middle of *value*, keeping both ends to tell keys apart."""
+    if len(value) <= _MASK_MIN_LENGTH:
+        return "<redacted>"
+    return f"{value[:_MASK_HEAD]}…{value[-_MASK_TAIL:]}"
+
+
+def _format_auth_headers(headers: Any) -> str:
+    """Render the request's credential headers, or note that it sent none.
+
+    Only credentials are logged: what the line is for is *whether* the caller
+    authenticated, not the dozen browser headers that ride along with it. The
+    value stays mostly hidden — enough to tell which key was sent, not enough
+    to put the secret in a log file.
+    """
+    lines: list[str] = []
+    for name, value in headers.items():
+        if _is_credential_header(name):
+            lines.append(f"    {name}: {_mask_value(value)} (len={len(value)})")
+    return "\n".join(lines) or "    (no credential header)"
 
 
 class RunningCatalogMock:
@@ -180,7 +237,7 @@ def build_handler_class() -> type[BaseHTTPRequestHandler]:
             server.state.requests += 1
             route = urlsplit(self.path).path.rstrip("/") or "/"
             if not server.quiet:
-                logger.info("%s %s", method, self._request_url())
+                logger.info("%s %s\n%s", method, self._request_url(), _format_auth_headers(self.headers))
 
             if route == CATALOG_ROUTE:
                 if method != "GET":

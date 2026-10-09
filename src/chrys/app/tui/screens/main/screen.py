@@ -1723,6 +1723,10 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         def _on_login_dismiss(account: object | None) -> None:
             if account is None:
                 return
+            # The catalog endpoint is authenticated: a session that had no
+            # credential at startup starts polling here, and fetches at once
+            # rather than waiting out a whole interval.
+            cast("ChrysApp", self.app).start_catalog_sync(immediate=True)
             display_name = getattr(account, "display_name", "") or ""
             self.notify(render_str(self._language_localizer(), _LOGIN_SUCCEEDED.bind(name=display_name)))
 
@@ -1741,6 +1745,9 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
             self.notify(render_str(self._language_localizer(), _LOGIN_NOT_LOGGED_IN.bind()), severity="warning")
             return
         session.logout()
+        # Without the credential every poll is refused before a request, so the
+        # thread has nothing left to do until the next login.
+        cast("ChrysApp", self.app).stop_catalog_sync()
         self.notify(render_str(self._language_localizer(), _LOGIN_LOGGED_OUT.bind()))
 
     # ------------------------------------------------------------------ #
