@@ -33,10 +33,6 @@ from urllib.parse import urlsplit
 
 from aixcoding.auth.types import Environment
 
-#: Fallback PROD host kept from the other reference project, for the day the
-#: primary intranet address does not answer (see the plan's risk #15).
-_BACKUP_PROD_HOST = "22.189.54.139"
-
 _BASE_PATHS: dict[Environment, tuple[str, str]] = {
     Environment.LOCAL: ("http://localhost:7777/api/v1", "http://localhost:7777/api/v1"),
     Environment.DEV: ("http://81.89.182.150/csas/api/v1", "http://81.89.182.150/aicoding/api/v1"),

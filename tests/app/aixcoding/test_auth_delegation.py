@@ -149,6 +149,25 @@ async def test_delegation_shadows_the_store(tmp_path) -> None:
     assert session.delegated_credential is not None
 
 
+async def test_stored_user_id_prefers_the_delegation(tmp_path) -> None:
+    session = make_session(
+        tmp_path,
+        "http://127.0.0.1:1/api/v1",
+        delegated=DelegatedCredential(token="parent-token", ehr="1234567"),
+    )
+    session.store.store(
+        Environment.LOCAL,
+        StoredCredential.issued_now(environment_id="local", user_id="8769092", token="own-token"),
+    )
+    assert session.stored_user_id == "1234567"
+
+
+async def test_stored_user_id_is_none_without_ehr_hint(tmp_path) -> None:
+    # Compat-channel delegations carry the ehr; primary-channel ones may not.
+    session = make_session(tmp_path, "http://127.0.0.1:1/api/v1", delegated=DelegatedCredential(token="parent-token"))
+    assert session.stored_user_id is None
+
+
 async def test_check_silent_validates_the_delegated_token(tmp_path) -> None:
     with MockServer(mode="auto", interval=0) as mock:
         # The "desktop" walks the device flow and owns the resulting token.
@@ -186,6 +205,7 @@ async def test_rejected_delegation_falls_back_to_the_store_without_destroying_it
         # survives untouched, and the session stays usable.
         assert session.delegated_credential is None
         assert session.stored_token == "own-token"
+        assert session.stored_user_id == "8769092"
         assert session.store.load(Environment.LOCAL) is not None
         # After the fallback, logout behaves like the standalone flow again.
         session.logout()
