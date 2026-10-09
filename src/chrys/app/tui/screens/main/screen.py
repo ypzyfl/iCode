@@ -193,6 +193,11 @@ _MODEL_UNCONFIGURED_MESSAGE = msg(
     fallback="Your message was not sent. Configure and select a model to get started.",
 )
 _MODEL_UNCONFIGURED_SETUP = msg("tui.model_guard.button.setup", fallback="Set up model")
+_LOGIN_SUCCEEDED = msg("tui.login.succeeded", fallback="Logged in as {name}")
+_LOGIN_LOGGED_OUT = msg("tui.login.logged_out", fallback="Logged out")
+_LOGIN_NOT_LOGGED_IN = msg("tui.login.not_logged_in", fallback="Not logged in yet")
+_LOGIN_MANAGED = msg("tui.login.managed_by_desktop", fallback="Login is managed by the desktop app")
+_LOGOUT_MANAGED = msg("tui.login.logout_managed_by_desktop", fallback="Logout is managed by the desktop app")
 
 _TERMINAL_TITLE_ACTIVITY_INTERVAL_SECONDS = 0.65
 _TERMINAL_TITLE_RUNNING_FRAMES = ("◇", "◈", "◆", "◈")
@@ -1020,6 +1025,8 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
                 start_index=start_index,
             ),
             warn=self._warn_slash_command,
+            open_login=self._open_login_dialog,
+            perform_account_logout=self._perform_logout,
         )
 
     def _new_diff_controller(self) -> DiffController:
@@ -2173,6 +2180,44 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
     async def _on_model_config_result(self, result: str) -> None:
         """Handle model config modal result — reload settings if applied."""
         await self._config_actions.on_model_config_result(result)
+
+    # ------------------------------------------------------------------ #
+    # Account login (/login, /logout)
+    # ------------------------------------------------------------------ #
+
+    def _open_login_dialog(self) -> None:
+        """Open the AIxCoding device-code login dialog (/login)."""
+        from aixcoding.auth import get_login_session
+
+        if get_login_session().delegated_credential is not None:
+            # The desktop parent already logged in and owns the session.
+            self.notify(render_str(self._language_localizer(), _LOGIN_MANAGED.bind()))
+            return
+
+        from aixcoding.tui import LoginDialog
+
+        def _on_login_dismiss(account: object | None) -> None:
+            if account is None:
+                return
+            display_name = getattr(account, "display_name", "") or ""
+            self.notify(render_str(self._language_localizer(), _LOGIN_SUCCEEDED.bind(name=display_name)))
+
+        self.app.push_screen(LoginDialog(), _on_login_dismiss)
+
+    def _perform_logout(self) -> None:
+        """Clear the stored AIxCoding credential (/logout)."""
+        from aixcoding.auth import get_login_session
+
+        session = get_login_session()
+        if session.delegated_credential is not None:
+            # Only the desktop parent can end its own session.
+            self.notify(render_str(self._language_localizer(), _LOGOUT_MANAGED.bind()))
+            return
+        if session.stored_token is None:
+            self.notify(render_str(self._language_localizer(), _LOGIN_NOT_LOGGED_IN.bind()), severity="warning")
+            return
+        session.logout()
+        self.notify(render_str(self._language_localizer(), _LOGIN_LOGGED_OUT.bind()))
 
     # ------------------------------------------------------------------ #
     # Agent config (/agents with optional tab subcommands)
