@@ -179,6 +179,19 @@ def set_process_title(title: str = "chrys") -> None:
         setproctitle(title)
 
 
+def _sync_model_catalog() -> None:
+    """Replace ``~/.chrys/models`` with the server catalog before anything loads it.
+
+    Best effort: an unreachable server leaves the previous list in place, so an
+    offline start still has models.  Doing it in the one bootstrap every
+    entrypoint shares is what lets every later registry load see the catalog
+    without each of them repeating the call.
+    """
+    from chrys.service.profiles.models.catalog import sync_catalog_blocking
+
+    sync_catalog_blocking()
+
+
 def bootstrap_runtime(
     *,
     dotenv_override: bool,
@@ -251,5 +264,7 @@ def bootstrap_runtime(
         from chrys.foundation.observability.setup import setup_otel
 
         setup_otel(loaded.settings)
+
+    _sync_model_catalog()
 
     return RuntimeBootstrap(loaded=loaded, warnings=warnings)
