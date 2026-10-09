@@ -46,6 +46,7 @@ class ProcessSettings:
     mutation_trace_mode: str
     mutation_trace_fsatrace_path: str
     session_root_dir: str
+    model_catalog_base_url: str
 
     @classmethod
     def from_settings(cls, settings: Settings) -> ProcessSettings:
@@ -57,6 +58,7 @@ class ProcessSettings:
             mutation_trace_mode=settings.mutation_trace_mode,
             mutation_trace_fsatrace_path=settings.mutation_trace_fsatrace_path,
             session_root_dir=settings.session_root_dir,
+            model_catalog_base_url=settings.model_catalog_base_url,
         )
 
 

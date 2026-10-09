@@ -169,9 +169,46 @@ def _build_default_headers(
     return headers
 
 
+#: Endpoints whose credential is the gateway's rather than the provider's: a
+#: profile pointing at one must not fall back to the SDK's own provider
+#: variable, which would send the wrong key. Checked before the provider env.
+_GATEWAY_API_KEY_ENVS: tuple[tuple[str, str], ...] = (
+    ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
+)
+
+
+def _gateway_api_key_env(profile: ModelProfile) -> str:
+    """Return the gateway credential env *profile* points at, or "" for a direct provider."""
+    base = profile.base_url.strip().rstrip("/")
+    if not base:
+        return ""
+    return next((env for prefix, env in _GATEWAY_API_KEY_ENVS if base.startswith(prefix)), "")
+
+
 def _resolve_profile_api_key(profile: ModelProfile) -> str:
-    """Resolve explicit API-key env templates before provider env fallback."""
-    return resolve_env_templates(profile.api_key, location=f"model profile {profile.name!r} API Key")
+    """Resolve the key at send time: profile, then gateway env, then provider env.
+
+    A catalog-owned profile carries no key on disk at all — a directory is not
+    a credential channel — so what is sent is decided here instead of stored:
+    a served model is reached through OpenRouter, whose key is the host's
+    ``OPENROUTER_API_KEY`` rather than the ``OPENAI_API_KEY`` the provider id
+    would otherwise imply.
+    """
+    explicit = resolve_env_templates(profile.api_key, location=f"model profile {profile.name!r} API Key")
+    if explicit:
+        return explicit
+    gateway_env = _gateway_api_key_env(profile)
+    if gateway_env:
+        # Evaluated as the equivalent template rather than read straight from
+        # the environment, so a missing variable still fails by name: the
+        # alternative is an empty key and a bare 401 left for the user to
+        # decode. The profile stays free of credentials either way.
+        return resolve_env_templates(
+            "{{" + gateway_env + "}}",
+            location=f"model profile {profile.name!r} API Key",
+        )
+    spec = PROVIDERS.get(profile.provider)
+    return os.environ.get(spec.api_key_env, "").strip() if spec is not None else ""
 
 
 def _validate_wire_charset(profile: ModelProfile, *, api_key: str, headers: dict[str, str]) -> None:
