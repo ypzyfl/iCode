@@ -26,7 +26,7 @@ Enter `/man` to view help for built-in slash commands:
 
 ## Command reference
 
-The following table lists the built-in slash commands in iCode.
+The following table lists the built-in slash commands in AIxCoding.
 
 In this table:
 
@@ -38,7 +38,7 @@ In this table:
 | --- | --- | --- | --- |
 | `/new` | — | Start a new session and keep the current session. See [Switch to a new session](../guides/daily-use/sessions.md#switch-to-a-new-session). | — |
 | `/clear` | — | Delete the current session and start a new one. This cannot be undone after confirmation. See [Switch to a new session](../guides/daily-use/sessions.md#switch-to-a-new-session). | — |
-| `/exit` | `/quit` | Exit iCode and return to the terminal. | — |
+| `/exit` | `/quit` | Exit AIxCoding and return to the terminal. | — |
 | `/resume` | — | Restore the most recent chat session; workflow sessions are skipped. See [Resume an existing session](../guides/daily-use/sessions.md#resume-an-existing-session). | — |
 | `/fork` | — | Create an independent branch of the current session. After creation, the current window stays in the original session. You can choose to stay there or switch to the branch. | — |
 | `/rename [title]` | — | Set or clear the session title. See [Change the session title](../guides/daily-use/sessions.md#change-the-session-title). | `title`: a custom title to apply immediately. Omit it or enter only whitespace to open the title editor. |
@@ -49,20 +49,20 @@ In this table:
 | `/copy [N]`<br>`/copy agent [N\|all]`<br>`/copy user [N\|all]`<br>`/copy all` | — | Copy conversation content to the clipboard. | No argument: copy the most recent agent message (text the agent shows between tool calls counts as a separate message).<br>`N`: the number of recent agent messages to copy; must be a positive integer. `/copy N` is shorthand for `/copy agent N`.<br>`agent [N\|all]`: copy the most recent `N` agent messages or all agent messages. If no count is given, copy the most recent one.<br>`user [N\|all]`: copy the most recent `N` user messages or all user messages. If no count is given, copy the most recent one.<br>`all`: copy the full conversation history. |
 | `/fold` | — | Collapse or expand all tool call groups in the current conversation. Collapsed groups show only their summary headers, making long sessions easier to browse. | — |
 | `/diff` | — | Open the diff view to see files added, modified, and deleted during the current session line by line, so you can review the agent's changes. | — |
-| `/rollback`<br>`/rollback <N>`<br>`/rollback to <N>` | — | Roll back the conversation while keeping current file changes, or roll back the conversation and restore the file changes that iCode can recover. Rollback cannot be undone. | No argument: open the rollback picker, with the most recent available target selected by default. The file restoration option in the lower-left corner of the "Rollback" dialog (its label includes the file count) controls whether file changes are also restored.<br>`N`: immediately discard the most recent `N` turns; must be a positive integer. A turn starts with a user submission and ends when that agent run finishes.<br>`to N`: keep turns 1 through `N` and discard later turns. `N` must be a nonnegative integer; `0` returns to the start of the session.<br>Both `/rollback N` and `/rollback to N` run immediately and restore the file changes from the discarded turns that iCode can recover. |
+| `/rollback`<br>`/rollback <N>`<br>`/rollback to <N>` | — | Roll back the conversation while keeping current file changes, or roll back the conversation and restore the file changes that AIxCoding can recover. Rollback cannot be undone. | No argument: open the rollback picker, with the most recent available target selected by default. The file restoration option in the lower-left corner of the "Rollback" dialog (its label includes the file count) controls whether file changes are also restored.<br>`N`: immediately discard the most recent `N` turns; must be a positive integer. A turn starts with a user submission and ends when that agent run finishes.<br>`to N`: keep turns 1 through `N` and discard later turns. `N` must be a nonnegative integer; `0` returns to the start of the session.<br>Both `/rollback N` and `/rollback to N` run immediately and restore the file changes from the discarded turns that AIxCoding can recover. |
 | `/approval [manual\|auto\|bypass]` | — | Switch the current approval mode. The chosen mode is also saved as the default for the next launch (`bypass` is saved as `auto`). See [Configure approval modes](../guides/configuration/approval.md). | `manual`: the user decides on calls that require approval.<br>`auto`: the approval judge model decides; calls it cannot confirm are safe still go to the user.<br>`bypass`: skip approval for tool calls.<br>No argument: press **Space** or **Enter** to show approval mode suggestions. |
 | `/models` | — | Open the model configuration dialog. See [Configure models](../guides/configuration/models.md). | — |
 | `/buddy [command]` | — | Manage your Buddy companion. Only `hatch` is available before hatching; the other options become available afterward. | No argument: press **Space** or **Enter** to show available commands.<br>`hatch`: hatch a new companion.<br>`info`: show companion information.<br>`pet`: interact with the companion and generate a response.<br>`mute`: toggle companion notifications.<br>`name <new-name>`: rename the companion to `new-name`. |
 | `/agents [target]` | `/agent`<br>`/config` | Open the agent configuration dialog. See [Open the agent configuration window](../guides/configuration/agents.md#open-the-agent-configuration-window). | No argument: press **Space** or **Enter** to show available tabs.<br>`target`: open a specific tab directly. Available values are `basic`, `instructions`, `tools`, `sub-agents`, `skills`, `mcp`, `memory`, and `compaction`.<br>Argument aliases: `subagents` is equivalent to `sub-agents`; `skill` is equivalent to `skills`. |
 | `/runtime` | `/details` | Open the "Runtime Details" dialog to view the current model profile and model ID, built-in tools grouped by tool kind, sub-agent tools, MCP tools grouped by server, skills grouped by source, loaded hooks, and preconfigured memory files. | — |
-| `/settings [tab]` | — | Open the settings dialog. See [Configure iCode settings](../guides/configuration/settings.md#settings-dialog). | `tab`: open a specific tab directly. Available values are `general`, `models`, `security`, `sessions`, `tools`, and `notifications`. With no argument, press **Space** or **Enter** to show available tabs. |
+| `/settings [tab]` | — | Open the settings dialog. See [Configure AIxCoding settings](../guides/configuration/settings.md#settings-dialog). | `tab`: open a specific tab directly. Available values are `general`, `models`, `security`, `sessions`, `tools`, and `notifications`. With no argument, press **Space** or **Enter** to show available tabs. |
 | `/workflow` | — | Open Workflow mode and select a workflow. See [Create and run workflows](../guides/running/workflows.md). | — |
-| `/help` | — | Open the "iCode User Guide" dialog, which shows this documentation. You can also press **F8** or click `f8 Help` in the footer. | — |
-| `/man [command]` | — | Show iCode command help. | No argument: press **Space** or **Enter** to show commands with help available.<br>`command`: a command name or alias. Show the specified command's name, usage, description, aliases, and options. |
+| `/help` | — | Open the "AIxCoding User Guide" dialog, which shows this documentation. You can also press **F8** or click `f8 Help` in the footer. | — |
+| `/man [command]` | — | Show AIxCoding command help. | No argument: press **Space** or **Enter** to show commands with help available.<br>`command`: a command name or alias. Show the specified command's name, usage, description, aliases, and options. |
 
 ## Skill commands
 
-Skills loaded at runtime can be invoked using `/skill-name`. When you submit a skill command, iCode asks the agent to use that skill for the current turn's task.
+Skills loaded at runtime can be invoked using `/skill-name`. When you submit a skill command, AIxCoding asks the agent to use that skill for the current turn's task.
 
 You can optionally add a task description after the skill name. It is submitted along with the skill command, and the skill's instructions determine how it is handled.
 
@@ -71,6 +71,6 @@ For example, with a skill named `review` loaded:
 - `/review`: invoke the skill.
 - `/review Check the current changes for potential issues`: invoke the skill and describe the task.
 
-Skill commands are not built-in iCode commands. If a skill has the same name as a built-in command, the built-in command takes precedence.
+Skill commands are not built-in AIxCoding commands. If a skill has the same name as a built-in command, the built-in command takes precedence.
 
 For instructions on installing and using skills, see [Install and use skills](../guides/extensions/skills.md#use-skills).

@@ -1,22 +1,22 @@
 # 工作目录
 
-工作目录是 iCode 执行文件操作和命令时使用的默认目录。在让智能体修改文件前，建议先保存尚未写入磁盘的内容，并使用 Git commit 记录已有变更，以便区分智能体所做的修改，并在需要时恢复到修改前的状态。
+工作目录是 AIxCoding 执行文件操作和命令时使用的默认目录。在让智能体修改文件前，建议先保存尚未写入磁盘的内容，并使用 Git commit 记录已有变更，以便区分智能体所做的修改，并在需要时恢复到修改前的状态。
 
 ## 启动时选择工作目录
 
-在终端中进入项目目录并启动 iCode：
+在终端中进入项目目录并启动 AIxCoding：
 
 ```shell
 cd <project-directory>
-icode
+aixcoding
 ```
 
-iCode 会将启动时所在的目录作为工作目录。
+AIxCoding 会将启动时所在的目录作为工作目录。
 
 也可以通过 `-C` 或 `--workdir` 选项指定工作目录，无需先进入项目目录：
 
 ```shell
-icode -C <project-directory>
+aixcoding -C <project-directory>
 ```
 
 ## 在会话中切换工作目录
@@ -29,10 +29,10 @@ icode -C <project-directory>
 /chdir <project-directory>
 ```
 
-`<project-directory>` 可以是绝对路径，也可以是相对于当前工作目录的路径。如果目标不存在或不是目录，iCode 会提示错误并保留当前工作目录。
+`<project-directory>` 可以是绝对路径，也可以是相对于当前工作目录的路径。如果目标不存在或不是目录，AIxCoding 会提示错误并保留当前工作目录。
 
 切换完成后，对话区底部边框右侧会显示新的工作目录路径。智能体后续的文件读取、命令和其他操作会以新工作目录作为默认位置。
 
-切换工作目录时，iCode 会重新加载当前智能体，并加载新工作目录中的记忆和技能。具体配置方式参阅[配置记忆](../configuration/memory.md)和[安装和使用技能](../extensions/skills.md)。
+切换工作目录时，AIxCoding 会重新加载当前智能体，并加载新工作目录中的记忆和技能。具体配置方式参阅[配置记忆](../configuration/memory.md)和[安装和使用技能](../extensions/skills.md)。
 
 切换工作目录不会创建新会话，当前对话历史仍会保留。处理无关项目时，建议先输入 `/new` 创建新会话，再在新会话中切换工作目录，避免在原会话中留下工作目录变更记录或混用不同项目的上下文。
