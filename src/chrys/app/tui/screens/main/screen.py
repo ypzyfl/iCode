@@ -196,6 +196,8 @@ _MODEL_UNCONFIGURED_SETUP = msg("tui.model_guard.button.setup", fallback="Set up
 _LOGIN_SUCCEEDED = msg("tui.login.succeeded", fallback="Logged in as {name}")
 _LOGIN_LOGGED_OUT = msg("tui.login.logged_out", fallback="Logged out")
 _LOGIN_NOT_LOGGED_IN = msg("tui.login.not_logged_in", fallback="Not logged in yet")
+_LOGIN_MANAGED = msg("tui.login.managed_by_desktop", fallback="Login is managed by the desktop app")
+_LOGOUT_MANAGED = msg("tui.login.logout_managed_by_desktop", fallback="Logout is managed by the desktop app")
 
 _TERMINAL_TITLE_ACTIVITY_INTERVAL_SECONDS = 0.65
 _TERMINAL_TITLE_RUNNING_FRAMES = ("◇", "◈", "◆", "◈")
@@ -2185,6 +2187,13 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
 
     def _open_login_dialog(self) -> None:
         """Open the AIxCoding device-code login dialog (/login)."""
+        from aixcoding.auth import get_login_session
+
+        if get_login_session().delegated_credential is not None:
+            # The desktop parent already logged in and owns the session.
+            self.notify(render_str(self._language_localizer(), _LOGIN_MANAGED.bind()))
+            return
+
         from aixcoding.tui import LoginDialog
 
         def _on_login_dismiss(account: object | None) -> None:
@@ -2200,6 +2209,10 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         from aixcoding.auth import get_login_session
 
         session = get_login_session()
+        if session.delegated_credential is not None:
+            # Only the desktop parent can end its own session.
+            self.notify(render_str(self._language_localizer(), _LOGOUT_MANAGED.bind()))
+            return
         if session.stored_token is None:
             self.notify(render_str(self._language_localizer(), _LOGIN_NOT_LOGGED_IN.bind()), severity="warning")
             return

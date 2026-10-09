@@ -6066,6 +6066,18 @@ msgstr "正在加载..."
 msgid "tui.login.logged_out"
 msgstr "已退出登录"
 
+#. English: Logout is managed by the desktop app
+#. chrys-meta={"fingerprint":"f42db5f9106d188491e5fd86c30b108c5f872f280e4b89d42b26eea835fdfeaa","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/screen.py
+msgid "tui.login.logout_managed_by_desktop"
+msgstr "退出登录由桌面端统一管理"
+
+#. English: Login is managed by the desktop app
+#. chrys-meta={"fingerprint":"6f874739ef79ffb1ffc4bc0f8f0f2e0396310493f5ea7000bdaaf57773daf3e9","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/screen.py
+msgid "tui.login.managed_by_desktop"
+msgstr "登录由桌面端统一管理"
+
 #. English: Not logged in yet
 #. chrys-meta={"fingerprint":"71356279f75e4fa9a63e34b45d5737dd3ee52f477482b9e0aa37baa0e30c701b","multiline":false,"placeholders":[]}
 #: src/chrys/app/tui/screens/main/screen.py
