@@ -1277,7 +1277,12 @@ def main(app_cls: type[ChrysApp] = ChrysApp) -> None:
 
         install_log_handler()
 
-        bootstrap = bootstrap_runtime(dotenv_override=True, project_root=Path(os.getcwd()))
+        # The TUI owns ~/.chrys/models, so it is the one frontend that asks for
+        # the startup catalog sync; every other entrypoint leaves the directory
+        # to whoever wrote it (see bootstrap_runtime).
+        bootstrap = bootstrap_runtime(
+            dotenv_override=True, project_root=Path(os.getcwd()), sync_model_catalog=True
+        )
 
         bus = EventBus()
         registry = AgentProfileRegistry()

@@ -160,6 +160,46 @@ def test_bootstrap_runtime_invokes_telemetry_by_default(monkeypatch: pytest.Monk
     assert otel_calls == [bootstrap.settings]
 
 
+def test_bootstrap_runtime_skips_the_catalog_sync_by_default(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    """A host that writes the model profiles itself has to keep them.
+
+    The sync replaces the whole directory, so an entrypoint that never asked
+    for it — an ACP server spawned by a desktop app, say — would delete the
+    profiles that host had just materialized. Silence is the safe default:
+    nothing a host forgets to switch off can cost it its model list.
+    """
+    _isolate_startup(monkeypatch, tmp_path)
+    monkeypatch.setattr("chrys.foundation.patches.apply_all", lambda: None)
+    monkeypatch.setattr("chrys.foundation.observability.setup.setup_otel", lambda _settings: None)
+    sync_calls: list[bool] = []
+    monkeypatch.setattr(
+        "chrys.service.profiles.models.catalog.sync_catalog_blocking",
+        lambda **_kwargs: sync_calls.append(True),
+    )
+
+    startup.bootstrap_runtime(dotenv_override=False)
+
+    assert sync_calls == []
+
+
+def test_bootstrap_runtime_syncs_the_catalog_when_the_frontend_owns_the_directory(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """The TUI owns ``~/.chrys/models``, so it opts in — no host has to opt out."""
+    _isolate_startup(monkeypatch, tmp_path)
+    monkeypatch.setattr("chrys.foundation.patches.apply_all", lambda: None)
+    monkeypatch.setattr("chrys.foundation.observability.setup.setup_otel", lambda _settings: None)
+    sync_calls: list[bool] = []
+    monkeypatch.setattr(
+        "chrys.service.profiles.models.catalog.sync_catalog_blocking",
+        lambda **_kwargs: sync_calls.append(True),
+    )
+
+    startup.bootstrap_runtime(dotenv_override=False, sync_model_catalog=True)
+
+    assert sync_calls == [True]
+
+
 def test_bootstrap_runtime_dotenv_override_true_replaces_ambient_values(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
