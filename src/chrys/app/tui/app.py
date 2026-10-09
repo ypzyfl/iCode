@@ -326,6 +326,9 @@ class ChrysApp(TuiVariableDefaultsMixin, App):
         self._crash_log_initialized = False
         self._startup_task: asyncio.Task[None] | None = None
         self._login_silent_check_task: asyncio.Task[None] | None = None
+        # The catalog poll's stop event, or None when it is not running: it
+        # starts only with a credential, which a mid-session login supplies.
+        self._catalog_sync_stop: threading.Event | None = None
         self._main_screen: MainScreen | None = None
         self._gc_freeze_watchdog: Timer | None = None
         self._gc_pointer_buttons_down: set[int] = set()
@@ -957,6 +960,32 @@ class ChrysApp(TuiVariableDefaultsMixin, App):
             await self._bus.publish(w)
         self._deferred_settings_warnings.clear()
 
+    def start_catalog_sync(self, *, immediate: bool = False) -> None:
+        """Start polling the model catalog, if there is a credential to poll with.
+
+        Idempotent, and safe to call on every login: a second thread would
+        double the traffic and race the registry it refreshes. It stays a no-op
+        while unauthenticated (:func:`start_periodic_sync` returns ``None``,
+        having logged why), so this can be called unconditionally at startup
+        and again after a login without asking whether one happened.
+        """
+        from chrys.service.profiles.models.catalog import start_periodic_sync
+
+        if self._catalog_sync_stop is not None:
+            logger.info("Model catalog sync already running; not starting another.")
+            return
+        self._catalog_sync_stop = start_periodic_sync(
+            immediate=immediate,
+            on_applied=lambda _result: self._model_registry.replace_profiles(),
+        )
+
+    def stop_catalog_sync(self) -> None:
+        """Stop polling — on logout and on exit, so nothing outlives the app."""
+        if self._catalog_sync_stop is None:
+            return
+        self._catalog_sync_stop.set()
+        self._catalog_sync_stop = None
+
     async def _silent_login_check(self) -> None:
         """Validate the stored AIxCoding credential at startup, silently.
 
@@ -1285,10 +1314,10 @@ def main(app_cls: type[ChrysApp] = ChrysApp) -> None:
         )
         # The catalog is polled, not fetched once: the bootstrap above ran the
         # "immediately" sync, this keeps a long-lived session current without a
-        # restart. Stopped with the app, so nothing outlives the terminal.
-        from chrys.service.profiles.models.catalog import start_periodic_sync
-
-        stop_catalog_sync = start_periodic_sync(on_applied=lambda _result: model_registry.replace_profiles())
+        # restart. A session that has never logged in has no credential, so the
+        # poll starts later — MainScreen calls this again once a login supplies
+        # one. Stopped with the app, so nothing outlives the terminal.
+        app.start_catalog_sync()
         try:
             # On Windows, the ProactorEventLoop shutdown can raise KeyboardInterrupt
             # from GetQueuedCompletionStatus when a pending signal races with asyncio
@@ -1296,8 +1325,7 @@ def main(app_cls: type[ChrysApp] = ChrysApp) -> None:
             with contextlib.suppress(KeyboardInterrupt):
                 app.run()
         finally:
-            if stop_catalog_sync is not None:
-                stop_catalog_sync.set()
+            app.stop_catalog_sync()
             # Safety net: ensure terminal is fully restored after native Textual exits.
             # Textual should handle this, but shell PTY activity during shutdown can
             # race with cleanup, leaving mouse tracking, focus reports, or alt screen on.
