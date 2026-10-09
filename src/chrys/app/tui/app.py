@@ -154,6 +154,7 @@ if TYPE_CHECKING:
 
     from chrys.app.tui.widgets.markdown.diagram.messages import DiagramOpenRequested
     from chrys.service.profiles.agents.schema import AgentProfile
+    from chrys.service.profiles.models.catalog import CatalogSyncHandle
 
 
 def _resolve_startup_profile(registry: AgentProfileRegistry, preferred_name: str) -> AgentProfile | None:
@@ -326,9 +327,9 @@ class ChrysApp(TuiVariableDefaultsMixin, App):
         self._crash_log_initialized = False
         self._startup_task: asyncio.Task[None] | None = None
         self._login_silent_check_task: asyncio.Task[None] | None = None
-        # The catalog poll's stop event, or None when it is not running: it
-        # starts only with a credential, which a mid-session login supplies.
-        self._catalog_sync_stop: threading.Event | None = None
+        # The catalog poll's handle, or None when it is not running: it starts
+        # only with a credential, which a mid-session login supplies.
+        self._catalog_sync: CatalogSyncHandle | None = None
         self._main_screen: MainScreen | None = None
         self._gc_freeze_watchdog: Timer | None = None
         self._gc_pointer_buttons_down: set[int] = set()
@@ -964,10 +965,16 @@ class ChrysApp(TuiVariableDefaultsMixin, App):
         """Start polling the model catalog, if there is a credential to poll with.
 
         Idempotent, and safe to call on every login: a second thread would
-        double the traffic and race the registry it refreshes. It stays a no-op
-        while unauthenticated (:func:`start_periodic_sync` returns ``None``,
-        having logged why), so this can be called unconditionally at startup
-        and again after a login without asking whether one happened.
+        double the traffic and race the registry it refreshes, so a loop that
+        is already running is not started again — it is woken instead, and
+        *immediate* then buys one sync now instead of at the next tick. That is
+        what a login needs: it changes whose catalog is served, so the list
+        must not wait out the rest of an interval that began before it.
+
+        It stays a no-op while unauthenticated (:func:`start_periodic_sync`
+        returns ``None``, having logged why), so this can be called
+        unconditionally at startup and again after a login without asking
+        whether one happened.
 
         After each sync the in-memory registry is replaced from disk and the
         status-bar model indicator is refreshed, so a server-side rename lands
@@ -978,8 +985,12 @@ class ChrysApp(TuiVariableDefaultsMixin, App):
             start_periodic_sync,
         )
 
-        if self._catalog_sync_stop is not None:
-            logger.info("Model catalog sync already running; not starting another.")
+        running = self._catalog_sync
+        if running is not None:
+            if immediate:
+                running.sync_now()
+            else:
+                logger.info("Model catalog sync already running; not starting another.")
             return
 
         def _on_applied(_result: CatalogSyncResult) -> None:
@@ -988,17 +999,17 @@ class ChrysApp(TuiVariableDefaultsMixin, App):
             if screen is not None and screen.is_mounted:
                 self.call_from_thread(screen._refresh_model_indicator)
 
-        self._catalog_sync_stop = start_periodic_sync(
+        self._catalog_sync = start_periodic_sync(
             immediate=immediate,
             on_applied=_on_applied,
         )
 
     def stop_catalog_sync(self) -> None:
         """Stop polling — on logout and on exit, so nothing outlives the app."""
-        if self._catalog_sync_stop is None:
+        if self._catalog_sync is None:
             return
-        self._catalog_sync_stop.set()
-        self._catalog_sync_stop = None
+        self._catalog_sync.stop()
+        self._catalog_sync = None
 
     async def _silent_login_check(self) -> None:
         """Validate the stored AIxCoding credential at startup, silently.

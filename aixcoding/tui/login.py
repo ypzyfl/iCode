@@ -21,6 +21,7 @@ nothing is stored on an interrupted login.
 from __future__ import annotations
 
 import asyncio
+import logging
 import webbrowser
 from collections.abc import Callable
 from typing import TYPE_CHECKING, ClassVar
@@ -41,6 +42,8 @@ from aixcoding.auth import (
 from chrys.app.tui.binding_display import CANCEL_BINDING, localized_binding
 from chrys.app.tui.screens.dialogs.base import BaseDialog
 from chrys.app.tui.widgets import DialogButtonRow, DialogButtonSpec
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -66,9 +69,11 @@ class LoginDialog(BaseDialog[AccountInfo | None]):
         *,
         session: LoginSession | None = None,
         open_browser: Callable[[str], object] | None = None,
+        on_login_success: Callable[[AccountInfo], None] | None = None,
     ) -> None:
         self._session = session if session is not None else get_login_session()
         self._open_browser = open_browser if open_browser is not None else webbrowser.open
+        self._on_login_success = on_login_success
         self._cancel_event = asyncio.Event()
         # Not ``_task``: that slot belongs to MessagePump's own loop task, and
         # clobbering it makes every settled-wait read this screen as eternally
@@ -113,6 +118,11 @@ class LoginDialog(BaseDialog[AccountInfo | None]):
         except AuthError as exc:
             self._show_failure(f"登录未完成。({exc})")
             return
+        if self._on_login_success is not None:
+            try:
+                self._on_login_success(account)
+            except Exception:
+                logger.exception("Login success callback failed; continuing to dismiss the dialog.")
         self.dismiss_when_topmost(account)
 
     def _show_code(self, code: DeviceCode) -> None:
