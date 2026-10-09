@@ -97,10 +97,6 @@ artifacts = ["src/chrys/foundation/vendor/ripgrep/*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-# ``mock_server`` is the dev-only Chrys session reporting mock server
-# (lives at the repo root with its source and tests co-located); see
-# mock_server/README.md for layout. The full product test surface remains
-# under ``tests/``.
 testpaths = ["tests", "mock_server"]
 addopts = "-n 8 --strict-markers"
 # ``build`` is intentionally omitted from pytest's default ``norecursedirs`` so

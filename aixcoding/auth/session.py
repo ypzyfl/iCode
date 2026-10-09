@@ -14,6 +14,7 @@ binds them into the single object the rest of the app talks to::
         ...                                     # UI shows the code, opens browser
         account = await session.complete_login(code)
     token = session.stored_token                # downstream consumers attach this
+    user_id = session.stored_user_id            # the ehr, whichever credential is live
     session.logout()                            # /logout
 
 When iCode runs as a child of the AIxCoding desktop, the parent's login is
@@ -130,19 +131,18 @@ class LoginSession:
 
     @property
     def stored_user_id(self) -> str | None:
-        """The logged-in user's id (``ehr``), or ``None`` without a live credential.
+        """The live user id (ehr), or ``None`` when absent/expired/corrupt.
 
-        The counterpart of :attr:`stored_token`: same source, same precedence
-        (a delegation shadows the store), no network I/O. It exists because a
-        request may need to *name* the user and not just authenticate as them
-        — the remote model config is served per user, and falls back to a
-        public default for an empty one.
+        One accessor for both credential kinds: the parent-provided id while
+        a delegation is active, the stored ``userId`` after it falls back.
+        Like :attr:`stored_token` it never performs network I/O and the
+        empty string counts as absent.
         """
         delegated = self._active_delegated
         if delegated is not None:
             return delegated.ehr or None
         credential = self._store.load(self.environment)
-        if credential is None or credential.is_expired:
+        if credential is None or credential.is_expired or not credential.token:
             return None
         return credential.user_id or credential.ehr or None
 

@@ -24,7 +24,6 @@ from aixcoding.auth.delegation import (
     DelegatedCredential,
 )
 from aixcoding.auth.types import AccountInfo
-
 from mock_server.aixcoding_auth.server import MockAuthConfig, create_server
 
 

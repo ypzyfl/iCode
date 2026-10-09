@@ -8,7 +8,6 @@ import threading
 
 from aixcoding.auth import Environment, LoginSession, StoredCredential, get_login_session
 from aixcoding.auth.crypto import MemoryBackend
-
 from mock_server.aixcoding_auth.server import MockAuthConfig, create_server
 
 

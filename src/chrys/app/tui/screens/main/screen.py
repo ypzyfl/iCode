@@ -1752,6 +1752,44 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         self.notify(render_str(self._language_localizer(), _LOGIN_LOGGED_OUT.bind()))
 
     # ------------------------------------------------------------------ #
+    # Account login (/login, /logout)
+    # ------------------------------------------------------------------ #
+
+    def _open_login_dialog(self) -> None:
+        """Open the AIxCoding device-code login dialog (/login)."""
+        from aixcoding.auth import get_login_session
+
+        if get_login_session().delegated_credential is not None:
+            # The desktop parent already logged in and owns the session.
+            self.notify(render_str(self._language_localizer(), _LOGIN_MANAGED.bind()))
+            return
+
+        from aixcoding.tui import LoginDialog
+
+        def _on_login_dismiss(account: object | None) -> None:
+            if account is None:
+                return
+            display_name = getattr(account, "display_name", "") or ""
+            self.notify(render_str(self._language_localizer(), _LOGIN_SUCCEEDED.bind(name=display_name)))
+
+        self.app.push_screen(LoginDialog(), _on_login_dismiss)
+
+    def _perform_logout(self) -> None:
+        """Clear the stored AIxCoding credential (/logout)."""
+        from aixcoding.auth import get_login_session
+
+        session = get_login_session()
+        if session.delegated_credential is not None:
+            # Only the desktop parent can end its own session.
+            self.notify(render_str(self._language_localizer(), _LOGOUT_MANAGED.bind()))
+            return
+        if session.stored_token is None:
+            self.notify(render_str(self._language_localizer(), _LOGIN_NOT_LOGGED_IN.bind()), severity="warning")
+            return
+        session.logout()
+        self.notify(render_str(self._language_localizer(), _LOGIN_LOGGED_OUT.bind()))
+
+    # ------------------------------------------------------------------ #
     # Agent config (/agents with optional tab subcommands)
     # ------------------------------------------------------------------ #
 

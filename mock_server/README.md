@@ -76,8 +76,9 @@ mock_server/
 
 | 用途 | 命名 |
 |---|---|
-| 目录（子包） | `<product>_<service>/`，如 `chrys_telemetry/` |
+| 目录（子包） | `<product>_<service>/`，如 `aixcoding_auth/` |
 | 主模块 | `server.py`（目录名已带 service 上下文） |
-| 测试 | `test_server.py` |
+| 测试 | `test_*.py`（位置在子包 README 里注明） |
 | 公共类 | `<Service>Mock` 或 `<Service>Server`，如 `RunningTelemetryMock` |
-| 启动函数 | `start()`（调用方：`from mock_server.<pkg> import server; server.start(...)`） |
+| 配置/状态类 | `Mock*Config` / `Mock*State`，如 `MockAuthConfig` |
+| 入口 | `create_server(...)`（测试）；模块 `main()`（CLI） |

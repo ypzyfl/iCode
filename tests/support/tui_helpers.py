@@ -1053,6 +1053,7 @@ class SuggestionScreen:
         self.logout_requests += 1
 
     def open_title_editor(self) -> None:
+    def _open_session_title_editor(self) -> None:
         self.title_editor_requests += 1
 
     def apply_custom_title(self, custom_title: str) -> None:
