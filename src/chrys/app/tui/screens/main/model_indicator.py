@@ -83,6 +83,18 @@ def fmt_context_size(tokens: int) -> str:
     return str(tokens)
 
 
+def _live_label(details: RuntimeModelDetails, registry: ModelProfileRegistry | None) -> str:
+    """Return the profile's current name from the registry if available.
+
+    The runtime details are a snapshot taken when the agent started. A catalog
+    sync can rewrite the profile file while the session is live, so the label
+    shown in the indicator must track the registry rather than the snapshot.
+    """
+    if registry is not None and (profile := registry.get(details.profile_id)) is not None:
+        return profile.name
+    return details.name
+
+
 def compute_model_indicator_state(
     details: RuntimeModelDetails | None,
     has_selectable_profile: bool,
@@ -90,6 +102,7 @@ def compute_model_indicator_state(
     localizer: Localizer,
     *,
     runtime_confirmed: bool = True,
+    model_registry: ModelProfileRegistry | None = None,
 ) -> ModelIndicatorState:
     """Compute model indicator state from confirmed runtime details and registry availability."""
     if not runtime_confirmed:
@@ -104,9 +117,10 @@ def compute_model_indicator_state(
         return _action_state_if_agent_ready(True, agent_label, localizer)
 
     tooltip = _details_tooltip(details, localizer)
+    label = _live_label(details, model_registry)
     if source == "active":
         return ModelIndicatorState(
-            label=details.name,
+            label=label,
             tooltip=tooltip,
             mode="select",
             profile_id=details.profile_id,
@@ -120,7 +134,7 @@ def compute_model_indicator_state(
     else:
         reason = _render(localizer, _GENERIC_LOCKED_TOOLTIP.bind())
     return ModelIndicatorState(
-        label=details.name,
+        label=label,
         tooltip=f"{tooltip}\n{reason}",
         mode="locked",
         profile_id=details.profile_id,

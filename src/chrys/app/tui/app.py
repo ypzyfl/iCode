@@ -964,15 +964,29 @@ class ChrysApp(TuiVariableDefaultsMixin, App):
         while unauthenticated (:func:`start_periodic_sync` returns ``None``,
         having logged why), so this can be called unconditionally at startup
         and again after a login without asking whether one happened.
+
+        After each sync the in-memory registry is replaced from disk and the
+        status-bar model indicator is refreshed, so a server-side rename lands
+        in the UI without a restart.
         """
-        from chrys.service.profiles.models.catalog import start_periodic_sync
+        from chrys.service.profiles.models.catalog import (
+            CatalogSyncResult,
+            start_periodic_sync,
+        )
 
         if self._catalog_sync_stop is not None:
             logger.info("Model catalog sync already running; not starting another.")
             return
+
+        def _on_applied(_result: CatalogSyncResult) -> None:
+            self._model_registry.replace_profiles()
+            screen = self._main_screen
+            if screen is not None and screen.is_mounted:
+                self.call_from_thread(screen._refresh_model_indicator)
+
         self._catalog_sync_stop = start_periodic_sync(
             immediate=immediate,
-            on_applied=lambda _result: self._model_registry.replace_profiles(),
+            on_applied=_on_applied,
         )
 
     def stop_catalog_sync(self) -> None:
