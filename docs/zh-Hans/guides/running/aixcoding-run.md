@@ -8,7 +8,7 @@
 
 运行前需要完成以下准备：
 
-- 已安装 AIxCoding，并至少配置一个可用模型。请参阅[开始使用 AIxCoding](../../start/getting-started.md)和[配置模型](../configuration/models.md)。
+- 已安装 AIxCoding-CLI，并至少配置一个可用模型。请参阅[开始使用 AIxCoding-CLI](../../start/getting-started.md)和[配置模型](../configuration/models.md)。
 - 已确定要使用的智能体。内置的 `QA` 智能体在 TUI 中显示为“Q&A Agent”，其指令要求它不修改任何内容，但它可以执行 Shell 命令，且 `aixcoding run` 执行这些命令前不会请求审批；`Code` 智能体可以修改文件和运行命令。自定义智能体的能力取决于其配置。请参阅[配置智能体](../configuration/agents.md)。
 - 如任务可能修改文件，先保存未写入磁盘的工作，并在可恢复的工作目录中运行，例如已提交当前变更的 Git 仓库。
 
@@ -26,7 +26,7 @@
 aixcoding run "概述这个项目的目录结构和主要模块" --agent QA
 ```
 
-任务运行期间，AIxCoding 会显示运行进度；任务完成后，先显示一行汇总，再显示智能体的最终回复。例如：
+任务运行期间，AIxCoding-CLI 会显示运行进度；任务完成后，先显示一行汇总，再显示智能体的最终回复。例如：
 
 ```text
 • Q&A Agent ready · Example Model · session 8de5057d58ff · ~/projects/demo
@@ -40,7 +40,7 @@ I'll start with the top-level layout.
 The project has three main parts: ...
 ```
 
-各行的含义请参阅[查看运行进度](#查看运行进度)。回复中可能改动终端显示的控制字符会显示为 `�`；将输出重定向到文件或其他程序，或添加 `--json` 时，回复保持原样。若任务失败，错误信息写入标准错误（`stderr`），命令以非零状态退出。AIxCoding 能判断模型请求失败的原因时，错误信息会说明原因，下方的 `detail:` 行显示原始错误信息。
+各行的含义请参阅[查看运行进度](#查看运行进度)。回复中可能改动终端显示的控制字符会显示为 `�`；将输出重定向到文件或其他程序，或添加 `--json` 时，回复保持原样。若任务失败，错误信息写入标准错误（`stderr`），命令以非零状态退出。AIxCoding-CLI 能判断模型请求失败的原因时，错误信息会说明原因，下方的 `detail:` 行显示原始错误信息。
 
 需要让智能体修改或验证代码时，可使用 `Code`：
 
@@ -98,7 +98,7 @@ aixcoding run "检查未提交的变更并说明风险" --agent QA --workdir <pr
 aixcoding run --task prompts/review.md --agent Code --workdir <project-directory>
 ```
 
-`--task` 不要求特定文件后缀。AIxCoding 会读取该文件内容，并将其作为本次任务的提示词。任务文件路径可以是绝对路径，也可以是相对路径；使用相对路径时，AIxCoding 会在 `--workdir` 指定的目录中查找该文件，未指定 `--workdir` 时，则在运行命令时所在的目录中查找。
+`--task` 不要求特定文件后缀。AIxCoding-CLI 会读取该文件内容，并将其作为本次任务的提示词。任务文件路径可以是绝对路径，也可以是相对路径；使用相对路径时，AIxCoding-CLI 会在 `--workdir` 指定的目录中查找该文件，未指定 `--workdir` 时，则在运行命令时所在的目录中查找。
 
 一次运行只能使用一种提示词来源：直接传入提示词或使用 `--task`。两者不能同时使用。
 
