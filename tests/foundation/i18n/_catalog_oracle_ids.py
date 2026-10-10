@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from tests.foundation.i18n._buddy_catalog_oracle_ids import BUDDY_MESSAGE_IDS
+from tests.foundation.i18n._diagram_catalog_oracle_ids import DIAGRAM_MESSAGE_IDS
 from tests.foundation.i18n._error_catalog_oracle_ids import ERROR_MESSAGE_IDS
 from tests.foundation.i18n._help_catalog_oracle_ids import HELP_MESSAGE_IDS
 from tests.foundation.i18n._web_catalog_oracle_ids import WEB_MESSAGE_IDS
@@ -149,6 +150,7 @@ _message_ids: set[str | tuple[str, str]] = {
     "settings.max_transient_retries_invalid",
     "settings.clamped.maximum",
     "settings.clamped.minimum",
+    "settings.model.catalog.base_url.label",
     "settings.project_config_dormant",
     "settings.rejected.bool",
     "settings.rejected.choice",
@@ -1973,30 +1975,10 @@ _message_ids.update(
         "tui.trajectory.tool_usage.unattributed",
     }
 )
-_message_ids.update(
-    {
-        "tui.diagram.copied_source",
-        "tui.diagram.diagnostic.conflicting_declaration",
-        "tui.diagram.diagnostic.empty_source",
-        "tui.diagram.diagnostic.error_at_line",
-        "tui.diagram.diagnostic.invalid_syntax",
-        "tui.diagram.diagnostic.limit_exceeded",
-        ("tui.diagram.diagnostic.more", "tui.diagram.diagnostic.more#plural"),
-        "tui.diagram.diagnostic.no_nodes",
-        "tui.diagram.diagnostic.unable_to_render",
-        "tui.diagram.diagnostic.unsupported_type",
-        "tui.diagram.diagnostic.warning_at_line",
-        "tui.diagram.presentation.architecture_layout",
-        "tui.diagram.presentation.sankey_layout",
-        "tui.diagram.title",
-        "tui.diagram.view_hint",
-        "tui.markdown.diagram.open",
-    }
-)
-
 EXPECTED_MESSAGE_IDS: frozenset[str | tuple[str, str]] = (
     frozenset(_message_ids)
     | BUDDY_MESSAGE_IDS
+    | DIAGRAM_MESSAGE_IDS
     | WORKFLOW_MESSAGE_IDS
     | HELP_MESSAGE_IDS
     | WEB_MESSAGE_IDS

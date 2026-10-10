@@ -1,5 +1,5 @@
 {
-  "inventory_sha256": "08b59eaeb036f6e325f5d2a0dc31022ffc3cf9e6f20dbe17247381816676e261",
+  "inventory_sha256": "cb275b23907f35220020a8c44522273f8d48decc5afb53c1dcfb80a554d93c53",
   "nodes": [
     {
       "cases": [
@@ -4418,7 +4418,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent",
       "source_column": 15,
-      "source_line": 1047,
+      "source_line": 1049,
       "wrapper_target": null
     },
     {
@@ -4438,7 +4438,7 @@
       "primitive": "wrapper",
       "qualname": "build_agent",
       "source_column": 8,
-      "source_line": 1049,
+      "source_line": 1051,
       "wrapper_target": "chrys.orchestration.invoker.resources.rollback_resources"
     },
     {
@@ -4511,7 +4511,7 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await create_client(active_profile, on_intermediate_text_async=_publish_intermediate, on_intermediate_text_sync=on_intermediate_sync, session_id=session_id, session_dir=effective_session_dir, tool_result_ceiling_tokens=settings.tool_result_ceiling_tokens)",
+      "expression": "await create_client(active_profile, on_intermediate_text_async=_publish_intermediate, on_intermediate_text_sync=on_intermediate_sync, session_id=session_id, session_dir=effective_session_dir, tool_result_ceiling_tokens=settings.tool_result_ceiling_tokens, workspace_cwd=runtime.cwd)",
       "identity": "chrys.orchestration.engine.build.builder:build_agent._acquire:4",
       "module": "chrys.orchestration.engine.build.builder",
       "ordinal": 4,
@@ -4538,7 +4538,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 8,
-      "source_line": 508,
+      "source_line": 510,
       "wrapper_target": null
     },
     {
@@ -4558,7 +4558,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 8,
-      "source_line": 514,
+      "source_line": 516,
       "wrapper_target": null
     },
     {
@@ -4578,7 +4578,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 12,
-      "source_line": 539,
+      "source_line": 541,
       "wrapper_target": null
     },
     {
@@ -4598,7 +4598,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 8,
-      "source_line": 557,
+      "source_line": 559,
       "wrapper_target": null
     },
     {
@@ -4618,7 +4618,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 12,
-      "source_line": 580,
+      "source_line": 582,
       "wrapper_target": null
     },
     {
@@ -4638,7 +4638,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 16,
-      "source_line": 619,
+      "source_line": 621,
       "wrapper_target": null
     },
     {
@@ -4658,7 +4658,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 20,
-      "source_line": 631,
+      "source_line": 633,
       "wrapper_target": null
     },
     {
@@ -4678,7 +4678,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 20,
-      "source_line": 645,
+      "source_line": 647,
       "wrapper_target": null
     },
     {
@@ -4698,7 +4698,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 20,
-      "source_line": 657,
+      "source_line": 659,
       "wrapper_target": null
     },
     {
@@ -4718,7 +4718,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 20,
-      "source_line": 659,
+      "source_line": 661,
       "wrapper_target": null
     },
     {
@@ -4738,7 +4738,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 16,
-      "source_line": 667,
+      "source_line": 669,
       "wrapper_target": null
     },
     {
@@ -4758,7 +4758,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 16,
-      "source_line": 702,
+      "source_line": 704,
       "wrapper_target": null
     },
     {
@@ -4778,7 +4778,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 24,
-      "source_line": 731,
+      "source_line": 733,
       "wrapper_target": null
     },
     {
@@ -4798,7 +4798,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 8,
-      "source_line": 736,
+      "source_line": 738,
       "wrapper_target": null
     },
     {
@@ -4818,7 +4818,7 @@
       "primitive": "wrapper",
       "qualname": "build_agent._acquire",
       "source_column": 42,
-      "source_line": 740,
+      "source_line": 742,
       "wrapper_target": "chrys.service.skills.adapter.create_skills_provider"
     },
     {
@@ -4838,7 +4838,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 12,
-      "source_line": 753,
+      "source_line": 755,
       "wrapper_target": null
     },
     {
@@ -4858,7 +4858,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 8,
-      "source_line": 757,
+      "source_line": 759,
       "wrapper_target": null
     },
     {
@@ -4878,7 +4878,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 12,
-      "source_line": 766,
+      "source_line": 768,
       "wrapper_target": null
     },
     {
@@ -4898,7 +4898,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 8,
-      "source_line": 769,
+      "source_line": 771,
       "wrapper_target": null
     },
     {
@@ -4918,7 +4918,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 8,
-      "source_line": 945,
+      "source_line": 947,
       "wrapper_target": null
     },
     {
@@ -4938,7 +4938,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire",
       "source_column": 8,
-      "source_line": 948,
+      "source_line": 950,
       "wrapper_target": null
     },
     {
@@ -4958,7 +4958,7 @@
       "primitive": "wrapper",
       "qualname": "build_agent._acquire",
       "source_column": 30,
-      "source_line": 954,
+      "source_line": 956,
       "wrapper_target": "chrys.orchestration.invoker.runtime.create_approval"
     },
     {
@@ -4978,7 +4978,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire._mcp_progress",
       "source_column": 16,
-      "source_line": 720,
+      "source_line": 722,
       "wrapper_target": null
     },
     {
@@ -5018,7 +5018,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire._publish_compaction_status",
       "source_column": 16,
-      "source_line": 853,
+      "source_line": 855,
       "wrapper_target": null
     },
     {
@@ -5038,7 +5038,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire._publish_compaction_status",
       "source_column": 12,
-      "source_line": 860,
+      "source_line": 862,
       "wrapper_target": null
     },
     {
@@ -5098,7 +5098,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire._publish_last_words_retry",
       "source_column": 12,
-      "source_line": 837,
+      "source_line": 839,
       "wrapper_target": null
     },
     {
@@ -5118,7 +5118,7 @@
       "primitive": "awaitable",
       "qualname": "build_agent._acquire._publish_validation_retry",
       "source_column": 12,
-      "source_line": 902,
+      "source_line": 904,
       "wrapper_target": null
     },
     {
@@ -35298,7 +35298,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process",
       "source_column": 8,
-      "source_line": 557,
+      "source_line": 561,
       "wrapper_target": "chrys.service.agent_middleware.events.sub_agent_events.SubAgentEventMiddleware._release_intermediate_text"
     },
     {
@@ -35318,7 +35318,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process",
       "source_column": 18,
-      "source_line": 569,
+      "source_line": 573,
       "wrapper_target": "chrys.service.agent_middleware.events.hook_dispatch.apply_before_tool_hooks"
     },
     {
@@ -35338,7 +35338,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process",
       "source_column": 12,
-      "source_line": 591,
+      "source_line": 595,
       "wrapper_target": "chrys.service.agent_middleware.events.sub_agent_events.SubAgentEventMiddleware._process_tool_call"
     },
     {
@@ -35358,7 +35358,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process",
       "source_column": 23,
-      "source_line": 595,
+      "source_line": 599,
       "wrapper_target": "chrys.service.trajectory.preparation.preparation_lock"
     },
     {
@@ -35378,7 +35378,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process",
       "source_column": 16,
-      "source_line": 596,
+      "source_line": 600,
       "wrapper_target": "chrys.service.agent_middleware.events.sub_agent_events.SubAgentEventMiddleware._process_tool_call"
     },
     {
@@ -35398,7 +35398,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process",
       "source_column": 23,
-      "source_line": 600,
+      "source_line": 604,
       "wrapper_target": "chrys.service.trajectory.preparation.preparation_lock"
     },
     {
@@ -35418,7 +35418,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process",
       "source_column": 16,
-      "source_line": 601,
+      "source_line": 605,
       "wrapper_target": "chrys.service.agent_middleware.events.sub_agent_events.SubAgentEventMiddleware._process_tool_call"
     },
     {
@@ -35438,7 +35438,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process",
       "source_column": 12,
-      "source_line": 605,
+      "source_line": 609,
       "wrapper_target": "chrys.service.agent_middleware.events.sub_agent_events.SubAgentEventMiddleware._process_tool_call"
     },
     {
@@ -35458,7 +35458,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 22,
-      "source_line": 631,
+      "source_line": 635,
       "wrapper_target": "chrys.service.mutations.pipeline.prepare_mutation_tracking"
     },
     {
@@ -35471,14 +35471,14 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._bus.publish(InvocationToolCallStart(origin=origin, agent_name=self._agent_name, tool_name=tool_name, tool_kind=tool_kind, args=args, call_id=call_id, session_id=self._session_id))",
+      "expression": "await self._bus.publish(InvocationToolCallStart(origin=origin, agent_name=self._agent_name, tool_name=tool_name, tool_kind=tool_kind, args=args, call_id=call_id, session_id=self._session_id, workspace_cwd=self._workspace_cwd))",
       "identity": "chrys.service.agent_middleware.events.sub_agent_events:SubAgentEventMiddleware._process_tool_call:2",
       "module": "chrys.service.agent_middleware.events.sub_agent_events",
       "ordinal": 2,
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 8,
-      "source_line": 641,
+      "source_line": 645,
       "wrapper_target": null
     },
     {
@@ -35498,7 +35498,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 12,
-      "source_line": 653,
+      "source_line": 659,
       "wrapper_target": null
     },
     {
@@ -35518,7 +35518,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 16,
-      "source_line": 693,
+      "source_line": 699,
       "wrapper_target": null
     },
     {
@@ -35538,7 +35538,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 16,
-      "source_line": 699,
+      "source_line": 705,
       "wrapper_target": null
     },
     {
@@ -35558,7 +35558,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 12,
-      "source_line": 714,
+      "source_line": 720,
       "wrapper_target": null
     },
     {
@@ -35578,7 +35578,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 41,
-      "source_line": 798,
+      "source_line": 804,
       "wrapper_target": "chrys.service.mutations.pipeline.finalize_mutation_tracking"
     },
     {
@@ -35598,7 +35598,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 36,
-      "source_line": 854,
+      "source_line": 860,
       "wrapper_target": "chrys.service.agent_middleware.events.hook_dispatch.fire_after_tool_hooks"
     },
     {
@@ -35611,14 +35611,14 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._bus.publish(InvocationToolCallResult(origin=origin, agent_name=self._agent_name, tool_name=tool_name, call_id=call_id, result=result_text, image_contents=result_images, duration_ms=duration_ms, metadata=metadata, session_id=self._session_id))",
+      "expression": "await self._bus.publish(InvocationToolCallResult(origin=origin, agent_name=self._agent_name, tool_name=tool_name, call_id=call_id, result=result_text, image_contents=result_images, duration_ms=duration_ms, metadata=metadata, session_id=self._session_id, workspace_cwd=self._workspace_cwd))",
       "identity": "chrys.service.agent_middleware.events.sub_agent_events:SubAgentEventMiddleware._process_tool_call:9",
       "module": "chrys.service.agent_middleware.events.sub_agent_events",
       "ordinal": 9,
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 20,
-      "source_line": 889,
+      "source_line": 895,
       "wrapper_target": null
     },
     {
@@ -35638,7 +35638,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 24,
-      "source_line": 905,
+      "source_line": 913,
       "wrapper_target": null
     },
     {
@@ -35658,7 +35658,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 24,
-      "source_line": 914,
+      "source_line": 922,
       "wrapper_target": null
     },
     {
@@ -35678,7 +35678,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 20,
-      "source_line": 922,
+      "source_line": 930,
       "wrapper_target": "chrys.service.agent_middleware.events.sub_agent_events.SubAgentEventMiddleware._publish_progress"
     },
     {
@@ -35751,7 +35751,7 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._bus.publish(InvocationToolCallStart(origin=origin, **common, tool_kind=HOSTED_TOOL_DEFAULT_KIND_BY_FAMILY.get(view.family, ''), args=view.arguments, provider_item_type=view.provider_item_type, provider_call_id=view.provider_call_id, provider_status=view.provider_status))",
+      "expression": "await self._bus.publish(InvocationToolCallStart(origin=origin, **common, tool_kind=HOSTED_TOOL_DEFAULT_KIND_BY_FAMILY.get(view.family, ''), args=view.arguments, provider_item_type=view.provider_item_type, provider_call_id=view.provider_call_id, provider_status=view.provider_status, workspace_cwd=self._workspace_cwd))",
       "identity": "chrys.service.agent_middleware.events.sub_agent_events:SubAgentEventMiddleware._publish_hosted_operation:4",
       "module": "chrys.service.agent_middleware.events.sub_agent_events",
       "ordinal": 4,
@@ -35778,7 +35778,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._publish_hosted_operation",
       "source_column": 12,
-      "source_line": 356,
+      "source_line": 358,
       "wrapper_target": null
     },
     {
@@ -35798,7 +35798,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._publish_hosted_operation",
       "source_column": 12,
-      "source_line": 368,
+      "source_line": 370,
       "wrapper_target": null
     },
     {
@@ -35818,7 +35818,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._publish_hosted_operation",
       "source_column": 12,
-      "source_line": 388,
+      "source_line": 390,
       "wrapper_target": null
     },
     {
@@ -35831,14 +35831,14 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._bus.publish(InvocationToolCallResult(origin=origin, **common, result=view.result_text, image_contents=view.image_contents, metadata=view.metadata, artifacts=self._artifact_descriptors(operation), provider_item_type=view.provider_item_type, provider_call_id=view.provider_call_id, provider_status=view.provider_status))",
+      "expression": "await self._bus.publish(InvocationToolCallResult(origin=origin, **common, result=view.result_text, image_contents=view.image_contents, metadata=view.metadata, artifacts=self._artifact_descriptors(operation), provider_item_type=view.provider_item_type, provider_call_id=view.provider_call_id, provider_status=view.provider_status, workspace_cwd=self._workspace_cwd))",
       "identity": "chrys.service.agent_middleware.events.sub_agent_events:SubAgentEventMiddleware._publish_hosted_operation:8",
       "module": "chrys.service.agent_middleware.events.sub_agent_events",
       "ordinal": 8,
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._publish_hosted_operation",
       "source_column": 12,
-      "source_line": 398,
+      "source_line": 400,
       "wrapper_target": null
     },
     {
@@ -35878,7 +35878,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._publish_progress",
       "source_column": 8,
-      "source_line": 469,
+      "source_line": 473,
       "wrapper_target": null
     },
     {
@@ -35918,7 +35918,7 @@
       "primitive": "gather",
       "qualname": "SubAgentEventMiddleware._schedule_progress_publish._publish_after_previous",
       "source_column": 16,
-      "source_line": 442,
+      "source_line": 446,
       "wrapper_target": null
     },
     {
@@ -35938,7 +35938,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._schedule_progress_publish._publish_after_previous",
       "source_column": 12,
-      "source_line": 443,
+      "source_line": 447,
       "wrapper_target": "chrys.service.agent_middleware.events.sub_agent_events.SubAgentEventMiddleware._publish_progress"
     },
     {
@@ -35978,7 +35978,7 @@
       "primitive": "gather",
       "qualname": "SubAgentEventMiddleware.flush_progress",
       "source_column": 12,
-      "source_line": 465,
+      "source_line": 469,
       "wrapper_target": null
     },
     {
@@ -35998,7 +35998,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware.process",
       "source_column": 16,
-      "source_line": 504,
+      "source_line": 508,
       "wrapper_target": null
     },
     {
@@ -36018,7 +36018,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware.process",
       "source_column": 12,
-      "source_line": 505,
+      "source_line": 509,
       "wrapper_target": "chrys.service.agent_middleware.events.sub_agent_events.SubAgentEventMiddleware._process"
     },
     {
@@ -36331,7 +36331,7 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._bus.publish(InvocationToolCallStart(origin=origin, tool_name=tool_name, tool_kind=tool_kind, args=args, call_id=call_id, session_id=self._session_id))",
+      "expression": "await self._bus.publish(InvocationToolCallStart(origin=origin, tool_name=tool_name, tool_kind=tool_kind, args=args, call_id=call_id, provider_call_id=provider_call_id, session_id=self._session_id, workspace_cwd=self._workspace_cwd or ''))",
       "identity": "chrys.service.agent_middleware.events.tool_events:ToolEventMiddleware._process_tool_call:2",
       "module": "chrys.service.agent_middleware.events.tool_events",
       "ordinal": 2,
@@ -36358,7 +36358,7 @@
       "primitive": "awaitable",
       "qualname": "ToolEventMiddleware._process_tool_call",
       "source_column": 12,
-      "source_line": 402,
+      "source_line": 406,
       "wrapper_target": null
     },
     {
@@ -36378,7 +36378,7 @@
       "primitive": "awaitable",
       "qualname": "ToolEventMiddleware._process_tool_call",
       "source_column": 16,
-      "source_line": 482,
+      "source_line": 486,
       "wrapper_target": null
     },
     {
@@ -36398,7 +36398,7 @@
       "primitive": "awaitable",
       "qualname": "ToolEventMiddleware._process_tool_call",
       "source_column": 16,
-      "source_line": 488,
+      "source_line": 492,
       "wrapper_target": null
     },
     {
@@ -36418,7 +36418,7 @@
       "primitive": "awaitable",
       "qualname": "ToolEventMiddleware._process_tool_call",
       "source_column": 12,
-      "source_line": 503,
+      "source_line": 507,
       "wrapper_target": null
     },
     {
@@ -36438,7 +36438,7 @@
       "primitive": "wrapper",
       "qualname": "ToolEventMiddleware._process_tool_call",
       "source_column": 41,
-      "source_line": 596,
+      "source_line": 600,
       "wrapper_target": "chrys.service.mutations.pipeline.finalize_mutation_tracking"
     },
     {
@@ -36458,7 +36458,7 @@
       "primitive": "wrapper",
       "qualname": "ToolEventMiddleware._process_tool_call",
       "source_column": 36,
-      "source_line": 654,
+      "source_line": 658,
       "wrapper_target": "chrys.service.agent_middleware.events.hook_dispatch.fire_after_tool_hooks"
     },
     {
@@ -36471,14 +36471,14 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._bus.publish(InvocationToolCallResult(origin=origin, tool_name=tool_name, call_id=call_id, result=result_text, image_contents=result_images, duration_ms=duration_ms, session_id=self._session_id, metadata=metadata))",
+      "expression": "await self._bus.publish(InvocationToolCallResult(origin=origin, tool_name=tool_name, call_id=call_id, provider_call_id=provider_call_id, result=result_text, image_contents=result_images, duration_ms=duration_ms, session_id=self._session_id, metadata=metadata, workspace_cwd=self._workspace_cwd or ''))",
       "identity": "chrys.service.agent_middleware.events.tool_events:ToolEventMiddleware._process_tool_call:9",
       "module": "chrys.service.agent_middleware.events.tool_events",
       "ordinal": 9,
       "primitive": "awaitable",
       "qualname": "ToolEventMiddleware._process_tool_call",
       "source_column": 20,
-      "source_line": 689,
+      "source_line": 693,
       "wrapper_target": null
     },
     {
@@ -36498,7 +36498,7 @@
       "primitive": "awaitable",
       "qualname": "ToolEventMiddleware._process_tool_call",
       "source_column": 24,
-      "source_line": 707,
+      "source_line": 715,
       "wrapper_target": null
     },
     {
@@ -36518,7 +36518,7 @@
       "primitive": "awaitable",
       "qualname": "ToolEventMiddleware._process_tool_call",
       "source_column": 24,
-      "source_line": 716,
+      "source_line": 724,
       "wrapper_target": null
     },
     {
@@ -36538,7 +36538,7 @@
       "primitive": "awaitable",
       "qualname": "ToolEventMiddleware._process_tool_call._emit_progress",
       "source_column": 16,
-      "source_line": 457,
+      "source_line": 461,
       "wrapper_target": null
     },
     {
@@ -36558,7 +36558,7 @@
       "primitive": "awaitable",
       "qualname": "ToolEventMiddleware._process_tool_call._emit_web_progress",
       "source_column": 16,
-      "source_line": 434,
+      "source_line": 438,
       "wrapper_target": null
     },
     {
@@ -40338,7 +40338,7 @@
       "primitive": "awaitable",
       "qualname": "create_client",
       "source_column": 12,
-      "source_line": 511,
+      "source_line": 530,
       "wrapper_target": null
     },
     {
@@ -40358,7 +40358,7 @@
       "primitive": "wrapper",
       "qualname": "scoped_client",
       "source_column": 13,
-      "source_line": 623,
+      "source_line": 642,
       "wrapper_target": "chrys.service.llm.clients.create_client"
     },
     {
@@ -40378,7 +40378,7 @@
       "primitive": "awaitable",
       "qualname": "scoped_client",
       "source_column": 8,
-      "source_line": 627,
+      "source_line": 646,
       "wrapper_target": null
     },
     {
@@ -40438,7 +40438,7 @@
       "primitive": "awaitable",
       "qualname": "_InstrumentedOpenAIResponsesClient.create_instrumented_openai_responses_client._prepare_options",
       "source_column": 23,
-      "source_line": 1026,
+      "source_line": 1038,
       "wrapper_target": null
     },
     {
@@ -45700,6 +45700,66 @@
       "source_column": 40,
       "source_line": 538,
       "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "async with httpx.AsyncClient(timeout=timeout)",
+      "identity": "chrys.service.profiles.models.catalog:fetch_catalog:1",
+      "module": "chrys.service.profiles.models.catalog",
+      "ordinal": 1,
+      "primitive": "async_context",
+      "qualname": "fetch_catalog",
+      "source_column": 19,
+      "source_line": 534,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await client.get(endpoint, headers=headers)",
+      "identity": "chrys.service.profiles.models.catalog:fetch_catalog:2",
+      "module": "chrys.service.profiles.models.catalog",
+      "ordinal": 2,
+      "primitive": "queue",
+      "qualname": "fetch_catalog",
+      "source_column": 23,
+      "source_line": 535,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await fetch_catalog(url, timeout=timeout)",
+      "identity": "chrys.service.profiles.models.catalog:sync_catalog:1",
+      "module": "chrys.service.profiles.models.catalog",
+      "ordinal": 1,
+      "primitive": "wrapper",
+      "qualname": "sync_catalog",
+      "source_column": 14,
+      "source_line": 635,
+      "wrapper_target": "chrys.service.profiles.models.catalog.fetch_catalog"
     },
     {
       "cases": [
