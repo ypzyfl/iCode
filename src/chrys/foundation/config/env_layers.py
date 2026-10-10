@@ -270,7 +270,7 @@ def read_dotenv_layer(path: Path, *, base: Mapping[str, str]) -> Mapping[str, st
         return {}
     try:
         resolved = _resolve_occurrences(_occurrences(path), base)
-    except (OSError, UnicodeError):
+    except OSError, UnicodeError:
         logger.warning("Unreadable dotenv file ignored: %s", path, exc_info=True)
         return {}
     return {name: value for name, value in resolved.items() if value is not None}
@@ -318,7 +318,7 @@ def read_dotenv_snapshot(path: Path, *, base: Mapping[str, str]) -> DotenvSnapsh
         try:
             raw = path.read_bytes()
             occurrences = _occurrences_of(raw)
-        except (OSError, UnicodeError):
+        except OSError, UnicodeError:
             logger.warning("Unreadable dotenv file left in place: %s", path, exc_info=True)
             return None
     resolved = _resolve_occurrences(occurrences, base)
@@ -359,7 +359,7 @@ def inject_bootstrap_dotenv(
             continue
         try:
             resolved = _resolve_occurrences(_occurrences(path), dict(os.environ), override=override)
-        except (OSError, UnicodeError):
+        except OSError, UnicodeError:
             logger.warning("Unreadable dotenv file skipped at bootstrap: %s", path, exc_info=True)
             continue
         for name, value in resolved.items():

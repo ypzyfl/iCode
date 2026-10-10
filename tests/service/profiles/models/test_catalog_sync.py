@@ -126,9 +126,9 @@ def test_the_interval_is_the_environments_or_the_default(monkeypatch: pytest.Mon
 
     for unusable in ("soon", "", "   ", "0", "-1"):
         monkeypatch.setenv(catalog_module.SYNC_INTERVAL_ENV, unusable)
-        assert (
-            catalog_module.sync_interval_seconds() == catalog_module.SYNC_INTERVAL_SECONDS
-        ), f"{unusable!r} must fall back to the default, not stop or hot-loop the poll"
+        assert catalog_module.sync_interval_seconds() == catalog_module.SYNC_INTERVAL_SECONDS, (
+            f"{unusable!r} must fall back to the default, not stop or hot-loop the poll"
+        )
 
 
 def test_the_loop_polls_at_the_environments_interval(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -186,7 +186,7 @@ def test_the_tier_is_auths_tier(monkeypatch: pytest.MonkeyPatch) -> None:
     class _NoConfiguredBase:
         model_catalog_base_url = ""
 
-    monkeypatch.setattr(process_settings_module, "process_settings", lambda: _NoConfiguredBase())
+    monkeypatch.setattr(process_settings_module, "process_settings", _NoConfiguredBase)
 
     for tier in Environment:
         monkeypatch.setenv(environments.ENVIRONMENT_VARIABLE, tier.value)

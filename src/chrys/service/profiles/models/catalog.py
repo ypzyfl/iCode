@@ -219,7 +219,7 @@ def read_catalog_state() -> CatalogState | None:
     path = catalog_state_path()
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return None
     if not isinstance(raw, dict):
         return None
@@ -324,9 +324,11 @@ def _unique_profile_id(base: str, taken: set[str]) -> str:
 
 def _positive_int(value: object) -> int:
     """One payload number, or 0 when it is absent or not a positive integer."""
+    if not isinstance(value, int | float | str):
+        return 0
     try:
-        number = int(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
+        number = int(value)
+    except ValueError:
         return 0
     return max(0, number)
 
