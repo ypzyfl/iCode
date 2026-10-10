@@ -1864,7 +1864,7 @@ def test_main_sets_process_title(monkeypatch: pytest.MonkeyPatch) -> None:
     assert calls == [True]
 
 
-def test_textual_serve_banner_is_icode_branded() -> None:
+def test_textual_serve_banner_is_aixcoding_branded() -> None:
     pytest.importorskip("textual_serve")
     server_class = serve_cli._load_server_class()
     server = server_class(
@@ -1880,7 +1880,7 @@ def test_textual_serve_banner_is_icode_branded() -> None:
     asyncio.run(server.on_startup(object()))
 
     text = output.getvalue()
-    assert "░▀█▀░█▀▀░█▀█░█▀▄░█▀▀" in text
+    assert " ##   ####  #  #   ###" in text
     assert f"v{serve_cli.metadata.version('chrys')}" in text
     assert "TEXTUAL-SERVE" not in text
     assert f"Serving {APP_DISPLAY_NAME} TUI on http://localhost:7777" in text

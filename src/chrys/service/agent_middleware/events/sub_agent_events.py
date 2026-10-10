@@ -350,6 +350,8 @@ class SubAgentEventMiddleware(FunctionMiddleware):
                     provider_item_type=view.provider_item_type,
                     provider_call_id=view.provider_call_id,
                     provider_status=view.provider_status,
+                    # AIxCoding telemetry: workspace cwd for projectName/git/fileName.
+                    workspace_cwd=self._workspace_cwd,
                 )
             )
         elif isinstance(operation, HostedToolArgsOp):
@@ -406,6 +408,8 @@ class SubAgentEventMiddleware(FunctionMiddleware):
                     provider_item_type=view.provider_item_type,
                     provider_call_id=view.provider_call_id,
                     provider_status=view.provider_status,
+                    # AIxCoding telemetry: workspace cwd for projectName/git/fileName.
+                    workspace_cwd=self._workspace_cwd,
                 )
             )
 
@@ -646,7 +650,11 @@ class SubAgentEventMiddleware(FunctionMiddleware):
                 tool_kind=tool_kind,
                 args=args,
                 call_id=call_id,
+                # AIxCoding telemetry: provider call id keys the per-call registry.
+                provider_call_id=provider_call_id,
                 session_id=self._session_id,
+                # AIxCoding telemetry: workspace cwd for projectName/git/fileName.
+                workspace_cwd=self._workspace_cwd,
             )
         )
         if self._hosted_bridge is not None:
@@ -892,11 +900,15 @@ class SubAgentEventMiddleware(FunctionMiddleware):
                             agent_name=self._agent_name,
                             tool_name=tool_name,
                             call_id=call_id,
+                            # AIxCoding telemetry: provider call id keys the per-call registry.
+                            provider_call_id=provider_call_id,
                             result=result_text,
                             image_contents=result_images,
                             duration_ms=duration_ms,
                             metadata=metadata,
                             session_id=self._session_id,
+                            # AIxCoding telemetry: workspace cwd for projectName/git/fileName.
+                            workspace_cwd=self._workspace_cwd,
                         )
                     )
                     if trajectory is not None:
