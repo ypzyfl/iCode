@@ -1,20 +1,20 @@
 # OpenTelemetry reference
 
-iCode can use OpenTelemetry to record the following telemetry data during agent runs:
+AIxCoding can use OpenTelemetry to record the following telemetry data during agent runs:
 
 - **Traces**: record the start and end times, parent-child relationships, and errors of operations such as agent runs, model requests, and tool calls, helping you inspect the call sequence and identify where time is spent.
 - **Logs**: record the time, level, and details of individual events, such as successful tool calls, runtime warnings, or errors. When call context is available, logs can be correlated with the corresponding traces.
 - **Metrics**: record numerical values such as model request duration, input and output token counts, and tool call duration, helping you summarize usage, duration distributions, and trends.
 
-A collector is a service that receives telemetry data. iCode sends data to a collector using the OpenTelemetry Protocol (OTLP). On this page, an “endpoint” is the address where the collector receives telemetry data.
+A collector is a service that receives telemetry data. AIxCoding sends data to a collector using the OpenTelemetry Protocol (OTLP). On this page, an “endpoint” is the address where the collector receives telemetry data.
 
-This page covers iCode OpenTelemetry configuration, local storage and export of telemetry data, and connections to OTLP collectors.
+This page covers AIxCoding OpenTelemetry configuration, local storage and export of telemetry data, and connections to OTLP collectors.
 
 ## Enabling telemetry and choosing a destination
 
 ### Enablement settings
 
-OpenTelemetry is disabled by default. Enable it under [Settings → Security → Telemetry](../guides/configuration/settings.md#telemetry) in the terminal user interface (TUI), or use the following environment variables. **All settings on this page take effect after restarting iCode.**
+OpenTelemetry is disabled by default. Enable it under [Settings → Security → Telemetry](../guides/configuration/settings.md#telemetry) in the terminal user interface (TUI), or use the following environment variables. **All settings on this page take effect after restarting AIxCoding.**
 
 | Environment variable | Default | Purpose |
 | --- | --- | --- |
@@ -29,7 +29,7 @@ Settings changed in the TUI are saved in the user settings file, `settings.yaml`
 - Environment variables take precedence over the corresponding file settings without modifying the file.
 - The TUI displays the values specified by the environment variables and disables editing of the corresponding settings.
 
-When `CHRYS_OTEL` or “OpenTelemetry export” in the TUI is disabled, iCode neither saves nor sends telemetry data, even if an endpoint or sensitive data option is configured.
+When `CHRYS_OTEL` or “OpenTelemetry export” in the TUI is disabled, AIxCoding neither saves nor sends telemetry data, even if an endpoint or sensitive data option is configured.
 
 ### Data destinations
 
@@ -45,7 +45,7 @@ Traces, logs, and metrics can share a receiving address or use separate addresse
 
 Local files are created when the corresponding records are produced. For the session folder location, see [Find the session ID and storage location](../guides/daily-use/sessions.md#find-the-session-id-and-storage-location).
 
-After you configure any collector endpoint and restart iCode, iCode stops saving telemetry data locally. Failed remote exports do not fall back to local storage, so the affected data may be lost.
+After you configure any collector endpoint and restart AIxCoding, AIxCoding stops saving telemetry data locally. Failed remote exports do not fall back to local storage, so the affected data may be lost.
 
 Whether the receiving service saves data, and how long it retains it, depends on its configuration.
 
@@ -88,7 +88,7 @@ Standard `OTEL_EXPORTER_OTLP_*` environment variables do not appear in “Teleme
 
 ### Protocol and address format
 
-iCode sends data over OTLP/gRPC and uses the configured endpoint addresses directly. Leave `OTEL_EXPORTER_OTLP_PROTOCOL` unset or set it to `grpc`. iCode installations do not include the OTLP HTTP exporter: with `http/protobuf` (or `http`), OpenTelemetry setup fails and iCode records no telemetry at all, not even locally; any other value exports nothing.
+AIxCoding sends data over OTLP/gRPC and uses the configured endpoint addresses directly. Leave `OTEL_EXPORTER_OTLP_PROTOCOL` unset or set it to `grpc`. AIxCoding installations do not include the OTLP HTTP exporter: with `http/protobuf` (or `http`), OpenTelemetry setup fails and AIxCoding records no telemetry at all, not even locally; any other value exports nothing.
 
 Include the scheme in the endpoint address: `http://` uses an unencrypted connection, suitable for a local collector; `https://` uses TLS. When connecting to a remote collector, use `https://` and configure authentication as required by the service.
 
@@ -109,7 +109,7 @@ Headers use comma-separated `name=value` pairs. Use lowercase header names, beca
 export OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer <token>"
 ```
 
-Replace `<token>` with the token provided by the collector, and set it before starting iCode.
+Replace `<token>` with the token provided by the collector, and set it before starting AIxCoding.
 
 Signal-specific headers are merged with general headers. When both define a header with the same name, the signal-specific value takes precedence.
 
@@ -120,7 +120,7 @@ Suppose a local collector accepts OTLP gRPC requests at `http://localhost:4317`,
 ```bash
 export CHRYS_OTEL=true
 export CHRYS_OTEL_ENDPOINT=http://localhost:4317
-icode
+aixcoding-cli
 ```
 
 This configuration sends traces, logs, and metrics to `http://localhost:4317` over an unencrypted gRPC connection.
@@ -129,32 +129,32 @@ This configuration sends traces, logs, and metrics to `http://localhost:4317` ov
 
 ### Service identity
 
-The default service name (`service.name`) is `chrys`, and the service version is the currently installed iCode version. Use the service name to find data in the collector or its connected observability platform.
+The default service name (`service.name`) is `chrys`, and the service version is the currently installed AIxCoding version. Use the service name to find data in the collector or its connected observability platform.
 
-If iCode instances running in multiple locations send data to the same collector, use service names and resource attributes to distinguish their sources. Resource attributes are labels attached to telemetry data, such as the runtime environment and instance name.
+If AIxCoding instances running in multiple locations send data to the same collector, use service names and resource attributes to distinguish their sources. Resource attributes are labels attached to telemetry data, such as the runtime environment and instance name.
 
-For example, when running an iCode instance in a test environment, set the following in Bash or Zsh:
+For example, when running an AIxCoding instance in a test environment, set the following in Bash or Zsh:
 
 ```bash
-export OTEL_SERVICE_NAME=icode-test
+export OTEL_SERVICE_NAME=aixcoding-cli-test
 export OTEL_RESOURCE_ATTRIBUTES="deployment.environment.name=staging,service.instance.id=test-01"
 ```
 
-After you start iCode in the same terminal, exported data carries the following identifiers, which you can use to filter it in the observability platform:
+After you start AIxCoding in the same terminal, exported data carries the following identifiers, which you can use to filter it in the observability platform:
 
 | Attribute | Example value | Meaning |
 | --- | --- | --- |
-| `service.name` | `icode-test` | Service name |
+| `service.name` | `aixcoding-cli-test` | Service name |
 | `deployment.environment.name` | `staging` | Runtime environment; here, a test environment |
-| `service.instance.id` | `test-01` | Instance name, used to distinguish multiple iCode instances in the same environment |
+| `service.instance.id` | `test-01` | Instance name, used to distinguish multiple AIxCoding instances in the same environment |
 
 `OTEL_RESOURCE_ATTRIBUTES` accepts multiple comma-separated `name=value` pairs. These attributes override default attributes with the same names. A `service.name` attribute also overrides `OTEL_SERVICE_NAME`.
 
-For example, setting `OTEL_SERVICE_NAME=icode-test` together with `OTEL_RESOURCE_ATTRIBUTES="service.name=icode-qa"` results in the service name `icode-qa`.
+For example, setting `OTEL_SERVICE_NAME=aixcoding-cli-test` together with `OTEL_RESOURCE_ATTRIBUTES="service.name=aixcoding-cli-qa"` results in the service name `aixcoding-cli-qa`.
 
 ### Metrics and verification
 
-When a metrics endpoint is configured (including one inherited from the base endpoint), iCode attempts to export the following metrics every 5 seconds:
+When a metrics endpoint is configured (including one inherited from the base endpoint), AIxCoding attempts to export the following metrics every 5 seconds:
 
 | Metric | Unit | Measurement |
 | --- | --- | --- |
@@ -162,7 +162,7 @@ When a metrics endpoint is configured (including one inherited from the base end
 | `gen_ai.client.token.usage` | Tokens | Input and output token counts for model requests, recorded separately |
 | `chrys.function.invocation.duration` | Seconds | Tool call duration |
 
-iCode automatically adds the `gen_ai.token.type` label to token usage. When querying `gen_ai.client.token.usage` in the observability platform:
+AIxCoding automatically adds the `gen_ai.token.type` label to token usage. When querying `gen_ai.client.token.usage` in the observability platform:
 
 - Filter by `gen_ai.token.type=input` to view input token usage.
 - Filter by `gen_ai.token.type=output` to view output token usage.
@@ -172,6 +172,6 @@ With OpenTelemetry enabled and a receiving address configured for metrics, submi
 
 If no data arrives, check the following in order:
 
-1. OpenTelemetry is enabled, and iCode was restarted after the configuration changed.
+1. OpenTelemetry is enabled, and AIxCoding was restarted after the configuration changed.
 2. The collector accepts OTLP/gRPC at the endpoint, `OTEL_EXPORTER_OTLP_PROTOCOL` is unset or `grpc`, and no endpoint setting with higher precedence is present.
 3. Whether the collector requires authentication, and whether the authentication headers are configured correctly.

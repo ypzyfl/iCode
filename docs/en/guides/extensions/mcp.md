@@ -1,6 +1,6 @@
 # Connect MCP servers
 
-Model Context Protocol (MCP) servers can provide iCode agents with external tools, prompt templates, and usage instructions. This guide explains how to connect HTTP or STDIO MCP servers in the terminal user interface (TUI), configure which tools are available, and control whether prompt templates are loaded and server instructions are included in the model context.
+Model Context Protocol (MCP) servers can provide AIxCoding agents with external tools, prompt templates, and usage instructions. This guide explains how to connect HTTP or STDIO MCP servers in the terminal user interface (TUI), configure which tools are available, and control whether prompt templates are loaded and server instructions are included in the model context.
 
 Before connecting an MCP server, confirm that its source is trustworthy. The server may receive tool call arguments and access local files, network services, or account data. Its prompt templates and usage instructions may also affect the agent's behavior.
 
@@ -15,7 +15,7 @@ Click "+ Add", then fill in the following fields in the new card at the top of t
 1. Enter a "Server Name". This name identifies the server in the current agent's MCP configuration. Server names must be unique within an agent's MCP configuration, and are case-insensitive.
 2. Optionally enter a "Description" to note the server's purpose. This description is not provided to the agent as server instructions.
 
-HTTP header values and STDIO environment variable values can both use `{{ENV_VAR}}` to reference environment variables set before starting iCode. Variable names can contain only letters, digits, and underscores, and cannot start with a digit.
+HTTP header values and STDIO environment variable values can both use `{{ENV_VAR}}` to reference environment variables set before starting AIxCoding. Variable names can contain only letters, digits, and underscores, and cannot start with a digit.
 
 Next, complete the HTTP or STDIO settings according to the server's connection method.
 
@@ -23,7 +23,7 @@ Next, complete the HTTP or STDIO settings according to the server's connection m
 
 1. Set "Transport" to `HTTP`.
 2. Enter the server URL. The URL must begin with `http://` or `https://`.
-3. If the server requires authentication, add names and values under "Headers". Use `{{ENV_VAR}}` to reference environment variables set before starting iCode, for example:
+3. If the server requires authentication, add names and values under "Headers". Use `{{ENV_VAR}}` to reference environment variables set before starting AIxCoding, for example:
 
    ```text
    Name: Authorization
@@ -31,13 +31,13 @@ Next, complete the HTTP or STDIO settings according to the server's connection m
    ```
 
 4. If the current network requires this server to connect without using the system proxy, enable "Bypass proxy".
-5. Keeping TLS certificate verification enabled is recommended. To connect to a self-signed server you have confirmed is trustworthy, you can enable "Skip TLS verification". When enabled, iCode does not verify the HTTPS server certificate and cannot confirm that it is connecting to the intended server.
+5. Keeping TLS certificate verification enabled is recommended. To connect to a self-signed server you have confirmed is trustworthy, you can enable "Skip TLS verification". When enabled, AIxCoding does not verify the HTTPS server certificate and cannot confirm that it is connecting to the intended server.
 
 ### Connect over STDIO
 
 1. Set "Transport" to `STDIO`.
 2. In "Command", enter the program name or path used to start the server, along with any required arguments. The TUI splits this line and saves it into the `command` and `args` fields in the agent YAML. When editing YAML by hand, put the executable in `command` and each argument in `args` as a separate item.
-3. Add any environment variables the process needs. Enter values directly or use `{{ENV_VAR}}` to reference environment variables set before starting iCode.
+3. Add any environment variables the process needs. Enter values directly or use `{{ENV_VAR}}` to reference environment variables set before starting AIxCoding.
 
 A STDIO connection starts the specified program on the local machine. If the startup command downloads or runs third-party packages or scripts, confirm that their sources are trustworthy and review the relevant content first.
 
@@ -74,13 +74,13 @@ For example:
 ## Test and save
 
 1. **Enable or disable the server**: To enable an MCP server, keep "Enabled" checked at the bottom left of its configuration card. To keep the configuration but temporarily disable the server, uncheck it. A disabled server does not provide tools, prompt templates, or usage instructions to the agent.
-2. **Test the server connection**: Click "Test" at the bottom right of the server configuration card. iCode attempts to connect and displays the server's identity, advertised capabilities, and usage instructions in a connection report, along with the tools and prompt templates available under the current configuration.
+2. **Test the server connection**: Click "Test" at the bottom right of the server configuration card. AIxCoding attempts to connect and displays the server's identity, advertised capabilities, and usage instructions in a connection report, along with the tools and prompt templates available under the current configuration.
 3. **Save the configuration**: Click "Save". If you are editing the agent used by the current session, the saved MCP configuration applies to subsequent requests.
 
 If the test fails:
 
 - For HTTP servers, check the URL, authentication headers, environment variables, and proxy and TLS settings.
-- For STDIO servers, first inspect the executable, working directory, process exit code, and tail of standard error shown in the connection error. Then check the command, arguments, and environment variables, and confirm that the command can start in the indicated working directory. iCode shows only a limited amount of standard error output. For complete logs, enable logging as described in the server's documentation. Remove sensitive information such as tokens and credentials before sharing diagnostics.
+- For STDIO servers, first inspect the executable, working directory, process exit code, and tail of standard error shown in the connection error. Then check the command, arguments, and environment variables, and confirm that the command can start in the indicated working directory. AIxCoding shows only a limited amount of standard error output. For complete logs, enable logging as described in the server's documentation. Remove sensitive information such as tokens and credentials before sharing diagnostics.
 
 ## Verify MCP tool calls
 

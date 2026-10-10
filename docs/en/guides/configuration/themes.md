@@ -58,4 +58,4 @@ When the editor closes, the interface returns to the currently applied theme.
 
 “Delete” removes the theme file and any unsaved changes to that theme. Built-in themes cannot be deleted.
 
-Select a user theme at the top of the editor and click “Delete”. Check the theme name in the confirmation dialog, then click “Delete” again. Deleting the currently applied theme switches iCode to the default theme, `chrys`.
+Select a user theme at the top of the editor and click “Delete”. Check the theme name in the confirmation dialog, then click “Delete” again. Deleting the currently applied theme switches AIxCoding to the default theme, `chrys`.
