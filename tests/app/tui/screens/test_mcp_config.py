@@ -1588,7 +1588,7 @@ async def test_test_connect_button_surfaces_tool_name_collision_guidance() -> No
             "github",
             "stdio",
             conflicting_names={"explore_agent"},
-            conflict_with="a reserved iCode tool",
+            conflict_with="a reserved AIxCoding tool",
             guidance="Exclude the remote tool from the Permitted Tool Set or configure a Tool Name Prefix.",
         )
 
