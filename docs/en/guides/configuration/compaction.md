@@ -1,16 +1,16 @@
 # Configure context compaction
 
-When a long conversation approaches the model's context window, iCode automatically compacts earlier content to make room for subsequent requests. This guide explains how to configure the Last Words supplement and output limit for agents of the "Built-in" type. External ACP agents manage their own context.
+When a long conversation approaches the model's context window, AIxCoding automatically compacts earlier content to make room for subsequent requests. This guide explains how to configure the Last Words supplement and output limit for agents of the "Built-in" type. External ACP agents manage their own context.
 
 New agents use defaults suited to most tasks, so adjustments are usually unnecessary.
 
 ## Understand when compaction happens
 
-iCode automatically calculates when to start compaction based on the maximum context window, maximum output tokens, and a safety margin for the current model profile. Set the maximum context window and maximum output tokens in the [model profile](./models.md) according to the model's capabilities and your task requirements. The "Compaction" tab does not provide a separate setting for when compaction starts.
+AIxCoding automatically calculates when to start compaction based on the maximum context window, maximum output tokens, and a safety margin for the current model profile. Set the maximum context window and maximum output tokens in the [model profile](./models.md) according to the model's capabilities and your task requirements. The "Compaction" tab does not provide a separate setting for when compaction starts.
 
-When the context is nearly full, iCode also lowers the output limit of the next request so that its input and output fit in the context window, leaving a small margin for error in its token estimate.
+When the context is nearly full, AIxCoding also lowers the output limit of the next request so that its input and output fit in the context window, leaving a small margin for error in its token estimate.
 
-During compaction, iCode first summarizes older tool results and, if needed, removes older tool calls together with their results. If it still needs to free up space, it replaces completed turns in the current context with a compaction summary. If these steps are still insufficient, iCode generates Last Words for the current task to preserve the information needed to continue, then removes the current turn's tool calls, tool results, and intermediate content from the context supplied to the model, keeping the user's messages.
+During compaction, AIxCoding first summarizes older tool results and, if needed, removes older tool calls together with their results. If it still needs to free up space, it replaces completed turns in the current context with a compaction summary. If these steps are still insufficient, AIxCoding generates Last Words for the current task to preserve the information needed to continue, then removes the current turn's tool calls, tool results, and intermediate content from the context supplied to the model, keeping the user's messages.
 
 These three steps serve different purposes: trimming older tool calls and results only reduces the space taken up by tool use; compaction summaries replace completed turns; Last Words help continue the current unfinished task.
 

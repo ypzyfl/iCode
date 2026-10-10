@@ -91,7 +91,7 @@ for you. From a checkout:
 ```bash
 uv sync --extra all        # not bare `uv sync`, not `--all-extras`
 ./scripts/fetch_rg.sh      # downloads the vendored ripgrep; Windows: .\scripts\fetch_rg.ps1
-uv run icode               # `uv run chrys` starts the same thing (`Chrys` is our code name)
+uv run aixcoding               # `uv run chrys` starts the same thing (`Chrys` is our code name)
 ```
 
 iCode ships no model profiles, so press **F4** on first launch to add one.
@@ -99,8 +99,8 @@ iCode ships no model profiles, so press **F4** on first launch to add one.
 ## User guide
 
 Press **F8** inside iCode to open the built-in user guide, a complete walkthrough of using it.
-The same pages live in [`docs/`](docs/), in [English](docs/en/start/what-is-icode.md) and
-[简体中文](docs/zh-Hans/start/what-is-icode.md).
+The same pages live in [`docs/`](docs/), in [English](docs/en/start/what-is-aixcoding.md) and
+[简体中文](docs/zh-Hans/start/what-is-aixcoding.md).
 
 ## Privacy
 
