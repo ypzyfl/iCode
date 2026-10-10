@@ -1,6 +1,6 @@
 # Hooks configuration reference
 
-Hooks let iCode automatically run local scripts or commands at specified points. Use this page to look up the complete configuration fields, defaults, event data, and execution rules. If you are using hooks for the first time, start with [Configure and write hooks](../guides/extensions/hooks.md) to create and verify a hook using runnable examples.
+Hooks let AIxCoding automatically run local scripts or commands at specified points. Use this page to look up the complete configuration fields, defaults, event data, and execution rules. If you are using hooks for the first time, start with [Configure and write hooks](../guides/extensions/hooks.md) to create and verify a hook using runnable examples.
 
 > **Security notice**
 >
@@ -14,34 +14,34 @@ This page uses the following terms:
 
 | Term | Configuration value or object | Meaning |
 | --- | --- | --- |
-| Turn | `turn` | iCode's handling of a user request, from when processing begins until the agent stops generating content and calling tools. A user interruption or run failure also ends the current turn; additional messages submitted during a run still belong to the current turn. |
+| Turn | `turn` | AIxCoding's handling of a user request, from when processing begins until the agent stops generating content and calling tools. A user interruption or run failure also ends the current turn; additional messages submitted during a run still belong to the current turn. |
 | Event | `event` | The point that triggers a hook, such as the end of a turn or before a tool runs. |
-| Blocking hook | `execution.mode: blocking` | iCode waits for the hook to finish before continuing; some events apply the decision returned by the hook. |
-| Async hook | `execution.mode: async` | iCode immediately continues the current operation, but usually waits for the hook to finish before the current turn or session ends. |
-| Fire-and-forget hook | `execution.mode: fire_and_forget` | iCode immediately continues and does not wait for the hook at the end of the current turn or session. This is the default mode. |
-| Detached execution | `execution.detach: true` | Allows a fire-and-forget hook that has already started to keep running after iCode exits. |
-| Durable delivery | `execution.delivery: durable` | Records unfinished non-blocking hook tasks so iCode can retry them later. The same task may run more than once, so scripts must be safe to run repeatedly. |
-| Input file | `CHRYS_HOOK_PAYLOAD_FILE` | A JSON file that iCode generates for the event, containing event and context data. |
-| Result file | `CHRYS_HOOK_RESULT` | A JSON file to which the hook writes a decision or additional information. Only eligible blocking hooks can use it to change iCode's behavior. |
+| Blocking hook | `execution.mode: blocking` | AIxCoding waits for the hook to finish before continuing; some events apply the decision returned by the hook. |
+| Async hook | `execution.mode: async` | AIxCoding immediately continues the current operation, but usually waits for the hook to finish before the current turn or session ends. |
+| Fire-and-forget hook | `execution.mode: fire_and_forget` | AIxCoding immediately continues and does not wait for the hook at the end of the current turn or session. This is the default mode. |
+| Detached execution | `execution.detach: true` | Allows a fire-and-forget hook that has already started to keep running after AIxCoding exits. |
+| Durable delivery | `execution.delivery: durable` | Records unfinished non-blocking hook tasks so AIxCoding can retry them later. The same task may run more than once, so scripts must be safe to run repeatedly. |
+| Input file | `CHRYS_HOOK_PAYLOAD_FILE` | A JSON file that AIxCoding generates for the event, containing event and context data. |
+| Result file | `CHRYS_HOOK_RESULT` | A JSON file to which the hook writes a decision or additional information. Only eligible blocking hooks can use it to change AIxCoding's behavior. |
 
 ## Configuration file locations
 
-iCode can load one hook configuration file from each of the global configuration directory and the current working directory:
+AIxCoding can load one hook configuration file from each of the global configuration directory and the current working directory:
 
 | Scope | macOS and Linux | Windows |
 | --- | --- | --- |
 | Global | `~/.chrys/hooks/hooks.yaml` | `%APPDATA%\chrys\hooks\hooks.yaml` |
 | Project | `<working-directory>/.chrys/hooks/hooks.yaml` | `<working-directory>\.chrys\hooks\hooks.yaml` |
 
-Either location can use `hooks.yml` or `hooks.json` instead. If a directory contains multiple candidates, iCode loads only the first one, in the order `hooks.yaml`, `hooks.yml`, `hooks.json`.
+Either location can use `hooks.yml` or `hooks.json` instead. If a directory contains multiple candidates, AIxCoding loads only the first one, in the order `hooks.yaml`, `hooks.yml`, `hooks.json`.
 
-`<working-directory>` is the session's working directory. For project configuration, iCode checks only `<working-directory>/.chrys/hooks/`; it does not search parent or child directories of the working directory.
+`<working-directory>` is the session's working directory. For project configuration, AIxCoding checks only `<working-directory>/.chrys/hooks/`; it does not search parent or child directories of the working directory.
 
 ## Loading configuration files
 
 Project hooks are enabled by default. In the terminal user interface (TUI), press **F10** to open **Settings**, then turn off **Load project hooks** in the **Project trust** section of **Security**.
 
-Editing a hook configuration file on disk does not take effect immediately. After editing, switch sessions or restart iCode to reload the configuration. Changes to hook scripts alone do not require a reload; the next time the hook is triggered, it uses the new script content.
+Editing a hook configuration file on disk does not take effect immediately. After editing, switch sessions or restart AIxCoding to reload the configuration. Changes to hook scripts alone do not require a reload; the next time the hook is triggered, it uses the new script content.
 
 Enter `/runtime` in the TUI and open the **Hooks** tab to view the currently loaded project and global hooks.
 
@@ -55,7 +55,7 @@ A hook configuration file supports the following top-level fields:
 | `settings` | Object | The defaults for each field | Concurrency, shutdown wait, and durable delivery retry settings shared by all hooks in this configuration file. |
 | `hooks` | List | `[]` | List of hook entries. |
 
-Both `version` and `settings` can be omitted; iCode then uses the defaults listed in the table.
+Both `version` and `settings` can be omitted; AIxCoding then uses the defaults listed in the table.
 
 `hooks` defines the hooks; `settings` specifies execution parameters shared by all hooks in the current configuration file.
 
@@ -67,7 +67,7 @@ Configure `settings` when you need to adjust concurrency, shutdown wait time, or
 | --- | --- | --- | --- |
 | `shutdown_grace_seconds` | Number (>= `0`) | `5.0` | Maximum time to wait for async hooks when the current session ends (see `session_end` in [Session events](#session-events)). Hooks still running after this time are canceled. |
 | `max_parallel_hooks` | Integer (>= `1`) | `4` | Maximum number of hooks running concurrently. When the limit is reached, newly triggered hooks wait for running hooks to finish. Detached hooks are exempt from this limit. |
-| `outbox_retry_age_seconds` | Number (>= `0`) | `60.0` | Used only for durable delivery hooks. After starting, iCode retries hook tasks that were not recorded as complete because of a previous exit or crash. This setting specifies the minimum delay in seconds before a retry, measured from the task's last execution start, or from its creation if it has never run. |
+| `outbox_retry_age_seconds` | Number (>= `0`) | `60.0` | Used only for durable delivery hooks. After starting, AIxCoding retries hook tasks that were not recorded as complete because of a previous exit or crash. This setting specifies the minimum delay in seconds before a retry, measured from the task's last execution start, or from its creation if it has never run. |
 | `outbox_max_retries` | Integer (>= `0`) | `3` | Used only for durable delivery hooks. Maximum number of times a hook task may be started, including its first run. With the default `3`, an interrupted task is retried at most twice; `1` disables retries; `0` also marks tasks that never started as failed. |
 
 When both project and global configuration exist, `settings` are merged field by field: values in the project file take precedence, followed by values in the global file, with defaults used for fields set in neither file.
@@ -81,7 +81,7 @@ Each entry in the `hooks` list defines one hook and supports the following field
 | `id` | String | Required | A stable identifier for the hook. Leading and trailing whitespace is stripped; the remaining value must be between `1` and `512` characters long. Must be unique within the file. |
 | `event` | String | Required | When to run the hook. See [Events](#events) for available values. |
 | `run` | Object | Required | The script, command, or shell snippet to launch. |
-| `execution` | Object | See [Execution behavior](#execution-behavior) | Whether iCode waits for the hook, its time limit, and how failures are handled. |
+| `execution` | Object | See [Execution behavior](#execution-behavior) | Whether AIxCoding waits for the hook, its time limit, and how failures are handled. |
 | `match` | Object | No filters | Restricts which agents or tool calls trigger the hook. |
 | `enabled` | Boolean | `true` | Set to `false` to disable the hook without deleting its configuration. |
 | `description` | String | `""` | A description to help identify the hook; does not change its behavior. |
@@ -98,9 +98,9 @@ All events provide the [base fields](#base-fields). Some events also provide add
 
 | Event | When it runs | Additional fields |
 | --- | --- | --- |
-| `session_start` | After the agent is ready. Triggered when iCode starts, a session is created, or the current session is rolled back to its beginning; not triggered by switching agents or models. | None |
-| `session_restored` | After a saved session is restored. When a session is restored immediately after starting iCode, both `session_start` and `session_restored` may be triggered. | `restored_session_id`: ID of the saved session restored this time |
-| `session_end` | When the current session ends: exiting iCode, switching sessions, starting a new session, deleting or clearing the current session, or rolling it back to its beginning. | None |
+| `session_start` | After the agent is ready. Triggered when AIxCoding starts, a session is created, or the current session is rolled back to its beginning; not triggered by switching agents or models. | None |
+| `session_restored` | After a saved session is restored. When a session is restored immediately after starting AIxCoding, both `session_start` and `session_restored` may be triggered. | `restored_session_id`: ID of the saved session restored this time |
+| `session_end` | When the current session ends: exiting AIxCoding, switching sessions, starting a new session, deleting or clearing the current session, or rolling it back to its beginning. | None |
 
 ### Turn events
 
@@ -128,14 +128,14 @@ For the fields in the `tool` and `result` objects, see [Tool event fields](#tool
 
 ### Approval events
 
-Approval events notify or record when tool approval is waiting for a human decision. They cover only tool approvals handled by iCode, not approvals forwarded by external ACP agents. For payload details, see [Approval event fields](#approval-event-fields).
+Approval events notify or record when tool approval is waiting for a human decision. They cover only tool approvals handled by AIxCoding, not approvals forwarded by external ACP agents. For payload details, see [Approval event fields](#approval-event-fields).
 
 | Event | When it runs | Additional fields |
 | --- | --- | --- |
 | `approval_requested` | When tool approval enters a wait for a human decision. | `request_id`, `caller_name`, `tool` |
-| `approval_resolved` | After a human approves or rejects the request, before iCode continues processing the decision. Not triggered if the wait is interrupted; does not mean the tool has executed or succeeded. | Same as `approval_requested`, plus `approved` |
+| `approval_resolved` | After a human approves or rejects the request, before AIxCoding continues processing the decision. Not triggered if the wait is interrupted; does not mean the tool has executed or succeeded. | Same as `approval_requested`, plus `approved` |
 
-In automatic approval mode (`auto`), iCode completes the automatic review first and triggers approval events only if a human decision is still needed. Neither event is triggered if automatic review approves the request, approval is bypassed, or a decision is already available before the wait begins.
+In automatic approval mode (`auto`), AIxCoding completes the automatic review first and triggers approval events only if a human decision is still needed. Neither event is triggered if automatic review approves the request, approval is bypassed, or a decision is already available before the wait begins.
 
 Hooks for these two events can only observe approval state. They cannot approve, reject, or modify an approval decision through the result file.
 
@@ -182,12 +182,12 @@ Only the following events apply decisions that blocking hooks return in the resu
 | `after_tool_call` | Append context to the tool result, but cannot undo a call that has already occurred. |
 | `tool_error` | Append context to the tool error, but cannot undo a call that has already occurred. |
 
-### When iCode waits for async hooks
+### When AIxCoding waits for async hooks
 
-Async hooks run immediately when triggered, and the current operation continues. If a hook has not finished, iCode waits at the following points:
+Async hooks run immediately when triggered, and the current operation continues. If a hook has not finished, AIxCoding waits at the following points:
 
 - At the end of the current turn, it waits for async hooks triggered during that turn, except hooks triggered by `user_interrupt`.
-- When the current session ends, it waits for async hooks triggered by session events. Because `session_end` is triggered during session shutdown, iCode starts waiting for it immediately.
+- When the current session ends, it waits for async hooks triggered by session events. Because `session_end` is triggered during session shutdown, AIxCoding starts waiting for it immediately.
 
 The wait at session shutdown is limited by `shutdown_grace_seconds`. Each async hook is also subject to its own `timeout_seconds` limit.
 
@@ -231,7 +231,7 @@ Matching follows these rules:
 - Missing arguments and `null` values do not match. `path: {}` only checks that `path` exists and is not `null`, without comparing its value.
 - Condition values must be strings. In YAML, quote numbers and booleans: an unquoted value such as `equals: 10` or `equals: true` is a configuration error that disables every hook in the file.
 - Non-string arguments are converted with Python's `str()` before comparison, so JSON `true` and `false` become `True` and `False` (match them with `equals: "True"`), and lists and objects use Python's representation.
-- Use YAML single-quoted strings for regular expressions where possible; backslashes must be escaped inside double quotes. If a regular expression is invalid, iCode logs a warning and the condition does not match.
+- Use YAML single-quoted strings for regular expressions where possible; backslashes must be escaped inside double quotes. If a regular expression is invalid, AIxCoding logs a warning and the condition does not match.
 
 ## Run configuration
 
@@ -239,7 +239,7 @@ Matching follows these rules:
 
 | `type` | Use case | Required field |
 | --- | --- | --- |
-| `script` | Run an existing script, with iCode choosing the runtime based on the file extension. | `path` |
+| `script` | Run an existing script, with AIxCoding choosing the runtime based on the file extension. | `path` |
 | `command` | Launch an executable directly without shell interpretation. | `argv` |
 | `shell` | Run a command string containing shell syntax such as redirection, pipes, or variable expansion. | `shell` |
 
@@ -262,22 +262,22 @@ run:
 | `path` | String | Required | Script file path. Absolute paths are allowed; relative paths are resolved from the current hook configuration file's directory. |
 | `args` | List of strings | `[]` | Arguments passed to the script, appended after the script path in order. |
 
-iCode selects the runtime based on the file extension:
+AIxCoding selects the runtime based on the file extension:
 
 | Extension | Runtime |
 | --- | --- |
 | `.py` | `uv` or Python, selected as described below |
 | `.ps1` | `pwsh` or `powershell` |
-| `.sh`, `.bash`, `.zsh` | `bash` or `sh`; on Windows, iCode also looks for Git Bash |
+| `.sh`, `.bash`, `.zsh` | `bash` or `sh`; on Windows, AIxCoding also looks for Git Bash |
 | `.js`, `.mjs` | `node` |
 | `.ts` | `npx tsx` |
 | `.rb` | `ruby` |
 | `.pl` | `perl` |
 | Other | Run as a Python script |
 
-For `.py` files, iCode first searches the user's `PATH` for `uv`, `python3`, and `python`, in that order. If it finds `uv`, it runs the script with `uv run`; if it finds Python, it uses that interpreter directly. If none are found, it uses `uv` or Python from iCode's bundled runtime.
+For `.py` files, AIxCoding first searches the user's `PATH` for `uv`, `python3`, and `python`, in that order. If it finds `uv`, it runs the script with `uv run`; if it finds Python, it uses that interpreter directly. If none are found, it uses `uv` or Python from AIxCoding's bundled runtime.
 
-Before running other script types, install the corresponding runtime from the table and ensure iCode can find it through `PATH`.
+Before running other script types, install the corresponding runtime from the table and ensure AIxCoding can find it through `PATH`.
 
 ### Running commands
 
@@ -289,7 +289,7 @@ run:
   argv: ["git", "status", "--short"]
 ```
 
-iCode does not interpret arguments through a shell, so redirection, pipes, variable expansion, and command substitution do not take effect.
+AIxCoding does not interpret arguments through a shell, so redirection, pipes, variable expansion, and command substitution do not take effect.
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -314,7 +314,7 @@ run:
 | `type` | `shell` | Required | Must be `shell`. |
 | `shell` | String | Required | The complete command string for the shell to interpret. |
 
-On macOS and Linux, iCode uses the shell specified by the `$SHELL` environment variable, or `/bin/sh` if it is unset. On Windows, it uses Command Prompt (CMD). Syntax support may differ between shells.
+On macOS and Linux, AIxCoding uses the shell specified by the `$SHELL` environment variable, or `/bin/sh` if it is unset. On Windows, it uses Command Prompt (CMD). Syntax support may differ between shells.
 
 The shell interprets the entire command. Do not concatenate untrusted content directly into the `shell` string, as this may cause command injection. The `shell` type does not use `args`; put additional content directly in the `shell` string, or use `script` or `command` instead.
 
@@ -324,7 +324,7 @@ The shell interprets the entire command. Do not concatenate untrusted content di
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `env` | Object mapping strings to strings | `{}` | Environment variables added to the hook process; values override those passed by iCode when names match. |
+| `env` | Object mapping strings to strings | `{}` | Environment variables added to the hook process; values override those passed by AIxCoding when names match. |
 | `cwd` | String | `""` | The hook process's working directory. If omitted or empty, uses the current session's working directory. |
 
 For example, set environment variables for a script and run it in the current session's working directory:
@@ -345,24 +345,24 @@ The script path and working directory use different base directories:
 | --- | --- |
 | Relative `path` | The hook configuration file's directory |
 | Omitted or empty `cwd` | The current session's working directory |
-| Relative `cwd` | The iCode process's current working directory, which may differ from the session working directory |
+| Relative `cwd` | The AIxCoding process's current working directory, which may differ from the session working directory |
 
-When setting `cwd`, use an absolute path or the `${workspace_cwd}` or `${chrys_home}` template. For example, `${chrys_home}/hooks` specifies the `hooks` directory under the iCode configuration directory. The target directory must exist.
+When setting `cwd`, use an absolute path or the `${workspace_cwd}` or `${chrys_home}` template. For example, `${chrys_home}/hooks` specifies the `hooks` directory under AIxCoding configuration directory. The target directory must exist.
 
 Values in `env` and `cwd` support the following templates:
 
 | Template | Value |
 | --- | --- |
 | `${workspace_cwd}` | The current session's working directory |
-| `${chrys_home}` | The iCode configuration directory, usually `~/.chrys` or `%APPDATA%\chrys` |
+| `${chrys_home}` | The AIxCoding configuration directory, usually `~/.chrys` or `%APPDATA%\chrys` |
 | `${session_id}` | The current session ID |
 | `${profile}` | The event's agent name, the same as the base field `profile` |
 
-iCode performs literal replacement of these templates wherever they appear in `env` values and `cwd`. Other variables or expressions, such as `~`, `$VAR`, `${VAR}`, and `${VAR:-default}`, are not expanded by iCode.
+AIxCoding performs literal replacement of these templates wherever they appear in `env` values and `cwd`. Other variables or expressions, such as `~`, `$VAR`, `${VAR}`, and `${VAR:-default}`, are not expanded by AIxCoding.
 
 ## Execution behavior
 
-`execution` controls whether iCode waits for a hook, whether the hook can keep running after iCode exits, whether unfinished tasks are retried, and how timeouts and failures are handled. All fields can be omitted. The defaults suit most notification and logging scripts: the current operation does not wait for the hook, the hook runs for at most 30 seconds, and a warning is logged if it fails.
+`execution` controls whether AIxCoding waits for a hook, whether the hook can keep running after AIxCoding exits, whether unfinished tasks are retried, and how timeouts and failures are handled. All fields can be omitted. The defaults suit most notification and logging scripts: the current operation does not wait for the hook, the hook runs for at most 30 seconds, and a warning is logged if it fails.
 
 Choose `mode` first, then set other fields as needed.
 
@@ -373,8 +373,8 @@ Choose `mode` based on whether the hook must finish before the current operation
 | `mode` | Waiting behavior | Use case | Can affect the current operation? |
 | --- | --- | --- | --- |
 | `blocking` | Waits for the hook to finish before continuing the current operation; multiple `blocking` hooks run in configuration order | Checks that must finish before an operation continues, or hooks that need to reject or modify an operation | For some events; see [Result file](#result-file) |
-| `async` | The current operation continues immediately; see [When iCode waits for async hooks](#when-icode-waits-for-async-hooks) for later waits | Notifications and logging that should not delay the current operation but need to finish before the turn or current session ends | No |
-| `fire_and_forget` (default) | The current operation continues immediately; iCode does not wait at the end of the turn or current session | Notifications and logging that may be interrupted by iCode exiting before they finish | No |
+| `async` | The current operation continues immediately; see [When AIxCoding waits for async hooks](#when-aixcoding-cli-waits-for-async-hooks) for later waits | Notifications and logging that should not delay the current operation but need to finish before the turn or current session ends | No |
+| `fire_and_forget` (default) | The current operation continues immediately; AIxCoding does not wait at the end of the turn or current session | Notifications and logging that may be interrupted by AIxCoding exiting before they finish | No |
 
 ### Setting time limits and failure handling
 
@@ -383,7 +383,7 @@ Choose `mode` based on whether the hook must finish before the current operation
 | `timeout_seconds` | Number greater than `0` | `30.0` | Maximum hook runtime in seconds; ignored when `detach` is enabled. |
 | `on_error` | `block`, `warn`, or `ignore` | `warn` | How to handle hook failures; see the table below. |
 
-`on_error` determines how iCode continues when a hook cannot start, times out, or returns a nonzero exit code:
+`on_error` determines how AIxCoding continues when a hook cannot start, times out, or returns a nonzero exit code:
 
 | Value | Behavior |
 | --- | --- |
@@ -391,7 +391,7 @@ Choose `mode` based on whether the hook must finish before the current operation
 | `warn` | Logs a warning and continues the current operation. |
 | `ignore` | Logs the failure only at debug level and continues the current operation. A hook that times out or is stopped still logs a warning. |
 
-When a blocking hook fails, iCode ignores the decision returned by the script and applies only `on_error`.
+When a blocking hook fails, AIxCoding ignores the decision returned by the script and applies only `on_error`.
 
 For example, to require a check before a tool runs and reject the call if the script cannot start, times out, or returns a nonzero exit code:
 
@@ -404,24 +404,24 @@ execution:
 
 ### Continuing after exit
 
-`detach` is a boolean that defaults to `false`. Set it to `true` if a hook that has already started needs to keep running after iCode exits. It is available only with `mode: fire_and_forget`.
+`detach` is a boolean that defaults to `false`. Set it to `true` if a hook that has already started needs to keep running after AIxCoding exits. It is available only with `mode: fire_and_forget`.
 
 When `detach` is enabled, the hook is exempt from `max_parallel_hooks` and `timeout_seconds`. Standard output and standard error are saved in `~/.chrys/hooks/logs` on macOS and Linux, or `%APPDATA%\chrys\hooks\logs` on Windows.
 
 ### Retrying unfinished tasks
 
-`delivery` controls whether iCode retries unfinished tasks on a later startup:
+`delivery` controls whether AIxCoding retries unfinished tasks on a later startup:
 
 | Value | Behavior |
 | --- | --- |
 | `best_effort` (default) | Does not retry. |
-| `durable` | Records pending tasks and retries eligible unfinished tasks when iCode starts. Available only for `async` and `fire_and_forget`. |
+| `durable` | Records pending tasks and retries eligible unfinished tasks when AIxCoding starts. Available only for `async` and `fire_and_forget`. |
 
 Tasks already recorded as failed, such as scripts that returned a nonzero exit code or timed out, are not automatically retried. The same task may run more than once, so scripts must be safe to run repeatedly.
 
 Retry conditions are controlled by the [global settings](#global-settings): `outbox_retry_age_seconds` specifies the minimum wait before retrying, and `outbox_max_retries` limits how many times a task may be started. Setting `delivery: durable` for `blocking` does not enable automatic retries and produces a warning.
 
-`detach` keeps an already-started process running after iCode exits, while `delivery` lets iCode resume unfinished tasks on a later startup. Both can be set together. For example:
+`detach` keeps an already-started process running after AIxCoding exits, while `delivery` lets AIxCoding resume unfinished tasks on a later startup. Both can be set together. For example:
 
 ```yaml
 execution:
@@ -443,7 +443,7 @@ Scripts locate the current hook's input and result files through environment var
 | `PYTHONUTF8` | Always `1`. |
 | `PYTHONIOENCODING` | Always `utf-8`. |
 
-iCode provides both an input file and a result file every time a hook runs. Both files are deleted after the hook finishes; do not save their paths for later use.
+AIxCoding provides both an input file and a result file every time a hook runs. Both files are deleted after the hook finishes; do not save their paths for later use.
 
 Scripts read event information from the input file and write to the [result file](#result-file) when they need to return a decision. Standard output and standard error are not read as decisions.
 
@@ -548,7 +548,7 @@ For approval events, the base field `profile` is the profile name of the agent m
 
 To return a decision, write a UTF-8 JSON object to the file specified by `CHRYS_HOOK_RESULT`. The maximum file size is 1 MiB.
 
-iCode applies decisions only when a blocking hook successfully returns exit code `0`, and only for the events and conditions listed below. Result files from async and fire-and-forget hooks do not change iCode's behavior. If a hook cannot start, times out, or returns a nonzero exit code, its result file is ignored and `on_error` from the [failure handling configuration](#setting-time-limits-and-failure-handling) applies.
+AIxCoding applies decisions only when a blocking hook successfully returns exit code `0`, and only for the events and conditions listed below. Result files from async and fire-and-forget hooks do not change AIxCoding's behavior. If a hook cannot start, times out, or returns a nonzero exit code, its result file is ignored and `on_error` from the [failure handling configuration](#setting-time-limits-and-failure-handling) applies.
 
 The result file supports the following JSON fields:
 
@@ -563,7 +563,7 @@ The result file supports the following JSON fields:
 Result files are read according to these rules:
 
 - An empty file or no written result is equivalent to `{"action": "allow"}`.
-- If the JSON is invalid, the top-level value is not an object, or the file exceeds 1 MiB, iCode logs a warning and ignores the result, treating it as no decision.
+- If the JSON is invalid, the top-level value is not an object, or the file exceeds 1 MiB, AIxCoding logs a warning and ignores the result, treating it as no decision.
 - Unknown fields are ignored.
 
 For how decisions from multiple hooks are combined, see [Execution order and configuration merging for multiple hooks](#execution-order-and-configuration-merging-for-multiple-hooks).
@@ -572,10 +572,10 @@ For how decisions from multiple hooks are combined, see [Execution order and con
 
 ### Execution order
 
-When both project and global configuration are loaded, execution mode determines the phase in which a hook runs, and configuration source determines the order within each phase. For a single event, iCode processes hooks in two phases:
+When both project and global configuration are loaded, execution mode determines the phase in which a hook runs, and configuration source determines the order within each phase. For a single event, AIxCoding processes hooks in two phases:
 
 1. It checks and runs matching blocking hooks one by one: project hooks first, then global hooks, preserving definition order within each configuration file.
-2. If no hook rejects the operation, iCode starts matching async and fire-and-forget hooks: first in project configuration order, then in global configuration order. These non-blocking hooks may run concurrently, so they may finish in a different order from the one in which they started.
+2. If no hook rejects the operation, AIxCoding starts matching async and fire-and-forget hooks: first in project configuration order, then in global configuration order. These non-blocking hooks may run concurrently, so they may finish in a different order from the one in which they started.
 
 Decisions returned by blocking hooks are combined as follows:
 
@@ -591,7 +591,7 @@ As a result, after a project hook modifies tool arguments, subsequent global hoo
 
 ### Duplicate IDs do not override hooks
 
-Project and global configurations may define the same `id`. Both hooks are retained, and iCode logs a duplicate-name warning.
+Project and global configurations may define the same `id`. Both hooks are retained, and AIxCoding logs a duplicate-name warning.
 
 Duplicate `id` values within one configuration file cause that file to fail to load. An `id` identifies a hook; it is not an override key. Defining a hook with the same name in project configuration cannot override or disable a global hook. To disable a global hook, edit the global configuration and set that hook's `enabled` to `false`, or delete its definition.
 
@@ -599,4 +599,4 @@ Duplicate `id` values within one configuration file cause that file to fail to l
 
 `settings` in project and global configurations are merged field by field: explicitly set project values take precedence, followed by global values, with defaults used when neither file sets a field.
 
-If either configuration file is invalid, iCode displays a warning and disables all hooks defined in that file; a valid configuration file in the other location still takes effect. No warning is issued when a configuration file is not found.
+If either configuration file is invalid, AIxCoding displays a warning and disables all hooks defined in that file; a valid configuration file in the other location still takes effect. No warning is issued when a configuration file is not found.

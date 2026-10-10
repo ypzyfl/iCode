@@ -64,7 +64,7 @@ observability = [
 all = ["chrys[tui,dev,doc_converter,observability]"]
 
 [project.scripts]
-icode = "chrys.app.cli.app:main"
+aixcoding-cli = "chrys.app.cli.app:main"
 chrys = "chrys.app.cli.app:main"
 
 [tool.uv.sources]
@@ -84,7 +84,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/chrys"]
+packages = ["src/chrys", "aixcoding"]
 
 [tool.hatch.build.targets.wheel.force-include]
 # The /help user guide reads docs/ at runtime; installed builds carry it here
@@ -97,7 +97,7 @@ artifacts = ["src/chrys/foundation/vendor/ripgrep/*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests"]
+testpaths = ["tests", "mock_server"]
 addopts = "-n 8 --strict-markers"
 # ``build`` is intentionally omitted from pytest's default ``norecursedirs`` so
 # tests/orchestration/engine/build/ (mirroring src/chrys/orchestration/engine/build/) is collected.
@@ -183,6 +183,8 @@ ignore = [
 "tests/**" = ["S", "PERF401"]
 # Golden workflow example: user-facing Chinese prose keeps its full-width punctuation
 "tests/service/workflows/fixtures/*" = ["RUF001"]
+# AIxCoding TUI: user-facing Chinese prose keeps its full-width punctuation
+"aixcoding/tui/*" = ["RUF001"]
 [tool.ruff.lint.isort]
 known-first-party = ["chrys"]
 
