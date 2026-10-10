@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -11,12 +12,12 @@ from chrys.aixcoding.config import clear_settings_cache
 from chrys.aixcoding.telemetry import subscriber
 from chrys.aixcoding.telemetry.llm_telemetry import clear_call_registry, record_call
 from chrys.aixcoding.telemetry.outcome import classify_result_metadata
+from chrys.aixcoding.telemetry.reporters import relative_file_name
 from chrys.aixcoding.telemetry.reporters.tool_detail import (
     ToolDetailReporter,
     func_type_for_kind,
     line_counts,
     pick_value,
-    relative_file_name,
 )
 from chrys.aixcoding.telemetry.types import (
     TOOL_DETAIL_SAVE,
@@ -53,7 +54,12 @@ def _origin(session_id: str = "sess-1") -> InvocationOrigin:
 
 
 def _start(
-    *, call_id: str = "c1", provider_call_id: str = "", tool_name: str = "read_file", args: dict | None = None
+    *,
+    call_id: str = "c1",
+    provider_call_id: str = "",
+    tool_name: str = "read_file",
+    args: dict | None = None,
+    workspace_cwd: str = "",
 ) -> InvocationToolCallStart:
     return InvocationToolCallStart(
         origin=_origin(),
@@ -63,6 +69,7 @@ def _start(
         call_id=call_id,
         provider_call_id=provider_call_id,
         session_id="sess-1",
+        workspace_cwd=workspace_cwd,
     )
 
 
@@ -139,10 +146,11 @@ def test_func_type_mapping():
 
 
 def test_pick_value_whitelist():
-    assert pick_value("read_file", {"path": "src/a.py", "extra": "x"}, full_mode=False) == "src/a.py"
+    # read_file 路径 2026-10-10 改走 fileName（路径类工具统一口径），白名单仅剩 load_skill
+    assert pick_value("read_file", {"path": "src/a.py", "extra": "x"}, full_mode=False) is None
     assert pick_value("load_skill", {"skill_name": "code_review"}, full_mode=False) == "code_review"
     assert pick_value("write_file", {"filepath": "src/a.py"}, full_mode=False) is None
-    assert pick_value("read_file", {"path": 123}, full_mode=False) == "123"
+    assert pick_value("read_file", {"path": 123}, full_mode=False) is None
     assert pick_value("read_file", {}, full_mode=False) is None
 
 
@@ -199,7 +207,9 @@ def test_reporter_start_then_result_ordering_and_fields():
     assert save["spanId"] == "span-9"
     assert save["requestId"] == "req-9"
     assert "parentSpanId" not in save
-    assert save["value"] == "src/a.py"
+    # read_file 路径改走 fileName（2026-10-10）；workspace 缺失时原样保留
+    assert "value" not in save
+    assert save["fileName"] == "src/a.py"
     assert save["pluginVersion"]
     assert save["projectName"]
 
@@ -238,17 +248,45 @@ def test_reporter_write_file_save_includes_file_name():
     assert final["deletedLines"] == 0
 
 
-def test_relative_file_name(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_relative_file_name(tmp_path):
     sub = tmp_path / "sub"
     sub.mkdir()
+    ws = str(tmp_path)
     # 工程内绝对路径 → 相对路径（POSIX 分隔符，含文件名）
-    assert relative_file_name(str(sub / "a.kt")) == "sub/a.kt"
+    assert relative_file_name(str(sub / "a.kt"), ws) == "sub/a.kt"
     # 工程外绝对路径 → 原样保留
     outside = str(tmp_path.parent / "elsewhere.kt")
-    assert relative_file_name(outside) == outside
-    # 相对入参原样
+    assert relative_file_name(outside, ws) == outside
+    # 相对入参（工程内）→ 相对路径原样
+    assert relative_file_name("docs/new.md", ws) == "docs/new.md"
+    # 相对入参越界 → 绝对路径（2026-10-10 修复：原先原样返回相对路径，不符合规则）
+    escaped = relative_file_name("../outside/a.kt", ws)
+    assert Path(escaped).is_absolute()
+    assert Path(escaped).as_posix().endswith("outside/a.kt")
+    # workspace 缺失 → 不相对化：进程 cwd 是 iCode 启动目录而非工程根
+    # （2026-10-09 踩坑），宁可原样也不误判
+    assert relative_file_name(str(sub / "a.kt")) == str(sub / "a.kt")
     assert relative_file_name("docs/new.md") == "docs/new.md"
+
+
+def test_reporter_read_and_view_image_save_includes_file_name():
+    submitter = _CaptureSubmitter()
+    reporter = ToolDetailReporter(submitter)
+    reporter.on_start(_start(tool_name="read_file", args={"path": "src/a.py"}))
+    reporter.on_start(_start(call_id="c2", tool_name="view_image", args={"path": "img/logo.png"}))
+    save_read = submitter.calls[0][1]
+    assert save_read["fileName"] == "src/a.py"  # 非编辑类工具路径同口径（2026-10-10）
+    assert "value" not in save_read
+    assert submitter.calls[2][1]["fileName"] == "img/logo.png"
+
+
+def test_reporter_file_name_resolves_against_workspace(tmp_path):
+    submitter = _CaptureSubmitter()
+    reporter = ToolDetailReporter(submitter)
+    reporter.on_start(
+        _start(tool_name="write_file", args={"path": str(tmp_path / "a.py")}, workspace_cwd=str(tmp_path))
+    )
+    assert submitter.calls[0][1]["fileName"] == "a.py"  # 工程内绝对入参 → 相对路径
 
 
 def test_reporter_result_without_registry_still_reports():
