@@ -4,6 +4,9 @@
 可靠性契约（方案 §2.1"值得照抄的工程实践"）：
 
 - ``submit()`` 仅入队，fire-and-forget——上报失败只记日志，绝不向调用方抛出；
+- ``token_provider`` 发送期动态取 token 头（登录晚于进程启动的场景：构造期
+  快照会固化 ``None``，登录后的上报自动带上真实 token——对齐 aixcoding
+  ``report.ts`` 每次 ``report()`` 调 ``getDefaultTokenHeaders()`` 的语义）；
 - 单 worker 逐条 POST，天然保序（tool-detail 的 save→update 链依赖此性质）；
 - ``trust_env=False``：内网端点直连，不受本机代理环境变量干扰；
 - ``BatchBuffer`` 提供批量缓冲语义（满 N 条或 T 秒 flush、超上限丢旧），
@@ -15,7 +18,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 
 import httpx
 
@@ -25,9 +28,17 @@ logger = logging.getLogger(__name__)
 class TelemetryHttpClient:
     """fire-and-forget 串行上报客户端（须在事件循环内使用）。"""
 
-    def __init__(self, report_base_url: str, token: str | None = None, *, timeout: float = 10.0) -> None:
+    def __init__(
+        self,
+        report_base_url: str,
+        token: str | None = None,
+        *,
+        token_provider: Callable[[], str | None] | None = None,
+        timeout: float = 10.0,
+    ) -> None:
         self._report_base_url = report_base_url.rstrip("/")
         self._token = token
+        self._token_provider = token_provider
         self._timeout = timeout
         self._queue: asyncio.Queue[tuple[str, dict[str, object]]] = asyncio.Queue()
         self._worker: asyncio.Task[None] | None = None
@@ -84,8 +95,9 @@ class TelemetryHttpClient:
         if self._client is None:
             return
         headers = {"Content-Type": "application/json"}
-        if self._token:
-            headers["token"] = self._token
+        token = self._token_provider() if self._token_provider is not None else self._token
+        if token:
+            headers["token"] = token
         response = await self._client.post(
             f"{self._report_base_url}/{endpoint.lstrip('/')}",
             json=payload,

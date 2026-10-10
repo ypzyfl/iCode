@@ -170,8 +170,23 @@ def _build_default_headers(
 
 
 def _resolve_profile_api_key(profile: ModelProfile) -> str:
-    """Resolve explicit API-key env templates before provider env fallback."""
-    return resolve_env_templates(profile.api_key, location=f"model profile {profile.name!r} API Key")
+    """Resolve the key at send time: profile template, then provider env.
+
+    A catalog-owned profile carries no key on disk at all — a directory is not
+    a credential channel — so what is sent is decided here instead of stored.
+    A profile that names a key keeps it, and a ``{{ENV_VAR}}`` placeholder in
+    it is resolved here, so a missing variable still fails by name rather than
+    sending an empty key that surfaces as a bare 401. Otherwise the provider's
+    own environment variable is consulted.
+    """
+    explicit = resolve_env_templates(profile.api_key, location=f"model profile {profile.name!r} API Key")
+    if explicit:
+        return explicit
+    api_key_env = _PROVIDER_API_KEY_ENVS.get(profile.provider)
+    # Untrimmed on purpose: ``_validate_wire_charset`` reads the same value and
+    # turns a stray trailing space into a named config error instead of a raw
+    # h11 failure on the first request.
+    return os.environ.get(api_key_env, "") if api_key_env is not None else ""
 
 
 def _validate_wire_charset(profile: ModelProfile, *, api_key: str, headers: dict[str, str]) -> None:

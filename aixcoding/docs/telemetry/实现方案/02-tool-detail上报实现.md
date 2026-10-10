@@ -121,7 +121,7 @@ def on_start(self, event):
 ```
 
 - **funcType 映射**（`func_type_for_kind`）：`KIND_SKILL→0`、`KIND_MCP→1`、其余→内置 `3`。
-- **参数口径**（决策 #6，`pick_value`）：默认白名单——仅 `read_file→path`（input_model 真实参数名，2026-10-09 修正：原写 `filepath` 真链路取不到值）、`load_skill→skill_name` 放行；`toolParamMode: full` 时输出 args 全量 JSON 截 2000 字符。
+- **参数口径**（决策 #6，`pick_value`）：默认白名单——仅 `load_skill→skill_name` 放行（`read_file→path` 曾在白名单，2026-10-10 用户定稿移除：文件路径统一改走 `fileName`，见 §4.3）；`toolParamMode: full` 时输出 args 全量 JSON 截 2000 字符。
 
 ### 4.4 update 组装
 
@@ -159,12 +159,16 @@ def on_result(self, event):
 **创建**（op=create）：`originalLines=0`、`addedLines=新文件行数`、`deletedLines=0`；
 **删除**（op=delete）：`originalLines=0`、`addedLines=0`、`deletedLines=被删文件行数`；
 **修改**（op=modify）：difflib 差异，`originalLines=before 行数`。
-save 侧：写类工具（`write_file`/`edit_file`，对齐 iCode `_FILE_TOOLS`）从参数 `path`
-取值附 **`fileName`**（csas 契约字段，aixcoding-continue save 填 `fileName`：
-`toolCallReporter.ts:70`；2026-10-09 真链路联调补齐）。**fileName 口径**（同日用户定稿，
-对齐 aixcoding `getRelativePathOfFile` 语义）：文件在当前工程目录（cwd）内时取
-**相对路径**（含文件名，POSIX 分隔符，`relative_file_name()`）；工程外或解析失败
-保留绝对路径。
+save 侧：**路径类工具**（`_FILE_NAME_TOOLS` = `write_file`/`edit_file` + `read_file`/`view_image`
+，参数同为 `path`）从参数取值附 **`fileName`**（csas 契约字段；aixcoding-continue 对所有带
+`filepath` 参数的工具均上报 fileName：`callToolById.ts:60`——2026-10-10 用户定稿将 iCode
+的 fileName 从仅写类扩展到只读文件工具，对齐真实行为；同日 read_file 移出 value 白名单，
+路径只经 `fileName` 承载）。**fileName 口径**（2026-10-09 定稿、2026-10-10 升级，公共层
+`reporters.relative_file_name()`，ai-code `filepath` 同用）：文件在**会话工作区**
+（`workspace_cwd`，事件携带、`SessionEnvironment.cwd` 同源）内时取**相对路径**（含文件名，
+POSIX 分隔符）；工作区外取**绝对路径**（含文件名，相对入参越界亦解析为绝对）；**工作区
+缺失时入参原样、不做相对化**——进程 cwd 是 iCode 启动目录而非真实工程根（2026-10-09
+真链路踩坑），宁可不下结论也不误判。
 
 **键名对齐与超集字段（2026-10-09 真链路联调修正）**：update 报文键名对齐
 aixcoding-continue `toolCallReporter.ts` 的真实上报——关联键 `funcId`（键名对齐；

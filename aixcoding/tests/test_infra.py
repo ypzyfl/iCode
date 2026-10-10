@@ -1,4 +1,4 @@
-# ruff: noqa: RUF002, RUF003, S101
+# ruff: noqa: RUF002, RUF003, S101, S106
 """src/chrys/aixcoding 基础设施测试（config / http / git_info / context / telemetry.types）。
 
 M1 验收项"LOCAL profile 指向 mock 可对接"在 ``test_local_profile_end_to_end``
@@ -10,6 +10,8 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -17,6 +19,7 @@ from server import start_telemetry_mock
 
 from chrys.aixcoding import config, context, git_info
 from chrys.aixcoding.http import BatchBuffer, TelemetryHttpClient
+from chrys.aixcoding.telemetry import subscriber
 from chrys.aixcoding.telemetry import types as telemetry_types
 from chrys.foundation.platform import get_platform
 
@@ -35,6 +38,20 @@ def mock():
     instance = start_telemetry_mock(port=0, quiet=True)
     yield instance
     instance.close()
+
+
+@pytest.fixture
+def secured_mock():
+    instance = start_telemetry_mock(port=0, quiet=True, require_token="secret")
+    yield instance
+    instance.close()
+
+
+def _fake_auth(monkeypatch: pytest.MonkeyPatch, *, token: str | None = None, user_id: str | None = None) -> None:
+    """注入假 ``aixcoding.auth``（覆盖 conftest 的"未安装"隔离）。"""
+    module = types.ModuleType("aixcoding.auth")
+    module.get_login_session = lambda: types.SimpleNamespace(stored_token=token, stored_user_id=user_id)
+    monkeypatch.setitem(sys.modules, "aixcoding.auth", module)
 
 
 def _port(instance) -> int:
@@ -174,6 +191,32 @@ async def test_batch_buffer_flush_and_cap(mock) -> None:
     assert total == 3 + 4  # 首轮 3 条 + 丢旧后余 4 条
 
 
+async def test_http_client_token_provider_dynamic_per_request(secured_mock) -> None:
+    """token_provider 发送期动态取值：登录后下一条立即换头，错 token 被 401 拒收。"""
+    state = {"token": "secret"}
+    client = TelemetryHttpClient(
+        f"http://127.0.0.1:{_port(secured_mock)}/csas/telemetry/api/v1",
+        token_provider=lambda: state["token"],
+    )
+    try:
+        client.submit(
+            telemetry_types.TOOL_DETAIL_SAVE,
+            {"productName": "iCode", "funcType": 3, "funcName": "read_file", "funcId": "f-1", "sessionId": "s-1"},
+        )
+        await client.wait_drained()
+        assert len(secured_mock.store.query("tool-detail/save")) == 1
+
+        state["token"] = "wrong"  # 模拟登出/换号：同一 client，发送期重新取值
+        client.submit(
+            telemetry_types.TOOL_DETAIL_SAVE,
+            {"productName": "iCode", "funcType": 3, "funcName": "read_file", "funcId": "f-2", "sessionId": "s-1"},
+        )
+        await client.wait_drained()  # 401 不抛：上报失败只记日志
+    finally:
+        await client.stop()
+    assert len(secured_mock.store.query("tool-detail/save")) == 1  # 仅首条入库
+
+
 # -- git_info -------------------------------------------------------------------
 
 
@@ -253,6 +296,53 @@ def test_user_id_provider_reads_config() -> None:
     document.write_text("userId: '60002'\n", encoding="utf-8")
     provider = context.ConfigUserIdProvider()
     assert provider() == "60002"
+
+
+# -- 登录 token / userId 对接（env > 登录 > 配置文件） ------------------------------
+
+
+def test_resolve_token_env_wins_over_login(monkeypatch: pytest.MonkeyPatch) -> None:
+    _fake_auth(monkeypatch, token="login-token")
+    monkeypatch.setenv("AIXCODING_TOKEN", "env-token")
+    assert subscriber._resolve_token() == "env-token"
+
+
+def test_resolve_token_login_over_yaml(monkeypatch: pytest.MonkeyPatch) -> None:
+    _fake_auth(monkeypatch, token="login-token")
+    document = get_platform().config_dir / "aixcoding.yaml"
+    document.parent.mkdir(parents=True, exist_ok=True)
+    document.write_text("token: yaml-token\n", encoding="utf-8")
+    assert subscriber._resolve_token() == "login-token"
+
+
+def test_resolve_token_falls_back_to_yaml_without_login() -> None:
+    document = get_platform().config_dir / "aixcoding.yaml"
+    document.parent.mkdir(parents=True, exist_ok=True)
+    document.write_text("token: yaml-token\n", encoding="utf-8")
+    assert subscriber._resolve_token() == "yaml-token"  # conftest 已隔离为"未登录"
+
+
+def test_resolve_token_none_when_nothing_configured() -> None:
+    assert subscriber._resolve_token() is None
+
+
+def test_current_user_id_prefers_login(monkeypatch: pytest.MonkeyPatch) -> None:
+    _fake_auth(monkeypatch, user_id="ehr001")
+    document = get_platform().config_dir / "aixcoding.yaml"
+    document.parent.mkdir(parents=True, exist_ok=True)
+    document.write_text("userId: '60002'\n", encoding="utf-8")
+    assert context.current_user_id() == "ehr001"
+
+
+def test_current_user_id_falls_back_to_config() -> None:
+    document = get_platform().config_dir / "aixcoding.yaml"
+    document.parent.mkdir(parents=True, exist_ok=True)
+    document.write_text("userId: '60002'\n", encoding="utf-8")
+    assert context.current_user_id() == "60002"
+
+
+def test_current_user_id_none_when_neither() -> None:
+    assert context.current_user_id() is None
 
 
 def test_telemetry_type_constants_match_contract() -> None:

@@ -28,7 +28,10 @@ def _make_session(tmp_path, **delegation: object) -> LoginSession:
 
 def _host(pushed: list, notifications: list) -> SimpleNamespace:
     return SimpleNamespace(
-        app=SimpleNamespace(push_screen=lambda dialog, callback: pushed.append((dialog, callback))),
+        app=SimpleNamespace(
+            push_screen=lambda dialog, callback: pushed.append((dialog, callback)),
+            stop_catalog_sync=lambda: None,
+        ),
         notify=lambda message, **_kwargs: notifications.append(str(message)),
         _language_localizer=lambda: Localizer("en"),
     )

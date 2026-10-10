@@ -141,6 +141,7 @@ from chrys.service.profiles.models.schema import UNCONFIGURED_MODEL_ID, is_model
 from chrys.service.session.sub_agent_transcript import load_persisted_sub_agent_transcript
 
 if TYPE_CHECKING:
+    from aixcoding.auth import AccountInfo
     from textual.app import ComposeResult
     from textual.theme import Theme
 
@@ -960,6 +961,7 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
             self._state.runtime.profile,
             self._language_localizer(),
             runtime_confirmed=self._state.runtime.details_confirmed,
+            model_registry=self._services.model_registry,
         )
         self.query_one(StatusBar).set_model(state)
 
@@ -2196,13 +2198,19 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
 
         from aixcoding.tui import LoginDialog
 
+        def _on_login_success(account: AccountInfo) -> None:
+            # The catalog endpoint is authenticated: a session that had no
+            # credential at startup starts polling here, and fetches at once
+            # rather than waiting out a whole interval.
+            cast("ChrysApp", self.app).start_catalog_sync(immediate=True)
+
         def _on_login_dismiss(account: object | None) -> None:
             if account is None:
                 return
             display_name = getattr(account, "display_name", "") or ""
             self.notify(render_str(self._language_localizer(), _LOGIN_SUCCEEDED.bind(name=display_name)))
 
-        self.app.push_screen(LoginDialog(), _on_login_dismiss)
+        self.app.push_screen(LoginDialog(on_login_success=_on_login_success), _on_login_dismiss)
 
     def _perform_logout(self) -> None:
         """Clear the stored AIxCoding credential (/logout)."""
@@ -2217,6 +2225,9 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
             self.notify(render_str(self._language_localizer(), _LOGIN_NOT_LOGGED_IN.bind()), severity="warning")
             return
         session.logout()
+        # Without the credential every poll is refused before a request, so the
+        # thread has nothing left to do until the next login.
+        cast("ChrysApp", self.app).stop_catalog_sync()
         self.notify(render_str(self._language_localizer(), _LOGIN_LOGGED_OUT.bind()))
 
     # ------------------------------------------------------------------ #
