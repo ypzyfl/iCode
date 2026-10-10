@@ -183,7 +183,10 @@ def _resolve_profile_api_key(profile: ModelProfile) -> str:
     if explicit:
         return explicit
     api_key_env = _PROVIDER_API_KEY_ENVS.get(profile.provider)
-    return os.environ.get(api_key_env, "").strip() if api_key_env is not None else ""
+    # Untrimmed on purpose: ``_validate_wire_charset`` reads the same value and
+    # turns a stray trailing space into a named config error instead of a raw
+    # h11 failure on the first request.
+    return os.environ.get(api_key_env, "") if api_key_env is not None else ""
 
 
 def _validate_wire_charset(profile: ModelProfile, *, api_key: str, headers: dict[str, str]) -> None:
