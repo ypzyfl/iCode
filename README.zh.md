@@ -89,7 +89,7 @@ iCode 不附带任何模型配置，因此首次启动时请按 **F4** 添加一
 
 ## 用户指南
 
-在 iCode 中按 **F8** 即可打开内置的用户指南，其中完整介绍了 iCode 的使用方法。相同的内容也位于 [`docs/`](docs/) 目录，提供 [English](docs/en/start/what-is-aixcoding-cli.md) 和 [简体中文](docs/zh-Hans/start/what-is-aixcoding-cli.md) 两个版本。
+在 AIxCoding 中按 **F8** 即可打开内置的用户指南，其中完整介绍了 AIxCoding 的使用方法。相同的内容也位于 [`docs/`](docs/) 目录，提供 [English](docs/en/start/what-is-aixcoding.md) 和 [简体中文](docs/zh-Hans/start/what-is-aixcoding.md) 两个版本。
 
 ## 隐私
 

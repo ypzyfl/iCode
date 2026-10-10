@@ -98,9 +98,9 @@ iCode ships no model profiles, so press **F4** on first launch to add one.
 
 ## User guide
 
-Press **F8** inside iCode to open the built-in user guide, a complete walkthrough of using it.
-The same pages live in [`docs/`](docs/), in [English](docs/en/start/what-is-aixcoding-cli.md) and
-[简体中文](docs/zh-Hans/start/what-is-aixcoding-cli.md).
+Press **F8** inside AIxCoding to open the built-in user guide, a complete walkthrough of using it.
+The same pages live in [`docs/`](docs/), in [English](docs/en/start/what-is-aixcoding.md) and
+[简体中文](docs/zh-Hans/start/what-is-aixcoding.md).
 
 ## Privacy
 

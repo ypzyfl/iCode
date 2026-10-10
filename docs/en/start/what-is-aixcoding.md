@@ -26,8 +26,8 @@ AIxCoding offers several ways to work, depending on your needs:
 
 - **TUI**: The main AIxCoding interface, suited to interactive tasks. View tool calls, handle approval requests, and switch agents and model profiles within a session.
 - **Headless command-line interface (CLI)**: Run non-interactive tasks with `aixcoding-cli run`, suited to one-off tasks, scripts, and automated workflows.
-- **Browser interface**: [Run the TUI in a browser](../guides/running/aixcoding-cli-serve.md) when you need an interactive interface outside the terminal.
-- **ACP server**: Use AIxCoding as an agent backend for [editors or other development tools that support ACP](../guides/running/aixcoding-cli-acp.md).
+- **Browser interface**: [Run the TUI in a browser](../guides/running/aixcoding-serve.md) when you need an interactive interface outside the terminal.
+- **ACP server**: Use AIxCoding as an agent backend for [editors or other development tools that support ACP](../guides/running/aixcoding-acp.md).
 
 For first-time use, start with the TUI. An interactive session is a quick way to learn how agents, models, and tools work together.
 

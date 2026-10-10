@@ -1,4 +1,4 @@
-# 使用 aixcoding-cli run 执行无界面任务
+# 使用 AIxCoding-CLI 执行无界面任务
 
 `aixcoding-cli run` 在终端中执行任务，完成后返回智能体的最终回复。它不打开终端用户界面（Terminal User Interface，TUI）；任务运行期间，会逐行显示智能体正在做什么，适合一次性任务、脚本和自动化流程。
 

@@ -72,7 +72,7 @@ This configuration corresponds to the startup command:
 aixcoding-cli acp
 ```
 
-This command starts AIxCoding ACP server, offering the `Code` agent by default and using `manual` approval mode. For more configuration and usage instructions for AIxCoding ACP server, see [Use AIxCoding ACP server](../running/aixcoding-cli-acp.md).
+This command starts AIxCoding ACP server, offering the `Code` agent by default and using `manual` approval mode. For more configuration and usage instructions for AIxCoding ACP server, see [Use AIxCoding ACP server](../running/aixcoding-acp.md).
 
 ## Use environment variables
 
