@@ -332,9 +332,14 @@ class ChrysAcpServer:
         """Run one ACP prompt turn."""
         # AIxCoding telemetry: desktop channel from the prompt _meta envelope,
         # plus telemetry ids returned to the client on the response.
-        from chrys.aixcoding.telemetry.acp_meta import read_ide_channel_meta, telemetry_response_meta
+        from chrys.aixcoding.telemetry.acp_meta import (
+            read_ide_channel_meta,
+            read_response_attribution_span_id,
+            telemetry_response_meta,
+        )
 
         read_ide_channel_meta(kwargs)
+        attribution_span_id = read_response_attribution_span_id(kwargs)
         if self._client is None:
             raise RequestError.internal_error({"details": "ACP client connection is not ready."})
         bridge = AcpEventBridge()
@@ -380,14 +385,14 @@ class ChrysAcpServer:
                 stopReason="end_turn",
                 userMessageId=message_id,
                 usage=acp_schema.Usage.model_validate(usage_payload),
-                _meta=telemetry_response_meta(session_id),
+                _meta=telemetry_response_meta(session_id, attribution_span_id),
             )
         if isinstance(outcome, Cancelled):
             return acp_schema.PromptResponse(
                 stopReason="cancelled",
                 userMessageId=message_id,
                 usage=acp_schema.Usage.model_validate(usage_payload),
-                _meta=telemetry_response_meta(session_id),
+                _meta=telemetry_response_meta(session_id, attribution_span_id),
             )
         if isinstance(outcome, Errored):
             error = outcome.error

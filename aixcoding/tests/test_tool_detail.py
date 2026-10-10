@@ -390,6 +390,51 @@ def test_telemetry_response_meta_roundtrip():
     assert telemetry_response_meta("unknown-session") is None
 
 
+def test_telemetry_response_meta_final_model_identity():
+    from chrys.aixcoding.telemetry.acp_meta import telemetry_response_meta
+
+    record_call("pc-x", "req-x", "span-x", "sess-2")
+    attribution = "19754d57-be26-4425-a09f-843be4b3afe2"
+    meta = telemetry_response_meta("sess-2", attribution)
+    # 桌面端 responseAttribution/落库的触发键：归因 spanId 原样回传 + 引擎请求 id
+    assert meta["agent-studio.dev/final-model-identity"] == {
+        "schemaVersion": 1,
+        "spanId": attribution,
+        "requestId": "req-x",
+        "source": "model_request_id",
+    }
+    # 未携带归因 envelope 时只回 telemetry 键（保持既有行为）
+    meta_without = telemetry_response_meta("sess-2")
+    assert "agent-studio.dev/final-model-identity" not in meta_without
+
+
+def test_read_response_attribution_span_id():
+    from chrys.aixcoding.telemetry.acp_meta import read_response_attribution_span_id
+
+    span = "19754d57-be26-4425-a09f-843be4b3afe2"
+    assert (
+        read_response_attribution_span_id(
+            {"agent-studio.dev/response-attribution": {"schemaVersion": 1, "spanId": span}}
+        )
+        == span
+    )
+    # 非 UUID / 缺 schemaVersion / 缺键 / 类型不对 → None（不回传 final-model-identity）
+    assert (
+        read_response_attribution_span_id(
+            {"agent-studio.dev/response-attribution": {"schemaVersion": 1, "spanId": "not-a-uuid"}}
+        )
+        is None
+    )
+    assert (
+        read_response_attribution_span_id(
+            {"agent-studio.dev/response-attribution": {"schemaVersion": 2, "spanId": span}}
+        )
+        is None
+    )
+    assert read_response_attribution_span_id({}) is None
+    assert read_response_attribution_span_id({"agent-studio.dev/response-attribution": "junk"}) is None
+
+
 def test_remember_bounded_drops_oldest():
     from chrys.aixcoding.telemetry.reporters import BOUNDED_MEMORY_LIMIT, remember_bounded
 
