@@ -10,7 +10,7 @@ First, [configure a working model](../../start/getting-started.md#3-configure-a-
 
 ### Select a workflow
 
-In a terminal, change to the chosen project directory and run `icode` to open the TUI. Enter `/workflow` in the input box to open the workflow picker, then select `demo-workflow` with the `builtin` source.
+In a terminal, change to the chosen project directory and run `aixcoding` to open the TUI. Enter `/workflow` in the input box to open the workflow picker, then select `demo-workflow` with the `builtin` source.
 
 Alternatively, click “APP MODE: Chat” in the upper left and select “Workflow” to switch modes, then click “New Session” and select a workflow.
 
@@ -41,7 +41,7 @@ After generating a project introduction, the example includes the draft in a que
 
 When the run ends with a result, click “Result” to the right of “■ Cancel” to read the final output. If the workflow has several outputs, each one gets its own tab, named after its output node. “Output” still shows the full record, including node states and progress messages. Click “▶ Start” again to enter new input and run again.
 
-A workflow session can save multiple runs. Click the “Run 1”, “Run 2”, and subsequent run tabs above “Workflow”, “Info”, and the other tabs to browse each run. After quitting and reopening iCode, first switch to “Workflow” through the app mode selector in the upper left. Press `F1` or click `f1 Sessions` at the bottom of the interface, then select a workflow session to view its historical inputs, outputs, and node records.
+A workflow session can save multiple runs. Click the “Run 1”, “Run 2”, and subsequent run tabs above “Workflow”, “Info”, and the other tabs to browse each run. After quitting and reopening AIxCoding, first switch to “Workflow” through the app mode selector in the upper left. Press `F1` or click `f1 Sessions` at the bottom of the interface, then select a workflow session to view its historical inputs, outputs, and node records.
 
 ## Create your first workflow
 
@@ -80,9 +80,9 @@ A node is an execution step in a workflow. Here, `greet()` defines the processin
 Input → hello node → Workflow output
 ```
 
-Finally, `wf.build()` validates and builds the workflow. **The file must assign the result to a module-level variable named `workflow` so iCode can load it.**
+Finally, `wf.build()` validates and builds the workflow. **The file must assign the result to a module-level variable named `workflow` so AIxCoding can load it.**
 
-You do not need to restart iCode after saving the file. Click “New Session” to open the workflow picker and select `greeting`.
+You do not need to restart AIxCoding after saving the file. Click “New Session” to open the workflow picker and select `greeting`.
 
 When a custom file is first loaded or has changed, the TUI asks you to review its source and confirm trust. A workflow is executable Python, and loading it can execute code at the top level of the file.
 
@@ -90,7 +90,7 @@ After confirming trust, click “▶ Start”, enter `Alex`, and run. The final 
 
 ## Use another Python environment
 
-By default, workflows use the Python interpreter running iCode. If a workflow needs third-party libraries, use inline script metadata to specify your own Python interpreter or virtual environment. Install dependencies yourself; iCode does not install them automatically. See [Workflow reference: Execution environment](../../reference/workflows.md#execution-environment) for configuration details. The Python examples in this tutorial use only the standard library and need no additional environment setup.
+By default, workflows use the Python interpreter running AIxCoding. If a workflow needs third-party libraries, use inline script metadata to specify your own Python interpreter or virtual environment. Install dependencies yourself; AIxCoding does not install them automatically. See [Workflow reference: Execution environment](../../reference/workflows.md#execution-environment) for configuration details. The Python examples in this tutorial use only the standard library and need no additional environment setup.
 
 ## Pass data and ask the user
 
@@ -136,7 +136,7 @@ Nodes pass data through `WorkflowValue`. Its `text` field holds text; the option
 
 A node returns its result with `return`, which determines what it passes downstream:
 
-- When a node returns a string, iCode places it in `WorkflowValue.text` and sets `data` to `None`. Here, `describe()` only needs to output a description, so it returns a string.
+- When a node returns a string, AIxCoding places it in `WorkflowValue.text` and sets `data` to `None`. Here, `describe()` only needs to output a description, so it returns a string.
 - Returning a `WorkflowValue` passes both text and structured data, as in `parse_items()`.
 
 A Python node function can take one or two parameters. `parse_items(value)` receives a `WorkflowValue`; `describe(value, ctx)` also receives a `NodeContext` as its second parameter. `NodeContext` provides operations for the current node execution. Here, `ctx.emit()` reports progress to the TUI.
@@ -189,7 +189,7 @@ For single-select questions, what an answer contains, and how to pass a selectio
 
 ## Define agent nodes
 
-### Use an iCode agent
+### Use an AIxCoding-CLI agent
 
 Create `.chrys/workflows/learning_plan.py`:
 
@@ -225,11 +225,11 @@ Input → prepare (Python) → plan (agent) → Workflow output
 Use `wf.agent()` to define an agent node. In `wf.agent("plan", profile="QA")`, `"plan"` is the node name and `profile="QA"` selects the agent profile. List available profiles with:
 
 ```shell
-icode agents
-icode models
+aixcoding agents
+aixcoding models
 ```
 
-For `profile`, use a `Name` from `icode agents`; for the optional `model` parameter, use a `Name` from `icode models`. To specify a model for this node, replace the registration below, substituting an actual model profile name for `My model`:
+For `profile`, use a `Name` from `aixcoding agents`; for the optional `model` parameter, use a `Name` from `aixcoding models`. To specify a model for this node, replace the registration below, substituting an actual model profile name for `My model`:
 
 ```python
 plan = wf.agent("plan", profile="QA", model="My model")
@@ -253,7 +253,7 @@ plan = wf.agent(
 )
 ```
 
-For a regular iCode agent, `instructions_suffix` is appended to the profile's existing `instructions` as part of the system prompt. The upstream `text` remains the user message.
+For a regular AIxCoding agent, `instructions_suffix` is appended to the profile's existing `instructions` as part of the system prompt. The upstream `text` remains the user message.
 
 ### Use an ACP agent
 
@@ -263,7 +263,7 @@ If you have [configured an external Agent Client Protocol (ACP) agent](../extens
 plan = wf.agent("plan", profile="My ACP agent")
 ```
 
-Replace `My ACP agent` with an existing ACP profile name from `icode agents`, and make sure the external program specified in that profile can start.
+Replace `My ACP agent` with an existing ACP profile name from `aixcoding agents`, and make sure the external program specified in that profile can start.
 
 By default, ACP nodes use the model configured for the external agent, not the workflow's default model.
 
@@ -606,19 +606,19 @@ The CLI is suitable for workflows that need no human interaction. It does not su
 Run this command in the project directory to list available workflows:
 
 ```shell
-icode workflow list
+aixcoding workflow list
 ```
 
-To check a workflow you are writing, pass its file or folder to `icode workflow validate`. It prints `PASS`, or each problem with its file and line; see [`icode workflow validate`](../../reference/workflows.md#icode-workflow-validate):
+To check a workflow you are writing, pass its file or folder to `aixcoding workflow validate`. It prints `PASS`, or each problem with its file and line; see [`aixcoding workflow validate`](../../reference/workflows.md#aixcoding-workflow-validate):
 
 ```shell
-icode workflow validate .chrys/workflows/greeting.py
+aixcoding workflow validate .chrys/workflows/greeting.py
 ```
 
 Use a workflow ID from the list to run it. Replace `WORKFLOW_ID` below with the actual ID:
 
 ```shell
-icode workflow run WORKFLOW_ID --input "Input text" --trust
+aixcoding workflow run WORKFLOW_ID --input "Input text" --trust
 ```
 
 `--input` sets the `WorkflowValue.text` received by the start node and defaults to an empty string. The initial `data` is `None` and cannot be set directly through CLI arguments. Even a JSON string is still text; the workflow must parse it itself.
@@ -648,7 +648,7 @@ Workflow Code review (review) · run 0b337219bb2e · session 890c8ee93562
 On a terminal, control characters in the results are shown as `�`. Redirect the final results to a file with `>` to keep them exactly as written; the progress still shows in the terminal:
 
 ```shell
-icode workflow run WORKFLOW_ID --input "Input text" > result.txt
+aixcoding workflow run WORKFLOW_ID --input "Input text" > result.txt
 ```
 
 To see only warnings, errors and the final results, add `-q` or `--quiet`.
@@ -658,7 +658,7 @@ To see only warnings, errors and the final results, add `-q` or `--quiet`.
 With `--json`, the CLI suppresses node states and progress messages and writes a JSON result to stdout when the run ends. It includes the run outcome, output node names, and each result's `text` and `data`:
 
 ```shell
-icode workflow run WORKFLOW_ID --input "Input text" --json
+aixcoding workflow run WORKFLOW_ID --input "Input text" --json
 ```
 
 For the complete JSON fields and exit codes, see the [Workflow reference](../../reference/workflows.md#command-line).

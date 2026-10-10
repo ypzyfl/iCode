@@ -28,17 +28,17 @@ workflow = wf.build()          # 校验并构建，赋给模块顶层的 workflo
 
 语法错误、顶层代码执行异常、构建校验失败或缺少有效的 `workflow` 对象都会阻止加载。`build()` 的结构校验规则见[`WorkflowBuilder.build()`](#workflowbuilderbuild)。
 
-运行前可用 [`icode workflow validate`](#icode-workflow-validate) 检查工作流，它会指出每个问题所在的文件和行。
+运行前可用 [`aixcoding workflow validate`](#aixcoding-workflow-validate) 检查工作流，它会指出每个问题所在的文件和行。
 
 ### 文件发现
 
-工作流可以是单个 `.py` 文件，也可以是工作流文件夹：文件夹中有一个与文件夹名完全相同的入口文件，例如 `code-review/code-review.py`。工作流 ID 是文件名去掉 `.py` 后的部分，或工作流文件夹的名称，与 `WorkflowBuilder` 的标题无关。iCode 在以下位置查找工作流：
+工作流可以是单个 `.py` 文件，也可以是工作流文件夹：文件夹中有一个与文件夹名完全相同的入口文件，例如 `code-review/code-review.py`。工作流 ID 是文件名去掉 `.py` 后的部分，或工作流文件夹的名称，与 `WorkflowBuilder` 的标题无关。AIxCoding 在以下位置查找工作流：
 
 | 位置 | 来源 |
 | --- | --- |
 | 当前工作目录的 `.chrys/workflows/` | `project` |
-| iCode 配置目录下：Windows 为 `%APPDATA%\chrys\workflows\`；Linux、macOS 为 `~/.chrys/workflows/` | `global` |
-| 随 iCode 提供的内置示例 | `builtin` |
+| AIxCoding 配置目录下：Windows 为 `%APPDATA%\chrys\workflows\`；Linux、macOS 为 `~/.chrys/workflows/` | `global` |
+| 随 AIxCoding 提供的内置示例 | `builtin` |
 
 多个工作流 ID 相同时，按以下顺序取第一个能读取的：
 
@@ -50,7 +50,7 @@ workflow = wf.build()          # 校验并构建，赋给模块顶层的 workflo
 | 4 | 全局 `.py` 文件 |
 | 5 | 内置工作流 |
 
-项目工作流只从当前工作目录的 `.chrys/workflows/` 发现，不向父目录查找。各位置只发现直接包含的 `.py` 文件和工作流文件夹，忽略以 `.` 或 `_` 开头的名称。没有同名入口文件的文件夹（如 `data/`、`venv/`）不是工作流，会被忽略；工作流文件夹里的子文件夹也不是工作流。内置工作流只有单文件。全局位置保留文件夹名 `sdk` 给 iCode 自用。
+项目工作流只从当前工作目录的 `.chrys/workflows/` 发现，不向父目录查找。各位置只发现直接包含的 `.py` 文件和工作流文件夹，忽略以 `.` 或 `_` 开头的名称。没有同名入口文件的文件夹（如 `data/`、`venv/`）不是工作流，会被忽略；工作流文件夹里的子文件夹也不是工作流。内置工作流只有单文件。全局位置保留文件夹名 `sdk` 给 AIxCoding 自用。
 
 用户工作流文件不能是符号链接，需要通过文件所有权检查，源码大小上限为 4 MiB。以下情况的工作流文件夹会被跳过：文件夹本身或其中任何项是符号链接或 Windows 目录联接；其中有普通文件和文件夹以外的项（如命名管道）；文件和文件夹总数超过 1000 个、总大小超过 512 MiB，或嵌套超过 16 层。以 `.` 开头的名称（如 `.venv`、`.git`）和 Python 在 `__pycache__` 文件夹中保存的编译副本（如 `helpers.cpython-312.pyc`）不检查，也不计入上限；其他文件都计入，包括二进制文件和数据文件。无法读取的工作流会被跳过并报告原因，改用下一个同 ID 的工作流。
 
@@ -70,7 +70,7 @@ workflow = wf.build()          # 校验并构建，赋给模块顶层的 workflo
 - 其他文件相对 `__file__` 读取，例如 `Path(__file__).parent / "prompts" / "summary.md"`。`open("summary.md")` 这类相对路径相对的是工作区，而不是文件夹。
 - 入口文件和文件夹中的其他文件不要与标准库或已安装的模块同名，例如 `json.py`、`pkgutil.py`。Python 可能加载该模块而不是你的文件，也可能用你的文件顶替该模块；工作流用 `multiprocessing` 启动的进程可能无法启动。
 - 不要在其他文件中按名称导入入口文件：这会把入口文件作为另一个模块再执行一次。
-- iCode 把工作流编译出的 Python 文件存放在配置目录下自己的文件夹中，运行工作流不会在你的文件旁生成 `__pycache__` 文件夹，也不会使用其中已有的你的文件的编译副本。工作流启动的 Python 进程同样如此，除非启动时没有沿用工作流的环境变量，或带有 `-E`、`-I`：这些进程照常使用 `__pycache__` 文件夹，包括确认不检查的编译副本。
+- AIxCoding 把工作流编译出的 Python 文件存放在配置目录下自己的文件夹中，运行工作流不会在你的文件旁生成 `__pycache__` 文件夹，也不会使用其中已有的你的文件的编译副本。工作流启动的 Python 进程同样如此，除非启动时没有沿用工作流的环境变量，或带有 `-E`、`-I`：这些进程照常使用 `__pycache__` 文件夹，包括确认不检查的编译副本。
 
 把 `review.py` 移到 `review/review.py` 会改变工作流的路径，需要重新确认；为旧文件创建的工作流会话无法再运行它，请新建会话。
 
@@ -79,13 +79,13 @@ workflow = wf.build()          # 校验并构建，赋给模块顶层的 workflo
 首次加载自定义工作流时，需要确认信任：
 
 - **TUI**：选择工作流后会弹出“信任工作流”对话框，检查源码及所声明的执行环境后，点击“信任”继续；点击“取消”则不加载。
-- **CLI**：在 `icode workflow run` 命令中添加 `--trust`。例如，在项目根目录运行 `.chrys/workflows/echo.py`：
+- **CLI**：在 `aixcoding workflow run` 命令中添加 `--trust`。例如，在项目根目录运行 `.chrys/workflows/echo.py`：
 
 ```shell
-icode workflow run echo --trust --input "Hello"
+aixcoding workflow run echo --trust --input "Hello"
 ```
 
-确认会被保存，后续运行可省略 `--trust`。工作流源码、构建出的工作流定义，或所选解释器的路径、版本、平台及 iCode 提供的工作流 SDK 等环境信息发生变化后，需要重新确认。单个 `.py` 文件的源码就是该文件，不检查它导入的其他 Python 文件；工作流文件夹的源码是文件夹中除以 `.` 开头的名称和 Python 在 `__pycache__` 文件夹中保存的编译副本以外的所有文件，新增、修改或删除其中任何文件都需要重新确认。该检查不覆盖已安装依赖包的变化。
+确认会被保存，后续运行可省略 `--trust`。工作流源码、构建出的工作流定义，或所选解释器的路径、版本、平台及 AIxCoding 提供的工作流 SDK 等环境信息发生变化后，需要重新确认。单个 `.py` 文件的源码就是该文件，不检查它导入的其他 Python 文件；工作流文件夹的源码是文件夹中除以 `.` 开头的名称和 Python 在 `__pycache__` 文件夹中保存的编译副本以外的所有文件，新增、修改或删除其中任何文件都需要重新确认。该检查不覆盖已安装依赖包的变化。
 
 文件在预览和启动运行时检查，Python 加载时会重新读取。两者之间发生的修改，以及工作流运行中才读取的文件的修改，无法被发现。修改工作流文件夹中的文件后，请重新打开工作流进行预览和确认。
 
@@ -227,7 +227,7 @@ def report(value: WorkflowValue, ctx: NodeContext) -> WorkflowValue:
 
 `fn` 的位置参数不能有默认值。`fn` 也不能声明 `*args`、`**kwargs` 或必填的关键字专用参数。
 
-`fn` 必须返回字符串或 `WorkflowValue`。返回字符串时，iCode 将其转换为 `WorkflowValue(text=返回的字符串, data=None)`。
+`fn` 必须返回字符串或 `WorkflowValue`。返回字符串时，AIxCoding 将其转换为 `WorkflowValue(text=返回的字符串, data=None)`。
 
 Python 节点中的相对文件路径以工作流会话的工作目录为基准。
 
@@ -250,8 +250,8 @@ agent(
 | 参数 | 含义 |
 | --- | --- |
 | `name` | 节点名称 |
-| `profile` | 必填，已有智能体配置的 ID、名称或显示名称；建议使用 ID，通过 `icode agents` 查看 |
-| `model` | 可选，传入 iCode 模型配置的 ID 或名称，可通过 `icode models` 查看；省略时按下文的模型选择规则确定 |
+| `profile` | 必填，已有智能体配置的 ID、名称或显示名称；建议使用 ID，通过 `aixcoding agents` 查看 |
+| `model` | 可选，传入 AIxCoding 模型配置的 ID 或名称，可通过 `aixcoding models` 查看；省略时按下文的模型选择规则确定 |
 | `instructions_suffix` | 可选字符串，补充当前节点的指令 |
 | `timeout` | 单次尝试的秒数上限，默认不限制；有限正数或 `None` |
 | `retry` | 省略时最多三次尝试，间隔为零；不是所有错误都会自动重试 |
@@ -270,7 +270,7 @@ agent(
 
 ##### 模型选择
 
-`model` 按以下顺序匹配 iCode 模型配置：
+`model` 按以下顺序匹配 AIxCoding 模型配置：
 
 1. ID 精确匹配。
 2. 名称精确匹配。
@@ -278,11 +278,11 @@ agent(
 
 某一步匹配到唯一配置即使用该配置；没有匹配时继续下一步；匹配到多个配置时立即报错。所有步骤均未匹配时，也会报错。
 
-普通 iCode 智能体按以下优先级选择模型：
+普通 AIxCoding 智能体按以下优先级选择模型：
 
 1. `agent()` 的 `model` 参数。
 2. 智能体配置中绑定的模型。
-3. 工作流默认模型。TUI 可在“运行设置”中选择；CLI 通过 `icode workflow run <工作流ID> --session <会话ID>` 加载已有工作流会话时，沿用该会话保存的模型选择。未单独选择工作流默认模型时，使用 [iCode 配置的默认模型](settings.md#智能体模型与请求)。
+3. 工作流默认模型。TUI 可在“运行设置”中选择；CLI 通过 `aixcoding workflow run <工作流ID> --session <会话ID>` 加载已有工作流会话时，沿用该会话保存的模型选择。未单独选择工作流默认模型时，使用 [AIxCoding 配置的默认模型](settings.md#智能体模型与请求)。
 
 `model` 参数指定的模型不存在或不可用时会报错。智能体绑定的模型不存在时，会继续使用工作流默认模型。没有可用模型时，工作流无法启动。
 
@@ -290,11 +290,11 @@ agent(
 
 智能体使用上游传入的 `WorkflowValue.text` 作为任务输入，`WorkflowValue.data` 不会自动加入提示。
 
-节点输出为 `WorkflowValue`，`text` 为智能体的回复文本，`data` 为 `None`。普通 iCode 智能体优先使用最终回复文本；最终回复无文本时，将本次执行过程中输出的文本按顺序拼接，作为节点输出，其中可能包含工具调用前后的过程说明。
+节点输出为 `WorkflowValue`，`text` 为智能体的回复文本，`data` 为 `None`。普通 AIxCoding 智能体优先使用最终回复文本；最终回复无文本时，将本次执行过程中输出的文本按顺序拼接，作为节点输出，其中可能包含工具调用前后的过程说明。
 
 ##### 智能体配置生效范围
 
-普通 iCode 智能体节点对配置项的支持如下（✓ 支持，✗ 不支持），字段格式和配置规则见[智能体配置文件参考](agent-profile.md)。
+普通 AIxCoding 智能体节点对配置项的支持如下（✓ 支持，✗ 不支持），字段格式和配置规则见[智能体配置文件参考](agent-profile.md)。
 
 | 配置项 | 是否支持 | 节点中的行为 |
 | --- | :---: | --- |
@@ -318,10 +318,10 @@ agent(
 ACP 节点有以下差异：
 
 - 省略 `model` 时使用 ACP 配置中的远端模型设置，不使用工作流默认模型。
-- 显式指定 `model` 时，填写 iCode 模型配置的 ID 或名称。iCode 仅使用其中的 `model_id`，通过 ACP 请求切换远端模型；该配置的其他字段不生效。模型未被远端列出，或切换请求因方法不支持、参数无效而被拒绝时，继续使用远端默认模型。
+- 显式指定 `model` 时，填写 AIxCoding 模型配置的 ID 或名称。AIxCoding 仅使用其中的 `model_id`，通过 ACP 请求切换远端模型；该配置的其他字段不生效。模型未被远端列出，或切换请求因方法不支持、参数无效而被拒绝时，继续使用远端默认模型。
 - `instructions_suffix` 附加到发送给外部智能体的用户提示（user prompt）末尾。
 - 节点输出由外部智能体配置中的“结果”（[`acp.result_mode`](agent-profile.md#acp)）决定，可选择“最后一个消息片段”或“完整记录”，见[设置结果和超时](../guides/extensions/external-acp-agents.md#设置结果和超时)。
-- 工具执行由外部智能体负责。只有外部智能体通过 ACP 发起权限请求的操作，才会进入 iCode 的审批流程。
+- 工具执行由外部智能体负责。只有外部智能体通过 ACP 发起权限请求的操作，才会进入 AIxCoding 的审批流程。
 
 #### `BuilderScope.edge`
 
@@ -414,7 +414,7 @@ class Workflow:
     definition: WorkflowDefinition  # 只读属性
 ```
 
-`WorkflowBuilder.build()` 返回的已构建工作流。将其赋给工作流文件顶层的 `workflow` 变量，供 iCode 加载和运行。
+`WorkflowBuilder.build()` 返回的已构建工作流。将其赋给工作流文件顶层的 `workflow` 变量，供 AIxCoding 加载和运行。
 
 其 `definition` 属性保存构建后的工作流定义，包括标题、描述、起点、输出节点、节点与连线等信息。该 `WorkflowDefinition` 实例由 `build()` 自动创建，无需手动定义。
 
@@ -504,7 +504,7 @@ Question(
 - `options`：最多 8 个选项。字符串是 `Option(label=...)` 的简写。没有选项时，问题只接受输入的回答。
 - `multi_select`：为 `True` 时用户可以选择多个选项，此时至少需要一个选项。
 
-选项标签会去除首尾空白，并且在同一问题内不能重复。所有字符串都必须是有效的 Unicode，不能包含未配对的代理字符。类型错误引发 `TypeError`，其他违规引发 `ValueError`；两者都在创建 `Question` 或 `Option` 时抛出，因此回溯信息会指向你的代码。
+选项标签会去除首尾空白，并且在同一问题内不能重复。所有字符串都必须是有效的 Unaixcoding，不能包含未配对的代理字符。类型错误引发 `TypeError`，其他违规引发 `ValueError`；两者都在创建 `Question` 或 `Option` 时抛出，因此回溯信息会指向你的代码。
 
 无论问题是否带有选项，用户都可以自行输入回答，或在选择选项时附加备注。
 
@@ -641,10 +641,10 @@ Python 节点和智能体节点的 `timeout` 限制单次尝试的执行时间�
 | 非 ACP 智能体节点的模型请求遇到临时错误，如连接中断、限流、请求超时 | 先在本次尝试内重试该请求，与聊天模式一致；仍失败时，尚未达到 `Retry.max_attempts` 则重试节点 |
 | 非 ACP 智能体节点的模型请求超出模型的上下文窗口 | 与聊天模式一致：开启上下文压缩时，先在本次尝试内压缩上下文并重新发送一次请求，除非报错给出的上限小于模型配置中的值；仍失败时不自动重试节点 |
 | 非 ACP 智能体节点达到 `timeout` 上限 | 尚未达到 `Retry.max_attempts` |
-| 外部 ACP 智能体节点连接中断、长时间无响应、报错或达到 `timeout` 上限 | 尚未达到 `Retry.max_attempts`。iCode 无法判断外部智能体报告的哪些错误无法恢复，因此都会重试；但智能体无法启动、本次尝试内多次重试连接后仍连不上、配置被拒绝，以及智能体拒绝回答、提前停止或回答为空时不重试 |
+| 外部 ACP 智能体节点连接中断、长时间无响应、报错或达到 `timeout` 上限 | 尚未达到 `Retry.max_attempts`。AIxCoding 无法判断外部智能体报告的哪些错误无法恢复，因此都会重试；但智能体无法启动、本次尝试内多次重试连接后仍连不上、配置被拒绝，以及智能体拒绝回答、提前停止或回答为空时不重试 |
 | 重试也无法解决的错误，如额度或套餐已用尽、外部智能体需要登录；以及条件或合并计算失败、返回值无法序列化或超限、运行环境不支持问答等 | 不自动重试 |
 
-若重试可能让模型服务商再次运行它自己那边的工具（如服务商运行的 MCP 服务器或 Shell），则不自动重试节点。服务商运行的搜索和代码执行可以安全重复，不影响重试；iCode 自己的文件、Shell 和 MCP 工具也不影响。
+若重试可能让模型服务商再次运行它自己那边的工具（如服务商运行的 MCP 服务器或 Shell），则不自动重试节点。服务商运行的搜索和代码执行可以安全重复，不影响重试；AIxCoding 自己的文件、Shell 和 MCP 工具也不影响。
 
 非 ACP 智能体的尝试失败或超时后，重试会接着已有的对话继续执行：已完成的工具调用不会再次执行，节点详情中新一次尝试的对话记录也接着上一次显示。外部 ACP 智能体会以相同输入开启新会话，新一次尝试的对话记录只显示这个会话。若智能体已经完成、之后节点的其他步骤（如出边条件）失败，重试会从输入重新运行智能体。
 
@@ -660,7 +660,7 @@ CLI 不支持手动重试。节点失败且无法继续自动重试时，整个�
 
 ## 执行环境
 
-工作流默认使用运行 iCode 的 Python 解释器，也可在工作流文件中指定已有的虚拟环境或 Python 可执行文件，支持 Python 3.9 及以上版本。
+工作流默认使用运行 AIxCoding 的 Python 解释器，也可在工作流文件中指定已有的虚拟环境或 Python 可执行文件，支持 Python 3.9 及以上版本。
 
 下面的例子使用项目根目录下已有的 `.venv`，工作流文件位于项目 `.chrys/workflows/`：
 
@@ -671,20 +671,20 @@ CLI 不支持手动重试。节点失败且无法继续自动重试时，整个�
 # ///
 ```
 
-保留示例中的 `#` 前缀和 `# ///` 标记，iCode 会读取这段注释中的配置。`[tool.chrys]` 是 iCode 专用配置区，`python` 的相对路径以工作流文件所在目录为基准。工作流文件夹的基准就是文件夹本身：项目根目录下的 `.venv` 写作 `../../../.venv`，文件夹中的写作 `.venv`。
+保留示例中的 `#` 前缀和 `# ///` 标记，AIxCoding 会读取这段注释中的配置。`[tool.chrys]` 是 AIxCoding 专用配置区，`python` 的相对路径以工作流文件所在目录为基准。工作流文件夹的基准就是文件夹本身：项目根目录下的 `.venv` 写作 `../../../.venv`，文件夹中的写作 `.venv`。
 
-`python` 也可直接填写 Python 可执行文件的路径，如 `"/opt/homebrew/bin/python3.12"`。iCode 不会通过 `PATH` 查找命令。使用 uv 创建的环境时，指向其 `.venv`。
+`python` 也可直接填写 Python 可执行文件的路径，如 `"/opt/homebrew/bin/python3.12"`。AIxCoding 不会通过 `PATH` 查找命令。使用 uv 创建的环境时，指向其 `.venv`。
 
-iCode 启动解释器时会把环境变量 `PYTHONPYCACHEPREFIX` 设为自己存放编译文件的文件夹。用 `-E` 或 `-I` 启动 Python 的包装脚本会忽略该变量，工作流将无法加载。
+AIxCoding 启动解释器时会把环境变量 `PYTHONPYCACHEPREFIX` 设为自己存放编译文件的文件夹。用 `-E` 或 `-I` 启动 Python 的包装脚本会忽略该变量，工作流将无法加载。
 
-iCode 不会自动安装依赖，请提前在所选环境中安装工作流所需的第三方包。`chrys.workflows` 由 iCode 在运行时提供，无需另外安装。
+AIxCoding 不会自动安装依赖，请提前在所选环境中安装工作流所需的第三方包。`chrys.workflows` 由 AIxCoding 在运行时提供，无需另外安装。
 
 脚本元数据还支持以下两个顶层字段，写在 `[tool.chrys]` 之前：
 
 | 字段 | 规则 |
 | --- | --- |
-| `requires-python` | 可选的 Python 版本约束字符串，例如 `">=3.10,<3.13"`。iCode 检查所选解释器是否满足约束，不满足时拒绝加载；不会自动寻找或安装其他版本。仅支持以逗号分隔、由 `~=`、`==`、`!=`、`<=`、`>=`、`<`、`>` 与纯数字发布版本组成的子句：`.*` 只能与 `==`、`!=` 搭配，`~=` 至少需要两段版本号。其他写法同样会拒绝加载 |
-| `dependencies` | 可选的依赖字符串数组。非空时必须同时指定 `[tool.chrys] python`，否则拒绝加载，即使默认环境已经安装这些包。指定自备解释器后，iCode 不安装这些依赖，也不校验已安装版本是否符合声明 |
+| `requires-python` | 可选的 Python 版本约束字符串，例如 `">=3.10,<3.13"`。AIxCoding 检查所选解释器是否满足约束，不满足时拒绝加载；不会自动寻找或安装其他版本。仅支持以逗号分隔、由 `~=`、`==`、`!=`、`<=`、`>=`、`<`、`>` 与纯数字发布版本组成的子句：`.*` 只能与 `==`、`!=` 搭配，`~=` 至少需要两段版本号。其他写法同样会拒绝加载 |
+| `dependencies` | 可选的依赖字符串数组。非空时必须同时指定 `[tool.chrys] python`，否则拒绝加载，即使默认环境已经安装这些包。指定自备解释器后，AIxCoding 不安装这些依赖，也不校验已安装版本是否符合声明 |
 
 例如，以下声明要求使用 Python 3.10 至 3.12 的项目虚拟环境，并由作者预先安装 `requests`：
 
@@ -711,7 +711,7 @@ TUI 的“启动工作流”对话框提供“运行设置”。工作目录能�
 | 尚未运行的新会话，使用项目工作流 | 固定为发现该工作流的项目目录，即包含 `.chrys/workflows/` 的目录 |
 | 已有运行的会话 | 工作区固定；更换目录或工作流需新建会话 |
 
-包含 iCode 智能体节点时，运行设置还提供默认模型选择。
+包含 AIxCoding 智能体节点时，运行设置还提供默认模型选择。
 
 工作流会话不单独保存审批模式，而是与聊天模式共用 TUI 当前的审批模式，之后重新打开的会话同样如此。CLI 运行始终使用 `bypass`。
 
@@ -719,7 +719,7 @@ TUI 的“启动工作流”对话框提供“运行设置”。工作目录能�
 
 重新打开会话后，可以查看历史或启动新运行，但不会从上次中断的节点续跑。已取消或中断的运行需要重新开始；当前运行中等待手动重试的节点按[超时与重试](#超时与重试)处理。
 
-`icode workflow run --json` 输出的结果对象中，`outcome` 字段表示运行结果。本地记录也保存该字段，位于[会话目录](../guides/daily-use/sessions.md#查找会话-id-和会话保存位置)下 `workflows/<run_id>/events.jsonl` 的运行结束事件中。
+`aixcoding workflow run --json` 输出的结果对象中，`outcome` 字段表示运行结果。本地记录也保存该字段，位于[会话目录](../guides/daily-use/sessions.md#查找会话-id-和会话保存位置)下 `workflows/<run_id>/events.jsonl` 的运行结束事件中。
 
 进程异常终止、来不及收尾的记录，会在恢复会话时补记 `outcome=orphaned`，在工作流运行界面中显示为“进程退出时未完成”。
 
@@ -744,8 +744,8 @@ TUI 中通过运行页签切换同一会话的运行记录；退出后，切换�
 运行和节点的用量、耗时可用于检查开销；ACP 用量取决于远端是否报告。需要导出分析时使用：
 
 ```shell
-icode trajectory export --session <session-id> --format json --out workflow.json
-icode trajectory export --session <session-id> --format perfetto --out workflow.perfetto.json
+aixcoding trajectory export --session <session-id> --format json --out workflow.json
+aixcoding trajectory export --session <session-id> --format perfetto --out workflow.perfetto.json
 ```
 
 将 `<session-id>` 换成工作流会话 ID。工作流会话的分析导出仅支持 JSON 和 Perfetto 格式。
@@ -759,46 +759,46 @@ icode trajectory export --session <session-id> --format perfetto --out workflow.
 | 事件 | 触发时机 | 额外字段 |
 | --- | --- | --- |
 | `session_start` | 新建会话首次开始运行时，在 `workflow_run_start` 之前 | 无 |
-| `session_restored` | 从保存记录加载的会话，在本次启动 iCode 后首次开始新运行时，在 `workflow_run_start` 之前 | `restored_session_id`：恢复的会话 ID |
-| `session_end` | 本次启动 iCode 后已开始过运行的会话被删除、iCode 正常关闭或 CLI 运行命令正常结束时 | 无 |
+| `session_restored` | 从保存记录加载的会话，在本次启动 AIxCoding 后首次开始新运行时，在 `workflow_run_start` 之前 | `restored_session_id`：恢复的会话 ID |
+| `session_end` | 本次启动 AIxCoding 后已开始过运行的会话被删除、AIxCoding 正常关闭或 CLI 运行命令正常结束时 | 无 |
 | `workflow_run_start` | 每次运行通过启动检查后、执行节点前 | `run_id`、`input_text` |
 | `workflow_run_end` | 每次运行完成收尾、确定最终结果后，包括失败和取消 | `run_id`、`outcome`、`reason` |
 
-每次启动 iCode 后，同一会话仅在首次运行时触发 `session_start` 或 `session_restored`；每次被接受的运行各触发一次 `workflow_run_start` 和 `workflow_run_end`，节点重试不会重复触发。进程崩溃或被强制终止时，无法保证触发结束事件。
+每次启动 AIxCoding 后，同一会话仅在首次运行时触发 `session_start` 或 `session_restored`；每次被接受的运行各触发一次 `workflow_run_start` 和 `workflow_run_end`，节点重试不会重复触发。进程崩溃或被强制终止时，无法保证触发结束事件。
 
 上述事件均包含 `session_kind: "workflow"`、`workflow_id`、`session_id` 和 `cwd`；`profile` 为空字符串，因为工作流会话不绑定单个智能体。其他通用字段见[Hooks 基础字段](hooks.md#基础字段)。
 
-`workflow_run_start` 和 `workflow_run_end` 用于通知和记录。配置为阻塞式钩子时，iCode 会等待钩子结束，但不会采用其返回的操作决定来阻止运行或授予工具权限；`action: block` 会被忽略，钩子失败时的 `on_error: block` 按警告处理。
+`workflow_run_start` 和 `workflow_run_end` 用于通知和记录。配置为阻塞式钩子时，AIxCoding 会等待钩子结束，但不会采用其返回的操作决定来阻止运行或授予工具权限；`action: block` 会被忽略，钩子失败时的 `on_error: block` 按警告处理。
 
 ## 命令行
 
-### `icode workflow list`
+### `aixcoding workflow list`
 
 按[文件发现](#文件发现)规则列出工作流，不执行工作流代码。自定义工作流的标题取自此前保存的信任确认记录。
 
 ```shell
-icode workflow list [--json]
+aixcoding workflow list [--json]
 ```
 
 默认以文本模式显示 `ID`、`Source`、`Title`、`Path`，未知标题显示为 `-`；工作流文件夹的 `Path` 是其入口文件。添加 `--json` 后输出一个对象，其 `workflows` 数组每项包含 `id`、`source`、`layout`（单个 `.py` 文件为 `file`，工作流文件夹为 `package`）、`title`、`path`（入口文件）；未知标题为空字符串。两种输出模式下，跳过文件的警告均写入 stderr。使用 `-h` / `--help` 查看帮助。
 
-### `icode workflow validate`
+### `aixcoding workflow validate`
 
 在运行前检查工作流。该命令按运行时的方式加载工作流，像编译器一样指出每个问题所在的文件、行和列。
 
 ```shell
-icode workflow validate <path> [--json]
+aixcoding workflow validate <path> [--json]
 ```
 
-`<path>` 是工作流 `.py` 文件或[工作流文件夹](#工作流文件夹)，相对于当前目录，不必位于 iCode 查找工作流的位置。对于文件夹，`code-review`、`code-review/` 和 `code-review/code-review.py` 都检查该文件夹。
+`<path>` 是工作流 `.py` 文件或[工作流文件夹](#工作流文件夹)，相对于当前目录，不必位于 AIxCoding 查找工作流的位置。对于文件夹，`code-review`、`code-review/` 和 `code-review/code-review.py` 都检查该文件夹。
 
-校验会执行工作流的模块顶层代码，与在 TUI 中加载时相同，但不运行任何节点，也不调用模型。校验不询问也不记录信任确认，因此工作流是新的或已修改时，之后运行 `icode workflow run` 仍需 `--trust`。
+校验会执行工作流的模块顶层代码，与在 TUI 中加载时相同，但不运行任何节点，也不调用模型。校验不询问也不记录信任确认，因此工作流是新的或已修改时，之后运行 `aixcoding workflow run` 仍需 `--trust`。
 
 检查按以下顺序进行，在第一个失败的阶段停止：
 
 | 阶段 | 检查内容 |
 | --- | --- |
-| `resolve` | 路径指向一个工作流：`.py` 文件，或包含与文件夹同名入口文件的文件夹；不是链接，且名称会被 iCode 加载 |
+| `resolve` | 路径指向一个工作流：`.py` 文件，或包含与文件夹同名入口文件的文件夹；不是链接，且名称会被 AIxCoding 加载 |
 | `read` | 每个文件都可读取且未超出大小上限，入口文件为 UTF-8 编码 |
 | `metadata` | `# /// script` 块（如有）有效，见[执行环境](#执行环境) |
 | `environment` | 工作流指定的 Python 解释器存在且能启动 |
@@ -852,14 +852,14 @@ FAIL code-review (package): 1 error
 | `source_line` | 字符串或 `null`：`line` 行的文本 |
 | `notes` | 对象数组，每项包含 `message`、`file`、`line`：代码是如何执行到此处的，由内向外 |
 | `hint` | 字符串或 `null`：修改建议 |
-| `traceback` | 字符串或 `null`：加载失败时的 Python traceback，只保留你自己文件中的帧（不含标准库、已安装的包和 iCode 自身） |
+| `traceback` | 字符串或 `null`：加载失败时的 Python traceback，只保留你自己文件中的帧（不含标准库、已安装的包和 AIxCoding 自身） |
 
 | 代码 | 阶段 | 含义 |
 | --- | --- | --- |
 | `path_not_found` | `resolve` | 路径不存在。若有工作流使用该 ID，提示中会给出其路径 |
 | `path_is_link` | `resolve` | 工作流或文件夹的入口文件是链接 |
 | `path_not_workflow` | `resolve` | 路径不指向单个工作流：不是 `.py` 文件或文件夹，是存放工作流的目录（或包含它的项目文件夹、`.chrys` 文件夹）或工作流文件夹中的文件，文件夹的入口文件不是普通文件，或与所在文件夹列出的拼写不同 |
-| `name_ignored` | `resolve` | iCode 从不加载该名称，例如以 `.` 或 `_` 开头的名称 |
+| `name_ignored` | `resolve` | AIxCoding 从不加载该名称，例如以 `.` 或 `_` 开头的名称 |
 | `name_reserved` | `resolve` | `sdk` 在全局工作流文件夹中是保留名称 |
 | `entry_missing` | `resolve` | 文件夹中没有与其同名的入口文件 |
 | `shadowed`（警告） | `resolve` | 另一个同 ID 的工作流优先被找到，运行时会使用那一个 |
@@ -879,7 +879,7 @@ FAIL code-review (package): 1 error
 | `loop_exit_all_conditional`（警告） | `graph` | 循环的出口节点只能经条件边到达，某次迭代可能没有结果值，导致运行失败 |
 | `agent_profile_missing` | `bindings` | 智能体节点指定的智能体配置不可用 |
 | `model_unresolvable` | `bindings` | 智能体节点没有可用的模型 |
-| `internal_error` | 任意 | iCode 自身在所示阶段出错 |
+| `internal_error` | 任意 | AIxCoding 自身在所示阶段出错 |
 
 #### 退出码
 
@@ -890,19 +890,19 @@ FAIL code-review (package): 1 error
 | `2` | 参数解析错误 |
 | `130` | CLI 捕获到键盘中断 |
 
-### `icode workflow run`
+### `aixcoding workflow run`
 
 运行指定工作流，完成后输出结果。
 
 #### 参数
 
 ```shell
-icode workflow run <workflow-id> [--input TEXT] [-s SESSION] [--trust] [--timeout SECONDS] [--json] [-q]
+aixcoding workflow run <workflow-id> [--input TEXT] [-s SESSION] [--trust] [--timeout SECONDS] [--json] [-q]
 ```
 
 | 参数 | 默认值与用途 |
 | --- | --- |
-| `<workflow-id>` | 文件名去掉 `.py` 的部分，或工作流文件夹的名称，可由 `icode workflow list` 查询 |
+| `<workflow-id>` | 文件名去掉 `.py` 的部分，或工作流文件夹的名称，可由 `aixcoding workflow list` 查询 |
 | `--input TEXT` | 默认空字符串，传给起点的 `WorkflowValue.text`（见[多行输入](#多行输入)） |
 | `-s` / `--session` | 加载已有工作流会话，为该会话绑定的工作流发起新运行；不能续跑旧运行。该会话必须是至少已有一次运行的工作流会话；`<workflow-id>` 必须与会话绑定的工作流一致，否则运行会被拒绝，错误代码为 `spec_changed` |
 | `--trust` | 信任当前自定义源码及环境；内置工作流无需此选项 |
@@ -916,13 +916,13 @@ icode workflow run <workflow-id> [--input TEXT] [-s SESSION] [--trust] [--timeou
 `--input` 中换行的写法取决于 shell。bash 和 zsh 中使用 `$'...'` 引号，用 `\n` 表示换行：
 
 ```shell
-icode workflow run demo-workflow --input $'interactive: false\ndepth: deep\nhow are errors handled?'
+aixcoding workflow run demo-workflow --input $'interactive: false\ndepth: deep\nhow are errors handled?'
 ```
 
 PowerShell 中在双引号内用 `` `n `` 表示换行：
 
 ```powershell
-icode workflow run demo-workflow --input "interactive: false`ndepth: deep`nhow are errors handled?"
+aixcoding workflow run demo-workflow --input "interactive: false`ndepth: deep`nhow are errors handled?"
 ```
 
 PowerShell 不认识 `$'...'`，会把文本原样作为一行传入，其中的 `\n` 是两个普通字符。

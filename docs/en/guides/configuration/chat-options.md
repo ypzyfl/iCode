@@ -15,17 +15,17 @@ Changes apply to later requests after you save and close the window. To remove a
 
 ### How values are read
 
-iCode reads each value as JSON when it can:
+AIxCoding reads each value as JSON when it can:
 
 - `0.2` is sent as a number and `true` as a boolean.
 - `{"type": "adaptive"}` is sent as an object and `["a", "b"]` as a list.
 - Anything else is sent as text: `high` is sent as `"high"`. To send text that looks like a number or `true`, put it in quotes, for example `"1"`.
 
-Keep the whole value on one line. Check braces, quotes, and commas carefully. An object with a typo, such as a trailing comma, is saved as plain text, and the model service then rejects the request. Fields that must hold an object, such as `extra_body`, are checked instead: iCode shows an error and does not save.
+Keep the whole value on one line. Check braces, quotes, and commas carefully. An object with a typo, such as a trailing comma, is saved as plain text, and the model service then rejects the request. Fields that must hold an object, such as `extra_body`, are checked instead: AIxCoding shows an error and does not save.
 
 ### Where service-specific fields go
 
-The client library for the selected provider and API style accepts a fixed set of field names at the top level, such as `temperature`, `reasoning_effort` for Chat Completions, or `thinking` for Anthropic. An unknown keyword can fail before the request reaches the server, with `unexpected keyword argument`. Put service extensions, or new API fields that iCode's bundled client library does not yet accept, inside `extra_body`. Examples for OpenAI-compatible servers include `top_k`, `enable_thinking`, and `chat_template_kwargs`:
+The client library for the selected provider and API style accepts a fixed set of field names at the top level, such as `temperature`, `reasoning_effort` for Chat Completions, or `thinking` for Anthropic. An unknown keyword can fail before the request reaches the server, with `unexpected keyword argument`. Put service extensions, or new API fields that AIxCoding's bundled client library does not yet accept, inside `extra_body`. Examples for OpenAI-compatible servers include `top_k`, `enable_thinking`, and `chat_template_kwargs`:
 
 | Key | Value |
 | --- | --- |
@@ -42,10 +42,10 @@ Some settings don't belong in Chat Options:
 - **Output length**: use the "Max Output Tokens" field. Rows such as `max_tokens` are refused at save.
 - **Streaming**: use the "Streaming" checkbox, which is on by default; uncheck it to turn streaming off. Don't add a `stream` row.
 - **Model**: use the "Model" field.
-- **HTTP headers**: use the "HTTP Extra Headers" rows, or an `extra_headers` row whose value is a JSON object. For Anthropic's `anthropic-beta` header, "HTTP Extra Headers" add to iCode's beta flags, while an `extra_headers` row replaces them; see [Anthropic](#anthropic).
+- **HTTP headers**: use the "HTTP Extra Headers" rows, or an `extra_headers` row whose value is a JSON object. For Anthropic's `anthropic-beta` header, "HTTP Extra Headers" add to AIxCoding's beta flags, while an `extra_headers` row replaces them; see [Anthropic](#anthropic).
 - **Claude thinking settings**: use the `thinking_block_binding` and `auto_interleaved_thinking` lines of the profile file; see [Claude thinking settings](./models.md#claude-thinking-settings).
 
-iCode builds the messages, tools, and system prompt itself, so fields such as `messages` are refused at save.
+AIxCoding builds the messages, tools, and system prompt itself, so fields such as `messages` are refused at save.
 
 ### Keep secrets out of the profile
 
@@ -55,7 +55,7 @@ To read part of a value from an environment variable, write the variable name in
 | --- | --- |
 | `extra_headers` | `{"X-Api-Token": "{{MY_GATEWAY_TOKEN}}"}` |
 
-The profile file keeps the placeholder, and iCode fills in the value when it sends a request. Set the variable before starting iCode. If it isn't set, iCode reports an error naming the variable.
+The profile file keeps the placeholder, and AIxCoding fills in the value when it sends a request. Set the variable before starting AIxCoding. If it isn't set, AIxCoding reports an error naming the variable.
 
 ### Which requests use Chat Options
 
@@ -63,7 +63,7 @@ Chat Options are shared by requests made with the profile, including the main ag
 
 ## Prompt caching
 
-In iCode's default local-history mode, requests resend the conversation currently in context. Prompt caching lets the service reuse an unchanged prefix, reducing repeated input processing and usually its price. It is separate from storing a conversation on the service. Cache writes may cost extra, so savings depend on how often the prefix is reused.
+In AIxCoding's default local-history mode, requests resend the conversation currently in context. Prompt caching lets the service reuse an unchanged prefix, reducing repeated input processing and usually its price. It is separate from storing a conversation on the service. Cache writes may cost extra, so savings depend on how often the prefix is reused.
 
 OpenAI, DeepSeek, GLM, Kimi's Chat Completions API, and Qwen offer automatic caching on supported models. vLLM and SGLang manage prefix caching on the server; their launch settings and model support determine whether it is active. See the provider sections below for sources and exceptions.
 
@@ -77,13 +77,13 @@ If the profile already has an `extra_body` row, add `"cache_control": {"type": "
 
 ### The "Prompt Caching Is Off" reminder
 
-When you save a profile with the "Anthropic" provider, a model ID containing `claude`, and no `cache_control` setting, iCode shows the "Prompt Caching Is Off" window:
+When you save a profile with the "Anthropic" provider, a model ID containing `claude`, and no `cache_control` setting, AIxCoding shows the "Prompt Caching Is Off" window:
 
 - **Add and Save** adds `"cache_control": {"type": "ephemeral"}` to the `extra_body` row, creating the row if needed, then saves.
 - **Save as Is** saves the profile unchanged.
 - Press **Esc** or click outside the window to return to the form without saving.
 
-iCode shows the reminder on the save that makes the profile a complete Claude profile: a new profile, or one you changed to the Anthropic provider or to a Claude model. Saving a profile that is already a Claude profile doesn't show it again.
+AIxCoding shows the reminder on the save that makes the profile a complete Claude profile: a new profile, or one you changed to the Anthropic provider or to a Claude model. Saving a profile that is already a Claude profile doesn't show it again.
 
 Anthropic-compatible services have their own cache behavior: they may honor, ignore, or reject `cache_control`. Check the endpoint's documentation. If it rejects the field, remove only `"cache_control": {...}` from `extra_body` and save. The reminder checks the profile's settings, not whether the server actually cached a request.
 
@@ -115,13 +115,13 @@ Provider "OpenAI", API style "Responses", with the default base URL. "Chat Compl
 | Cheaper, slower processing | `service_tier` | `flex` |
 | Cache lifetime on GPT-5.6 and later (Responses) | `extra_body` | `{"prompt_cache_options": {"mode": "implicit", "ttl": "30m"}}` |
 
-On Responses, use `reasoning` rather than `reasoning_effort`. iCode translates its `verbosity` option to the API's `text.verbosity`. Allowed effort levels, summaries, verbosity, and Flex availability vary by model. Flex can also return resource-unavailable errors; see [Flex processing](https://developers.openai.com/api/docs/guides/flex-processing).
+On Responses, use `reasoning` rather than `reasoning_effort`. AIxCoding translates its `verbosity` option to the API's `text.verbosity`. Allowed effort levels, summaries, verbosity, and Flex availability vary by model. Flex can also return resource-unavailable errors; see [Flex processing](https://developers.openai.com/api/docs/guides/flex-processing).
 
 GPT-5.6 and later use `prompt_cache_options` with a `30m` TTL; automatic cache writes are billable. Earlier models use `prompt_cache_retention`, with values such as `in_memory` or `24h` depending on the model. These settings are not interchangeable. Keep `mode` implicit: explicit mode requires content-block breakpoints, which the Chat Options form does not add.
 
-On Responses with OpenAI's own address, iCode also sends the session ID as `prompt_cache_key`, so requests from one session share a cache key; sub-agents and workflow agents use their own. To use a key of your own, add a `prompt_cache_key` row. To send none, set its value to `null`.
+On Responses with OpenAI's own address, AIxCoding also sends the session ID as `prompt_cache_key`, so requests from one session share a cache key; sub-agents and workflow agents use their own. To use a key of your own, add a `prompt_cache_key` row. To send none, set its value to `null`.
 
-Leave `store` unset unless you want service-side continuation: iCode sends `false` by default, which still allows prompt caching. Setting it to `true` disables iCode's context compaction.
+Leave `store` unset unless you want service-side continuation: AIxCoding sends `false` by default, which still allows prompt caching. Setting it to `true` disables AIxCoding's context compaction.
 
 Documentation: [Reasoning](https://developers.openai.com/api/docs/guides/reasoning), [Prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching), [Responses API reference](https://developers.openai.com/api/reference/resources/responses/methods/create), [Chat Completions API reference](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create).
 
@@ -139,9 +139,9 @@ Provider "Anthropic", base URL `https://api.anthropic.com`. Don't add `/v1` to t
 
 - Use `adaptive` only on models that support it; recent models reject the older `enabled`/`budget_tokens` form. For ordinary fixed-budget thinking, set "Max Output Tokens" higher than `budget_tokens` (manual interleaved thinking has different budget rules).
 - Newer Claude models reject non-default `temperature`, `top_p`, and `top_k` values, so leave them unset.
-- `additional_beta_flags` and `betas` add beta flags to the request, as does an `anthropic-beta` header in "HTTP Extra Headers". iCode sends them all, after its own flags, in one `anthropic-beta` header. An `anthropic-beta` key in an `extra_headers` row replaces all of these flags, iCode's own included; iCode then adds only the flags the thinking settings need.
-- With fixed-budget thinking at Anthropic's own address, iCode adds the interleaved-thinking flag itself; see [Claude thinking settings](./models.md#claude-thinking-settings). At another address, add it yourself as in the table above. Adaptive thinking already interleaves and needs no flag. Interleaving depends on the exact model, and accepting a beta flag does not mean it takes effect.
-- With Claude Opus 5.5, Fable 5.1 or Sonnet 5.5 and adaptive thinking at Anthropic's own address, iCode asks the service to leave out earlier thinking that no longer matches the conversation; see [Claude thinking settings](./models.md#claude-thinking-settings). A `block_binding` you write into `thinking` yourself is sent as written, and iCode adds the beta flag it needs.
+- `additional_beta_flags` and `betas` add beta flags to the request, as does an `anthropic-beta` header in "HTTP Extra Headers". AIxCoding sends them all, after its own flags, in one `anthropic-beta` header. An `anthropic-beta` key in an `extra_headers` row replaces all of these flags, AIxCoding's own included; AIxCoding then adds only the flags the thinking settings need.
+- With fixed-budget thinking at Anthropic's own address, AIxCoding adds the interleaved-thinking flag itself; see [Claude thinking settings](./models.md#claude-thinking-settings). At another address, add it yourself as in the table above. Adaptive thinking already interleaves and needs no flag. Interleaving depends on the exact model, and accepting a beta flag does not mean it takes effect.
+- With Claude Opus 5.5, Fable 5.1 or Sonnet 5.5 and adaptive thinking at Anthropic's own address, AIxCoding asks the service to leave out earlier thinking that no longer matches the conversation; see [Claude thinking settings](./models.md#claude-thinking-settings). A `block_binding` you write into `thinking` yourself is sent as written, and AIxCoding adds the beta flag it needs.
 
 Documentation: [Prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching), [Adaptive thinking](https://platform.claude.com/docs/en/build-with-claude/thinking), [Extended thinking](https://platform.claude.com/docs/en/build-with-claude/extended-thinking), [Effort](https://platform.claude.com/docs/en/build-with-claude/effort), [Beta headers](https://platform.claude.com/docs/en/api/beta-headers).
 
@@ -168,7 +168,7 @@ Provider "GLM (OpenAI)". The default base URL is `https://open.bigmodel.cn/api/p
 | Keep earlier reasoning in context | `extra_body` | `{"thinking": {"type": "enabled", "clear_thinking": false}}` |
 | Reasoning effort (GLM-5.2 and later) | `reasoning_effort` | `high` |
 
-GLM-5.3 always thinks and accepts `low`, `high`, or `max` effort; do not send `thinking.type: disabled` to it. GLM-5.2 has different effort mappings, and earlier models do not support this effort field. `clear_thinking: false` also requires intact historical reasoning, which iCode's GLM provider preserves. `temperature` ranges from 0 to 1.
+GLM-5.3 always thinks and accepts `low`, `high`, or `max` effort; do not send `thinking.type: disabled` to it. GLM-5.2 has different effort mappings, and earlier models do not support this effort field. `clear_thinking: false` also requires intact historical reasoning, which AIxCoding's GLM provider preserves. `temperature` ranges from 0 to 1.
 
 Documentation: [Thinking mode](https://docs.z.ai/guides/capabilities/thinking-mode), [Context caching](https://docs.z.ai/guides/capabilities/cache), [API reference](https://docs.z.ai/api-reference/llm/chat-completion).
 
@@ -182,7 +182,7 @@ Provider "OpenAI", API style "Chat Completions", base URL `https://api.moonshot.
 | Turn thinking off (Kimi K2.6) | `extra_body` | `{"thinking": {"type": "disabled"}}` |
 | Longer cache lifetime (Chat Completions) | `extra_body` | `{"prompt_cache_options": {"mode": "implicit", "ttl": "1h"}}` |
 
-Kimi K3 always thinks, accepts `low`, `high`, or `max` effort, and does not accept a `thinking` field. K2.7 Code always thinks but does not support `reasoning_effort`; K2.6 can disable thinking but also does not support that effort field. Leave sampling options unset unless the exact model documents them; fixed-value restrictions on some Kimi models are not a universal sampling contract. iCode only accepts `n` omitted or set to `1`.
+Kimi K3 always thinks, accepts `low`, `high`, or `max` effort, and does not accept a `thinking` field. K2.7 Code always thinks but does not support `reasoning_effort`; K2.6 can disable thinking but also does not support that effort field. Leave sampling options unset unless the exact model documents them; fixed-value restrictions on some Kimi models are not a universal sampling contract. AIxCoding only accepts `n` omitted or set to `1`.
 
 Chat Completions uses a 5-minute cache by default. The 1-hour option has a higher cache-write price; changing TTL does not change the lifetime of an existing entry before it expires.
 
@@ -209,7 +209,7 @@ Documentation: [OpenAI compatibility](https://www.alibabacloud.com/help/en/model
 
 Provider "OpenAI", API style "Chat Completions", base URL `http://<host>:<port>/v1`. For "API Key", enter the server's `--api-key` value, or leave it blank if the server doesn't use one. Prefix caching is a server setting: check `--enable-prefix-caching` / `--no-enable-prefix-caching` and support for the deployed model.
 
-For iCode agents that use tools, start the server with `--enable-auto-tool-choice` and the `--tool-call-parser` that matches your model. Add the matching `--reasoning-parser` for reasoning models to separate reasoning from the answer.
+For AIxCoding agents that use tools, start the server with `--enable-auto-tool-choice` and the `--tool-call-parser` that matches your model. Add the matching `--reasoning-parser` for reasoning models to separate reasoning from the answer.
 
 | What you want | Key | Value |
 | --- | --- | --- |
@@ -272,5 +272,5 @@ Documentation: [Quickstart](https://openrouter.ai/docs/quickstart), [Provider se
 - **Saving shows `Chat Options row N: ...`**: fix the row the message names, then save again.
 - **The error contains `unexpected keyword argument 'x'`**: move the field `x` into `extra_body`, as described in [Where service-specific fields go](#where-service-specific-fields-go).
 - **The model service says it doesn't support a field**: remove only that field. If it is inside `extra_body`, delete just that member from the JSON object and keep the others. Then save.
-- **The error names an environment variable**: set that variable and restart iCode, or remove the `{{...}}` placeholder.
+- **The error names an environment variable**: set that variable and restart AIxCoding, or remove the `{{...}}` placeholder.
 - **Nothing obvious**: remove recently added rows one at a time until requests work again, and check the service's documentation for the model you use.

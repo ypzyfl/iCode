@@ -819,7 +819,7 @@ def _make_chrys_server_class(base_server_class: type[Any]) -> _TextualServeServe
         async def on_startup(self, _app: object) -> None:
             """Print the Chrys serve banner."""
             self.console.print("")
-            self.console.print(_icode_serve_logo(), highlight=False)
+            self.console.print(_aixcoding_serve_logo(), highlight=False)
             self.console.print(
                 f"Serving {APP_DISPLAY_NAME} TUI on {self.public_url} [cyan](Press Ctrl+C to quit)[/cyan]\n"
             )
@@ -1119,15 +1119,17 @@ def _make_chrys_server_class(base_server_class: type[Any]) -> _TextualServeServe
     return ChrysServeServer
 
 
-def _icode_serve_logo() -> str:
-    """Return the iCode-branded serve startup banner."""
+def _aixcoding_serve_logo() -> str:
+    """Return the AIxCoding serve startup banner (pure ASCII, safe on GBK consoles)."""
     try:
         version = metadata.version("chrys")
     except metadata.PackageNotFoundError:
         version = "unknown"
-    return f"""[bold magenta]░▀█▀░█▀▀░█▀█░█▀▄░█▀▀░░░░░█▀▀░█▀▀░█▀▄░█░█░█▀▀
-░░█░░█░░░█░█░█░█░█▀▀░▄▄▄░▀▀█░█▀▀░█▀▄░▀▄▀░█▀▀
-░▀▀▀░▀▀▀░▀▀▀░▀▀░░▀▀▀░░░░░▀▀▀░▀▀▀░▀░▀░░▀░░▀▀▀ v{version}[/bold magenta]\n"""
+    return f"""[bold magenta] ##   ####  #  #   ###   ##   ###   ####  #  #   ###
+#  #   ##    # #  #     #  #  #  #   ##   ## #  #
+####   ##     ##  #     #  #  #  #   ##   # ##  # ##
+#  #   ##    # #  #     #  #  #  #   ##   #  #  #  #
+#  #  ####  #  #   ###   ##   ###   ####  #  #   ###  v{version}[/bold magenta]\n"""
 
 
 def run_command(args: argparse.Namespace) -> None:

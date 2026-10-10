@@ -1,6 +1,6 @@
 # 主题文件参考
 
-iCode 支持通过主题文件自定义终端用户界面（Terminal User Interface，TUI）的外观。本页介绍主题文件的格式、常用配色字段和加载规则。通过界面修改并保存主题，请参阅[自定义主题](../guides/configuration/themes.md)。
+AIxCoding 支持通过主题文件自定义终端用户界面（Terminal User Interface，TUI）的外观。本页介绍主题文件的格式、常用配色字段和加载规则。通过界面修改并保存主题，请参阅[自定义主题](../guides/configuration/themes.md)。
 
 ## 文件位置与命名
 
@@ -11,7 +11,7 @@ iCode 支持通过主题文件自定义终端用户界面（Terminal User Interf
 | macOS / Linux | `~/.chrys/themes/` |
 | Windows | `%APPDATA%\chrys\themes\` |
 
-主题文件使用 UTF-8 编码，扩展名必须为 `.yaml` 或 `.yml`，直接存放在上述目录中。iCode 不读取子目录中的主题文件。
+主题文件使用 UTF-8 编码，扩展名必须为 `.yaml` 或 `.yml`，直接存放在上述目录中。AIxCoding 不读取子目录中的主题文件。
 
 主题名称为文件名去除 `.yaml` 或 `.yml` 扩展名后的部分。主题名称须满足以下要求：
 
@@ -21,11 +21,11 @@ iCode 支持通过主题文件自定义终端用户界面（Terminal User Interf
 
 `.yaml` 和 `.yml` 文件名称相同时，优先使用 `.yaml`；如果 `.yaml` 文件无效，仍会尝试使用 `.yml`。同名主题只保留一个。
 
-新增或修改主题文件后，重启 iCode 加载，再按 **F9** 在主题列表中选择对应主题即可应用。
+新增或修改主题文件后，重启 AIxCoding 加载，再按 **F9** 在主题列表中选择对应主题即可应用。
 
 ## 文件格式
 
-以下是自定义深色主题 `icode-ocean.yaml` 的示例：
+以下是自定义深色主题 `aixcoding-ocean.yaml` 的示例：
 
 ```yaml
 # 整体配色
@@ -49,7 +49,7 @@ variables:
   markdown-block-background: "#202c38"
 ```
 
-`primary` 是唯一必填字段，其余字段均可按需设置。未指定的颜色由 iCode 自动补齐，具体规则见[默认配色规则](#默认配色规则)。
+`primary` 是唯一必填字段，其余字段均可按需设置。未指定的颜色由 AIxCoding 自动补齐，具体规则见[默认配色规则](#默认配色规则)。
 
 ## 配置字段
 
@@ -144,6 +144,6 @@ variables:
 
 ## 加载失败
 
-加载时发现 YAML 格式错误、缺少 `primary`、未知顶层字段或无效字段值时，iCode 会显示警告并跳过该文件。根据警告检查对应文件，修正后重启加载；其他有效主题仍可使用。
+加载时发现 YAML 格式错误、缺少 `primary`、未知顶层字段或无效字段值时，AIxCoding 会显示警告并跳过该文件。根据警告检查对应文件，修正后重启加载；其他有效主题仍可使用。
 
-主题通过加载后，如果应用时发现 `variables` 值无法用于对应的界面样式，iCode 会显示警告并回退到默认主题 `chrys`。回退不会覆盖已保存的主题选择，修正文件后可重启重试。
+主题通过加载后，如果应用时发现 `variables` 值无法用于对应的界面样式，AIxCoding 会显示警告并回退到默认主题 `chrys`。回退不会覆盖已保存的主题选择，修正文件后可重启重试。

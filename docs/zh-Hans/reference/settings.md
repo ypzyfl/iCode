@@ -1,8 +1,8 @@
-# iCode 设置文件参考
+# AIxCoding 设置文件参考
 
-`settings.yaml` 保存 iCode 的界面偏好、默认智能体、会话和工具设置。本文按用途列出常用设置键，并说明文件位置与格式、值的写法、多个来源并存时的优先级，以及项目文件可以覆盖的范围。
+`settings.yaml` 保存 AIxCoding 的界面偏好、默认智能体、会话和工具设置。本文按用途列出常用设置键，并说明文件位置与格式、值的写法、多个来源并存时的优先级，以及项目文件可以覆盖的范围。
 
-在终端用户界面（Terminal User Interface，TUI）中修改设置的步骤和生效时间，见[配置 iCode 设置](../guides/configuration/settings.md)。
+在终端用户界面（Terminal User Interface，TUI）中修改设置的步骤和生效时间，见[配置 AIxCoding 设置](../guides/configuration/settings.md)。
 
 ## 文件位置与格式
 
@@ -11,7 +11,7 @@
 | 用户设置 | `~/.chrys/settings.yaml` | `%APPDATA%\chrys\settings.yaml` | 保存个人设置；TUI 设置窗口写入此文件 |
 | 项目设置 | 工作目录下的 `.chrys/settings.yaml` | 同左 | 覆盖该工作目录的部分设置，默认不加载 |
 
-iCode 仅在当前会话的工作目录下查找 `.chrys/settings.yaml`，不向父目录或子目录查找。
+AIxCoding 仅在当前会话的工作目录下查找 `.chrys/settings.yaml`，不向父目录或子目录查找。
 
 文件使用 YAML 格式。键名以点分隔表示嵌套层级，例如 `llm.retry.max_transient` 在文件中写为：
 
@@ -21,7 +21,7 @@ llm:
     max_transient: 3
 ```
 
-手动编辑设置文件后，保存并重新启动 iCode 使修改生效。
+手动编辑设置文件后，保存并重新启动 AIxCoding 使修改生效。
 
 ## 设置键
 
@@ -50,7 +50,7 @@ llm:
 | `model.role.approval_judge` | `CHRYS_MODEL_PROFILE_APPROVAL_JUDGE` | 未指定 | 字符串；自动审批使用的模型配置，未指定时使用当前模型 |
 | `model.role.session_title` | `CHRYS_MODEL_PROFILE_SESSION_TITLE` | 未指定 | 字符串；自动生成会话标题使用的模型配置，未指定时使用当前模型 |
 | `model.role.buddy_model_id` | `CHRYS_PET_MODEL` | 未指定 | 字符串；Buddy 伙伴使用的模型，沿用当前模型配置的连接；未指定时使用当前模型 |
-| `llm.retry.max_transient` | `CHRYS_MAX_TRANSIENT_RETRIES` | `null` | 整数或 `null`；`null` 使用当前启动入口的默认次数：TUI（含 `icode serve`）和 `icode acp` 为 `10` 次，`icode run` 和 `icode workflow run` 为 `18` 次。每次重试前的等待逐次变长，最长 10 分钟。`0` 禁用瞬时错误自动重试，负数无效，上限 `50` |
+| `llm.retry.max_transient` | `CHRYS_MAX_TRANSIENT_RETRIES` | `null` | 整数或 `null`；`null` 使用当前启动入口的默认次数：TUI（含 `aixcoding serve`）和 `aixcoding acp` 为 `10` 次，`aixcoding run` 和 `aixcoding workflow run` 为 `18` 次。每次重试前的等待逐次变长，最长 10 分钟。`0` 禁用瞬时错误自动重试，负数无效，上限 `50` |
 
 瞬时错误重试用于临时网络故障、请求超时、限流等可恢复错误。提高次数也会增加最终失败前的等待时间和请求次数；该数字不等于整个任务的模型请求总数。
 
@@ -61,14 +61,14 @@ llm:
 | YAML 键 | 环境变量 | 默认值 | 类型、取值与效果 |
 | --- | --- | --- | --- |
 | `approval.default_mode` | `CHRYS_DEFAULT_APPROVAL_MODE` | `manual` | 字符串；`manual` 手动审批、`auto` 自动审批、`bypass` 跳过审批。设置默认模式不会切换当前会话 |
-| `ui.approval.defer_while_judging` | 无 | `true` | 布尔值；自动模式下，TUI 是否只在审批裁判模型标记调用或评估失败时才弹出审批对话框。`false` 表示评估期间立即弹出。ACP 服务器和 `icode run` 不受影响 |
+| `ui.approval.defer_while_judging` | 无 | `true` | 布尔值；自动模式下，TUI 是否只在审批裁判模型标记调用或评估失败时才弹出审批对话框。`false` 表示评估期间立即弹出。ACP 服务器和 `aixcoding run` 不受影响 |
 | `project.config_enabled` | 无 | `false` | 布尔值；是否加载各工作目录的项目设置，必须在用户设置中启用 |
 | `project.hooks_enabled` | 无 | `false` | 布尔值；是否加载工作目录 `.chrys/hooks` 中的项目 Hooks，必须在用户设置中启用，不影响用户级 Hooks |
 | `project.skills_enabled` | 无 | `false` | 布尔值；是否加载工作目录 `.agents/skills` 中的项目 Skills，必须在用户设置中启用；智能体自身的“从工作文件夹加载 Skills”选项也需保持开启 |
 
-手动在 YAML 或环境变量中将默认审批模式设为 `bypass`，下次按此默认值启动时就会跳过审批。在 TUI 中通过 `/approval` 切换到 `bypass` 时，iCode 会将默认模式保存为 `auto`；TUI 设置窗口不提供 `bypass`。
+手动在 YAML 或环境变量中将默认审批模式设为 `bypass`，下次按此默认值启动时就会跳过审批。在 TUI 中通过 `/approval` 切换到 `bypass` 时，AIxCoding 会将默认模式保存为 `auto`；TUI 设置窗口不提供 `bypass`。
 
-项目设置、项目 Hooks 和项目 Skills 都随你打开的仓库而来，因此默认都不加载，并且分别开启：开启其中一项不会开启其他项。工作目录中有未开启的项时，iCode 会弹出提示，说明需要开启哪个设置。Hooks 是 iCode 在特定事件时运行的外部命令，编写与配置见[配置和编写 Hooks](../guides/extensions/hooks.md)；Skills 见[安装和使用 Skills](../guides/extensions/skills.md)。
+项目设置、项目 Hooks 和项目 Skills 都随你打开的仓库而来，因此默认都不加载，并且分别开启：开启其中一项不会开启其他项。工作目录中有未开启的项时，AIxCoding 会弹出提示，说明需要开启哪个设置。Hooks 是 AIxCoding 在特定事件时运行的外部命令，编写与配置见[配置和编写 Hooks](../guides/extensions/hooks.md)；Skills 见[安装和使用 Skills](../guides/extensions/skills.md)。
 
 ### 会话与文件恢复
 
@@ -93,7 +93,7 @@ llm:
 | `workspace.change_notice.enabled` | `CHRYS_WORKSPACE_CHANGE_NOTICE` | `true` | 布尔值；开始处理新提示词时，向智能体提供自上次提交提示词以来的工作目录文件变更摘要，包含智能体造成的改动和外部改动 |
 | `workspace.change_notice.max_entries` | `CHRYS_WORKSPACE_CHANGE_NOTICE_MAX_ENTRIES` | `50` | 整数；变更摘要的最大条目数，范围 `1`–`100` |
 | `mutations.parallel_implicit_tools` | `CHRYS_PARALLEL_IMPLICIT_TOOLS` | `true` | 布尔值；允许同一会话中的 Shell、Skill 脚本等可能改动文件的工具并行运行。设为 `false` 更容易判断文件改动来自哪次工具调用 |
-| `mutations.coordination.enabled` | `CHRYS_MUTATION_COORDINATION` | `true` | 布尔值；协助区分共享工作目录的不同 iCode 会话造成的文件改动 |
+| `mutations.coordination.enabled` | `CHRYS_MUTATION_COORDINATION` | `true` | 布尔值；协助区分共享工作目录的不同 AIxCoding 会话造成的文件改动 |
 
 工具自身还可能有独立的输出限制，例如 MCP 返回结果和 Skill 资源的限制。将 `tools.result.ceiling_tokens` 设为 `0` 不会关闭这些限制，也不能恢复已被工具截断的内容。此外，Shell 命令和 Skill 脚本的每一路输出最多保留 32 MiB，与这些 token 限制无关。
 
@@ -141,7 +141,7 @@ llm:
 | `notifications.enabled` | 事件通知总开关 |
 | `notifications.delivery.desktop` | 发送桌面弹窗 |
 | `notifications.delivery.sound` | 播放声音 |
-| `notifications.suppress_when_focused` | iCode 获得焦点时暂停通知 |
+| `notifications.suppress_when_focused` | AIxCoding 获得焦点时暂停通知 |
 | `notifications.events.approval_required` | 需要审批时通知 |
 | `notifications.events.ask_user` | 智能体需要输入时通知 |
 | `notifications.events.turn_complete` | 智能体完成任务时通知 |
@@ -151,7 +151,7 @@ llm:
 
 ### 诊断与遥测
 
-**原始 HTTP 日志可能包含明文 API 密钥、完整提示词和模型回复。** 仅在明确数据去向和访问权限后启用，排查结束后关闭不再需要的诊断选项并重启 iCode。
+**原始 HTTP 日志可能包含明文 API 密钥、完整提示词和模型回复。** 仅在明确数据去向和访问权限后启用，排查结束后关闭不再需要的诊断选项并重启 AIxCoding。
 
 | YAML 键 | 环境变量 | 默认值 | 类型、取值与效果 |
 | --- | --- | --- | --- |
@@ -175,9 +175,9 @@ llm:
 | 5 | 用户设置 |
 | 6 | 内置默认值 |
 
-启动时，iCode 会尝试将旧版用户 `.env` 中的 iCode 设置迁入用户 `settings.yaml`，并清理已迁移的设置行。合并时 `settings.yaml` 中已有的同名键优先保留，不会被覆盖；尚未完成迁移的设置行仍按上表第 3 级来源生效。迁移失败时会提示，并在下次启动时重试。模型服务的 API 密钥等环境变量保留在 `.env` 中。
+启动时，AIxCoding 会尝试将旧版用户 `.env` 中的 AIxCoding 设置迁入用户 `settings.yaml`，并清理已迁移的设置行。合并时 `settings.yaml` 中已有的同名键优先保留，不会被覆盖；尚未完成迁移的设置行仍按上表第 3 级来源生效。迁移失败时会提示，并在下次启动时重试。模型服务的 API 密钥等环境变量保留在 `.env` 中。
 
-工作目录 `.env` 中的 iCode 设置不生效。项目设置应写入 `.chrys/settings.yaml`。
+工作目录 `.env` 中的 AIxCoding 设置不生效。项目设置应写入 `.chrys/settings.yaml`。
 
 ## 值的写法与无效值
 
@@ -226,20 +226,20 @@ llm:
 
 启用项目设置并重新启动后，若用户未设置重试次数，则使用项目的 `3` 次；若用户 YAML 已设为 `1`，项目中的 `3` 会被拒绝，仍使用 `1`。启动环境中的有效值始终优先。
 
-iCode 会提示并忽略项目中不允许的键、超出覆盖限制的值和未知键，继续应用其他有效设置。
+AIxCoding 会提示并忽略项目中不允许的键、超出覆盖限制的值和未知键，继续应用其他有效设置。
 
 ## 启动入口的差异
 
 | 入口 | 与设置文件有关的行为 |
 | --- | --- |
-| `icode`（TUI） | 使用界面、输入、通知设置；默认智能体取自 `agent.default_profile` |
-| `icode run` | 固定跳过审批，不等待用户回答；默认审批模式和提问超时设置不改变这些行为 |
-| `icode acp` | 智能体客户端协议（Agent Client Protocol，ACP）服务；初始智能体和审批模式由 `--agent`、`--approval` 决定，默认分别为 `Code`、`manual`；提问默认无限等待，由 `--ask-user-timeout` 指定超时 |
-| `icode serve` | 在浏览器中承载 TUI；配置文件和环境变量来自运行 iCode 服务的机器 |
+| `aixcoding`（TUI） | 使用界面、输入、通知设置；默认智能体取自 `agent.default_profile` |
+| `aixcoding run` | 固定跳过审批，不等待用户回答；默认审批模式和提问超时设置不改变这些行为 |
+| `aixcoding acp` | 智能体客户端协议（Agent Client Protocol，ACP）服务；初始智能体和审批模式由 `--agent`、`--approval` 决定，默认分别为 `Code`、`manual`；提问默认无限等待，由 `--ask-user-timeout` 指定超时 |
+| `aixcoding serve` | 在浏览器中承载 TUI；配置文件和环境变量来自运行 AIxCoding 服务的机器 |
 
 ## 设置未生效时
 
-1. 确认设置文件的位置正确，保存后已重新启动 iCode。
+1. 确认设置文件的位置正确，保存后已重新启动 AIxCoding。
 2. 检查是否存在更高优先级的来源；删除 YAML 中的键不会清除其他来源的值。
 3. 对项目设置，确认用户已启用加载，且键名和覆盖方向符合限制。
-4. 查看 iCode 启动时报告的消息：无效值或未知键的处理规则见[值的写法与无效值](#值的写法与无效值)；目录相关提示对照[文件位置与格式](#文件位置与格式)检查。
+4. 查看 AIxCoding 启动时报告的消息：无效值或未知键的处理规则见[值的写法与无效值](#值的写法与无效值)；目录相关提示对照[文件位置与格式](#文件位置与格式)检查。

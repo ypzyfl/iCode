@@ -1,12 +1,12 @@
-# Getting started with iCode
+# Getting started with AIxCoding-CLI
 
-This tutorial shows how to install iCode, configure a model, and use agents to complete a development task in a project.
+This tutorial shows how to install AIxCoding-CLI, configure a model, and use agents to complete a development task in a project.
 
-## 1. Install iCode
+## 1. Install AIxCoding-CLI
 
-iCode provides prebuilt offline installation packages for macOS, Linux, and Windows. The packages include Python and runtime dependencies, so you do not need to install Python separately.
+AIxCoding-CLI provides prebuilt offline installation packages for macOS, Linux, and Windows. The packages include Python and runtime dependencies, so you do not need to install Python separately.
 
-Download the latest version from [iCode Releases](https://github.com/0x7c13/chrys/releases). Do not run `pip install chrys` at this time: that name belongs to a different project on PyPI.
+Download the latest version from [AIxCoding-CLI Releases](https://github.com/0x7c13/chrys/releases). Do not run `pip install chrys` at this time: that name belongs to a different project on PyPI.
 
 In the commands below, `<version>` and `<architecture>` are placeholders. Replace them with the actual values in the downloaded filename.
 
@@ -40,7 +40,7 @@ Download and extract `aixcoding-cli-windows-x86_64-v<version>-offline.zip`. Open
 .\aixcoding-cli.exe install
 ```
 
-The installer attempts to add iCode to the current user's `PATH`. Open a new terminal after installation.
+The installer attempts to add AIxCoding-CLI to the current user's `PATH`. Open a new terminal after installation.
 
 ### Verify the installation
 
@@ -48,17 +48,17 @@ The installer attempts to add iCode to the current user's `PATH`. Open a new ter
 aixcoding-cli --version
 ```
 
-The command should print the iCode version number. If your system cannot find `aixcoding-cli` on macOS or Linux, add `~/.local/bin` to `PATH` as the installer instructs. If the installer reported that `~/.local/bin/aixcoding-cli` already exists, that command starts another program; use `chrys` instead. On Windows, open a new terminal; if the installer reported that updating the user PATH failed, add `%LOCALAPPDATA%\chrys\bin` to your user `PATH` manually.
+The command should print the AIxCoding-CLI version number. If your system cannot find `aixcoding-cli` on macOS or Linux, add `~/.local/bin` to `PATH` as the installer instructs. If the installer reported that `~/.local/bin/aixcoding-cli` already exists, that command starts another program; use `chrys` instead. On Windows, open a new terminal; if the installer reported that updating the user PATH failed, add `%LOCALAPPDATA%\chrys\bin` to your user `PATH` manually.
 
-## 2. Start iCode in a project
+## 2. Start AIxCoding-CLI in a project
 
 Start this tutorial in a project managed with Git or one that you can safely restore. Before asking an agent to modify files, save any unsaved content and record existing changes with a Git commit. This lets you distinguish the agent's changes and restore the previous state if needed.
 
-In a terminal, go to the project directory and start iCode:
+In a terminal, go to the project directory and start AIxCoding-CLI:
 
 ```shell
 cd <project-directory>
-icode
+aixcoding
 ```
 
 Replace `<project-directory>` with the actual path to your project. To switch directories after startup, see [Working directory](../guides/daily-use/workspaces.md).
@@ -85,13 +85,13 @@ Submit the following in the input field:
 Hello
 ```
 
-iCode should reply with a greeting. If the model service returns an error, check the model profile again, including the model ID, base URL, and API key.
+AIxCoding-CLI should reply with a greeting. If the model service returns an error, check the model profile again, including the model ID, base URL, and API key.
 
 ## 4. Use agents
 
 ### Select an agent
 
-iCode provides two main agents by default: Q&A Agent and Code Agent. Both can read the project, analyze code, and discuss approaches, but they have different roles and tools. Q&A Agent primarily provides read-only capabilities for understanding projects, explaining code, and analyzing problems. Code Agent can modify files and run commands, making it suitable for writing, reviewing, refactoring, debugging, and validating code.
+AIxCoding-CLI provides two main agents by default: Q&A Agent and Code Agent. Both can read the project, analyze code, and discuss approaches, but they have different roles and tools. Q&A Agent primarily provides read-only capabilities for understanding projects, explaining code, and analyzing problems. Code Agent can modify files and run commands, making it suitable for writing, reviewing, refactoring, debugging, and validating code.
 
 You can switch agents when no agent task is running. Type `#` in the input field to display the agent list above it. Select an agent by clicking it, or use the up and down arrow keys and press Enter. You can also click the agent name in the status bar above the input field to switch agents in the agent selection dialog.
 
@@ -139,11 +139,11 @@ Mouse selection copies what is displayed, without adding newlines for screen wra
 
 ## 5. End the session
 
-To finish using iCode, type `/exit` or press `Ctrl+Q` to exit.
+To finish using AIxCoding-CLI, type `/exit` or press `Ctrl+Q` to exit.
 
 ## Next steps
 
-You have installed iCode, configured a model, and learned the basics of Q&A Agent and Code Agent, including how to use them together in the same session to complete a development task.
+You have installed AIxCoding-CLI, configured a model, and learned the basics of Q&A Agent and Code Agent, including how to use them together in the same session to complete a development task.
 
 You can continue exploring:
 
@@ -151,4 +151,4 @@ You can continue exploring:
 - [Configure models](../guides/configuration/models.md) to connect to and switch between model services
 - [Working directory](../guides/daily-use/workspaces.md)
 - [Configure approval modes](../guides/configuration/approval.md)
-- Extend iCode with [Skills](../guides/extensions/skills.md) and [MCP](../guides/extensions/mcp.md)
+- Extend AIxCoding-CLI with [Skills](../guides/extensions/skills.md) and [MCP](../guides/extensions/mcp.md)

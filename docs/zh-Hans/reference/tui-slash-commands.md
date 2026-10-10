@@ -26,7 +26,7 @@
 
 ## 命令参考
 
-下表列出 iCode 的内置斜杠命令。
+下表列出 AIxCoding 的内置斜杠命令。
 
 表中：
 
@@ -38,7 +38,7 @@
 | --- | --- | --- | --- |
 | `/new` | — | 开始新会话并保留当前会话。详见[切换到新会话](../guides/daily-use/sessions.md#切换到新会话)。 | — |
 | `/clear` | — | 删除当前会话并开始新会话；确认后无法恢复。详见[切换到新会话](../guides/daily-use/sessions.md#切换到新会话)。 | — |
-| `/exit` | `/quit` | 退出 iCode 并返回终端。 | — |
+| `/exit` | `/quit` | 退出 AIxCoding 并返回终端。 | — |
 | `/resume` | — | 恢复最近的聊天会话，工作流会话会被跳过。详见[恢复已有会话](../guides/daily-use/sessions.md#恢复已有会话)。 | — |
 | `/fork` | — | 从当前会话创建一个独立分支。创建后，当前窗口仍停留在原会话，可以选择留在原会话或切换到分支。 | — |
 | `/rename [title]` | — | 设置或清除会话标题。详见[修改会话标题](../guides/daily-use/sessions.md#修改会话标题)。 | `title`：直接应用的自定义标题。省略或只输入空白时打开标题编辑器。 |
@@ -51,20 +51,20 @@
 | `/copy [N]`<br>`/copy agent [N\|all]`<br>`/copy user [N\|all]`<br>`/copy all` | — | 将对话内容复制到剪贴板。 | 省略参数：复制最近一条智能体消息（智能体在工具调用之间显示的文本也算作单独一条）。<br>`N`：要复制的最近智能体消息数，必须是正整数；`/copy N` 是 `/copy agent N` 的简写。<br>`agent [N\|all]`：复制最近 `N` 条或全部智能体消息；省略数量时复制最近一条。<br>`user [N\|all]`：复制最近 `N` 条或全部用户消息；省略数量时复制最近一条。<br>`all`：复制完整对话记录。 |
 | `/fold` | — | 折叠或展开当前对话中的全部工具调用组。折叠后只显示摘要标题，便于查看较长的会话。 | — |
 | `/diff` | — | 打开差异视图，逐行显示当前会话产生的新增、修改和删除文件，便于检查智能体所做的更改。 | — |
-| `/rollback`<br>`/rollback <N>`<br>`/rollback to <N>` | — | 回滚分为两种：仅回滚对话并保留当前文件变更；同时回滚对话，并恢复 iCode 能够恢复的文件变更。回滚结果无法撤销。 | 省略参数：打开回滚选择器，默认选择最近的可回滚目标。通过“回滚”窗口左下角的文件还原选项（名称中会显示文件数量），可以决定是否同时恢复文件变更。<br>`N`：立即丢弃最近 `N` 轮，必须是正整数。从一次用户提交开始，到该次智能体运行结束为一轮。<br>`to N`：保留第 1 轮至第 `N` 轮并丢弃之后的轮次；`N` 必须是非负整数，`0` 表示回到会话开始处。<br>`/rollback N` 和 `/rollback to N` 都会立即执行，并恢复被丢弃轮次中 iCode 能够恢复的文件变更。 |
+| `/rollback`<br>`/rollback <N>`<br>`/rollback to <N>` | — | 回滚分为两种：仅回滚对话并保留当前文件变更；同时回滚对话，并恢复 AIxCoding 能够恢复的文件变更。回滚结果无法撤销。 | 省略参数：打开回滚选择器，默认选择最近的可回滚目标。通过“回滚”窗口左下角的文件还原选项（名称中会显示文件数量），可以决定是否同时恢复文件变更。<br>`N`：立即丢弃最近 `N` 轮，必须是正整数。从一次用户提交开始，到该次智能体运行结束为一轮。<br>`to N`：保留第 1 轮至第 `N` 轮并丢弃之后的轮次；`N` 必须是非负整数，`0` 表示回到会话开始处。<br>`/rollback N` 和 `/rollback to N` 都会立即执行，并恢复被丢弃轮次中 AIxCoding 能够恢复的文件变更。 |
 | `/approval [manual\|auto\|bypass]` | — | 切换当前审批模式，所选模式也会保存为下次启动的默认模式（`bypass` 保存为 `auto`）。详见[配置审批模式](../guides/configuration/approval.md)。 | `manual`：需要审批的调用由用户决定。<br>`auto`：由审批裁判模型判断；无法确认安全的调用仍交由用户决定。<br>`bypass`：跳过工具调用审批。<br>省略参数：按空格键或 **Enter** 显示审批模式建议列表。 |
 | `/models` | — | 打开模型配置窗口。详见[配置模型](../guides/configuration/models.md)。 | — |
 | `/buddy [command]` | — | 管理 Buddy 伙伴。尚未孵化时，只能使用 `hatch`；孵化后可使用其余选项。 | 省略参数：按空格键或 **Enter** 显示可用命令。<br>`hatch`：孵化新伙伴。<br>`info`：显示伙伴信息。<br>`pet`：与伙伴互动并生成回复。<br>`mute`：开启或关闭伙伴通知。<br>`name <new-name>`：将伙伴重命名为 `new-name`。 |
 | `/agents [target]` | `/agent`<br>`/config` | 打开智能体配置窗口。详见[配置智能体](../guides/configuration/agents.md#打开智能体配置窗口)。 | 省略参数：按空格键或 **Enter** 显示可用标签页。<br>`target`：直接打开指定标签页。可用值为 `basic`、`instructions`、`tools`、`sub-agents`、`skills`、`mcp`、`memory` 和 `compaction`。<br>参数别名：`subagents` 等同于 `sub-agents`，`skill` 等同于 `skills`。 |
 | `/runtime` | `/details` | 打开“运行时详情”窗口，查看当前模型配置和模型 ID、按类别分组的内置工具、子智能体工具、按服务器分组的 MCP 工具、按来源分组的 Skills、已加载的钩子，以及预配置记忆文件。 | — |
-| `/settings [tab]` | — | 打开设置窗口。详见[配置 iCode 设置](../guides/configuration/settings.md#设置窗口)。 | `tab`：直接打开指定标签页。可用值为 `general`、`models`、`security`、`sessions`、`tools` 和 `notifications`。省略参数时，按空格键或 **Enter** 显示可用标签页。 |
+| `/settings [tab]` | — | 打开设置窗口。详见[配置 AIxCoding 设置](../guides/configuration/settings.md#设置窗口)。 | `tab`：直接打开指定标签页。可用值为 `general`、`models`、`security`、`sessions`、`tools` 和 `notifications`。省略参数时，按空格键或 **Enter** 显示可用标签页。 |
 | `/workflow` | — | 打开工作流模式并选择工作流。详见[创建和运行工作流](../guides/running/workflows.md)。 | — |
-| `/help` | — | 打开“iCode 用户指南”窗口，查看本文档。也可以按 **F8** 或点击底栏的 `f8 帮助`。 | — |
-| `/man [command]` | — | 显示 iCode 命令说明。 | 省略参数：按空格键或 **Enter** 显示可查看的命令。<br>`command`：命令名称或别名；显示指定命令的名称、用法、说明、别名和选项。 |
+| `/help` | — | 打开“AIxCoding 用户指南”窗口，查看本文档。也可以按 **F8** 或点击底栏的 `f8 帮助`。 | — |
+| `/man [command]` | — | 显示 AIxCoding 命令说明。 | 省略参数：按空格键或 **Enter** 显示可查看的命令。<br>`command`：命令名称或别名；显示指定命令的名称、用法、说明、别名和选项。 |
 
 ## Skill 命令
 
-运行时加载的 Skill 可以通过 `/skill-name` 形式调用。提交 Skill 命令后，iCode 会要求智能体在本轮任务中使用指定 Skill。
+运行时加载的 Skill 可以通过 `/skill-name` 形式调用。提交 Skill 命令后，AIxCoding 会要求智能体在本轮任务中使用指定 Skill。
 
 可以选择在 Skill 名称后添加任务描述。任务描述会随 Skill 命令一并提交，具体处理方式由 Skill 说明决定。
 
@@ -73,6 +73,6 @@
 - `/review`：调用该 Skill。
 - `/review 检查当前更改中的潜在问题`：调用该 Skill 并说明任务。
 
-Skill 命令不属于 iCode 的内置命令。如果 Skill 名称与内置命令相同，内置命令优先。
+Skill 命令不属于 AIxCoding 的内置命令。如果 Skill 名称与内置命令相同，内置命令优先。
 
 Skill 的安装和使用方法见[安装和使用 Skills](../guides/extensions/skills.md#使用-skill)。

@@ -12,7 +12,7 @@
 
 ## 创建第一个钩子
 
-下面将在 iCode 当前会话的工作目录中创建一个项目钩子。它只对当前工作目录生效，并会在每一轮结束后将轮次状态追加到该目录下的 `hook-events.log`。
+下面将在 AIxCoding 当前会话的工作目录中创建一个项目钩子。它只对当前工作目录生效，并会在每一轮结束后将轮次状态追加到该目录下的 `hook-events.log`。
 
 ### 1. 创建配置
 
@@ -47,11 +47,11 @@ with Path("hook-events.log").open("a", encoding="utf-8") as log_file:
     log_file.write(f"turn={payload['turn']} status={payload['status']}\n")
 ```
 
-iCode 通过 `CHRYS_HOOK_PAYLOAD_FILE` 环境变量提供本次事件的 JSON 输入文件。`after_turn` 事件的输入包含 `turn` 和 `status`，分别表示轮次编号和结束状态。脚本默认在 iCode 当前会话的工作目录中运行，所以 `hook-events.log` 也会写到工作目录。
+AIxCoding 通过 `CHRYS_HOOK_PAYLOAD_FILE` 环境变量提供本次事件的 JSON 输入文件。`after_turn` 事件的输入包含 `turn` 和 `status`，分别表示轮次编号和结束状态。脚本默认在 AIxCoding 当前会话的工作目录中运行，所以 `hook-events.log` 也会写到工作目录。
 
 ### 3. 加载并验证
 
-项目钩子默认不加载。在终端用户界面（Terminal User Interface，TUI）中按 **F10** 打开“设置”，在“安全”-“项目信任”区域勾选“加载项目钩子”。如果已经勾选，切换会话或重启 iCode，使磁盘上的配置生效。
+项目钩子默认不加载。在终端用户界面（Terminal User Interface，TUI）中按 **F10** 打开“设置”，在“安全”-“项目信任”区域勾选“加载项目钩子”。如果已经勾选，切换会话或重启 AIxCoding，使磁盘上的配置生效。
 
 在 TUI 中输入 `/runtime`，打开“钩子”标签页，应能看到 `record-turn`。提交一条消息并等待当前轮结束后，检查工作目录中的 `hook-events.log`。文件应出现类似内容：
 
@@ -82,7 +82,7 @@ turn=1 status=ok
       on_error: block
 ```
 
-这段配置只匹配具有 `path` 参数，并且路径以 `.env` 结尾的 `filesystem.write` 工具调用。阻塞式钩子会在 iCode 继续处理调用前完成。
+这段配置只匹配具有 `path` 参数，并且路径以 `.env` 结尾的 `filesystem.write` 工具调用。阻塞式钩子会在 AIxCoding 继续处理调用前完成。
 
 然后创建 `.chrys/hooks/scripts/protect_env.py`：
 
@@ -98,11 +98,11 @@ with open(os.environ["CHRYS_HOOK_RESULT"], "w", encoding="utf-8") as result_file
     )
 ```
 
-脚本通过 `CHRYS_HOOK_RESULT` 指定的结果文件返回 `action: block` 和拒绝原因。脚本打印到标准输出或标准错误的内容不作为操作决定读取，iCode 对两者各最多保留 256 KiB（开头和结尾）。
+脚本通过 `CHRYS_HOOK_RESULT` 指定的结果文件返回 `action: block` 和拒绝原因。脚本打印到标准输出或标准错误的内容不作为操作决定读取，AIxCoding 对两者各最多保留 256 KiB（开头和结尾）。
 
 `on_error: block` 表示脚本无法启动、超时或返回非零退出码时也拒绝工具调用，适合需要失败时保持限制的检查。这个钩子只会阻止匹配的 `filesystem.write` 调用；Shell 命令不受影响。
 
-切换会话或重启 iCode 后，先创建一个专门用于验证的 `hook-demo/.env`，写入已知内容，例如 `HOOK_TEST=unchanged`。然后要求智能体仅使用 `write_file` 或 `edit_file` 尝试修改一次，被拒绝后停止，不使用 Shell 或其他方式。检查该工具调用是否在执行前被拒绝，并显示脚本提供的原因；再确认文件内容保持不变。验证后可以删除 `hook-demo/.env`。
+切换会话或重启 AIxCoding 后，先创建一个专门用于验证的 `hook-demo/.env`，写入已知内容，例如 `HOOK_TEST=unchanged`。然后要求智能体仅使用 `write_file` 或 `edit_file` 尝试修改一次，被拒绝后停止，不使用 Shell 或其他方式。检查该工具调用是否在执行前被拒绝，并显示脚本提供的原因；再确认文件内容保持不变。验证后可以删除 `hook-demo/.env`。
 
 ## 示例：为模型添加系统提醒
 
@@ -137,9 +137,9 @@ with open(os.environ["CHRYS_HOOK_RESULT"], "w", encoding="utf-8") as result_file
     )
 ```
 
-切换会话或重启 iCode，使配置生效。系统提醒只有在阻塞式钩子成功结束后才会生效。iCode 会用 `<system-reminder>` 标签包住提醒内容，随用户提交的消息一起发送给模型。这段提醒不会显示在 TUI 对话中，也不会写入会话数据。
+切换会话或重启 AIxCoding，使配置生效。系统提醒只有在阻塞式钩子成功结束后才会生效。AIxCoding 会用 `<system-reminder>` 标签包住提醒内容，随用户提交的消息一起发送给模型。这段提醒不会显示在 TUI 对话中，也不会写入会话数据。
 
-如需确认 `user_prompt_submit` 钩子是否生效，或查看系统提醒发送给模型时的实际内容，可以检查模型请求的原始 HTTP 日志。该日志包含未脱敏的 API 密钥和完整对话内容，应仅在排查问题时临时启用。在 TUI 中按 **F10**，进入“安全”-“诊断”，开启“捕获原始 HTTP 流量”，然后重启 iCode。使用 Code 智能体提交一条消息后，在当前会话目录的 `llm_raw_http.jsonl` 中搜索提醒正文“修改 Python 文件后”。当前会话目录的位置参阅[查找会话 ID 和会话保存位置](../daily-use/sessions.md#查找会话-id-和会话保存位置)。验证完成后，应关闭原始 HTTP 流量捕获并再次重启 iCode。
+如需确认 `user_prompt_submit` 钩子是否生效，或查看系统提醒发送给模型时的实际内容，可以检查模型请求的原始 HTTP 日志。该日志包含未脱敏的 API 密钥和完整对话内容，应仅在排查问题时临时启用。在 TUI 中按 **F10**，进入“安全”-“诊断”，开启“捕获原始 HTTP 流量”，然后重启 AIxCoding。使用 Code 智能体提交一条消息后，在当前会话目录的 `llm_raw_http.jsonl` 中搜索提醒正文“修改 Python 文件后”。当前会话目录的位置参阅[查找会话 ID 和会话保存位置](../daily-use/sessions.md#查找会话-id-和会话保存位置)。验证完成后，应关闭原始 HTTP 流量捕获并再次重启 AIxCoding。
 
 如果只想在部分任务中添加提醒，可以让脚本读取 `CHRYS_HOOK_PAYLOAD_FILE` 中的 `text`（用户刚提交的消息），并只在消息符合条件时向 `CHRYS_HOOK_RESULT` 写入 `system_reminder`。
 
@@ -149,11 +149,11 @@ with open(os.environ["CHRYS_HOOK_RESULT"], "w", encoding="utf-8") as result_file
 
 | 需求 | 建议模式 | 行为 |
 | --- | --- | --- |
-| 在操作继续前检查、拒绝或修改操作 | `blocking` | iCode 等待钩子结束；部分事件会采用结果文件中的操作决定 |
-| 不阻塞当前操作，但希望 iCode 在当前轮或会话结束时等待一段时间 | `async` | iCode 立即继续，之后在适用的事件和等待上限内等待钩子完成 |
-| 普通通知或允许被退出打断的记录任务 | `fire_and_forget` | iCode 立即继续，结束当前轮或会话时也不等待；这是默认模式 |
+| 在操作继续前检查、拒绝或修改操作 | `blocking` | AIxCoding 等待钩子结束；部分事件会采用结果文件中的操作决定 |
+| 不阻塞当前操作，但希望 AIxCoding 在当前轮或会话结束时等待一段时间 | `async` | AIxCoding 立即继续，之后在适用的事件和等待上限内等待钩子完成 |
+| 普通通知或允许被退出打断的记录任务 | `fire_and_forget` | AIxCoding 立即继续，结束当前轮或会话时也不等待；这是默认模式 |
 
-异步钩子（`async`）不会延迟触发它的事件或当前操作。当前轮或会话结束时，如果相应的异步钩子仍在运行，iCode 会等待它完成后再结束当前轮或会话。`user_interrupt` 触发的异步钩子不会被等待。会话结束时的等待上限可在[全局设置](../../reference/hooks.md#全局设置)中配置。需要在 iCode 退出后重试未完成的任务时，还应配置 `delivery: durable`。
+异步钩子（`async`）不会延迟触发它的事件或当前操作。当前轮或会话结束时，如果相应的异步钩子仍在运行，AIxCoding 会等待它完成后再结束当前轮或会话。`user_interrupt` 触发的异步钩子不会被等待。会话结束时的等待上限可在[全局设置](../../reference/hooks.md#全局设置)中配置。需要在 AIxCoding 退出后重试未完成的任务时，还应配置 `delivery: durable`。
 
 ## 使用全局钩子
 

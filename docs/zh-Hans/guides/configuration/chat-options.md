@@ -15,17 +15,17 @@ Chat 选项会给模型配置发出的每个请求加上额外字段。可以用
 
 ### 值的解析方式
 
-iCode 会尽量把值当作 JSON 解析：
+AIxCoding 会尽量把值当作 JSON 解析：
 
 - `0.2` 作为数字发送，`true` 作为布尔值发送。
 - `{"type": "adaptive"}` 作为对象发送，`["a", "b"]` 作为列表发送。
 - 其他内容都作为文本发送：`high` 发送为 `"high"`。如果要发送看起来像数字或 `true` 的文本，请加上引号，例如 `"1"`。
 
-整个值必须写在一行内。请仔细核对括号、引号和逗号。对象中有错误（例如多了一个结尾逗号）时，会被当作普通文本保存，模型服务随后会拒绝请求。必须填写对象的字段（例如 `extra_body`）会先经过检查：iCode 会显示错误，不会保存。
+整个值必须写在一行内。请仔细核对括号、引号和逗号。对象中有错误（例如多了一个结尾逗号）时，会被当作普通文本保存，模型服务随后会拒绝请求。必须填写对象的字段（例如 `extra_body`）会先经过检查：AIxCoding 会显示错误，不会保存。
 
 ### 服务专有字段的位置
 
-所选提供商和 API 样式对应的客户端库只接受一组固定的顶层字段名，例如 `temperature`、Chat Completions 的 `reasoning_effort`，以及 Anthropic 的 `thinking`。未知字段可能在请求发出前就导致 `unexpected keyword argument` 错误。服务扩展字段，以及 iCode 内置客户端库尚未接受的新 API 字段，请放进 `extra_body`。OpenAI 兼容服务中的例子包括 `top_k`、`enable_thinking` 和 `chat_template_kwargs`：
+所选提供商和 API 样式对应的客户端库只接受一组固定的顶层字段名，例如 `temperature`、Chat Completions 的 `reasoning_effort`，以及 Anthropic 的 `thinking`。未知字段可能在请求发出前就导致 `unexpected keyword argument` 错误。服务扩展字段，以及 AIxCoding 内置客户端库尚未接受的新 API 字段，请放进 `extra_body`。OpenAI 兼容服务中的例子包括 `top_k`、`enable_thinking` 和 `chat_template_kwargs`：
 
 | 字段名 | 值 |
 | --- | --- |
@@ -42,10 +42,10 @@ iCode 会尽量把值当作 JSON 解析：
 - **输出长度**：使用“最大输出词元数”字段。保存时会拒绝 `max_tokens` 等行。
 - **流式输出**：使用“流式输出”复选框，默认开启，取消勾选即可关闭。不要添加 `stream` 行。
 - **模型**：使用“模型”字段。
-- **HTTP 请求头**：使用“HTTP 附加请求头”各行，或者添加一行 `extra_headers`，值为 JSON 对象。对于 Anthropic 的 `anthropic-beta` 请求头，“HTTP 附加请求头”会添加到 iCode 的 Beta 标志之后，而 `extra_headers` 行会替换它们，详见 [Anthropic](#anthropic)。
+- **HTTP 请求头**：使用“HTTP 附加请求头”各行，或者添加一行 `extra_headers`，值为 JSON 对象。对于 Anthropic 的 `anthropic-beta` 请求头，“HTTP 附加请求头”会添加到 AIxCoding 的 Beta 标志之后，而 `extra_headers` 行会替换它们，详见 [Anthropic](#anthropic)。
 - **Claude 思考设置**：使用配置文件中的 `thinking_block_binding` 和 `auto_interleaved_thinking` 两行，详见 [Claude 思考设置](./models.md#claude-思考设置)。
 
-消息、工具和系统提示词由 iCode 自行构建，因此保存时会拒绝 `messages` 等字段。
+消息、工具和系统提示词由 AIxCoding 自行构建，因此保存时会拒绝 `messages` 等字段。
 
 ### 不在配置中保存密钥
 
@@ -55,7 +55,7 @@ iCode 会尽量把值当作 JSON 解析：
 | --- | --- |
 | `extra_headers` | `{"X-Api-Token": "{{MY_GATEWAY_TOKEN}}"}` |
 
-配置文件中保留的是占位符，iCode 在发送请求时才填入实际值。请在启动 iCode 之前设置好该变量；变量未设置时，iCode 会报错并指出变量名。
+配置文件中保留的是占位符，AIxCoding 在发送请求时才填入实际值。请在启动 AIxCoding 之前设置好该变量；变量未设置时，AIxCoding 会报错并指出变量名。
 
 ### 哪些请求使用 Chat 选项
 
@@ -63,7 +63,7 @@ iCode 会尽量把值当作 JSON 解析：
 
 ## 提示词缓存
 
-在 iCode 默认的本地历史模式下，请求会重新发送当前上下文中的对话。提示词缓存让服务复用未变化的前缀，减少重复处理输入的工作量，通常也能降低输入费用。它与服务端保存对话是两回事。写入缓存可能有额外费用，能否节省费用取决于前缀的复用次数。
+在 AIxCoding 默认的本地历史模式下，请求会重新发送当前上下文中的对话。提示词缓存让服务复用未变化的前缀，减少重复处理输入的工作量，通常也能降低输入费用。它与服务端保存对话是两回事。写入缓存可能有额外费用，能否节省费用取决于前缀的复用次数。
 
 OpenAI、DeepSeek、GLM、Kimi 的 Chat Completions 接口和通义千问在支持的模型上提供自动缓存。vLLM 和 SGLang 的前缀缓存由服务端管理，是否生效取决于启动配置和模型支持情况。来源和例外见下文各提供商章节。
 
@@ -77,13 +77,13 @@ OpenAI、DeepSeek、GLM、Kimi 的 Chat Completions 接口和通义千问在支�
 
 ### “提示词缓存未开启”提醒
 
-保存模型配置时，如果提供商为“Anthropic”、模型 ID 包含 `claude`，且没有任何 `cache_control` 设置，iCode 会显示“提示词缓存未开启”窗口：
+保存模型配置时，如果提供商为“Anthropic”、模型 ID 包含 `claude`，且没有任何 `cache_control` 设置，AIxCoding 会显示“提示词缓存未开启”窗口：
 
 - **添加并保存**：把 `"cache_control": {"type": "ephemeral"}` 加入 `extra_body` 行（没有该行时自动新建），然后保存。
 - **直接保存**：按原样保存配置。
 - 按 **Esc** 或点击窗口外部：返回表单，不保存。
 
-当某次保存让该配置成为完整的 Claude 配置时（新建的配置，或改用“Anthropic”提供商、改成 Claude 模型的配置），iCode 会显示这个提醒。保存本来就是 Claude 配置的配置时，不会再次提醒。
+当某次保存让该配置成为完整的 Claude 配置时（新建的配置，或改用“Anthropic”提供商、改成 Claude 模型的配置），AIxCoding 会显示这个提醒。保存本来就是 Claude 配置的配置时，不会再次提醒。
 
 兼容 Anthropic 协议的服务有各自的缓存行为，可能接受、忽略或拒绝 `cache_control`，请查阅对应接口的文档。如果服务拒绝该字段，只从 `extra_body` 中删除 `"cache_control": {...}`，然后保存。此提醒只检查配置内容，无法判断服务端是否实际缓存了请求。
 
@@ -115,13 +115,13 @@ OpenAI、DeepSeek、GLM、Kimi 的 Chat Completions 接口和通义千问在支�
 | 更便宜、处理更慢 | `service_tier` | `flex` |
 | GPT-5.6 及之后模型的缓存有效期（Responses） | `extra_body` | `{"prompt_cache_options": {"mode": "implicit", "ttl": "30m"}}` |
 
-使用 Responses 时，请用 `reasoning`，不要用 `reasoning_effort`。iCode 会把 `verbosity` 选项转换为 API 的 `text.verbosity`。支持的推理强度、摘要、详细程度和 Flex 服务因模型而异。Flex 还可能返回资源不可用错误，参见 [Flex processing](https://developers.openai.com/api/docs/guides/flex-processing)。
+使用 Responses 时，请用 `reasoning`，不要用 `reasoning_effort`。AIxCoding 会把 `verbosity` 选项转换为 API 的 `text.verbosity`。支持的推理强度、摘要、详细程度和 Flex 服务因模型而异。Flex 还可能返回资源不可用错误，参见 [Flex processing](https://developers.openai.com/api/docs/guides/flex-processing)。
 
 GPT-5.6 及之后的模型使用 `prompt_cache_options`，有效期为 `30m`，自动缓存写入也会计费。较早的模型使用 `prompt_cache_retention`，取值可能为 `in_memory` 或 `24h`，取决于具体模型，两类设置不能混用。请保留 `implicit` 模式：`explicit` 模式需要在内容块上添加缓存断点，Chat 选项表单不会添加这些断点。
 
-使用 Responses 且地址为 OpenAI 官方地址时，iCode 还会把会话 ID 作为 `prompt_cache_key` 发送，同一会话的请求共用一个缓存键；子智能体和工作流中的智能体各用自己的键。要使用自定义的键，请添加 `prompt_cache_key` 行；不想发送，请将其值设为 `null`。
+使用 Responses 且地址为 OpenAI 官方地址时，AIxCoding 还会把会话 ID 作为 `prompt_cache_key` 发送，同一会话的请求共用一个缓存键；子智能体和工作流中的智能体各用自己的键。要使用自定义的键，请添加 `prompt_cache_key` 行；不想发送，请将其值设为 `null`。
 
-除非需要服务端续接，否则请不要设置 `store`：iCode 默认发送 `false`，这仍然允许提示词缓存。设为 `true` 后，iCode 的上下文压缩会被禁用。
+除非需要服务端续接，否则请不要设置 `store`：AIxCoding 默认发送 `false`，这仍然允许提示词缓存。设为 `true` 后，AIxCoding 的上下文压缩会被禁用。
 
 官方文档：[Reasoning](https://developers.openai.com/api/docs/guides/reasoning)、[Prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching)、[Responses API 参考](https://developers.openai.com/api/reference/resources/responses/methods/create)、[Chat Completions API 参考](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)。
 
@@ -139,9 +139,9 @@ GPT-5.6 及之后的模型使用 `prompt_cache_options`，有效期为 `30m`，�
 
 - 只有支持自适应思考的模型才能使用 `adaptive`；较新的模型会拒绝旧的 `enabled` / `budget_tokens` 形式。普通固定预算思考要求“最大输出词元数”大于 `budget_tokens`，手动交错思考的预算规则有所不同。
 - 较新的 Claude 模型会拒绝非默认的 `temperature`、`top_p` 和 `top_k` 值，请不要设置。
-- `additional_beta_flags` 和 `betas` 用于给请求增加 Beta 标志，“HTTP 附加请求头”中的 `anthropic-beta` 也一样。iCode 会把它们排在自己的标志之后，合并到同一个 `anthropic-beta` 请求头中发送。`extra_headers` 行中的 `anthropic-beta` 会替换所有这些标志，包括 iCode 自己的标志；此时 iCode 只补上思考设置所需的标志。
-- 在 Anthropic 官方地址上使用固定预算的思考时，iCode 会自动添加交错思考的标志，详见 [Claude 思考设置](./models.md#claude-思考设置)。在其他地址上，请按上表自行添加。自适应思考已自动支持交错思考，无需该标志。交错思考的支持情况因模型而异，服务接受某个 Beta 标志并不代表它实际生效。
-- 在 Anthropic 官方地址上，Claude Opus 5.5、Fable 5.1 或 Sonnet 5.5 使用自适应思考时，iCode 会请服务略去与对话对不上的早先思考内容，详见 [Claude 思考设置](./models.md#claude-思考设置)。你在 `thinking` 中自己写的 `block_binding` 会原样发送，iCode 会补上它所需的 Beta 标志。
+- `additional_beta_flags` 和 `betas` 用于给请求增加 Beta 标志，“HTTP 附加请求头”中的 `anthropic-beta` 也一样。AIxCoding 会把它们排在自己的标志之后，合并到同一个 `anthropic-beta` 请求头中发送。`extra_headers` 行中的 `anthropic-beta` 会替换所有这些标志，包括 AIxCoding 自己的标志；此时 AIxCoding 只补上思考设置所需的标志。
+- 在 Anthropic 官方地址上使用固定预算的思考时，AIxCoding 会自动添加交错思考的标志，详见 [Claude 思考设置](./models.md#claude-思考设置)。在其他地址上，请按上表自行添加。自适应思考已自动支持交错思考，无需该标志。交错思考的支持情况因模型而异，服务接受某个 Beta 标志并不代表它实际生效。
+- 在 Anthropic 官方地址上，Claude Opus 5.5、Fable 5.1 或 Sonnet 5.5 使用自适应思考时，AIxCoding 会请服务略去与对话对不上的早先思考内容，详见 [Claude 思考设置](./models.md#claude-思考设置)。你在 `thinking` 中自己写的 `block_binding` 会原样发送，AIxCoding 会补上它所需的 Beta 标志。
 
 官方文档：[Prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)、[Adaptive thinking](https://platform.claude.com/docs/en/build-with-claude/thinking)、[Extended thinking](https://platform.claude.com/docs/en/build-with-claude/extended-thinking)、[Effort](https://platform.claude.com/docs/en/build-with-claude/effort)、[Beta headers](https://platform.claude.com/docs/en/api/beta-headers)。
 
@@ -168,7 +168,7 @@ GPT-5.6 及之后的模型使用 `prompt_cache_options`，有效期为 `30m`，�
 | 在上下文中保留之前的推理 | `extra_body` | `{"thinking": {"type": "enabled", "clear_thinking": false}}` |
 | 推理强度（GLM-5.2 及之后） | `reasoning_effort` | `high` |
 
-GLM-5.3 始终思考，推理强度支持 `low`、`high` 和 `max`，不要给它传入 `thinking.type: disabled`。GLM-5.2 的强度映射不同，更早的模型不支持该强度字段。`clear_thinking: false` 还要求完整保留历史推理，iCode 的 GLM 提供商会保留这些内容。`temperature` 的取值范围为 0 到 1。
+GLM-5.3 始终思考，推理强度支持 `low`、`high` 和 `max`，不要给它传入 `thinking.type: disabled`。GLM-5.2 的强度映射不同，更早的模型不支持该强度字段。`clear_thinking: false` 还要求完整保留历史推理，AIxCoding 的 GLM 提供商会保留这些内容。`temperature` 的取值范围为 0 到 1。
 
 官方文档：[Thinking mode](https://docs.z.ai/guides/capabilities/thinking-mode)、[Context caching](https://docs.z.ai/guides/capabilities/cache)、[API 参考](https://docs.z.ai/api-reference/llm/chat-completion)。
 
@@ -182,7 +182,7 @@ GLM-5.3 始终思考，推理强度支持 `low`、`high` 和 `max`，不要给�
 | 关闭思考（Kimi K2.6） | `extra_body` | `{"thinking": {"type": "disabled"}}` |
 | 延长缓存有效期（Chat Completions） | `extra_body` | `{"prompt_cache_options": {"mode": "implicit", "ttl": "1h"}}` |
 
-Kimi K3 始终思考，强度支持 `low`、`high` 和 `max`，不接受 `thinking` 字段。K2.7 Code 始终思考，但不支持 `reasoning_effort`；K2.6 可以关闭思考，也不支持该强度字段。除非具体模型的文档明确支持，否则请不要设置采样选项；部分 Kimi 模型的固定值限制不代表整个系列都采用相同的采样规则。iCode 只接受省略 `n` 或将其设为 `1`。
+Kimi K3 始终思考，强度支持 `low`、`high` 和 `max`，不接受 `thinking` 字段。K2.7 Code 始终思考，但不支持 `reasoning_effort`；K2.6 可以关闭思考，也不支持该强度字段。除非具体模型的文档明确支持，否则请不要设置采样选项；部分 Kimi 模型的固定值限制不代表整个系列都采用相同的采样规则。AIxCoding 只接受省略 `n` 或将其设为 `1`。
 
 Chat Completions 默认使用 5 分钟缓存。1 小时选项的写入价格更高；已有缓存条目过期前，修改 TTL 不会改变其有效期。
 
@@ -209,7 +209,7 @@ Kimi 也提供兼容 Anthropic 协议的接口：提供商选“Anthropic”，�
 
 提供商选“OpenAI”，API 样式选“Chat Completions”，服务地址为 `http://<主机>:<端口>/v1`。“API 密钥”填写服务端 `--api-key` 的值；服务端未设置密钥时留空。前缀缓存由服务端配置，请检查 `--enable-prefix-caching` / `--no-enable-prefix-caching` 以及所部署模型的支持情况。
 
-对于需要使用工具的 iCode 智能体，启动服务时请加上 `--enable-auto-tool-choice` 和与模型匹配的 `--tool-call-parser`。推理模型还应配置匹配的 `--reasoning-parser`，以分开显示推理过程和回答。
+对于需要使用工具的 AIxCoding 智能体，启动服务时请加上 `--enable-auto-tool-choice` 和与模型匹配的 `--tool-call-parser`。推理模型还应配置匹配的 `--reasoning-parser`，以分开显示推理过程和回答。
 
 | 用途 | 字段名 | 值 |
 | --- | --- | --- |
@@ -272,5 +272,5 @@ Kimi 也提供兼容 Anthropic 协议的接口：提供商选“Anthropic”，�
 - **保存时提示“Chat 选项第 N 行：……”**：按提示修改对应的行，然后重新保存。
 - **报错中包含 `unexpected keyword argument 'x'`**：把字段 `x` 移入 `extra_body`，方法见[服务专有字段的位置](#服务专有字段的位置)。
 - **模型服务提示不支持某个字段**：只删除该字段。如果它位于 `extra_body` 中，只从 JSON 对象里删除这一项，保留其他项，然后保存。
-- **报错中提到某个环境变量**：设置该变量后重启 iCode，或者删除对应的 `{{...}}` 占位符。
+- **报错中提到某个环境变量**：设置该变量后重启 AIxCoding，或者删除对应的 `{{...}}` 占位符。
 - **找不到明显原因**：逐个删除最近添加的行，直到请求恢复正常，并查阅所用模型的官方文档。

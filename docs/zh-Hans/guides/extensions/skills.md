@@ -6,29 +6,29 @@ Skill 是一组可复用的操作说明，可以附带参考资料和脚本，�
 
 根据 Skill 的使用范围和共享需求，选择合适的安装位置：
 
-| 位置 | 适合情况                                 | iCode 中的加载方式 |
+| 位置 | 适合情况                                 | AIxCoding 中的加载方式 |
 | --- |--------------------------------------| --- |
-| iCode 用户 Skill 目录 | 希望 iCode 中所有“内置”类型的智能体都能使用           | 始终自动加载 |
-| Agent Skills 共享目录 | 希望在 iCode 与其他支持 Agent Skills 的工具之间共享 | 默认自动加载，可针对智能体关闭 |
+| AIxCoding 用户 Skill 目录 | 希望 AIxCoding 中所有“内置”类型的智能体都能使用           | 始终自动加载 |
+| Agent Skills 共享目录 | 希望在 AIxCoding 与其他支持 Agent Skills 的工具之间共享 | 默认自动加载，可针对智能体关闭 |
 | `<working-directory>/.agents/skills` | 只希望在当前工作目录中使用                         | 勾选“加载项目 Skills”后才加载，也可针对智能体关闭 |
 | 自定义目录 | 希望从指定位置加载                            | 需要在相应智能体配置中手动添加 |
 
-其中，`<working-directory>` 表示当前工作目录。工作目录中的 Skill 随仓库而来，因此需要先在“设置 → 安全 → 项目信任”中勾选“加载项目 Skills”（`project.skills_enabled`），iCode 才会加载。工作目录中有未加载的 Skill 时，iCode 会弹出提示。切换工作目录后，iCode 会重新加载新工作目录中的 Skill。
+其中，`<working-directory>` 表示当前工作目录。工作目录中的 Skill 随仓库而来，因此需要先在“设置 → 安全 → 项目信任”中勾选“加载项目 Skills”（`project.skills_enabled`），AIxCoding 才会加载。工作目录中有未加载的 Skill 时，AIxCoding 会弹出提示。切换工作目录后，AIxCoding 会重新加载新工作目录中的 Skill。
 
 两个用户级 Skill 目录在不同平台上的路径如下：
 
 | 目录 | macOS 和 Linux | Windows |
 | --- | --- | --- |
-| iCode 用户 Skill 目录 | `~/.chrys/skills` | `%APPDATA%\chrys\skills` |
+| AIxCoding 用户 Skill 目录 | `~/.chrys/skills` | `%APPDATA%\chrys\skills` |
 | Agent Skills 共享目录 | `~/.agents/skills` | `%USERPROFILE%\.agents\skills` |
 
 对于前三种安装位置，将 Skill 目录复制或移动到对应位置即可。使用自定义目录时，无需移动 Skill，只需在相应智能体的配置中添加 Skill 所在目录。
 
-iCode 会在已配置的 Skill 目录及其最多两层子目录中查找 `SKILL.md` 文件。找到 `SKILL.md` 后，将所在目录识别为一个 Skill 目录，不再继续查找其中嵌套的 Skill。
+AIxCoding 会在已配置的 Skill 目录及其最多两层子目录中查找 `SKILL.md` 文件。找到 `SKILL.md` 后，将所在目录识别为一个 Skill 目录，不再继续查找其中嵌套的 Skill。
 
 ## 安装并启用 Skill
 
-iCode 用户 Skill 目录始终自动加载。Agent Skills 共享目录默认也会自动加载；当前工作目录中的 Skill 目录在勾选“加载项目 Skills”后加载。若曾在智能体配置中关闭对应来源，需要重新启用。使用自定义目录时，需要将目录添加到相应智能体的配置中。
+AIxCoding 用户 Skill 目录始终自动加载。Agent Skills 共享目录默认也会自动加载；当前工作目录中的 Skill 目录在勾选“加载项目 Skills”后加载。若曾在智能体配置中关闭对应来源，需要重新启用。使用自定义目录时，需要将目录添加到相应智能体的配置中。
 
 如需直接在智能体 YAML 中定义不带文件的内嵌 Skill，请参阅[智能体配置文件](../../reference/agent-profile.md#skillsinline)。
 
@@ -49,13 +49,13 @@ iCode 用户 Skill 目录始终自动加载。Agent Skills 共享目录默认也
 5. 如需调整 Skill 脚本的最长运行时间，在“脚本执行超时（秒）”中填写正整数。
 6. 点击“保存”。
 
-> **注意**：Skill 脚本会作为本地进程运行，不受安全沙箱隔离。安装第三方 Skill 前，请检查 `SKILL.md`、脚本及其他相关文件，仅安装来自可信来源的 Skill。iCode 通过 `run_skill_script` 工具运行 Skill 脚本；该工具是否需要确认，取决于智能体审批规则和[当前审批模式](../configuration/approval.md)。
+> **注意**：Skill 脚本会作为本地进程运行，不受安全沙箱隔离。安装第三方 Skill 前，请检查 `SKILL.md`、脚本及其他相关文件，仅安装来自可信来源的 Skill。AIxCoding 通过 `run_skill_script` 工具运行 Skill 脚本；该工具是否需要确认，取决于智能体审批规则和[当前审批模式](../configuration/approval.md)。
 
-Skill 脚本向标准输出或标准错误输出超过 32 MiB 时，iCode 只保留这部分输出的开头和结尾，中间部分不会保存，结果中会告诉智能体有多少内容没有保留。
+Skill 脚本向标准输出或标准错误输出超过 32 MiB 时，AIxCoding 只保留这部分输出的开头和结尾，中间部分不会保存，结果中会告诉智能体有多少内容没有保留。
 
 ## 确认 Skill 已加载
 
-保存智能体配置并返回会话后，iCode 会重新加载 Skill。如果直接在磁盘上添加 Skill 目录或修改其中的文件，iCode 不会实时监控这些变化。下一次发送消息时，iCode 会先重新扫描当前智能体已启用的 Skill 目录，再处理该消息。
+保存智能体配置并返回会话后，AIxCoding 会重新加载 Skill。如果直接在磁盘上添加 Skill 目录或修改其中的文件，AIxCoding 不会实时监控这些变化。下一次发送消息时，AIxCoding 会先重新扫描当前智能体已启用的 Skill 目录，再处理该消息。
 
 可通过以下任一方式确认 Skill 已加载：
 
@@ -82,7 +82,7 @@ Skill 通常无需手动调用。当任务与某个 Skill 的描述匹配时，�
 /release-notes 根据当前仓库从上一个版本以来的变更起草发布说明。
 ```
 
-如果 Skill 名称与 iCode 的内置斜杠命令相同，则无法使用 `/skill-name` 显式调用该 Skill。此时，可以在消息中直接指定 Skill 名称，例如：
+如果 Skill 名称与 AIxCoding 的内置斜杠命令相同，则无法使用 `/skill-name` 显式调用该 Skill。此时，可以在消息中直接指定 Skill 名称，例如：
 
 ```text
 使用 release-notes Skill，根据当前仓库从上一个版本以来的变更起草发布说明。
@@ -92,12 +92,12 @@ Skill 通常无需手动调用。当任务与某个 Skill 的描述匹配时，�
 
 ## 同名 Skill 的优先级
 
-从前文列出的[Skill 安装位置](#skill-安装位置)加载的 Skill 都属于目录 Skill，每个 Skill 都包含 `SKILL.md`。iCode 还支持直接在智能体配置文件中定义内嵌 Skill，这类 Skill 不需要 Skill 目录或 `SKILL.md`。
+从前文列出的[Skill 安装位置](#skill-安装位置)加载的 Skill 都属于目录 Skill，每个 Skill 都包含 `SKILL.md`。AIxCoding 还支持直接在智能体配置文件中定义内嵌 Skill，这类 Skill 不需要 Skill 目录或 `SKILL.md`。
 
-如果发现多个同名 Skill，iCode 只会加载优先级最高的一个。优先级从高到低依次为：
+如果发现多个同名 Skill，AIxCoding 只会加载优先级最高的一个。优先级从高到低依次为：
 
 1. 智能体“Skills”标签页中手动添加的目录，越靠上优先级越高（新添加的目录位于列表顶部）；
-2. iCode 用户 Skill 目录；
+2. AIxCoding 用户 Skill 目录；
 3. Agent Skills 共享目录；
 4. 当前工作目录中的 Skill；
 5. 智能体配置文件中的内嵌 Skill，按其定义顺序。
@@ -125,7 +125,7 @@ description: 根据提交记录起草面向用户的发布说明
 
 #### 编写 `SKILL.md`
 
-`SKILL.md` 需要使用 UTF-8 编码。文件开头是由 `---` 包围的 YAML 配置区，也称为 frontmatter；之后是提供给智能体的操作说明。frontmatter 应写成有效的 YAML 键值对象；若不是有效的 YAML，iCode 会尝试逐行读取并记录警告。iCode 按以下规则校验文件内容：
+`SKILL.md` 需要使用 UTF-8 编码。文件开头是由 `---` 包围的 YAML 配置区，也称为 frontmatter；之后是提供给智能体的操作说明。frontmatter 应写成有效的 YAML 键值对象；若不是有效的 YAML，AIxCoding 会尝试逐行读取并记录警告。AIxCoding 按以下规则校验文件内容：
 
 | 内容 | 加载要求 |
 | --- | --- |
@@ -133,19 +133,19 @@ description: 根据提交记录起草面向用户的发布说明
 | `name` | 必填；必须与 Skill 目录名完全一致；长度为 1～64 个字符；只能包含小写字母、数字和连字符（`-`）。不能包含大写字母、下划线（`_`）等其他字符，也不能以连字符开头或结尾，不能包含连续连字符 |
 | `description` | 必填；须为文本，长度不超过 1024 个字符。建议同时说明 Skill 用途和适用场景，帮助智能体判断何时加载 |
 | `compatibility` | 可选；须为文本，长度不超过 500 个字符 |
-| `license`、`allowed-tools` | 可选；iCode 读取其文本，但不额外校验其内容 |
-| `metadata` | 可选；必须是值为纯文本或数字的 YAML 对象，否则 iCode 不会保留该字段 |
-| 正文 | iCode 不额外限制长度或结构 |
+| `license`、`allowed-tools` | 可选；AIxCoding 读取其文本，但不额外校验其内容 |
+| `metadata` | 可选；必须是值为纯文本或数字的 YAML 对象，否则 AIxCoding 不会保留该字段 |
+| 正文 | AIxCoding 不额外限制长度或结构 |
 
-为了确保 Skill 能够稳定加载，请使用有效的 YAML 编写 frontmatter。缺少 frontmatter、`name` 或 `description`，或者字段值未通过上述校验时，iCode 不会加载该 Skill。可选字段写成列表或对象时会被忽略。
+为了确保 Skill 能够稳定加载，请使用有效的 YAML 编写 frontmatter。缺少 frontmatter、`name` 或 `description`，或者字段值未通过上述校验时，AIxCoding 不会加载该 Skill。可选字段写成列表或对象时会被忽略。
 
 几个可选字段分别用于：
 
 * `compatibility`：说明 Skill 依赖的运行环境，例如适用的产品、所需的系统软件包或网络访问条件。
 * `license`：声明 Skill 采用的许可证，可以填写许可证名称或 Skill 目录中许可证文件的名称。
-* `allowed-tools`：按照 Agent Skills 规范声明可预先批准运行的工具。该字段仍处于实验阶段；iCode 当前只读取并保留字段值，不会据此自动授予工具权限。
+* `allowed-tools`：按照 Agent Skills 规范声明可预先批准运行的工具。该字段仍处于实验阶段；AIxCoding 当前只读取并保留字段值，不会据此自动授予工具权限。
 
-iCode 的 Skill 目录和 `SKILL.md` 格式遵循 Agent Skills 通用规范。上述字段的详细写法和 Skill 的完整规范参阅 [Agent Skills 官方规范](https://agentskills.io/specification)。
+AIxCoding 的 Skill 目录和 `SKILL.md` 格式遵循 Agent Skills 通用规范。上述字段的详细写法和 Skill 的完整规范参阅 [Agent Skills 官方规范](https://agentskills.io/specification)。
 
 #### 添加脚本和资源
 
@@ -164,12 +164,12 @@ release-notes/
     └── template.html
 ```
 
-iCode 只会将以下扩展名的文本文件识别为 Skill 资源：`.md`、`.txt`、`.rst`、`.html`、`.htm`、`.xml`、`.svg`、`.json`、`.jsonl`、`.yaml`、`.yml`、`.toml`、`.csv`、`.tsv`、`.ini`、`.cfg`、`.css`。
+AIxCoding 只会将以下扩展名的文本文件识别为 Skill 资源：`.md`、`.txt`、`.rst`、`.html`、`.htm`、`.xml`、`.svg`、`.json`、`.jsonl`、`.yaml`、`.yml`、`.toml`、`.csv`、`.tsv`、`.ini`、`.cfg`、`.css`。
 
 资源文件需要使用 UTF-8 编码。此外：
 
 * 脚本扩展名必须列入智能体配置的“允许的脚本扩展名”。
-* iCode 只读取 Skill 目录根层和直接子目录中的文件。例如，`guide.md` 和 `references/guide.md` 会被发现，`references/api/guide.md` 则会被忽略。
-* iCode 会跳过 Skill 目录内部通过符号链接或 Windows 目录联接访问的文件和目录。这两类链接都指向磁盘中的其他位置；如需使用其中的内容，请将实际文件放入 Skill 目录。
+* AIxCoding 只读取 Skill 目录根层和直接子目录中的文件。例如，`guide.md` 和 `references/guide.md` 会被发现，`references/api/guide.md` 则会被忽略。
+* AIxCoding 会跳过 Skill 目录内部通过符号链接或 Windows 目录联接访问的文件和目录。这两类链接都指向磁盘中的其他位置；如需使用其中的内容，请将实际文件放入 Skill 目录。
 
 不符合扩展名、目录层级或链接规则的文件不会出现在 Skill 的资源或脚本清单中；资源不是有效的 UTF-8 文本时，会在读取时失败。这些情况不影响符合要求的 `SKILL.md` 加载。
