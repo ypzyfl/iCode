@@ -10,7 +10,7 @@
 
 ### 选择工作流
 
-在终端中进入所选项目目录，运行 `aixcoding` 打开 TUI。在输入框输入 `/workflow`，打开工作流选择器，选择来源为内置的 `demo-workflow`。
+在终端中进入所选项目目录，运行 `aixcoding-cli` 打开 TUI。在输入框输入 `/workflow`，打开工作流选择器，选择来源为内置的 `demo-workflow`。
 
 也可以点击左上角的“应用模式：聊天”，选择“工作流”切换模式，然后再点击“新建会话”并选择工作流。
 
@@ -225,11 +225,11 @@ workflow = wf.build()
 `wf.agent()` 用于定义智能体节点。在 `wf.agent("plan", profile="QA")` 中，`"plan"` 是节点名称，`profile="QA"` 选择智能体配置。使用以下命令查看可用配置：
 
 ```shell
-aixcoding agents
-aixcoding models
+aixcoding-cli agents
+aixcoding-cli models
 ```
 
-`profile` 填写 `aixcoding agents` 输出中的 `Name`，可选参数 `model` 填写 `aixcoding models` 输出中的 `Name`。需要为该节点指定模型时，替换注册语句，并将 `My model` 换成实际的模型配置名称：
+`profile` 填写 `aixcoding-cli agents` 输出中的 `Name`，可选参数 `model` 填写 `aixcoding-cli models` 输出中的 `Name`。需要为该节点指定模型时，替换注册语句，并将 `My model` 换成实际的模型配置名称：
 
 ```python
 plan = wf.agent("plan", profile="QA", model="My model")
@@ -263,7 +263,7 @@ plan = wf.agent(
 plan = wf.agent("plan", profile="My ACP agent")
 ```
 
-将 `My ACP agent` 替换为 `aixcoding agents` 中已有的 ACP 配置名称，并确保该配置指定的外部程序可以启动。
+将 `My ACP agent` 替换为 `aixcoding-cli agents` 中已有的 ACP 配置名称，并确保该配置指定的外部程序可以启动。
 
 ACP 节点默认使用外部智能体配置中的模型，不使用工作流默认模型。
 
@@ -564,13 +564,13 @@ CLI 适合无需人工交互的工作流：不支持 `ctx.ask()` 用户问答，
 在项目目录执行以下命令，列举可用的工作流：
 
 ```shell
-aixcoding workflow list
+aixcoding-cli workflow list
 ```
 
 使用列表中的工作流 ID 运行工作流。将以下命令中的 `WORKFLOW_ID` 替换为实际的 ID：
 
 ```shell
-aixcoding workflow run WORKFLOW_ID --input "输入文本" --trust
+aixcoding-cli workflow run WORKFLOW_ID --input "输入文本" --trust
 ```
 
 `--input` 设置起点节点收到的 `WorkflowValue.text`，省略时为空字符串。初始输入的 `data` 为 `None`，不能通过 CLI 参数直接设置；即使传入 JSON 字符串，也仍是文本，需要工作流自行解析。
@@ -598,7 +598,7 @@ Workflow Code review (review) · run 0b337219bb2e · session 890c8ee93562
 在终端中，结果里的控制字符会显示为 `�`。可以通过 `>` 将最终结果原样保存到文件，进度仍显示在终端中：
 
 ```shell
-aixcoding workflow run WORKFLOW_ID --input "输入文本" > result.txt
+aixcoding-cli workflow run WORKFLOW_ID --input "输入文本" > result.txt
 ```
 
 如只需查看警告、错误和最终结果，可添加 `-q` 或 `--quiet`。
@@ -608,7 +608,7 @@ aixcoding workflow run WORKFLOW_ID --input "输入文本" > result.txt
 添加 `--json` 后，CLI 不显示节点状态和进度消息，而是在运行结束后向 stdout 输出 JSON 格式的运行结果，包括运行状态、输出节点名称，以及各结果的 `text` 和 `data`：
 
 ```shell
-aixcoding workflow run WORKFLOW_ID --input "输入文本" --json
+aixcoding-cli workflow run WORKFLOW_ID --input "输入文本" --json
 ```
 
 完整 JSON 字段和退出码见[工作流参考](../../reference/workflows.md#命令行)。

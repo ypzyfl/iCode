@@ -120,7 +120,7 @@ export OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer <token>"
 ```bash
 export CHRYS_OTEL=true
 export CHRYS_OTEL_ENDPOINT=http://localhost:4317
-aixcoding
+aixcoding-cli
 ```
 
 此配置会通过未加密的 gRPC 连接将追踪、日志和指标发送到 `http://localhost:4317`。
@@ -136,7 +136,7 @@ aixcoding
 例如，在测试环境中运行一个 AIxCoding 实例，可在 Bash 或 Zsh 中设置：
 
 ```bash
-export OTEL_SERVICE_NAME=aixcoding-test
+export OTEL_SERVICE_NAME=aixcoding-cli-test
 export OTEL_RESOURCE_ATTRIBUTES="deployment.environment.name=staging,service.instance.id=test-01"
 ```
 
@@ -144,13 +144,13 @@ export OTEL_RESOURCE_ATTRIBUTES="deployment.environment.name=staging,service.ins
 
 | 属性 | 示例值 | 含义 |
 | --- | --- | --- |
-| `service.name` | `aixcoding-test` | 服务名称 |
+| `service.name` | `aixcoding-cli-test` | 服务名称 |
 | `deployment.environment.name` | `staging` | 运行环境，此处表示测试环境 |
 | `service.instance.id` | `test-01` | 实例名称，用于区分同一环境中的多个 AIxCoding 实例 |
 
 `OTEL_RESOURCE_ATTRIBUTES` 使用逗号分隔多个 `名称=值`。其中的属性会覆盖同名默认属性；如果设置了 `service.name`，也会覆盖 `OTEL_SERVICE_NAME`。
 
-例如，设置 `OTEL_SERVICE_NAME=aixcoding-test`，同时设置 `OTEL_RESOURCE_ATTRIBUTES="service.name=aixcoding-qa"`，最终服务名为 `aixcoding-qa`。
+例如，设置 `OTEL_SERVICE_NAME=aixcoding-cli-test`，同时设置 `OTEL_RESOURCE_ATTRIBUTES="service.name=aixcoding-cli-qa"`，最终服务名为 `aixcoding-cli-qa`。
 
 ### 指标与验证
 

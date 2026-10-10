@@ -8,7 +8,7 @@ In a terminal, enter the project directory and start AIxCoding:
 
 ```shell
 cd <project-directory>
-aixcoding
+aixcoding-cli
 ```
 
 AIxCoding uses the directory it was started in as the working directory.
@@ -16,7 +16,7 @@ AIxCoding uses the directory it was started in as the working directory.
 You can also specify a working directory with `-C` or `--workdir`, without first entering the project directory:
 
 ```shell
-aixcoding -C <project-directory>
+aixcoding-cli -C <project-directory>
 ```
 
 ## Change the working directory during a session

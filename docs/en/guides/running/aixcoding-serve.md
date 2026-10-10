@@ -1,12 +1,12 @@
 # Run AIxCoding in a browser
 
-`aixcoding serve` displays AIxCoding terminal user interface (TUI) in a browser, where you can chat, approve tool calls, and change configuration.
+`aixcoding-cli serve` displays AIxCoding terminal user interface (TUI) in a browser, where you can chat, approve tool calls, and change configuration.
 
-Run `aixcoding serve --help` to view startup options.
+Run `aixcoding-cli serve --help` to view startup options.
 
 This guide calls the device running the browser the “local device” and the machine running AIxCoding service the “server.” The server can be the local device or a remote server accessed over a network.
 
-Before you begin, [install AIxCoding](../../start/getting-started.md#1-install-aixcoding) on the server. The browser provides the interface; AIxCoding uses the server's configuration and reads and modifies files and runs commands with the permissions of the system user who started the service. All these operations take place on the server. All visitors share its configuration, files, and sessions; they do not receive separate accounts.
+Before you begin, [install AIxCoding](../../start/getting-started.md#1-install-aixcoding-cli) on the server. The browser provides the interface; AIxCoding uses the server's configuration and reads and modifies files and runs commands with the permissions of the system user who started the service. All these operations take place on the server. All visitors share its configuration, files, and sessions; they do not receive separate accounts.
 
 After your first login, if no model is configured, [configure a model](../../start/getting-started.md#3-configure-a-model) in the browser interface before starting a conversation. Keep the page connected while a task is running. Closing or refreshing the page, or losing the connection, interrupts any task running in that page.
 
@@ -14,9 +14,9 @@ Choose the section that matches the server's location and how you want to access
 
 | Scenario | Instructions |
 | --- | --- |
-| Run and access AIxCoding locally | [Start AIxCoding locally](#start-aixcoding-locally) |
-| Access AIxCoding on a remote server over SSH | [Access remote AIxCoding from your local device](#access-remote-aixcoding-from-your-local-device) |
-| Access AIxCoding through a fixed HTTPS domain | [Access AIxCoding through a fixed HTTPS domain](#access-aixcoding-through-a-fixed-https-domain) |
+| Run and access AIxCoding locally | [Start AIxCoding locally](#start-aixcoding-cli-locally) |
+| Access AIxCoding on a remote server over SSH | [Access remote AIxCoding from your local device](#access-remote-aixcoding-cli-from-your-local-device) |
+| Access AIxCoding through a fixed HTTPS domain | [Access AIxCoding through a fixed HTTPS domain](#access-aixcoding-cli-through-a-fixed-https-domain) |
 
 ## Start AIxCoding locally
 
@@ -25,7 +25,7 @@ Choose the section that matches the server's location and how you want to access
 In a terminal on your local device, change to your working directory and start the service:
 
 ```shell
-aixcoding serve --auth-required
+aixcoding-cli serve --auth-required
 ```
 
 Follow the terminal prompts to enter and confirm a browser login password. The password cannot be empty. `--auth-required` enables password login; without an authentication option, access does not require login.
@@ -38,7 +38,7 @@ Open `http://localhost:7777` in your local browser and enter the password you se
 
 The AIxCoding interface should appear after login, using any existing model configuration on the server. Once a model is configured, send “Hello” and check that you receive a reply.
 
-The directory where you started the service is the initial working directory. Click the directory path at the right end of the conversation area's bottom border to [switch working directories](../daily-use/workspaces.md#change-the-working-directory-during-a-session). `aixcoding serve` does not accept the TUI's `--workdir`, `--agent`, `--model`, or `--session` arguments. Switch agents or models and restore sessions in the page.
+The directory where you started the service is the initial working directory. Click the directory path at the right end of the conversation area's bottom border to [switch working directories](../daily-use/workspaces.md#change-the-working-directory-during-a-session). `aixcoding-cli serve` does not accept the TUI's `--workdir`, `--agent`, `--model`, or `--session` arguments. Switch agents or models and restore sessions in the page.
 
 ### 3. Finish using AIxCoding
 
@@ -63,7 +63,7 @@ Replace `<user>` with the server's SSH username and `<server>` with its IP addre
 After login, commands in this terminal run on the remote server. Change to the remote working directory, then start AIxCoding:
 
 ```shell
-aixcoding serve --auth-required
+aixcoding-cli serve --auth-required
 ```
 
 Set a browser login password, confirm that the terminal displays the service URL, and keep the terminal running.
@@ -90,16 +90,16 @@ When your tasks are finished, press `Ctrl+C` in the first terminal to stop AIxCo
 
 ## Access AIxCoding through a fixed HTTPS domain
 
-To access AIxCoding at a fixed address such as `https://aixcoding.example.com`, deploy a reverse proxy. The browser establishes an encrypted connection to the proxy, which forwards requests to AIxCoding.
+To access AIxCoding at a fixed address such as `https://aixcoding-cli.example.com`, deploy a reverse proxy. The browser establishes an encrypted connection to the proxy, which forwards requests to AIxCoding.
 
 This section assumes an existing HTTPS proxy. Configure the domain and certificate on the proxy; AIxCoding itself does not serve HTTPS.
 
 ### 1. Start AIxCoding
 
-The following example requires the proxy and AIxCoding to run on the same server. In a terminal on the server, change to your working directory, replace `aixcoding.example.com` with your actual domain, and run:
+The following example requires the proxy and AIxCoding to run on the same server. In a terminal on the server, change to your working directory, replace `aixcoding-cli.example.com` with your actual domain, and run:
 
 ```shell
-aixcoding serve --host 127.0.0.1 --port 7777 --public-url https://aixcoding.example.com --auth-required
+aixcoding-cli serve --host 127.0.0.1 --port 7777 --public-url https://aixcoding-cli.example.com --auth-required
 ```
 
 Set a browser login password and keep the terminal running. This command makes AIxCoding accept connections only from the same server. The browser accesses the address specified by `--public-url` through the proxy.
@@ -116,7 +116,7 @@ By default, AIxCoding counts incorrect passwords by proxy address, so multiple v
 
 ### 3. Verify access
 
-Replace `aixcoding.example.com` with your actual domain and open the corresponding HTTPS address in your local browser, such as `https://aixcoding.example.com`. Do not add AIxCoding port `:7777`. The browser should display AIxCoding login page without a certificate warning. After login, send a message and confirm that you receive a reply.
+Replace `aixcoding-cli.example.com` with your actual domain and open the corresponding HTTPS address in your local browser, such as `https://aixcoding-cli.example.com`. Do not add AIxCoding port `:7777`. The browser should display AIxCoding login page without a certificate warning. After login, send a message and confirm that you receive a reply.
 
 The connection from the browser to the proxy is encrypted; the proxy still connects to AIxCoding over HTTP within the server.
 
@@ -135,7 +135,7 @@ Create a UTF-8 plain text file on the server and write the login password to it.
 Change to your working directory and start AIxCoding with the password file:
 
 ```shell
-aixcoding serve --auth-password-file "<password-file>"
+aixcoding-cli serve --auth-password-file "<password-file>"
 ```
 
 Replace `<password-file>` with the path to the password file on the server. Startup no longer prompts for a password. Use the password in the file to log in through the browser.
@@ -145,7 +145,7 @@ Replace `<password-file>` with the path to the password file on the server. Star
 On the server, set an environment variable for the process that starts AIxCoding, such as `CHRYS_SERVE_PASSWORD`, to a nonempty login password. Then run:
 
 ```shell
-aixcoding serve --auth-password-env CHRYS_SERVE_PASSWORD
+aixcoding-cli serve --auth-password-env CHRYS_SERVE_PASSWORD
 ```
 
 The argument to `--auth-password-env` is the environment variable's name. Startup no longer prompts for a password. Use the variable's value to log in through the browser.
@@ -157,7 +157,7 @@ Direct access through a LAN IP address transmits login passwords and conversatio
 On the server, change to your working directory, replace `192.168.1.20` with the server's actual LAN IP address, and run:
 
 ```shell
-aixcoding serve --host 0.0.0.0 --public-url http://192.168.1.20:7777 --auth-required --allow-insecure-auth
+aixcoding-cli serve --host 0.0.0.0 --public-url http://192.168.1.20:7777 --auth-required --allow-insecure-auth
 ```
 
 `--host 0.0.0.0` allows other devices to connect to AIxCoding. `--allow-insecure-auth` explicitly allows plain text password login over the network. Without this option, AIxCoding refuses to start in this example.
@@ -166,12 +166,12 @@ In your local browser, visit the server's actual LAN IP address, such as `http:/
 
 ## Troubleshooting
 
-### The `aixcoding` command is not found
+### The `aixcoding-cli` command is not found
 
 Confirm that AIxCoding is installed on the server and that its installation directory is on `PATH`. If you just installed it, reopen the terminal and run this command to verify:
 
 ```shell
-aixcoding --version
+aixcoding-cli --version
 ```
 
 ### Local startup reports that the port is in use
@@ -179,7 +179,7 @@ aixcoding --version
 Specify an available port with `--port` and use the same port in the browser URL. For example, if `8888` is available:
 
 ```shell
-aixcoding serve --port 8888 --auth-required
+aixcoding-cli serve --port 8888 --auth-required
 ```
 
 Then visit `http://localhost:8888`.
@@ -195,7 +195,7 @@ ssh -N -o ExitOnForwardFailure=yes -L 8888:localhost:7777 <user>@<server>
 Replace `<user>` and `<server>` with the SSH username and server address. Also restart AIxCoding on the remote server with the new browser access URL:
 
 ```shell
-aixcoding serve --public-url http://localhost:8888 --auth-required
+aixcoding-cli serve --public-url http://localhost:8888 --auth-required
 ```
 
 Then visit `http://localhost:8888` on your local device.

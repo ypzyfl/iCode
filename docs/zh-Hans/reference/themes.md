@@ -25,7 +25,7 @@ AIxCoding 支持通过主题文件自定义终端用户界面（Terminal User In
 
 ## 文件格式
 
-以下是自定义深色主题 `aixcoding-ocean.yaml` 的示例：
+以下是自定义深色主题 `aixcoding-cli-ocean.yaml` 的示例：
 
 ```yaml
 # 整体配色

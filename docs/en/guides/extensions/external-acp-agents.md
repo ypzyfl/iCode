@@ -63,16 +63,16 @@ If the connection fails, check the following in order:
 
 AIxCoding itself can also provide an ACP server over stdio. Use the following configuration:
 
-- "Executable": `aixcoding`
+- "Executable": `aixcoding-cli`
 - "Arguments": add `acp`
 
 This configuration corresponds to the startup command:
 
 ```bash
-aixcoding acp
+aixcoding-cli acp
 ```
 
-This command starts AIxCoding ACP server, offering the `Code` agent by default and using `manual` approval mode. For more configuration and usage instructions for AIxCoding ACP server, see [Use AIxCoding ACP server](../running/aixcoding-acp.md).
+This command starts AIxCoding ACP server, offering the `Code` agent by default and using `manual` approval mode. For more configuration and usage instructions for AIxCoding ACP server, see [Use AIxCoding ACP server](../running/aixcoding-cli-acp.md).
 
 ## Use environment variables
 

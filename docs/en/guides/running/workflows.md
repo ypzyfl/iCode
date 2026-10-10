@@ -10,7 +10,7 @@ First, [configure a working model](../../start/getting-started.md#3-configure-a-
 
 ### Select a workflow
 
-In a terminal, change to the chosen project directory and run `aixcoding` to open the TUI. Enter `/workflow` in the input box to open the workflow picker, then select `demo-workflow` with the `builtin` source.
+In a terminal, change to the chosen project directory and run `aixcoding-cli` to open the TUI. Enter `/workflow` in the input box to open the workflow picker, then select `demo-workflow` with the `builtin` source.
 
 Alternatively, click “APP MODE: Chat” in the upper left and select “Workflow” to switch modes, then click “New Session” and select a workflow.
 
@@ -225,11 +225,11 @@ Input → prepare (Python) → plan (agent) → Workflow output
 Use `wf.agent()` to define an agent node. In `wf.agent("plan", profile="QA")`, `"plan"` is the node name and `profile="QA"` selects the agent profile. List available profiles with:
 
 ```shell
-aixcoding agents
-aixcoding models
+aixcoding-cli agents
+aixcoding-cli models
 ```
 
-For `profile`, use a `Name` from `aixcoding agents`; for the optional `model` parameter, use a `Name` from `aixcoding models`. To specify a model for this node, replace the registration below, substituting an actual model profile name for `My model`:
+For `profile`, use a `Name` from `aixcoding-cli agents`; for the optional `model` parameter, use a `Name` from `aixcoding-cli models`. To specify a model for this node, replace the registration below, substituting an actual model profile name for `My model`:
 
 ```python
 plan = wf.agent("plan", profile="QA", model="My model")
@@ -263,7 +263,7 @@ If you have [configured an external Agent Client Protocol (ACP) agent](../extens
 plan = wf.agent("plan", profile="My ACP agent")
 ```
 
-Replace `My ACP agent` with an existing ACP profile name from `aixcoding agents`, and make sure the external program specified in that profile can start.
+Replace `My ACP agent` with an existing ACP profile name from `aixcoding-cli agents`, and make sure the external program specified in that profile can start.
 
 By default, ACP nodes use the model configured for the external agent, not the workflow's default model.
 
@@ -564,13 +564,13 @@ The CLI is suitable for workflows that need no human interaction. It does not su
 Run this command in the project directory to list available workflows:
 
 ```shell
-aixcoding workflow list
+aixcoding-cli workflow list
 ```
 
 Use a workflow ID from the list to run it. Replace `WORKFLOW_ID` below with the actual ID:
 
 ```shell
-aixcoding workflow run WORKFLOW_ID --input "Input text" --trust
+aixcoding-cli workflow run WORKFLOW_ID --input "Input text" --trust
 ```
 
 `--input` sets the `WorkflowValue.text` received by the start node and defaults to an empty string. The initial `data` is `None` and cannot be set directly through CLI arguments. Even a JSON string is still text; the workflow must parse it itself.
@@ -598,7 +598,7 @@ Workflow Code review (review) · run 0b337219bb2e · session 890c8ee93562
 On a terminal, control characters in the results are shown as `�`. Redirect the final results to a file with `>` to keep them exactly as written; the progress still shows in the terminal:
 
 ```shell
-aixcoding workflow run WORKFLOW_ID --input "Input text" > result.txt
+aixcoding-cli workflow run WORKFLOW_ID --input "Input text" > result.txt
 ```
 
 To see only warnings, errors and the final results, add `-q` or `--quiet`.
@@ -608,7 +608,7 @@ To see only warnings, errors and the final results, add `-q` or `--quiet`.
 With `--json`, the CLI suppresses node states and progress messages and writes a JSON result to stdout when the run ends. It includes the run outcome, output node names, and each result's `text` and `data`:
 
 ```shell
-aixcoding workflow run WORKFLOW_ID --input "Input text" --json
+aixcoding-cli workflow run WORKFLOW_ID --input "Input text" --json
 ```
 
 For the complete JSON fields and exit codes, see the [Workflow reference](../../reference/workflows.md#command-line).

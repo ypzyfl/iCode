@@ -50,7 +50,7 @@ llm:
 | `model.role.approval_judge` | `CHRYS_MODEL_PROFILE_APPROVAL_JUDGE` | 未指定 | 字符串；自动审批使用的模型配置，未指定时使用当前模型 |
 | `model.role.session_title` | `CHRYS_MODEL_PROFILE_SESSION_TITLE` | 未指定 | 字符串；自动生成会话标题使用的模型配置，未指定时使用当前模型 |
 | `model.role.buddy_model_id` | `CHRYS_PET_MODEL` | 未指定 | 字符串；Buddy 伙伴使用的模型，沿用当前模型配置的连接；未指定时使用当前模型 |
-| `llm.retry.max_transient` | `CHRYS_MAX_TRANSIENT_RETRIES` | `null` | 整数或 `null`；`null` 使用当前启动入口的默认次数：TUI（含 `aixcoding serve`）和 `aixcoding acp` 为 `10` 次，`aixcoding run` 和 `aixcoding workflow run` 为 `18` 次。每次重试前的等待逐次变长，最长 10 分钟。`0` 禁用瞬时错误自动重试，负数无效，上限 `50` |
+| `llm.retry.max_transient` | `CHRYS_MAX_TRANSIENT_RETRIES` | `null` | 整数或 `null`；`null` 使用当前启动入口的默认次数：TUI（含 `aixcoding-cli serve`）和 `aixcoding-cli acp` 为 `10` 次，`aixcoding-cli run` 和 `aixcoding-cli workflow run` 为 `18` 次。每次重试前的等待逐次变长，最长 10 分钟。`0` 禁用瞬时错误自动重试，负数无效，上限 `50` |
 
 瞬时错误重试用于临时网络故障、请求超时、限流等可恢复错误。提高次数也会增加最终失败前的等待时间和请求次数；该数字不等于整个任务的模型请求总数。
 
@@ -230,10 +230,10 @@ AIxCoding 会提示并忽略项目中不允许的键、超出覆盖限制的值�
 
 | 入口 | 与设置文件有关的行为 |
 | --- | --- |
-| `aixcoding`（TUI） | 使用界面、输入、通知设置；默认智能体取自 `agent.default_profile` |
-| `aixcoding run` | 固定跳过审批，不等待用户回答；默认审批模式和提问超时设置不改变这些行为 |
-| `aixcoding acp` | 智能体客户端协议（Agent Client Protocol，ACP）服务；初始智能体和审批模式由 `--agent`、`--approval` 决定，默认分别为 `Code`、`manual`；提问默认无限等待，由 `--ask-user-timeout` 指定超时 |
-| `aixcoding serve` | 在浏览器中承载 TUI；配置文件和环境变量来自运行 AIxCoding 服务的机器 |
+| `aixcoding-cli`（TUI） | 使用界面、输入、通知设置；默认智能体取自 `agent.default_profile` |
+| `aixcoding-cli run` | 固定跳过审批，不等待用户回答；默认审批模式和提问超时设置不改变这些行为 |
+| `aixcoding-cli acp` | 智能体客户端协议（Agent Client Protocol，ACP）服务；初始智能体和审批模式由 `--agent`、`--approval` 决定，默认分别为 `Code`、`manual`；提问默认无限等待，由 `--ask-user-timeout` 指定超时 |
+| `aixcoding-cli serve` | 在浏览器中承载 TUI；配置文件和环境变量来自运行 AIxCoding 服务的机器 |
 
 ## 设置未生效时
 

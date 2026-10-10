@@ -25,7 +25,7 @@ In the terminal user interface (TUI), enter `/runtime` in the input field, or cl
 | `skill` | No | Load skills, read resources, and run scripts | `load_skill`, `read_skill_resource`, `run_skill_script` |
 | `context` | No | Compact and query conversation context | `compress_context`, `recall_context`, `list_compressed_contexts` |
 
-Tool availability also depends on the current agent, model capabilities, and how AIxCoding is run. For example, `view_image` is only provided to models that support image input, and the headless CLI mode `aixcoding run` does not provide `ask_user`.
+Tool availability also depends on the current agent, model capabilities, and how AIxCoding is run. For example, `view_image` is only provided to models that support image input, and the headless CLI mode `aixcoding-cli run` does not provide `ask_user`.
 
 `web_search` and `web_fetch` are not enabled in any agent shipped with AIxCoding. When an agent includes them, either tool is left out while its mode is `off` or if the model's provider runs a web tool of the same name. See [Configure web tools](../guides/configuration/web-tools.md).
 

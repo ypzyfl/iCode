@@ -120,7 +120,7 @@ Suppose a local collector accepts OTLP gRPC requests at `http://localhost:4317`,
 ```bash
 export CHRYS_OTEL=true
 export CHRYS_OTEL_ENDPOINT=http://localhost:4317
-aixcoding
+aixcoding-cli
 ```
 
 This configuration sends traces, logs, and metrics to `http://localhost:4317` over an unencrypted gRPC connection.
@@ -136,7 +136,7 @@ If AIxCoding instances running in multiple locations send data to the same colle
 For example, when running an AIxCoding instance in a test environment, set the following in Bash or Zsh:
 
 ```bash
-export OTEL_SERVICE_NAME=aixcoding-test
+export OTEL_SERVICE_NAME=aixcoding-cli-test
 export OTEL_RESOURCE_ATTRIBUTES="deployment.environment.name=staging,service.instance.id=test-01"
 ```
 
@@ -144,13 +144,13 @@ After you start AIxCoding in the same terminal, exported data carries the follow
 
 | Attribute | Example value | Meaning |
 | --- | --- | --- |
-| `service.name` | `aixcoding-test` | Service name |
+| `service.name` | `aixcoding-cli-test` | Service name |
 | `deployment.environment.name` | `staging` | Runtime environment; here, a test environment |
 | `service.instance.id` | `test-01` | Instance name, used to distinguish multiple AIxCoding instances in the same environment |
 
 `OTEL_RESOURCE_ATTRIBUTES` accepts multiple comma-separated `name=value` pairs. These attributes override default attributes with the same names. A `service.name` attribute also overrides `OTEL_SERVICE_NAME`.
 
-For example, setting `OTEL_SERVICE_NAME=aixcoding-test` together with `OTEL_RESOURCE_ATTRIBUTES="service.name=aixcoding-qa"` results in the service name `aixcoding-qa`.
+For example, setting `OTEL_SERVICE_NAME=aixcoding-cli-test` together with `OTEL_RESOURCE_ATTRIBUTES="service.name=aixcoding-cli-qa"` results in the service name `aixcoding-cli-qa`.
 
 ### Metrics and verification
 

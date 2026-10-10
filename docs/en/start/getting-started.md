@@ -14,8 +14,8 @@ Choose `aixcoding-cli-macos-aarch64-v<version>-offline.tar.gz` for Apple silicon
 
 ```bash
 tar xzf aixcoding-cli-macos-<architecture>-v<version>-offline.tar.gz
-chmod +x ./aixcoding
-./aixcoding install
+chmod +x ./aixcoding-cli
+./aixcoding-cli install
 ```
 
 ### Linux
@@ -24,8 +24,8 @@ Choose `aixcoding-cli-linux-x86_64-v<version>-offline.tar.gz` or `aixcoding-cli-
 
 ```bash
 tar xzf aixcoding-cli-linux-<architecture>-v<version>-offline.tar.gz
-chmod +x ./aixcoding
-./aixcoding install
+chmod +x ./aixcoding-cli
+./aixcoding-cli install
 ```
 
 The Linux x86-64 package requires glibc 2.17 or later, and the ARM64 package requires glibc 2.18 or later. Distributions that provide only musl, such as Alpine Linux, are not supported by the prebuilt packages.
@@ -35,7 +35,7 @@ The Linux x86-64 package requires glibc 2.17 or later, and the ARM64 package req
 Download and extract `aixcoding-cli-windows-x86_64-v<version>-offline.zip`. Open PowerShell, go to the extracted directory, and run:
 
 ```powershell
-.\aixcoding.exe install
+.\aixcoding-cli.exe install
 ```
 
 The installer attempts to add AIxCoding-CLI to the current user's `PATH`. Open a new terminal after installation.
@@ -43,10 +43,10 @@ The installer attempts to add AIxCoding-CLI to the current user's `PATH`. Open a
 ### Verify the installation
 
 ```shell
-aixcoding --version
+aixcoding-cli --version
 ```
 
-The command should print AIxCoding-CLI version number. If your system cannot find `aixcoding` on macOS or Linux, add `~/.local/bin` to `PATH` as the installer instructs. If the installer reported that `~/.local/bin/aixcoding` already exists, that command starts another program; use `chrys` instead. On Windows, open a new terminal; if the installer reported that updating the user PATH failed, add `%LOCALAPPDATA%\chrys\bin` to your user `PATH` manually.
+The command should print AIxCoding-CLI version number. If your system cannot find `aixcoding-cli` on macOS or Linux, add `~/.local/bin` to `PATH` as the installer instructs. If the installer reported that `~/.local/bin/aixcoding-cli` already exists, that command starts another program; use `chrys` instead. On Windows, open a new terminal; if the installer reported that updating the user PATH failed, add `%LOCALAPPDATA%\chrys\bin` to your user `PATH` manually.
 
 ## 2. Start AIxCoding-CLI in a project
 
@@ -56,7 +56,7 @@ In a terminal, go to the project directory and start AIxCoding-CLI:
 
 ```shell
 cd <project-directory>
-aixcoding
+aixcoding-cli
 ```
 
 Replace `<project-directory>` with the actual path to your project. To switch directories after startup, see [Working directory](../guides/daily-use/workspaces.md).

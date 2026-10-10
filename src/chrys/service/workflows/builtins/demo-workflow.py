@@ -16,10 +16,10 @@ HOW TO RUN IT
     what you want to learn ("how does authentication work?"). The run asks you two things: how deep to
     go, and whether the draft is good.
 
-    `aixcoding workflow run` is headless: nobody can answer there, so `ctx.ask` fails the node. This demo
+    `aixcoding-cli workflow run` is headless: nobody can answer there, so `ctx.ask` fails the node. This demo
     therefore defines its own input lines that settle the questions up front:
 
-        aixcoding workflow run demo-workflow --input $'interactive: false\ndepth: deep\nhow are errors handled?'
+        aixcoding-cli workflow run demo-workflow --input $'interactive: false\ndepth: deep\nhow are errors handled?'
 
         interactive: false      never ask; the tour is labelled "not reviewed by a human"
         depth: quick | deep     skip the depth question (unattended runs default to quick)
@@ -559,7 +559,7 @@ def tour_text(value: WorkflowValue) -> str:
 
 
 def render_tour(value: WorkflowValue) -> str:
-    """Output node. Its value appears on the Output tab and is what `aixcoding workflow run` prints.
+    """Output node. Its value appears on the Output tab and is what `aixcoding-cli workflow run` prints.
 
     The status line says honestly how the draft got here, including the case where the loop ran out
     of rounds and handed over a draft that nobody accepted.

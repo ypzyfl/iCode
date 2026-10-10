@@ -82,14 +82,14 @@ Shell（`!`）是一个真正的终端，因此全屏程序可以原地运行，
 ```bash
 uv sync --extra all        # 不要用裸 `uv sync`，也不要用 `--all-extras`
 ./scripts/fetch_rg.sh      # 下载随附的 ripgrep；Windows：.\scripts\fetch_rg.ps1
-uv run aixcoding               # `uv run chrys` 启动的是同一个程序（`Chrys` 是我们的代号）
+uv run aixcoding-cli               # `uv run chrys` 启动的是同一个程序（`Chrys` 是我们的代号）
 ```
 
 iCode 不附带任何模型配置，因此首次启动时请按 **F4** 添加一个。
 
 ## 用户指南
 
-在 iCode 中按 **F8** 即可打开内置的用户指南，其中完整介绍了 iCode 的使用方法。相同的内容也位于 [`docs/`](docs/) 目录，提供 [English](docs/en/start/what-is-aixcoding.md) 和 [简体中文](docs/zh-Hans/start/what-is-aixcoding.md) 两个版本。
+在 iCode 中按 **F8** 即可打开内置的用户指南，其中完整介绍了 iCode 的使用方法。相同的内容也位于 [`docs/`](docs/) 目录，提供 [English](docs/en/start/what-is-aixcoding-cli.md) 和 [简体中文](docs/zh-Hans/start/what-is-aixcoding-cli.md) 两个版本。
 
 ## 隐私
 

@@ -62,7 +62,7 @@ tools:
 将上述配置保存为[用户智能体配置目录](#用户智能体配置目录)中的 `Reviewer.yaml`。运行以下命令，确认配置能够加载：
 
 ```bash
-aixcoding agents
+aixcoding-cli agents
 ```
 
 列表中出现“代码审查”，说明配置已加载。如果未出现，请检查启动时显示的 YAML 解析或字段校验警告，并确认文件位于用户智能体配置目录中。
@@ -101,7 +101,7 @@ model:
 
 省略 `profile_id`、将其留空，或者填写的 ID 在已加载的模型配置中找不到时，主智能体使用会话中当前生效的模型配置，子智能体继承父智能体实际使用的模型配置。ID 找不到时，AIxCoding 还会记录警告。
 
-运行 `aixcoding models` 可以在 `ID` 列查看模型配置的稳定 ID。模型配置方法参阅[配置模型](../guides/configuration/models.md)。
+运行 `aixcoding-cli models` 可以在 `ID` 列查看模型配置的稳定 ID。模型配置方法参阅[配置模型](../guides/configuration/models.md)。
 
 ## tools
 

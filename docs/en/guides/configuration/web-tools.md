@@ -49,7 +49,7 @@ The `web_search` and `web_fetch` kinds require approval by default. This default
 
 - In manual mode, each web tool call opens the **Approval Required** dialog.
 - In automatic mode, the approval judge model may approve the call.
-- In bypass mode, including the headless CLI `aixcoding run`, web tool calls run without asking.
+- In bypass mode, including the headless CLI `aixcoding-cli run`, web tool calls run without asking.
 
 To stop being asked about searches, set an override in the agent profile, for example `approval.overrides: {web_search: auto}`. See [Configure approval modes](./approval.md).
 

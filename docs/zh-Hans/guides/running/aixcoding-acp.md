@@ -10,16 +10,16 @@
 
 | 项目 | 值 |
 | --- | --- |
-| 可执行文件 | `aixcoding` |
+| 可执行文件 | `aixcoding-cli` |
 | 参数 | `acp` |
 
 这相当于客户端启动：
 
 ```shell
-aixcoding acp
+aixcoding-cli acp
 ```
 
-如果客户端只提供一个启动命令字段，则填写完整命令 `aixcoding acp`。
+如果客户端只提供一个启动命令字段，则填写完整命令 `aixcoding-cli acp`。
 
 保存配置后，按以下步骤验证连接：
 
@@ -29,7 +29,7 @@ aixcoding acp
 
 ## 配置启动选项
 
-`aixcoding acp` 支持以下启动选项。若客户端分别设置可执行文件和参数，将这些选项追加到 `acp` 后。
+`aixcoding-cli acp` 支持以下启动选项。若客户端分别设置可执行文件和参数，将这些选项追加到 `acp` 后。
 
 | 选项 | 默认值 | 用途 |
 | --- | --- | --- |

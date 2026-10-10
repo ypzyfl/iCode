@@ -62,7 +62,7 @@ This example omits `id`. AIxCoding assigns a stable ID and writes it back to the
 Save the profile as `Reviewer.yaml` in the [user agent profile directory](#user-agent-profile-directory). Run the following command to confirm that it loads:
 
 ```bash
-aixcoding agents
+aixcoding-cli agents
 ```
 
 If "Code review" appears in the list, the profile has loaded. If it does not appear, check the YAML parsing or field validation warnings shown at startup, and confirm that the file is in the user agent profile directory.
@@ -101,7 +101,7 @@ model:
 
 If `profile_id` is omitted, empty, or not found among the loaded model profiles, the main agent uses the model profile currently active in the session, and a sub-agent inherits the model profile actually used by its parent. AIxCoding also logs a warning when the ID cannot be found.
 
-Run `aixcoding models` to find stable model profile IDs in the `ID` column. For model configuration instructions, see [Configure models](../guides/configuration/models.md).
+Run `aixcoding-cli models` to find stable model profile IDs in the `ID` column. For model configuration instructions, see [Configure models](../guides/configuration/models.md).
 
 ## tools
 

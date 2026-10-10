@@ -25,9 +25,9 @@ AIxCoding 目前支持 Anthropic、OpenAI、DeepSeek 和 GLM 等模型提供商�
 AIxCoding 提供多种使用入口，可以根据不同的工作场景选择合适的方式：
 
 - **TUI**：AIxCoding 的主要交互界面，适合交互式任务。支持在会话中查看工具调用、处理审批请求，以及切换智能体和模型配置。
-- **无界面命令行（Command-Line Interface，CLI）**：通过 `aixcoding run` 执行非交互式任务，适合一次性任务、脚本和自动化流程。
-- **浏览器界面**：[在浏览器中运行 TUI](../guides/running/aixcoding-serve.md)，适合需要在终端之外使用交互界面的场景。
-- **ACP 服务**：将 AIxCoding 作为智能体后端，[接入支持 ACP 的编辑器或其他开发工具](../guides/running/aixcoding-acp.md)。
+- **无界面命令行（Command-Line Interface，CLI）**：通过 `aixcoding-cli run` 执行非交互式任务，适合一次性任务、脚本和自动化流程。
+- **浏览器界面**：[在浏览器中运行 TUI](../guides/running/aixcoding-cli-serve.md)，适合需要在终端之外使用交互界面的场景。
+- **ACP 服务**：将 AIxCoding 作为智能体后端，[接入支持 ACP 的编辑器或其他开发工具](../guides/running/aixcoding-cli-acp.md)。
 
 首次使用建议从 TUI 开始。通过交互式会话，可以快速熟悉智能体、模型和工具的协作方式。
 

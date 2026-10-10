@@ -45,10 +45,10 @@ workflow = wf.build()          # 校验并构建，赋给模块顶层的 workflo
 首次加载自定义工作流时，需要确认信任：
 
 - **TUI**：选择工作流后会弹出“信任工作流”对话框，检查源码及所声明的执行环境后，点击“信任”继续；点击“取消”则不加载。
-- **CLI**：在 `aixcoding workflow run` 命令中添加 `--trust`。例如，在项目根目录运行 `.chrys/workflows/echo.py`：
+- **CLI**：在 `aixcoding-cli workflow run` 命令中添加 `--trust`。例如，在项目根目录运行 `.chrys/workflows/echo.py`：
 
 ```shell
-aixcoding workflow run echo --trust --input "Hello"
+aixcoding-cli workflow run echo --trust --input "Hello"
 ```
 
 确认会被保存，后续运行可省略 `--trust`。入口文件源码、构建出的工作流定义，或所选解释器的路径、版本、平台及 AIxCoding 提供的工作流 SDK 等环境信息发生变化后，需要重新确认。该检查不覆盖已安装依赖包的变化，也不逐一检查导入的其他 Python 文件。
@@ -214,8 +214,8 @@ agent(
 | 参数 | 含义 |
 | --- | --- |
 | `name` | 节点名称 |
-| `profile` | 必填，已有智能体配置的 ID、名称或显示名称；建议使用 ID，通过 `aixcoding agents` 查看 |
-| `model` | 可选，传入 AIxCoding 模型配置的 ID 或名称，可通过 `aixcoding models` 查看；省略时按下文的模型选择规则确定 |
+| `profile` | 必填，已有智能体配置的 ID、名称或显示名称；建议使用 ID，通过 `aixcoding-cli agents` 查看 |
+| `model` | 可选，传入 AIxCoding 模型配置的 ID 或名称，可通过 `aixcoding-cli models` 查看；省略时按下文的模型选择规则确定 |
 | `instructions_suffix` | 可选字符串，补充当前节点的指令 |
 | `timeout` | 单次尝试的秒数上限，默认不限制；有限正数或 `None` |
 | `retry` | 省略时最多三次尝试，间隔为零；不是所有错误都会自动重试 |
@@ -246,7 +246,7 @@ agent(
 
 1. `agent()` 的 `model` 参数。
 2. 智能体配置中绑定的模型。
-3. 工作流默认模型。TUI 可在“运行设置”中选择；CLI 通过 `aixcoding workflow run <工作流ID> --session <会话ID>` 加载已有工作流会话时，沿用该会话保存的模型选择。未单独选择工作流默认模型时，使用 [AIxCoding 配置的默认模型](settings.md#智能体模型与请求)。
+3. 工作流默认模型。TUI 可在“运行设置”中选择；CLI 通过 `aixcoding-cli workflow run <工作流ID> --session <会话ID>` 加载已有工作流会话时，沿用该会话保存的模型选择。未单独选择工作流默认模型时，使用 [AIxCoding 配置的默认模型](settings.md#智能体模型与请求)。
 
 `model` 参数指定的模型不存在或不可用时会报错。智能体绑定的模型不存在时，会继续使用工作流默认模型。没有可用模型时，工作流无法启动。
 
@@ -680,7 +680,7 @@ TUI 的“启动工作流”对话框提供“运行设置”。工作目录能�
 
 重新打开会话后，可以查看历史或启动新运行，但不会从上次中断的节点续跑。已取消或中断的运行需要重新开始；当前运行中等待手动重试的节点按[超时与重试](#超时与重试)处理。
 
-`aixcoding workflow run --json` 输出的结果对象中，`outcome` 字段表示运行结果。本地记录也保存该字段，位于[会话目录](../guides/daily-use/sessions.md#查找会话-id-和会话保存位置)下 `workflows/<run_id>/events.jsonl` 的运行结束事件中。
+`aixcoding-cli workflow run --json` 输出的结果对象中，`outcome` 字段表示运行结果。本地记录也保存该字段，位于[会话目录](../guides/daily-use/sessions.md#查找会话-id-和会话保存位置)下 `workflows/<run_id>/events.jsonl` 的运行结束事件中。
 
 进程异常终止、来不及收尾的记录，会在恢复会话时补记 `outcome=orphaned`，在工作流运行界面中显示为“进程退出时未完成”。
 
@@ -705,8 +705,8 @@ TUI 中通过运行页签切换同一会话的运行记录；退出后，切换�
 运行和节点的用量、耗时可用于检查开销；ACP 用量取决于远端是否报告。需要导出分析时使用：
 
 ```shell
-aixcoding trajectory export --session <session-id> --format json --out workflow.json
-aixcoding trajectory export --session <session-id> --format perfetto --out workflow.perfetto.json
+aixcoding-cli trajectory export --session <session-id> --format json --out workflow.json
+aixcoding-cli trajectory export --session <session-id> --format perfetto --out workflow.perfetto.json
 ```
 
 将 `<session-id>` 换成工作流会话 ID。工作流会话的分析导出仅支持 JSON 和 Perfetto 格式。
@@ -733,29 +733,29 @@ aixcoding trajectory export --session <session-id> --format perfetto --out workf
 
 ## 命令行
 
-### `aixcoding workflow list`
+### `aixcoding-cli workflow list`
 
 按[文件发现](#文件发现)规则列出工作流，不执行工作流代码。自定义工作流的标题取自此前保存的信任确认记录。
 
 ```shell
-aixcoding workflow list [--json]
+aixcoding-cli workflow list [--json]
 ```
 
 默认以文本模式显示 `ID`、`Source`、`Title`、`Path`，未知标题显示为 `-`。添加 `--json` 后输出一个对象，其 `workflows` 数组每项包含 `id`、`source`、`title`、`path`；未知标题为空字符串。两种输出模式下，跳过文件的警告均写入 stderr。使用 `-h` / `--help` 查看帮助。
 
-### `aixcoding workflow run`
+### `aixcoding-cli workflow run`
 
 运行指定工作流，完成后输出结果。
 
 #### 参数
 
 ```shell
-aixcoding workflow run <workflow-id> [--input TEXT] [-s SESSION] [--trust] [--timeout SECONDS] [--json] [-q]
+aixcoding-cli workflow run <workflow-id> [--input TEXT] [-s SESSION] [--trust] [--timeout SECONDS] [--json] [-q]
 ```
 
 | 参数 | 默认值与用途 |
 | --- | --- |
-| `<workflow-id>` | 文件名去掉 `.py` 的 ID，可由 `aixcoding workflow list` 查询 |
+| `<workflow-id>` | 文件名去掉 `.py` 的 ID，可由 `aixcoding-cli workflow list` 查询 |
 | `--input TEXT` | 默认空字符串，传给起点的 `WorkflowValue.text` |
 | `-s` / `--session` | 加载已有工作流会话，为该会话绑定的工作流发起新运行；不能续跑旧运行。该会话必须是至少已有一次运行的工作流会话；`<workflow-id>` 必须与会话绑定的工作流一致，否则运行会被拒绝，错误代码为 `spec_changed` |
 | `--trust` | 信任当前自定义源码及环境；内置工作流无需此选项 |

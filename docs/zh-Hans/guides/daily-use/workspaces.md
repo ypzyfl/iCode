@@ -8,7 +8,7 @@
 
 ```shell
 cd <project-directory>
-aixcoding
+aixcoding-cli
 ```
 
 AIxCoding 会将启动时所在的目录作为工作目录。
@@ -16,7 +16,7 @@ AIxCoding 会将启动时所在的目录作为工作目录。
 也可以通过 `-C` 或 `--workdir` 选项指定工作目录，无需先进入项目目录：
 
 ```shell
-aixcoding -C <project-directory>
+aixcoding-cli -C <project-directory>
 ```
 
 ## 在会话中切换工作目录

@@ -306,10 +306,10 @@ jobs:
           base="${{ matrix.artifact }}"
           version="v${PROJECT_VERSION}"
           if [[ "$base" == *.exe ]]; then
-            echo "binary=aixcoding.exe" >> "$GITHUB_OUTPUT"
+            echo "binary=aixcoding-cli.exe" >> "$GITHUB_OUTPUT"
             echo "artifact=${base%.exe}-${version}-${{ matrix.installer }}" >> "$GITHUB_OUTPUT"
           else
-            echo "binary=aixcoding" >> "$GITHUB_OUTPUT"
+            echo "binary=aixcoding-cli" >> "$GITHUB_OUTPUT"
             echo "artifact=${base}-${version}-${{ matrix.installer }}" >> "$GITHUB_OUTPUT"
           fi
 
@@ -388,15 +388,15 @@ jobs:
         run: |
           mkdir release
           # Archive binaries: tar.gz for Linux/macOS, zip for Windows
-          # Binary inside the archive is "aixcoding" (or "aixcoding.exe");
+          # Binary inside the archive is "aixcoding-cli" (or "aixcoding-cli.exe");
           # the archive filename carries the product/platform info.
           for dir in artifacts/aixcoding-cli-*/; do
             [ -d "$dir" ] || continue
             artifact=$(basename "$dir")
-            if [ -f "$dir/aixcoding.exe" ]; then
-              (cd "$dir" && zip -q "$OLDPWD/release/${artifact}.zip" "aixcoding.exe")
-            elif [ -f "$dir/aixcoding" ]; then
-              tar -czf "release/${artifact}.tar.gz" -C "$dir" "aixcoding"
+            if [ -f "$dir/aixcoding-cli.exe" ]; then
+              (cd "$dir" && zip -q "$OLDPWD/release/${artifact}.zip" "aixcoding-cli.exe")
+            elif [ -f "$dir/aixcoding-cli" ]; then
+              tar -czf "release/${artifact}.tar.gz" -C "$dir" "aixcoding-cli"
             fi
           done
           cp artifacts/wheel/*.whl release/

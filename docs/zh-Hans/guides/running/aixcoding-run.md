@@ -1,29 +1,29 @@
-# 使用 aixcoding run 执行无界面任务
+# 使用 aixcoding-cli run 执行无界面任务
 
-`aixcoding run` 在终端中执行任务，完成后返回智能体的最终回复。它不打开终端用户界面（Terminal User Interface，TUI）；任务运行期间，会逐行显示智能体正在做什么，适合一次性任务、脚本和自动化流程。
+`aixcoding-cli run` 在终端中执行任务，完成后返回智能体的最终回复。它不打开终端用户界面（Terminal User Interface，TUI）；任务运行期间，会逐行显示智能体正在做什么，适合一次性任务、脚本和自动化流程。
 
-本指南介绍 `aixcoding run` 如何指定任务、智能体、模型、工作目录和会话，如何查看或隐藏运行进度，以及如何取得适合程序处理的 JSON 输出。
+本指南介绍 `aixcoding-cli run` 如何指定任务、智能体、模型、工作目录和会话，如何查看或隐藏运行进度，以及如何取得适合程序处理的 JSON 输出。
 
 ## 开始前
 
 运行前需要完成以下准备：
 
 - 已安装 AIxCoding-CLI，并至少配置一个可用模型。请参阅[开始使用 AIxCoding-CLI](../../start/getting-started.md)和[配置模型](../configuration/models.md)。
-- 已确定要使用的智能体。内置的 `QA` 智能体在 TUI 中显示为“Q&A Agent”，其指令要求它不修改任何内容，但它可以执行 Shell 命令，且 `aixcoding run` 执行这些命令前不会请求审批；`Code` 智能体可以修改文件和运行命令。自定义智能体的能力取决于其配置。请参阅[配置智能体](../configuration/agents.md)。
+- 已确定要使用的智能体。内置的 `QA` 智能体在 TUI 中显示为“Q&A Agent”，其指令要求它不修改任何内容，但它可以执行 Shell 命令，且 `aixcoding-cli run` 执行这些命令前不会请求审批；`Code` 智能体可以修改文件和运行命令。自定义智能体的能力取决于其配置。请参阅[配置智能体](../configuration/agents.md)。
 - 如任务可能修改文件，先保存未写入磁盘的工作，并在可恢复的工作目录中运行，例如已提交当前变更的 Git 仓库。
 
 > **注意**
 >
-> `aixcoding run` 始终绕过工具审批。智能体调用 Shell、写入文件或运行技能时不会等待确认。只应在可信的工作目录中运行可信的智能体和任务。
+> `aixcoding-cli run` 始终绕过工具审批。智能体调用 Shell、写入文件或运行技能时不会等待确认。只应在可信的工作目录中运行可信的智能体和任务。
 
-`aixcoding run` 在运行期间不能与人交互；应在启动前将任务要求和所需上下文写入提示词。
+`aixcoding-cli run` 在运行期间不能与人交互；应在启动前将任务要求和所需上下文写入提示词。
 
 ## 执行任务
 
 在项目目录中运行命令，并通过 `-a` 或 `--agent` 指定智能体。任务文本含空格时使用引号：
 
 ```shell
-aixcoding run "概述这个项目的目录结构和主要模块" --agent QA
+aixcoding-cli run "概述这个项目的目录结构和主要模块" --agent QA
 ```
 
 任务运行期间，AIxCoding-CLI 会显示运行进度；任务完成后，先显示一行汇总，再显示智能体的最终回复。例如：
@@ -45,19 +45,19 @@ The project has three main parts: ...
 需要让智能体修改或验证代码时，可使用 `Code`：
 
 ```shell
-aixcoding run "修复登录表单的验证错误，并运行相关测试" --agent Code
+aixcoding-cli run "修复登录表单的验证错误，并运行相关测试" --agent Code
 ```
 
 这类任务可能修改工作目录中的文件并执行命令；运行前应确认提示词、智能体和当前目录都符合预期。
 
-运行 `aixcoding run -h` 或 `aixcoding run --help` 可以查看当前版本支持的参数。
+运行 `aixcoding-cli run -h` 或 `aixcoding-cli run --help` 可以查看当前版本支持的参数。
 
 ## 查看运行进度
 
 进度行写入标准错误（`stderr`），最终回复写入标准输出（`stdout`）。在终端中两者都会显示；使用 `>` 保存回复或将回复交给其他程序时，只有回复会写入：
 
 ```shell
-aixcoding run "为最近的改动撰写发布说明" --agent QA > notes.md
+aixcoding-cli run "为最近的改动撰写发布说明" --agent QA > notes.md
 ```
 
 每一行表示一个步骤：
@@ -77,7 +77,7 @@ aixcoding run "为最近的改动撰写发布说明" --agent QA > notes.md
 如只需查看警告、错误和最终回复，可添加 `-q` 或 `--quiet`：
 
 ```shell
-aixcoding run "概述这个项目" --agent QA --quiet
+aixcoding-cli run "概述这个项目" --agent QA --quiet
 ```
 
 ## 指定工作目录
@@ -85,7 +85,7 @@ aixcoding run "概述这个项目" --agent QA --quiet
 `-C` 或 `--workdir` 指定智能体处理文件和执行命令时使用的工作目录，无需先在终端中切换目录：
 
 ```shell
-aixcoding run "检查未提交的变更并说明风险" --agent QA --workdir <project-directory>
+aixcoding-cli run "检查未提交的变更并说明风险" --agent QA --workdir <project-directory>
 ```
 
 将 `<project-directory>` 替换为实际项目路径。可以使用绝对路径，或相对于运行命令时所在目录的路径；路径必须指向一个已有目录。
@@ -95,7 +95,7 @@ aixcoding run "检查未提交的变更并说明风险" --agent QA --workdir <pr
 较长、需要版本管理或由脚本生成的任务可以放在文本文件中，再通过 `-t` 或 `--task` 读取：
 
 ```shell
-aixcoding run --task prompts/review.md --agent Code --workdir <project-directory>
+aixcoding-cli run --task prompts/review.md --agent Code --workdir <project-directory>
 ```
 
 `--task` 不要求特定文件后缀。AIxCoding-CLI 会读取该文件内容，并将其作为本次任务的提示词。任务文件路径可以是绝对路径，也可以是相对路径；使用相对路径时，AIxCoding-CLI 会在 `--workdir` 指定的目录中查找该文件，未指定 `--workdir` 时，则在运行命令时所在的目录中查找。
@@ -104,7 +104,7 @@ aixcoding run --task prompts/review.md --agent Code --workdir <project-directory
 
 ## 选择智能体和模型
 
-`aixcoding run` 必须通过 `--agent` 指定智能体。运行 `aixcoding agents` 可以查看可用的智能体配置：
+`aixcoding-cli run` 必须通过 `--agent` 指定智能体。运行 `aixcoding-cli agents` 可以查看可用的智能体配置：
 
 ```text
 Default  Name  Display Name  ID            Model
@@ -118,7 +118,7 @@ Default  Name  Display Name  ID            Model
 
 对于使用 `active` 模型的智能体，可以通过 `-m` 或 `--model` 为本次运行指定模型配置；对于已绑定模型的智能体，`--model` 不生效。
 
-运行 `aixcoding models` 可以查看可用的模型配置：
+运行 `aixcoding-cli models` 可以查看可用的模型配置：
 
 ```text
 Active  ID            Name           Provider  API   Model          Context  Flags
@@ -132,7 +132,7 @@ Active  ID            Name           Provider  API   Model          Context  Fla
 添加 `--json` 后，成功结果以 JSON 对象写入标准输出（`stdout`），错误和警告以 JSON 对象写入标准错误（`stderr`），不显示运行进度。例如：
 
 ```shell
-aixcoding run "hello" -a QA --json
+aixcoding-cli run "hello" -a QA --json
 ```
 
 以下是一次运行的实际输出：
@@ -146,7 +146,7 @@ aixcoding run "hello" -a QA --json
 读取不存在的任务文件时：
 
 ```shell
-aixcoding run --task missing.md -a QA --json
+aixcoding-cli run --task missing.md -a QA --json
 ```
 
 标准错误输出：
@@ -164,18 +164,18 @@ aixcoding run --task missing.md -a QA --json
 在无界面模式下，可从第一轮 JSON 输出的 `session_id` 字段获取会话 ID：
 
 ```shell
-aixcoding run "检查当前改动并列出需要补充的测试" --agent Code --json
+aixcoding-cli run "检查当前改动并列出需要补充的测试" --agent Code --json
 ```
 
 将返回的会话 ID 传给第二轮：
 
 ```shell
-aixcoding run "根据上一轮的结果，补充缺少的测试" --agent Code -s <session-id> --json
+aixcoding-cli run "根据上一轮的结果，补充缺少的测试" --agent Code -s <session-id> --json
 ```
 
 其中 `<session-id>` 填写第一轮返回的会话 ID。
 
-通过 `aixcoding run` 创建或继续的会话也会出现在 TUI 的“聊天会话”窗口中，勾选其中的“CLI”即可看到。参阅[恢复已有会话](../daily-use/sessions.md#恢复已有会话)。
+通过 `aixcoding-cli run` 创建或继续的会话也会出现在 TUI 的“聊天会话”窗口中，勾选其中的“CLI”即可看到。参阅[恢复已有会话](../daily-use/sessions.md#恢复已有会话)。
 
 ## 退出状态
 
@@ -186,5 +186,5 @@ aixcoding run "根据上一轮的结果，补充缺少的测试" --agent Code -s
 | `0` | 智能体已正常完成并返回最终回复。 |
 | `1` | 配置、任务文件、智能体、模型、会话或任务执行出现错误。具体原因写入标准错误。 |
 | `2` | 命令行参数无效，例如缺少 `--agent`，或同时提供或均未提供提示词和 `--task`。用法说明以纯文本写入标准错误，即使指定了 `--json` 也是如此。 |
-| `124` | 内部操作超时。`aixcoding run` 不限制任务的总运行时间。 |
+| `124` | 内部操作超时。`aixcoding-cli run` 不限制任务的总运行时间。 |
 | `130` | 运行被中断。 |

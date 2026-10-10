@@ -61,7 +61,7 @@ Web tools send requests to outside services, so the `web_search` and `web_fetch`
 Select the built-in Code agent, then submit this request:
 
 ```text
-Use the Shell tool to run aixcoding --version
+Use the Shell tool to run aixcoding-cli --version
 ```
 
 This command only displays the version and does not modify files, but it is not among the read-only Shell commands approved automatically. Expect the following results:
@@ -74,6 +74,6 @@ This command only displays the version and does not modify files, but it is not 
 
 Other ways of running AIxCoding use the following approval modes and switching methods:
 
-- **Headless CLI (`aixcoding run`)**: Always bypasses approval and provides no approval-related options.
-- **AIxCoding ACP server**: Defaults to manual mode. Use `aixcoding acp --approval manual|auto|bypass` to set the initial mode. ACP clients that support this capability can also switch the current session's mode.
-- **Browser-hosted TUI (`aixcoding serve`)**: Use the TUI operations described earlier to switch approval modes and handle approval requests.
+- **Headless CLI (`aixcoding-cli run`)**: Always bypasses approval and provides no approval-related options.
+- **AIxCoding ACP server**: Defaults to manual mode. Use `aixcoding-cli acp --approval manual|auto|bypass` to set the initial mode. ACP clients that support this capability can also switch the current session's mode.
+- **Browser-hosted TUI (`aixcoding-cli serve`)**: Use the TUI operations described earlier to switch approval modes and handle approval requests.

@@ -25,7 +25,7 @@ After adding or editing a theme file, restart AIxCoding to load it, then press *
 
 ## File Format
 
-The following example defines a custom dark theme in `aixcoding-ocean.yaml`:
+The following example defines a custom dark theme in `aixcoding-cli-ocean.yaml`:
 
 ```yaml
 # Overall palette

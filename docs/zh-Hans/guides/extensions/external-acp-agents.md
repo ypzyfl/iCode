@@ -63,16 +63,16 @@ example-agent acp --model example-model
 
 AIxCoding 自身也可以通过 stdio 提供 ACP 服务。可以使用以下配置：
 
-- “可执行文件”：`aixcoding`
+- “可执行文件”：`aixcoding-cli`
 - “参数”：添加 `acp`
 
 以上配置对应启动命令：
 
 ```bash
-aixcoding acp
+aixcoding-cli acp
 ```
 
-该命令会启动 AIxCoding ACP 服务，默认提供 `Code` 智能体，并使用 `manual` 审批模式。有关 AIxCoding ACP 服务的更多配置和使用说明，请参阅[使用 AIxCoding ACP 服务](../running/aixcoding-acp.md)。
+该命令会启动 AIxCoding ACP 服务，默认提供 `Code` 智能体，并使用 `manual` 审批模式。有关 AIxCoding ACP 服务的更多配置和使用说明，请参阅[使用 AIxCoding ACP 服务](../running/aixcoding-cli-acp.md)。
 
 ## 使用环境变量
 

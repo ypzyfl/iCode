@@ -50,7 +50,7 @@ Model role keys take the ID or unique name of an existing model profile. Buddy d
 | `model.role.approval_judge` | `CHRYS_MODEL_PROFILE_APPROVAL_JUDGE` | Unset | String; the model profile used for automatic approval. Uses the current model when unset |
 | `model.role.session_title` | `CHRYS_MODEL_PROFILE_SESSION_TITLE` | Unset | String; the model profile used to generate session titles automatically. Uses the current model when unset |
 | `model.role.buddy_model_id` | `CHRYS_PET_MODEL` | Unset | String; the model used by Buddy, using the current model profile's connection. Uses the current model when unset |
-| `llm.retry.max_transient` | `CHRYS_MAX_TRANSIENT_RETRIES` | `null` | Integer or `null`; `null` uses the default retry count for the launch command: `10` for the TUI (including `aixcoding serve`) and `aixcoding acp`, or `18` for `aixcoding run` and `aixcoding workflow run`. The wait before each retry grows, up to 10 minutes. `0` disables automatic retries for transient errors; negative values are invalid; capped at `50` |
+| `llm.retry.max_transient` | `CHRYS_MAX_TRANSIENT_RETRIES` | `null` | Integer or `null`; `null` uses the default retry count for the launch command: `10` for the TUI (including `aixcoding-cli serve`) and `aixcoding-cli acp`, or `18` for `aixcoding-cli run` and `aixcoding-cli workflow run`. The wait before each retry grows, up to 10 minutes. `0` disables automatic retries for transient errors; negative values are invalid; capped at `50` |
 
 Transient error retries handle recoverable errors such as temporary network failures, request timeouts, and rate limits. Raising the count also increases the wait and number of requests before a final failure. This number is not the total number of model requests for the entire task.
 
@@ -230,10 +230,10 @@ AIxCoding reports and ignores disallowed project keys, values that exceed overri
 
 | Launch command | Behavior related to settings files |
 | --- | --- |
-| `aixcoding` (TUI) | Uses interface, input, and notification settings; the default agent comes from `agent.default_profile` |
-| `aixcoding run` | Always bypasses approval and does not wait for user answers; the default approval mode and question timeout settings do not change these behaviors |
-| `aixcoding acp` | Agent Client Protocol (ACP) server; the initial agent and approval mode are determined by `--agent` and `--approval`, defaulting to `Code` and `manual`, respectively. Questions wait indefinitely by default; set a timeout with `--ask-user-timeout` |
-| `aixcoding serve` | Hosts the TUI in a browser; configuration files and environment variables come from the machine running AIxCoding service |
+| `aixcoding-cli` (TUI) | Uses interface, input, and notification settings; the default agent comes from `agent.default_profile` |
+| `aixcoding-cli run` | Always bypasses approval and does not wait for user answers; the default approval mode and question timeout settings do not change these behaviors |
+| `aixcoding-cli acp` | Agent Client Protocol (ACP) server; the initial agent and approval mode are determined by `--agent` and `--approval`, defaulting to `Code` and `manual`, respectively. Questions wait indefinitely by default; set a timeout with `--ask-user-timeout` |
+| `aixcoding-cli serve` | Hosts the TUI in a browser; configuration files and environment variables come from the machine running AIxCoding service |
 
 ## When a setting does not take effect
 

@@ -10,16 +10,16 @@ In the ACP client's "Add agent" or similar settings, enter the following:
 
 | Field | Value |
 | --- | --- |
-| Executable | `aixcoding` |
+| Executable | `aixcoding-cli` |
 | Arguments | `acp` |
 
 This is equivalent to the client starting:
 
 ```shell
-aixcoding acp
+aixcoding-cli acp
 ```
 
-If the client provides only a single launch command field, enter the full command, `aixcoding acp`.
+If the client provides only a single launch command field, enter the full command, `aixcoding-cli acp`.
 
 After saving the configuration, verify the connection:
 
@@ -29,7 +29,7 @@ After saving the configuration, verify the connection:
 
 ## Configure startup options
 
-`aixcoding acp` supports the following startup options. If the client has separate executable and arguments fields, append these options after `acp`.
+`aixcoding-cli acp` supports the following startup options. If the client has separate executable and arguments fields, append these options after `acp`.
 
 | Option | Default | Purpose |
 | --- | --- | --- |

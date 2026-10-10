@@ -45,10 +45,10 @@ Project workflows are discovered only in `.chrys/workflows/` under the current w
 Loading a custom workflow for the first time requires trust confirmation:
 
 - **TUI**: Selecting a workflow opens the “Trust workflow” dialog. Review the source and declared execution environment, then click “Trust” to continue or “Cancel” to leave it unloaded.
-- **CLI**: Add `--trust` to `aixcoding workflow run`. For example, run `.chrys/workflows/echo.py` from the project root with:
+- **CLI**: Add `--trust` to `aixcoding-cli workflow run`. For example, run `.chrys/workflows/echo.py` from the project root with:
 
 ```shell
-aixcoding workflow run echo --trust --input "Hello"
+aixcoding-cli workflow run echo --trust --input "Hello"
 ```
 
 The confirmation is saved, so later runs can omit `--trust`. Confirmation is required again if the entry file's source, the built workflow definition, or environment information changes, including the selected interpreter's path, version, platform, or the workflow SDK supplied by AIxCoding. This check does not cover changes to installed dependencies or inspect every imported Python file.
@@ -214,8 +214,8 @@ agent(
 | Parameter | Meaning |
 | --- | --- |
 | `name` | Node name |
-| `profile` | Required ID, name, or display name of an existing agent profile; using the ID is recommended. List profiles with `aixcoding agents` |
-| `model` | Optional AIxCoding model profile ID or name, listed by `aixcoding models`; when omitted, the model selection rules below apply |
+| `profile` | Required ID, name, or display name of an existing agent profile; using the ID is recommended. List profiles with `aixcoding-cli agents` |
+| `model` | Optional AIxCoding model profile ID or name, listed by `aixcoding-cli models`; when omitted, the model selection rules below apply |
 | `instructions_suffix` | Optional string with additional instructions for this node |
 | `timeout` | Maximum seconds per attempt, unlimited by default; a finite positive number or `None` |
 | `retry` | When omitted, at most three attempts with zero backoff; not all errors are retried automatically |
@@ -246,7 +246,7 @@ Regular AIxCoding agents select a model in this priority order:
 
 1. The `model` argument to `agent()`.
 2. The model bound to the agent profile.
-3. The workflow's default model. In the TUI, select it under “Run Settings”. In the CLI, loading an existing workflow session with `aixcoding workflow run <workflow-id> --session <session-id>` retains that session's saved model selection. If no workflow default has been selected, the [default model configured in AIxCoding](settings.md#agents-models-and-requests) is used.
+3. The workflow's default model. In the TUI, select it under “Run Settings”. In the CLI, loading an existing workflow session with `aixcoding-cli workflow run <workflow-id> --session <session-id>` retains that session's saved model selection. If no workflow default has been selected, the [default model configured in AIxCoding](settings.md#agents-models-and-requests) is used.
 
 An explicit `model` that does not exist or is unavailable causes an error. If the agent's bound model does not exist, selection falls back to the workflow default. The workflow cannot start without an available model.
 
@@ -680,7 +680,7 @@ Workflow sessions do not save their own approval mode. They share the TUI's curr
 
 Reopening a session lets you view history or start a new run, but does not resume from the last interrupted node. Cancelled or interrupted runs must start over. For nodes awaiting manual retry in the current run, see [Timeouts and retries](#timeouts-and-retries).
 
-In the result object from `aixcoding workflow run --json`, `outcome` indicates the run outcome. Local records also store it in the run-end event in `workflows/<run_id>/events.jsonl` under the [session directory](../guides/daily-use/sessions.md#find-the-session-id-and-storage-location).
+In the result object from `aixcoding-cli workflow run --json`, `outcome` indicates the run outcome. Local records also store it in the run-end event in `workflows/<run_id>/events.jsonl` under the [session directory](../guides/daily-use/sessions.md#find-the-session-id-and-storage-location).
 
 If the process terminates abnormally before finalizing a run, restoring the session records `outcome=orphaned` for that run. The workflow run view displays “orphaned”.
 
@@ -705,8 +705,8 @@ The `workflows/<run_id>/` directory under the [session directory](../guides/dail
 Run and node usage and elapsed time help assess costs; ACP usage depends on what the remote agent reports. To export analysis data, use:
 
 ```shell
-aixcoding trajectory export --session <session-id> --format json --out workflow.json
-aixcoding trajectory export --session <session-id> --format perfetto --out workflow.perfetto.json
+aixcoding-cli trajectory export --session <session-id> --format json --out workflow.json
+aixcoding-cli trajectory export --session <session-id> --format perfetto --out workflow.perfetto.json
 ```
 
 Replace `<session-id>` with the workflow session ID. Analysis exports for workflow sessions support only JSON and Perfetto.
@@ -733,29 +733,29 @@ All these events include `session_kind: "workflow"`, `workflow_id`, `session_id`
 
 ## Command line
 
-### `aixcoding workflow list`
+### `aixcoding-cli workflow list`
 
 List workflows according to the [file discovery](#file-discovery) rules without executing workflow code. Custom workflow titles come from previously saved trust confirmations.
 
 ```shell
-aixcoding workflow list [--json]
+aixcoding-cli workflow list [--json]
 ```
 
 Text mode shows `ID`, `Source`, `Title`, and `Path`, using `-` for an unknown title. With `--json`, the output is an object with a `workflows` array; each entry contains `id`, `source`, `title`, and `path`, with an empty string for an unknown title. In either mode, warnings about skipped files go to stderr. Use `-h` / `--help` for help.
 
-### `aixcoding workflow run`
+### `aixcoding-cli workflow run`
 
 Run the specified workflow and output its results when it finishes.
 
 #### Arguments
 
 ```shell
-aixcoding workflow run <workflow-id> [--input TEXT] [-s SESSION] [--trust] [--timeout SECONDS] [--json] [-q]
+aixcoding-cli workflow run <workflow-id> [--input TEXT] [-s SESSION] [--trust] [--timeout SECONDS] [--json] [-q]
 ```
 
 | Argument | Default and purpose |
 | --- | --- |
-| `<workflow-id>` | Filename without `.py`; find IDs with `aixcoding workflow list` |
+| `<workflow-id>` | Filename without `.py`; find IDs with `aixcoding-cli workflow list` |
 | `--input TEXT` | Defaults to an empty string, passed to the start node as `WorkflowValue.text` |
 | `-s` / `--session` | Load an existing workflow session and start a new run of its bound workflow; does not resume an old run. The session must be a workflow session with at least one run. `<workflow-id>` must match the session's workflow; otherwise the run is rejected with `spec_changed` |
 | `--trust` | Trust the current custom source and environment; unnecessary for built-in workflows |

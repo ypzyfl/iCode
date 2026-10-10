@@ -61,7 +61,7 @@ Shell 命令和文件读写访问 `.env`、凭据、私钥等敏感目标时，�
 选择内置的 Code Agent，然后提交以下请求：
 
 ```text
-使用 Shell 工具运行 aixcoding --version
+使用 Shell 工具运行 aixcoding-cli --version
 ```
 
 该命令只显示版本，不修改文件，但不属于自动放行的只读 Shell 命令。预期结果如下：
@@ -74,6 +74,6 @@ Shell 命令和文件读写访问 `.env`、凭据、私钥等敏感目标时，�
 
 其他运行方式使用以下审批模式和切换方式：
 
-- **无界面命令行（`aixcoding run`）**：始终绕过审批，不提供审批相关参数。
-- **AIxCoding ACP 服务**：默认手动，可用 `aixcoding acp --approval manual|auto|bypass` 指定初始模式；支持该能力的 ACP 客户端也可以切换当前会话的模式。
-- **浏览器托管的 TUI（`aixcoding serve`）**：可按照前文介绍的 TUI 操作切换审批模式和处理审批请求。
+- **无界面命令行（`aixcoding-cli run`）**：始终绕过审批，不提供审批相关参数。
+- **AIxCoding ACP 服务**：默认手动，可用 `aixcoding-cli acp --approval manual|auto|bypass` 指定初始模式；支持该能力的 ACP 客户端也可以切换当前会话的模式。
+- **浏览器托管的 TUI（`aixcoding-cli serve`）**：可按照前文介绍的 TUI 操作切换审批模式和处理审批请求。

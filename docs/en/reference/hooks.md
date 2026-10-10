@@ -373,7 +373,7 @@ Choose `mode` based on whether the hook must finish before the current operation
 | `mode` | Waiting behavior | Use case | Can affect the current operation? |
 | --- | --- | --- | --- |
 | `blocking` | Waits for the hook to finish before continuing the current operation; multiple `blocking` hooks run in configuration order | Checks that must finish before an operation continues, or hooks that need to reject or modify an operation | For some events; see [Result file](#result-file) |
-| `async` | The current operation continues immediately; see [When AIxCoding waits for async hooks](#when-aixcoding-waits-for-async-hooks) for later waits | Notifications and logging that should not delay the current operation but need to finish before the turn or current session ends | No |
+| `async` | The current operation continues immediately; see [When AIxCoding waits for async hooks](#when-aixcoding-cli-waits-for-async-hooks) for later waits | Notifications and logging that should not delay the current operation but need to finish before the turn or current session ends | No |
 | `fire_and_forget` (default) | The current operation continues immediately; AIxCoding does not wait at the end of the turn or current session | Notifications and logging that may be interrupted by AIxCoding exiting before they finish | No |
 
 ### Setting time limits and failure handling
