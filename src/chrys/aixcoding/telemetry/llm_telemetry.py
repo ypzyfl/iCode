@@ -73,6 +73,19 @@ def record_call(provider_call_id: str, request_id: str, span_id: str, session_id
             _session_latest[session_id] = (request_id, span_id)
 
 
+def record_session_latest(request_id: str, span_id: str, session_id: str | None) -> None:
+    """登记 session 级最新主对话调用（ACP ``_meta`` 回传的取值源）。
+
+    主对话每次 LLM 调用（无论该次响应是否含 function_call）都要刷新；
+    此前仅 ``record_call`` 顺带刷新，纯文本回合（模型不调工具）会留下
+    空 registry，导致 ``telemetry_response_meta`` 回传 None。
+    """
+    if not session_id:
+        return
+    with _registry_lock:
+        _session_latest[session_id] = (request_id, span_id)
+
+
 def resolve_call(provider_call_id: str, session_id: str | None = None) -> tuple[str, str] | None:
     """反查 ``(requestId, 根spanId)``：per-call 命中优先，退化为 session 级最新值。"""
     with _registry_lock:
@@ -200,6 +213,7 @@ class AixTelemetryMiddleware(ChatMiddleware):
 
     def _record_response(self, response: ChatResponse, request_id: str, span_id: str) -> None:
         try:
+            record_session_latest(request_id, span_id, self._session_id)
             for message in response.messages:
                 for content in message.contents:
                     call_id = getattr(content, "call_id", None)
