@@ -258,7 +258,9 @@ class RuntimeConfigController:
                 ModelConfigScreen(
                     registry,
                     _canonical_active_model_profile_id(registry, global_default_profile_id),
-                    read_only=self._state.run.agent_running or self._services.execution_busy(),
+                    # AIxCoding customization: model profiles are centrally managed.
+                    # The screen is always read-only so values can be viewed, never edited.
+                    read_only=True,
                 ),
                 _on_result,
             )

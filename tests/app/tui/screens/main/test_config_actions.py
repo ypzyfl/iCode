@@ -507,6 +507,33 @@ def test_select_model_tag_ignores_unconfirmed_runtime_profile() -> None:
     assert picker._current_profile_id == ""
 
 
+@pytest.mark.asyncio
+async def test_open_model_config_screen_is_always_read_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    registry = ModelProfileRegistry()
+    registry.register(ModelProfile(id="current-id", name="Current", model_id="current-wire"))
+    state = MainScreenState()
+    view = _View()
+    controller = RuntimeConfigController(
+        state=state,
+        services=MainScreenServices(bus=EventBus(), model_registry=registry),
+        view=cast(Any, view),
+        callbacks=_callbacks(),
+    )
+
+    monkeypatch.setattr(
+        "chrys.service.profiles.models.env_bridge.get_global_default_profile_id",
+        lambda: "current-id",
+    )
+
+    await controller._open_model_config()
+
+    assert len(view.pushed) == 1
+    screen, _callback = view.pushed[0]
+    assert isinstance(screen, ModelConfigScreen)
+    # AIxCoding customization: the config screen is read-only even while idle.
+    assert screen._read_only is True
+
+
 class _BusyEngine:
     def execution_busy(self) -> bool:
         return True

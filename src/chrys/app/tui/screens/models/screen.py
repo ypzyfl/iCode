@@ -70,7 +70,7 @@ if TYPE_CHECKING:
 
 _READ_ONLY_NOTICE = msg(
     "tui.model_config.read_only_notice",
-    fallback="• Agent is running. This page is read-only.",
+    fallback="• Model configuration is centrally managed. Profiles can be selected but not edited here.",
 )
 
 _MODEL_SETTINGS_TITLE = msg("tui.model_config.title.settings", fallback="Model Settings")
