@@ -10,7 +10,6 @@ parts that decide whether a server-side change reaches a running session.
 from __future__ import annotations
 
 import time
-from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -21,6 +20,7 @@ from chrys.service.profiles.models.catalog import (
     start_periodic_sync,
 )
 from chrys.service.profiles.models.registry import ModelProfileRegistry
+from tests.support.waiting import wait_until_sync
 
 _POLL_INTERVAL = 0.01
 
@@ -40,15 +40,6 @@ def _credentialed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(catalog_module, "has_catalog_credential", lambda: True)
 
 
-def _wait_for(predicate: Callable[[], bool], *, timeout: float = 5.0) -> bool:
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if predicate():
-            return True
-        time.sleep(_POLL_INTERVAL)
-    return False
-
-
 def test_syncs_on_the_clock_and_stops_when_signalled(monkeypatch: pytest.MonkeyPatch) -> None:
     """One fetch per interval, and setting the event ends the loop."""
     monkeypatch.setattr(catalog_module, "catalog_url", lambda: "http://127.0.0.1:1/base")
@@ -58,7 +49,7 @@ def test_syncs_on_the_clock_and_stops_when_signalled(monkeypatch: pytest.MonkeyP
     stop = start_periodic_sync(interval=_POLL_INTERVAL, on_applied=seen.append)
     try:
         assert stop is not None, "a configured source must start the loop"
-        assert _wait_for(lambda: len(seen) >= 2), f"expected repeated syncs, got {len(seen)}"
+        assert wait_until_sync(lambda: len(seen) >= 2), f"expected repeated syncs, got {len(seen)}"
         assert seen[0].profile_ids == ("a",)
     finally:
         stop.set()
@@ -91,7 +82,7 @@ def test_immediate_syncs_before_the_first_sleep(monkeypatch: pytest.MonkeyPatch)
     stop = start_periodic_sync(interval=60, immediate=True, on_applied=seen.append)
     try:
         assert stop is not None, "a credentialed source must start the loop"
-        assert _wait_for(lambda: len(seen) >= 1, timeout=2.0), "immediate never synced"
+        assert wait_until_sync(lambda: len(seen) >= 1, timeout=2.0), "immediate never synced"
         assert len(seen) == 1, "the first wait is a whole interval, so a second sync is too early"
     finally:
         stop.set()
@@ -110,7 +101,7 @@ def test_sync_now_pulls_one_catalog_ahead_of_the_clock(monkeypatch: pytest.Monke
         time.sleep(5 * _POLL_INTERVAL)
         assert not seen, "an untouched interval must not sync early"
         stop.sync_now()
-        assert _wait_for(lambda: len(seen) >= 1, timeout=2.0), "sync_now never synced"
+        assert wait_until_sync(lambda: len(seen) >= 1, timeout=2.0), "sync_now never synced"
         assert len(seen) == 1, "one request is one sync, not a loop restart"
     finally:
         stop.set()
@@ -141,7 +132,7 @@ def test_the_loop_polls_at_the_environments_interval(monkeypatch: pytest.MonkeyP
     stop = start_periodic_sync(on_applied=seen.append)
     try:
         assert stop is not None, "a configured source must start the loop"
-        assert _wait_for(lambda: len(seen) >= 2), f"the override never took effect: {len(seen)} sync(s)"
+        assert wait_until_sync(lambda: len(seen) >= 2), f"the override never took effect: {len(seen)} sync(s)"
     finally:
         stop.set()
 
@@ -166,7 +157,7 @@ def test_a_failing_callback_does_not_kill_the_loop(monkeypatch: pytest.MonkeyPat
 
     stop = start_periodic_sync(interval=_POLL_INTERVAL, on_applied=_boom_once)
     try:
-        assert _wait_for(lambda: len(calls) >= 2), f"loop died after {len(calls)} call(s)"
+        assert wait_until_sync(lambda: len(calls) >= 2), f"loop died after {len(calls)} call(s)"
     finally:
         if stop is not None:
             stop.set()
@@ -186,7 +177,7 @@ def test_the_tier_is_auths_tier(monkeypatch: pytest.MonkeyPatch) -> None:
     class _NoConfiguredBase:
         model_catalog_base_url = ""
 
-    monkeypatch.setattr(process_settings_module, "process_settings", lambda: _NoConfiguredBase())
+    monkeypatch.setattr(process_settings_module, "process_settings", _NoConfiguredBase)
 
     for tier in Environment:
         monkeypatch.setenv(environments.ENVIRONMENT_VARIABLE, tier.value)

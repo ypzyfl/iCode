@@ -12,6 +12,7 @@ import asyncio
 import contextlib
 import functools
 import reprlib
+import time
 from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Literal, Protocol, overload
@@ -198,6 +199,27 @@ async def wait_for(
             f"({_timeout_diagnostic(timeout, effective_timeout, shared_limited=shared_limited)}); "
             f"last observed={_OBSERVATION_REPR.repr(observed)}"
         )
+
+
+def wait_until_sync(
+    predicate: Callable[[], object],
+    *,
+    timeout: float = DEFAULT_WAIT_TIMEOUT,
+    interval: float = 0.02,
+) -> bool:
+    """Return whether *predicate* became truthy before the deadline, with no loop.
+
+    The helpers above need a running event loop. A test that watches a plain
+    thread — the model catalog's poll thread, say — has none to await on, so it
+    polls the same deadline here rather than growing its own local copy.
+    """
+    deadline = time.monotonic() + timeout
+    while True:
+        if predicate():
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(interval)
 
 
 @overload

@@ -4484,6 +4484,15 @@
         ["thread_pool", "await loop.run_in_executor(None, _track_shell_scan_before, tracker, args, workspace_cwd)", "unresolved"]
       ]
     },
+    "chrys.service.profiles.models.catalog": {
+      "fetch_catalog": [
+        ["async_context", "async with httpx.AsyncClient(timeout=timeout)", "unresolved"],
+        ["queue", "await client.get(endpoint, headers=headers)", "unresolved"]
+      ],
+      "sync_catalog": [
+        ["wrapper", "await fetch_catalog(url, timeout=timeout)", "unresolved", "chrys.service.profiles.models.catalog.fetch_catalog"]
+      ]
+    },
     "chrys.service.session.persistence": {
       "SessionPersistence.delete_session": [
         ["awaitable", "await self._state_store.delete_session(session_id, allow_active=allow_active)", "unresolved"]
