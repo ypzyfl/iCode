@@ -194,6 +194,11 @@ _MODEL_UNCONFIGURED_MESSAGE = msg(
     fallback="Your message was not sent. Configure and select a model to get started.",
 )
 _MODEL_UNCONFIGURED_SETUP = msg("tui.model_guard.button.setup", fallback="Set up model")
+_LOGIN_SUCCEEDED = msg("tui.login.succeeded", fallback="Logged in as {name}")
+_LOGIN_LOGGED_OUT = msg("tui.login.logged_out", fallback="Logged out")
+_LOGIN_NOT_LOGGED_IN = msg("tui.login.not_logged_in", fallback="Not logged in yet")
+_LOGIN_MANAGED = msg("tui.login.managed_by_desktop", fallback="Login is managed by the desktop app")
+_LOGOUT_MANAGED = msg("tui.login.logout_managed_by_desktop", fallback="Logout is managed by the desktop app")
 
 _TERMINAL_TITLE_ACTIVITY_INTERVAL_SECONDS = 0.65
 _TERMINAL_TITLE_RUNNING_FRAMES = ("◇", "◈", "◆", "◈")
@@ -1022,6 +1027,8 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
                 start_index=start_index,
             ),
             warn=self._warn_slash_command,
+            open_login=self._open_login_dialog,
+            perform_account_logout=self._perform_logout,
         )
 
     def _new_diff_controller(self) -> DiffController:

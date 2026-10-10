@@ -14,6 +14,7 @@ binds them into the single object the rest of the app talks to::
         ...                                     # UI shows the code, opens browser
         account = await session.complete_login(code)
     token = session.stored_token                # downstream consumers attach this
+    user_id = session.stored_user_id            # the ehr, whichever credential is live
     session.logout()                            # /logout
 
 When iCode runs as a child of the AIxCoding desktop, the parent's login is
@@ -142,7 +143,7 @@ class LoginSession:
         if delegated is not None:
             return delegated.ehr or None
         credential = self._store.load(self.environment)
-        if credential is None or credential.is_expired:
+        if credential is None or credential.is_expired or not credential.token:
             return None
         return credential.user_id or credential.ehr or None
 

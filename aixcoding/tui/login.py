@@ -21,7 +21,6 @@ nothing is stored on an interrupted login.
 from __future__ import annotations
 
 import asyncio
-import logging
 import webbrowser
 from collections.abc import Callable
 from typing import TYPE_CHECKING, ClassVar

@@ -952,6 +952,10 @@ class ChrysApp(TuiVariableDefaultsMixin, App):
             # stay in force, so their warnings are due after all.
             await self._flush_deferred_settings_warnings()
 
+        # Startup login check: silently validates (and self-cleans) any stored
+        # AIxCoding credential; never blocks or disturbs the session start.
+        self._login_silent_check_task = asyncio.create_task(self._silent_login_check())
+
     async def _flush_deferred_settings_warnings(self) -> None:
         for w in self._deferred_settings_warnings:
             await self._bus.publish(w)
@@ -1138,6 +1142,11 @@ class ChrysApp(TuiVariableDefaultsMixin, App):
             with contextlib.suppress(asyncio.CancelledError):
                 await self._startup_task
         self._startup_task = None
+        if self._login_silent_check_task is not None and not self._login_silent_check_task.done():
+            self._login_silent_check_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._login_silent_check_task
+        self._login_silent_check_task = None
         await self._engine.shutdown()
         # After the engine: its shutdown drains a still-finalizing run
         # whose success callback can schedule one last title task; the
