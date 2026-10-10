@@ -98,19 +98,38 @@ def current_function_name() -> str | None:
 
 
 class UserIdProvider(Protocol):
-    """userId 数据源接口；登录上线后由 ``aixcoding.auth`` 注册新实现（M4），接口不变。"""
+    """userId 数据源接口；登录落地后由 ``aixcoding.auth`` 提供实现，接口不变。"""
 
     def __call__(self) -> str | None: ...
 
 
 @dataclass(frozen=True)
 class ConfigUserIdProvider:
-    """当前实现：读 aixcoding 配置文件的 ``userId``（如工号）。"""
+    """登录前的过渡实现：读 aixcoding 配置文件的 ``userId``（如工号）。"""
 
     def __call__(self) -> str | None:
         from chrys.aixcoding.config import load_settings
 
         return load_settings().user_id
+
+
+def current_user_id() -> str | None:
+    """当前 userId：登录 ``stored_user_id``（ehr 工号）优先，回退配置文件。
+
+    登录分支落地后的正式数据源（M4 预告兑现）：读 ``aixcoding.auth`` 进程级
+    单例（动态 property，无网络 IO，登录/登出即时生效）；未登录或登录模块
+    不可用时回退 ``aixcoding.yaml`` 的 ``userId``（对齐 catalog.py
+    ``_catalog_user_id`` 的吞错语义）。
+    """
+    try:
+        from aixcoding.auth import get_login_session
+
+        stored = get_login_session().stored_user_id
+    except Exception:
+        stored = None
+    if stored:
+        return stored
+    return ConfigUserIdProvider()()
 
 
 _plugin_version_cache: str | None = None
