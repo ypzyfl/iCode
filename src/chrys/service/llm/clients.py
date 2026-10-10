@@ -40,7 +40,7 @@ import sys
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, override
 
 from chrys.foundation.errors import is_deterministic_connection_error
 from chrys.foundation.util.chrys_headers import (
@@ -135,6 +135,26 @@ def _provider_sdk_user_agent(provider: str) -> str | None:
     return None
 
 
+def _login_token() -> str:
+    """The AIxCoding login token for the ``token`` header, or "" when absent.
+
+    An AIxCoding deployment authenticates its LLM traffic with the same
+    credential the login flow stored and the model catalog sends — the gateway
+    in front of the models rejects a request without it. Reading the session
+    performs no network I/O (the same guarantee :func:`catalog._catalog_token`
+    relies on), so an unauthenticated session simply sends no header.
+    """
+    try:
+        from aixcoding.auth import get_login_session
+
+        stored = get_login_session().stored_token
+    except Exception:
+        # Read on every request, so a warning per call would spam the log.
+        _log.debug("No login session for the LLM request token header.", exc_info=True)
+        return ""
+    return (stored or "").strip()
+
+
 def _build_default_headers(
     session_id: str | None,
     profile: ModelProfile,
@@ -146,10 +166,13 @@ def _build_default_headers(
 
     Includes chrys platform headers (client name, version, user agent,
     ``X-Session-ID``, ``Chrys-Session-Id``, optional parent-session headers,
-    and ``Chrys-Model-Id``) merged with the profile's ``http_headers`` (parsed
-    from JSON). Profile headers take precedence on key conflicts except for
-    Chrys-managed request metadata. Instrumented chat clients overwrite the
-    model header per request with the final provider ``model`` value.
+    and ``Chrys-Model-Id``), merged with the profile's ``http_headers``
+    (parsed from JSON). Profile headers take precedence on key conflicts
+    except for Chrys-managed request metadata. Instrumented chat clients
+    overwrite the model header per request with the final provider
+    ``model`` value, and add the AIxCoding login ``token`` header at send
+    time — a construction-time snapshot would pin the empty token of a
+    session built before login (the engine does not rebuild on login).
     """
     from chrys import __version__
 
@@ -390,25 +413,45 @@ def _create_openai_async_client(
     profile is OpenAI-flavored.
     """
     from openai import AsyncOpenAI
-
-    class _ChrysAsyncOpenAI(_DeterministicConnectionRetryGuard, AsyncOpenAI):
-        pass
+    from openai._types import Omit
 
     # Newer OpenAI SDKs require the client to receive an api_key argument
     # unless the provider env var is present.  When neither exists, pass an
     # explicit provider that resolves to an empty key.  This avoids
     # construction-time credential errors while preserving no-auth behavior
     # for unauthenticated OpenAI-compatible local/gateway endpoints.
-    effective_key: str | Callable[[], Awaitable[str]] = (
-        api_key or os.environ.get(api_key_env) or _empty_openai_api_key_provider
-    )
+    resolved_key = api_key or os.environ.get(api_key_env)
+    effective_key: str | Callable[[], Awaitable[str]] = resolved_key or _empty_openai_api_key_provider
     effective_base = base_url or os.environ.get(base_url_env) or default_base_url or None
+
+    headers: dict[str, Any] = dict(default_headers) if default_headers else {}
+    authorization_omitted = False
+    if not resolved_key:
+        # No credential anywhere: an unauthenticated OpenAI-compatible
+        # endpoint (local mock, internal gateway).  Explicitly omit the
+        # Authorization header — the Omit sentinel satisfies the SDK's
+        # construction-time check, and the override below satisfies the
+        # request-time one (which only inspects per-request headers, so a
+        # client-level Omit alone would make every request raise
+        # "Could not resolve authentication method").  The request goes out
+        # with no Authorization header at all.
+        headers["Authorization"] = Omit()
+        authorization_omitted = True
+
+    class _ChrysAsyncOpenAI(_DeterministicConnectionRetryGuard, AsyncOpenAI):
+        _authorization_omitted = authorization_omitted
+
+        @override
+        def _validate_headers(self, headers: Any, custom_headers: Any) -> None:
+            if self._authorization_omitted:
+                return
+            super()._validate_headers(headers, custom_headers)
 
     kwargs: dict[str, Any] = {
         "api_key": effective_key,
         "timeout": timeout,
         "max_retries": max_retries,
-        "default_headers": default_headers,
+        "default_headers": headers or None,
     }
     if http_client is not None:
         kwargs["http_client"] = http_client
