@@ -22,6 +22,28 @@ def remember_bounded(mapping: dict, key: str, value: Any, *, limit: int = BOUNDE
         mapping.pop(next(iter(mapping)))
 
 
+def relative_file_name(raw: str, workspace_cwd: str | None = None) -> str:
+    """文件路径的报文口径（tool-detail ``fileName`` 与 ai-code ``filepath`` 共用）：
+
+    会话工作区（``workspace_cwd``）内的文件取**相对路径**（含文件名，POSIX 分隔符）；
+    工作区外的文件取**绝对路径**（含文件名）。``workspace_cwd`` 缺失时**不做
+    相对化**、入参原样返回——进程 cwd 是 iCode 启动目录而非真实工程根
+    （2026-10-09 真链路踩坑：projectName/git/fileName 全指向 iCode 仓库），
+    宁可不下结论也不误判。
+    """
+    if not workspace_cwd:
+        return raw
+    try:
+        base = Path(workspace_cwd).resolve()
+        path = Path(raw)
+        resolved = path.resolve() if path.is_absolute() else (base / path).resolve()
+        if resolved.is_relative_to(base):
+            return resolved.relative_to(base).as_posix()
+        return raw if path.is_absolute() else str(resolved)
+    except OSError, ValueError:
+        return raw
+
+
 def common_fields(workspace_cwd: str | None = None) -> dict[str, Any]:
     """csas 报文公共字段（channel/git/plugin/project/userId）。
 
