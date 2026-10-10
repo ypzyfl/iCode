@@ -10,20 +10,20 @@ AIxCoding-CLI 为 macOS、Linux 和 Windows 提供预构建的离线安装包。
 
 ### macOS
 
-根据处理器选择 `aixcoding-macos-aarch64-v<version>-offline.tar.gz`（Apple 芯片）或 `aixcoding-macos-x86_64-v<version>-offline.tar.gz`（Intel），然后在下载目录运行：
+根据处理器选择 `aixcoding-cli-macos-aarch64-v<version>-offline.tar.gz`（Apple 芯片）或 `aixcoding-cli-macos-x86_64-v<version>-offline.tar.gz`（Intel），然后在下载目录运行：
 
 ```bash
-tar xzf aixcoding-macos-<architecture>-v<version>-offline.tar.gz
+tar xzf aixcoding-cli-macos-<architecture>-v<version>-offline.tar.gz
 chmod +x ./aixcoding
 ./aixcoding install
 ```
 
 ### Linux
 
-根据处理器选择 `aixcoding-linux-x86_64-v<version>-offline.tar.gz` 或 `aixcoding-linux-aarch64-v<version>-offline.tar.gz`，然后在下载目录运行：
+根据处理器选择 `aixcoding-cli-linux-x86_64-v<version>-offline.tar.gz` 或 `aixcoding-cli-linux-aarch64-v<version>-offline.tar.gz`，然后在下载目录运行：
 
 ```bash
-tar xzf aixcoding-linux-<architecture>-v<version>-offline.tar.gz
+tar xzf aixcoding-cli-linux-<architecture>-v<version>-offline.tar.gz
 chmod +x ./aixcoding
 ./aixcoding install
 ```
@@ -32,7 +32,7 @@ Linux x86-64 安装包要求 glibc 2.17 或更高版本，ARM64 安装包要求 
 
 ### Windows
 
-下载 `aixcoding-windows-x86_64-v<version>-offline.zip` 并解压，在 PowerShell 中进入解压目录，然后运行：
+下载 `aixcoding-cli-windows-x86_64-v<version>-offline.zip` 并解压，在 PowerShell 中进入解压目录，然后运行：
 
 ```powershell
 .\aixcoding.exe install
