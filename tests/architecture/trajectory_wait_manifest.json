@@ -40338,7 +40338,7 @@
       "primitive": "awaitable",
       "qualname": "create_client",
       "source_column": 12,
-      "source_line": 530,
+      "source_line": 515,
       "wrapper_target": null
     },
     {
@@ -40358,7 +40358,7 @@
       "primitive": "wrapper",
       "qualname": "scoped_client",
       "source_column": 13,
-      "source_line": 642,
+      "source_line": 627,
       "wrapper_target": "chrys.service.llm.clients.create_client"
     },
     {
@@ -40378,7 +40378,7 @@
       "primitive": "awaitable",
       "qualname": "scoped_client",
       "source_column": 8,
-      "source_line": 646,
+      "source_line": 631,
       "wrapper_target": null
     },
     {

@@ -88,9 +88,7 @@ def test_load_catalog_rejects_corrupt_and_truncated_mo(tmp_path: Path, data: byt
     "metadata",
     [
         "Content-Type: text/plain; charset=bogus-charset\n",
-        # `!` is a valid C operator, so the c2py shipped with Python 3.14+
-        # accepts `plural=0 >= ! 1`; an unbalanced paren stays unparseable.
-        "Content-Type: text/plain; charset=UTF-8\nPlural-Forms: nplurals=2; plural=n % ((;\n",
+        "Content-Type: text/plain; charset=UTF-8\nPlural-Forms: nplurals=2; plural=0 @ 1;\n",
     ],
 )
 def test_load_catalog_rejects_undecodable_or_unparseable_metadata(tmp_path: Path, metadata: str) -> None:
