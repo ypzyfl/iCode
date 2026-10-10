@@ -10,20 +10,20 @@ In the commands below, `<version>` and `<architecture>` are placeholders. Replac
 
 ### macOS
 
-Choose `aixcoding-macos-aarch64-v<version>-offline.tar.gz` for Apple silicon or `aixcoding-macos-x86_64-v<version>-offline.tar.gz` for Intel, then run the following in your download directory:
+Choose `aixcoding-cli-macos-aarch64-v<version>-offline.tar.gz` for Apple silicon or `aixcoding-cli-macos-x86_64-v<version>-offline.tar.gz` for Intel, then run the following in your download directory:
 
 ```bash
-tar xzf aixcoding-macos-<architecture>-v<version>-offline.tar.gz
+tar xzf aixcoding-cli-macos-<architecture>-v<version>-offline.tar.gz
 chmod +x ./aixcoding
 ./aixcoding install
 ```
 
 ### Linux
 
-Choose `aixcoding-linux-x86_64-v<version>-offline.tar.gz` or `aixcoding-linux-aarch64-v<version>-offline.tar.gz` for your processor, then run the following in your download directory:
+Choose `aixcoding-cli-linux-x86_64-v<version>-offline.tar.gz` or `aixcoding-cli-linux-aarch64-v<version>-offline.tar.gz` for your processor, then run the following in your download directory:
 
 ```bash
-tar xzf aixcoding-linux-<architecture>-v<version>-offline.tar.gz
+tar xzf aixcoding-cli-linux-<architecture>-v<version>-offline.tar.gz
 chmod +x ./aixcoding
 ./aixcoding install
 ```
@@ -32,7 +32,7 @@ The Linux x86-64 package requires glibc 2.17 or later, and the ARM64 package req
 
 ### Windows
 
-Download and extract `aixcoding-windows-x86_64-v<version>-offline.zip`. Open PowerShell, go to the extracted directory, and run:
+Download and extract `aixcoding-cli-windows-x86_64-v<version>-offline.zip`. Open PowerShell, go to the extracted directory, and run:
 
 ```powershell
 .\aixcoding.exe install
