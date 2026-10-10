@@ -108,7 +108,7 @@ def _validate_no_proxy_entry(hostname: str) -> bool:
             URLPattern(f"all://{hostname}")
         else:
             URLPattern(f"all://*{hostname}")
-    except InvalidURL, ValueError:
+    except (InvalidURL, ValueError):
         return False
     return True
 

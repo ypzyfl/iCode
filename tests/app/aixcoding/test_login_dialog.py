@@ -10,10 +10,10 @@ import pytest
 from aixcoding.auth import AccountInfo, Environment, LoginSession
 from aixcoding.auth.crypto import MemoryBackend
 from aixcoding.tui import LoginDialog
-from mock_server.aixcoding_auth.server import MockAuthConfig, create_server
 from textual.app import App
 from textual.widgets import Static
 
+from mock_server.aixcoding_auth.server import MockAuthConfig, create_server
 from tests.support.waiting import wait_until
 
 pytestmark = pytest.mark.asyncio

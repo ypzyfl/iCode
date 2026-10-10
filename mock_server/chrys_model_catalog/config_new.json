@@ -1,0 +1,14 @@
+{
+  "models": [
+    {
+      "title": "GPT-4o mini",
+      "provider": "openrouter",
+      "model": "openai/gpt-4o-mini",
+      "apiBase": "https://openrouter.ai/api/v1",
+      "contextLength": 128000
+    }
+  ],
+  "aa": {
+    "test": "as"
+  }
+}

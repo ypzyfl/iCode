@@ -38,6 +38,13 @@ _GENERIC_LOCKED_TOOLTIP = msg(
     "tui.model_indicator.tooltip.locked.generic",
     fallback="Model selection is locked.",
 )
+_AGENT_LOCKED_NOTICE = msg(
+    "tui.model_indicator.notice.locked.agent",
+    fallback=(
+        "{agent} is bound to the model {model}, so the model cannot be switched here. "
+        "To change it, press F2 and edit the agent's model on its Basic tab."
+    ),
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,6 +79,20 @@ def is_model_selection_locked(details: RuntimeModelDetails, *, runtime_confirmed
     return details.selection_source not in _USER_OWNED_SOURCES
 
 
+def model_lock_notice(details: RuntimeModelDetails, agent_label: str) -> MessageRef:
+    """Explain a locked model tag, naming where the user can lift the lock.
+
+    Picks its reason by the same ``selection_source`` branches as the locked
+    tooltip in :func:`compute_model_indicator_state`.
+    """
+    source = details.selection_source
+    if source == "agent" and agent_label:
+        return _AGENT_LOCKED_NOTICE.bind(agent=agent_label, model=details.name)
+    if source == "override":
+        return _OVERRIDE_LOCKED_TOOLTIP.bind()
+    return _GENERIC_LOCKED_TOOLTIP.bind()
+
+
 def fmt_context_size(tokens: int) -> str:
     """Format token count as compact size string."""
     if tokens >= 1_000_000:
@@ -83,6 +104,18 @@ def fmt_context_size(tokens: int) -> str:
     return str(tokens)
 
 
+def _live_label(details: RuntimeModelDetails, registry: ModelProfileRegistry | None) -> str:
+    """Return the profile's current name from the registry if available.
+
+    The runtime details are a snapshot taken when the agent started. A catalog
+    sync can rewrite the profile file while the session is live, so the label
+    shown in the indicator must track the registry rather than the snapshot.
+    """
+    if registry is not None and (profile := registry.get(details.profile_id)) is not None:
+        return profile.name
+    return details.name
+
+
 def compute_model_indicator_state(
     details: RuntimeModelDetails | None,
     has_selectable_profile: bool,
@@ -90,6 +123,7 @@ def compute_model_indicator_state(
     localizer: Localizer,
     *,
     runtime_confirmed: bool = True,
+    model_registry: ModelProfileRegistry | None = None,
 ) -> ModelIndicatorState:
     """Compute model indicator state from confirmed runtime details and registry availability."""
     if not runtime_confirmed:
@@ -104,9 +138,10 @@ def compute_model_indicator_state(
         return _action_state_if_agent_ready(True, agent_label, localizer)
 
     tooltip = _details_tooltip(details, localizer)
+    label = _live_label(details, model_registry)
     if source == "active":
         return ModelIndicatorState(
-            label=details.name,
+            label=label,
             tooltip=tooltip,
             mode="select",
             profile_id=details.profile_id,
@@ -120,7 +155,7 @@ def compute_model_indicator_state(
     else:
         reason = _render(localizer, _GENERIC_LOCKED_TOOLTIP.bind())
     return ModelIndicatorState(
-        label=details.name,
+        label=label,
         tooltip=f"{tooltip}\n{reason}",
         mode="locked",
         profile_id=details.profile_id,

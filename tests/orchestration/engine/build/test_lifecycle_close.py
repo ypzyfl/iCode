@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -26,12 +27,14 @@ from chrys.orchestration.engine.run.turn_state import TurnRuntimeState
 from chrys.orchestration.engine.state.active_session import ActiveSession
 from chrys.orchestration.invoker.resources import Conversation, PreparedAgent
 from chrys.service.agent_middleware.control.approval import ApprovalMiddleware
+from chrys.service.agent_middleware.reminders.archive_pointer import CATALOG_POINTER_RECORD_COUNT_STATE_KEY
 from chrys.service.agent_middleware.system_reminder import SystemReminderMiddleware
 from chrys.service.approval.judge import JudgeVerdict
 from chrys.service.approval.policy import ApprovalMode, ApprovalPolicy
 from chrys.service.approval.turn_context import TurnContextHolder
+from chrys.service.context.compaction.last_words_state import LastWordsState
 from chrys.service.context.compaction.spill import SpillQuota
-from chrys.service.mutations.workspace_changes import WorkspaceChangeTracker
+from chrys.service.mutations.workspace_changes import WorkspaceChangeTracker, WorkspaceRetarget
 from chrys.service.profiles.agents.schema import AgentProfile, ApprovalConfig
 from chrys.service.profiles.models.schema import ModelProfile
 from chrys.service.session.runtime_metadata import SessionRuntimeMetadata
@@ -302,6 +305,7 @@ async def test_agent_rebuild_closes_previous_executor_approval_handler() -> None
             runtime=MagicMock(),
             loop_recorder=MagicMock(),
             reminder_middleware=MagicMock(),
+            last_words=MagicMock(spec=LastWordsState),
             sub_agent_tools=None,
             mcp_adapter=None,
             skills_provider=None,
@@ -337,12 +341,20 @@ async def test_agent_rebuild_retargets_workspace_after_install_before_awaited_cl
     engine.session.workspace = Workspace.from_cwd(str(tmp_path))
     order: list[str] = []
 
+    resolved: list[WorkspaceRetarget] = []
+
     class _Tracker(WorkspaceChangeTracker):
         def take_pending_notice(self) -> None:
             return None
 
-        def apply_retarget(self, workspace, retarget) -> None:
-            assert workspace is engine.session.workspace
+        def resolve_retarget(self, workspace: Workspace | None, *, resolve_scope: bool = True) -> WorkspaceRetarget:
+            resolved.append(super().resolve_retarget(workspace, resolve_scope=resolve_scope))
+            return resolved[-1]
+
+        def apply_retarget(self, retarget: WorkspaceRetarget) -> None:
+            # The build resolved it for the session's workspace; install never resolves again.
+            assert resolved == [retarget] and retarget is resolved[0]
+            assert retarget.new_cwd == os.path.normpath(str(tmp_path))
             assert engine.current.loaded.bindings is not old_executor
             order.append("retarget")
 
@@ -411,6 +423,7 @@ def _make_build_result(approval: ApprovalMiddleware) -> AgentBuildResult:
         runtime=MagicMock(),
         loop_recorder=MagicMock(),
         reminder_middleware=MagicMock(),
+        last_words=MagicMock(spec=LastWordsState),
         sub_agent_tools=None,
         mcp_adapter=None,
         skills_provider=None,
@@ -662,7 +675,11 @@ async def test_a_cancelled_post_commit_cleanup_still_carries_the_preserved_histo
         hook_manager=None,
         mutation_coordinator=None,
     )
-    preserved = {"messages": [{"role": "user", "content": "kept"}], "turn_counter": 3}
+    preserved = {
+        "messages": [{"role": "user", "content": "kept"}],
+        "turn_counter": 3,
+        CATALOG_POINTER_RECORD_COUNT_STATE_KEY: 7,
+    }
 
     async def _build_agent_fn(**kwargs: object) -> AgentBuildResult:
         _ = kwargs
@@ -681,7 +698,9 @@ async def test_a_cancelled_post_commit_cleanup_still_carries_the_preserved_histo
 
     assert engine.current.loaded.bindings is not old_executor
     assert engine.current.loaded.bindings.backend.history_state == preserved
-    engine.current.loaded.reminder_middleware.restore_phase4_state.assert_called_once_with(preserved)
+    engine.current.loaded.last_words.restore.assert_called_once_with(preserved, available_relative_paths=None)
+    archive_pointer = engine.current.loaded.reminder_middleware.sources.archive_pointer
+    archive_pointer.restore_record_count.assert_called_once_with(7)
     # The history manager rode the same commit: bound to the very dict the
     # new executor holds, not left on the replaced executor's history.
     engine.history.bind.assert_called_with(engine.current.loaded.bindings.backend.history_state)
