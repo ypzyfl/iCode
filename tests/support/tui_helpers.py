@@ -1013,6 +1013,8 @@ class SuggestionScreen:
         self.picked_models: list[str] = []
         self.fork_requests = 0
         self.clear_requests = 0
+        self.login_dialog_requests = 0
+        self.logout_requests = 0
         self.title_editor_requests = 0
         self.applied_titles: list[str] = []
         self.suggestion_list = SuggestionListStub()
@@ -1029,6 +1031,12 @@ class SuggestionScreen:
 
     def _fork_current_session(self) -> None:
         self.fork_requests += 1
+
+    def open_login_dialog(self) -> None:
+        self.login_dialog_requests += 1
+
+    def perform_logout(self) -> None:
+        self.logout_requests += 1
 
     def _open_session_title_editor(self) -> None:
         self.title_editor_requests += 1
@@ -1188,6 +1196,8 @@ def make_slash_actions(screen: SuggestionScreen) -> SlashCommandActions:
         configure_settings=screen._open_settings,
         show_manual_pages=lambda _pages, _start_index: None,
         warn=lambda message, title, timeout: screen.notify(message, title=title, timeout=timeout),
+        open_login=screen.open_login_dialog,
+        perform_account_logout=screen.perform_logout,
     )
 
 
