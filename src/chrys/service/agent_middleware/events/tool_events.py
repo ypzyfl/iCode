@@ -395,7 +395,11 @@ class ToolEventMiddleware(FunctionMiddleware):
                 tool_kind=tool_kind,
                 args=args,
                 call_id=call_id,
+                # AIxCoding telemetry: provider call id keys the per-call registry.
+                provider_call_id=provider_call_id,
                 session_id=self._session_id,
+                # AIxCoding telemetry: workspace cwd for projectName/git/fileName.
+                workspace_cwd=self._workspace_cwd or "",
             )
         )
         if self._on_start_published is not None:
@@ -691,11 +695,15 @@ class ToolEventMiddleware(FunctionMiddleware):
                             origin=origin,
                             tool_name=tool_name,
                             call_id=call_id,
+                            # AIxCoding telemetry: provider call id keys the per-call registry.
+                            provider_call_id=provider_call_id,
                             result=result_text,
                             image_contents=result_images,
                             duration_ms=duration_ms,
                             session_id=self._session_id,
                             metadata=metadata,
+                            # AIxCoding telemetry: workspace cwd for projectName/git/fileName.
+                            workspace_cwd=self._workspace_cwd or "",
                         )
                     )
                     if trajectory is not None:
