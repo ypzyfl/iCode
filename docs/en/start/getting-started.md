@@ -12,32 +12,32 @@ In the commands below, `<version>` and `<architecture>` are placeholders. Replac
 
 ### macOS
 
-Choose `icode-macos-aarch64-v<version>-offline.tar.gz` for Apple silicon or `icode-macos-x86_64-v<version>-offline.tar.gz` for Intel, then run the following in your download directory:
+Choose `aixcoding-cli-macos-aarch64-v<version>-offline.tar.gz` for Apple silicon or `aixcoding-cli-macos-x86_64-v<version>-offline.tar.gz` for Intel, then run the following in your download directory:
 
 ```bash
-tar xzf icode-macos-<architecture>-v<version>-offline.tar.gz
-chmod +x ./icode
-./icode install
+tar xzf aixcoding-cli-macos-<architecture>-v<version>-offline.tar.gz
+chmod +x ./aixcoding-cli
+./aixcoding-cli install
 ```
 
 ### Linux
 
-Choose `icode-linux-x86_64-v<version>-offline.tar.gz` or `icode-linux-aarch64-v<version>-offline.tar.gz` for your processor, then run the following in your download directory:
+Choose `aixcoding-cli-linux-x86_64-v<version>-offline.tar.gz` or `aixcoding-cli-linux-aarch64-v<version>-offline.tar.gz` for your processor, then run the following in your download directory:
 
 ```bash
-tar xzf icode-linux-<architecture>-v<version>-offline.tar.gz
-chmod +x ./icode
-./icode install
+tar xzf aixcoding-cli-linux-<architecture>-v<version>-offline.tar.gz
+chmod +x ./aixcoding-cli
+./aixcoding-cli install
 ```
 
 The Linux x86-64 package requires glibc 2.17 or later, and the ARM64 package requires glibc 2.18 or later. Distributions that provide only musl, such as Alpine Linux, are not supported by the prebuilt packages.
 
 ### Windows
 
-Download and extract `icode-windows-x86_64-v<version>-offline.zip`. Open PowerShell, go to the extracted directory, and run:
+Download and extract `aixcoding-cli-windows-x86_64-v<version>-offline.zip`. Open PowerShell, go to the extracted directory, and run:
 
 ```powershell
-.\icode.exe install
+.\aixcoding-cli.exe install
 ```
 
 The installer attempts to add iCode to the current user's `PATH`. Open a new terminal after installation.
@@ -45,10 +45,10 @@ The installer attempts to add iCode to the current user's `PATH`. Open a new ter
 ### Verify the installation
 
 ```shell
-icode --version
+aixcoding-cli --version
 ```
 
-The command should print the iCode version number. If your system cannot find `icode` on macOS or Linux, add `~/.local/bin` to `PATH` as the installer instructs. If the installer reported that `~/.local/bin/icode` already exists, that command starts another program; use `chrys` instead. On Windows, open a new terminal; if the installer reported that updating the user PATH failed, add `%LOCALAPPDATA%\chrys\bin` to your user `PATH` manually.
+The command should print the iCode version number. If your system cannot find `aixcoding-cli` on macOS or Linux, add `~/.local/bin` to `PATH` as the installer instructs. If the installer reported that `~/.local/bin/aixcoding-cli` already exists, that command starts another program; use `chrys` instead. On Windows, open a new terminal; if the installer reported that updating the user PATH failed, add `%LOCALAPPDATA%\chrys\bin` to your user `PATH` manually.
 
 ## 2. Start iCode in a project
 

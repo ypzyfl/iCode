@@ -12,32 +12,32 @@ iCode 为 macOS、Linux 和 Windows 提供预构建的离线安装包。安装�
 
 ### macOS
 
-根据处理器选择 `icode-macos-aarch64-v<version>-offline.tar.gz`（Apple 芯片）或 `icode-macos-x86_64-v<version>-offline.tar.gz`（Intel），然后在下载目录运行：
+根据处理器选择 `aixcoding-cli-macos-aarch64-v<version>-offline.tar.gz`（Apple 芯片）或 `aixcoding-cli-macos-x86_64-v<version>-offline.tar.gz`（Intel），然后在下载目录运行：
 
 ```bash
-tar xzf icode-macos-<architecture>-v<version>-offline.tar.gz
-chmod +x ./icode
-./icode install
+tar xzf aixcoding-cli-macos-<architecture>-v<version>-offline.tar.gz
+chmod +x ./aixcoding-cli
+./aixcoding-cli install
 ```
 
 ### Linux
 
-根据处理器选择 `icode-linux-x86_64-v<version>-offline.tar.gz` 或 `icode-linux-aarch64-v<version>-offline.tar.gz`，然后在下载目录运行：
+根据处理器选择 `aixcoding-cli-linux-x86_64-v<version>-offline.tar.gz` 或 `aixcoding-cli-linux-aarch64-v<version>-offline.tar.gz`，然后在下载目录运行：
 
 ```bash
-tar xzf icode-linux-<architecture>-v<version>-offline.tar.gz
-chmod +x ./icode
-./icode install
+tar xzf aixcoding-cli-linux-<architecture>-v<version>-offline.tar.gz
+chmod +x ./aixcoding-cli
+./aixcoding-cli install
 ```
 
 Linux x86-64 安装包要求 glibc 2.17 或更高版本，ARM64 安装包要求 glibc 2.18 或更高版本。Alpine Linux 等只提供 musl 的发行版不在预构建包的支持范围内。
 
 ### Windows
 
-下载 `icode-windows-x86_64-v<version>-offline.zip` 并解压，在 PowerShell 中进入解压目录，然后运行：
+下载 `aixcoding-cli-windows-x86_64-v<version>-offline.zip` 并解压，在 PowerShell 中进入解压目录，然后运行：
 
 ```powershell
-.\icode.exe install
+.\aixcoding-cli.exe install
 ```
 
 安装器会尝试将 iCode 加入当前用户的 `PATH`。安装完成后，请打开一个新终端。
@@ -45,10 +45,10 @@ Linux x86-64 安装包要求 glibc 2.17 或更高版本，ARM64 安装包要求 
 ### 验证安装
 
 ```shell
-icode --version
+aixcoding-cli --version
 ```
 
-命令应输出 iCode 的版本号。在 macOS 或 Linux 上，如果系统找不到 `icode`，请按安装器的提示将 `~/.local/bin` 加入 `PATH`；如果安装器提示 `~/.local/bin/icode` 已存在，该命令会启动其他程序，请改用 `chrys` 命令。在 Windows 上请打开新的终端；如果安装器提示更新用户 PATH 失败，请手动将 `%LOCALAPPDATA%\chrys\bin` 加入用户 `PATH`。
+命令应输出 iCode 的版本号。在 macOS 或 Linux 上，如果系统找不到 `aixcoding-cli`，请按安装器的提示将 `~/.local/bin` 加入 `PATH`；如果安装器提示 `~/.local/bin/aixcoding-cli` 已存在，该命令会启动其他程序，请改用 `chrys` 命令。在 Windows 上请打开新的终端；如果安装器提示更新用户 PATH 失败，请手动将 `%LOCALAPPDATA%\chrys\bin` 加入用户 `PATH`。
 
 ## 2. 在项目中启动 iCode
 
