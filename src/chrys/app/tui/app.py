@@ -150,6 +150,7 @@ _TERMINAL_MODE_RESET = (
     "\x1b[=0;1u"  # Hard-reset Kitty keyboard flags
 )
 if TYPE_CHECKING:
+    from aixcoding.auth.types import AccountInfo
     from textual.timer import Timer
 
     from chrys.app.tui.widgets.markdown.diagram.messages import DiagramOpenRequested
@@ -962,11 +963,19 @@ class ChrysApp(TuiVariableDefaultsMixin, App):
 
         Offline is not a logout, a rejected credential self-cleans inside the
         check, and startup must never be disturbed: every outcome is swallowed.
+        The indicator refresh afterwards re-reads the session rather than the
+        check result — a network failure keeps the credential (stays signed
+        in), a rejection has already cleared it (flips the chip to logged out).
         """
         from aixcoding.auth import get_login_session
 
+        account: AccountInfo | None = None
         with contextlib.suppress(Exception):
-            await get_login_session().check_silent()
+            account = await get_login_session().check_silent()
+        screen = self._main_screen
+        if screen is not None:
+            with contextlib.suppress(Exception):
+                screen.refresh_login_indicator(account=account)
 
     async def _start_engine(self, profile: AgentProfile, screen: MainScreen) -> None:
         """Start the backend without holding Textual's mount path."""

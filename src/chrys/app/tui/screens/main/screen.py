@@ -43,6 +43,7 @@ from chrys.app.tui.screens.main.copy_actions import CopyActionController, parse_
 from chrys.app.tui.screens.main.diff_controller import DiffController, LiveDiffOwner, LiveDiffTracker
 from chrys.app.tui.screens.main.event_handlers import BackendEventCallbacks, BackendEventHandler
 from chrys.app.tui.screens.main.input_flow import InputFlowController
+from chrys.app.tui.screens.main.login_indicator import compute_login_indicator_state
 from chrys.app.tui.screens.main.model_indicator import (
     compute_model_indicator_state,
     is_model_selection_locked,
@@ -141,6 +142,7 @@ from chrys.service.profiles.models.schema import UNCONFIGURED_MODEL_ID, is_model
 from chrys.service.session.sub_agent_transcript import load_persisted_sub_agent_transcript
 
 if TYPE_CHECKING:
+    from aixcoding.auth.types import AccountInfo
     from textual.app import ComposeResult
     from textual.theme import Theme
 
@@ -963,9 +965,26 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         )
         self.query_one(StatusBar).set_model(state)
 
+    def refresh_login_indicator(self, *, account: AccountInfo | None = None) -> None:
+        """Recompute the account tag from the login session (no network I/O).
+
+        ``account`` is the freshest ``user/info`` result when the caller has
+        one; without it the tag falls back to the stored ehr, so an offline
+        start still shows a signed-in chip.
+        """
+        from aixcoding.auth import get_login_session
+
+        state = compute_login_indicator_state(
+            get_login_session(),
+            self._language_localizer(),
+            account=account,
+        )
+        self.query_one(StatusBar).set_account(state)
+
     def refresh_localization(self) -> None:
         """Recompute screen-owned localized chrome text in place."""
         self._refresh_model_indicator()
+        self.refresh_login_indicator()
         if self._workflow.workflow_mode:
             self._workflow.request_refresh()
 
@@ -1534,6 +1553,7 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         if self._locale_controller is not None:
             self._locale_controller.register_surface(self)
         self._refresh_model_indicator()
+        self.refresh_login_indicator()
         self._update_subtitle()
         self._git_branch_closed = False
         self._queue_git_branch_start(self._workspace_cwd())
@@ -2196,11 +2216,11 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
 
         from aixcoding.tui import LoginDialog
 
-        def _on_login_dismiss(account: object | None) -> None:
+        def _on_login_dismiss(account: AccountInfo | None) -> None:
             if account is None:
                 return
-            display_name = getattr(account, "display_name", "") or ""
-            self.notify(render_str(self._language_localizer(), _LOGIN_SUCCEEDED.bind(name=display_name)))
+            self.notify(render_str(self._language_localizer(), _LOGIN_SUCCEEDED.bind(name=account.display_name)))
+            self.refresh_login_indicator(account=account)
 
         self.app.push_screen(LoginDialog(), _on_login_dismiss)
 
@@ -2218,6 +2238,7 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
             return
         session.logout()
         self.notify(render_str(self._language_localizer(), _LOGIN_LOGGED_OUT.bind()))
+        self.refresh_login_indicator()
 
     # ------------------------------------------------------------------ #
     # Agent config (/agents with optional tab subcommands)

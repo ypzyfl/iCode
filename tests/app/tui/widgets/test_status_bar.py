@@ -13,6 +13,7 @@ from textual.widgets import Static
 
 from chrys.app.tui import i18n as tui_i18n
 from chrys.app.tui.i18n import LocaleController, LocaleSwitchStatus
+from chrys.app.tui.screens.main.login_indicator import LoginIndicatorState
 from chrys.app.tui.widgets import ChrysLoadingIndicator
 from chrys.app.tui.widgets.chrome.status_bar import (
     STATUS_COMPLETED,
@@ -499,3 +500,114 @@ async def test_status_bar_spinner_ticks_only_while_it_is_painted() -> None:
         await wait_for(timer._active.is_set, pilot=pilot, description="the spinner animates again")
         sb.hide()
         await wait_for(lambda: not timer._active.is_set(), pilot=pilot, description="the hidden bar parks the spinner")
+
+
+def _logged_out_state() -> LoginIndicatorState:
+    return LoginIndicatorState(
+        label="Not logged in",
+        tooltip="Not logged in — run /login to sign in",
+        logged_in=False,
+        managed=False,
+    )
+
+
+async def test_status_bar_account_tag_hidden_until_first_state() -> None:
+    async with WidgetApp(StatusBar).run_test() as pilot:
+        sb = pilot.app.query_one(StatusBar)
+        assert sb.query_one("#account-tag", Static).display is False
+        assert sb.query_one(".status-selectors").display is False
+
+        sb.set_account(_logged_out_state())
+
+        assert sb.query_one("#account-tag", Static).display is True
+        # The account tag alone keeps the selector row alive.
+        assert sb.query_one(".status-selectors").display is True
+
+
+async def test_status_bar_account_tag_renders_signed_in_and_logged_out_states() -> None:
+    async with WidgetApp(StatusBar).run_test() as pilot:
+        sb = pilot.app.query_one(StatusBar)
+        sb.set_account(
+            LoginIndicatorState(
+                label="大熊猫",
+                tooltip="Signed in as 大熊猫 (8769092)",
+                logged_in=True,
+                managed=False,
+            )
+        )
+
+        tag = sb.query_one("#account-tag", Static)
+        assert tag.display is True
+        assert tag.render().plain == "● 大熊猫"
+        assert tag.tooltip is not None
+        assert tag.tooltip.plain == "Signed in as 大熊猫 (8769092)"
+        assert tag.has_class("-logged-out") is False
+
+        sb.set_account(_logged_out_state())
+
+        assert tag.render().plain == "● Not logged in"
+        assert tag.has_class("-logged-out") is True
+        assert tag.tooltip is not None
+        assert tag.tooltip.plain == "Not logged in — run /login to sign in"
+
+
+async def test_status_bar_account_tag_truncates_to_its_cell_budget() -> None:
+    async with WidgetApp(StatusBar).run_test(size=(60, 6)) as pilot:  # compact tier
+        sb = pilot.app.query_one(StatusBar)
+        sb.set_account(
+            LoginIndicatorState(
+                label="A Very Long Account Name Indeed",
+                tooltip="",
+                logged_in=True,
+                managed=False,
+            )
+        )
+
+        tag = sb.query_one("#account-tag", Static)
+        rendered = tag.render().plain
+        assert rendered.startswith("● A Very")
+        assert rendered.endswith("…")
+        assert len(rendered) <= 9
+
+
+async def test_status_bar_account_tag_click_is_inert() -> None:
+    """The account tag is display-only: a click neither posts nor is consumed."""
+
+    class _RecordingApp(App):
+        def __init__(self) -> None:
+            self.tag_messages: list[object] = []
+            super().__init__()
+
+        def compose(self) -> ComposeResult:
+            yield StatusBar()
+
+        def on_status_bar_profile_tag_clicked(self, event: StatusBar.ProfileTagClicked) -> None:
+            self.tag_messages.append(event)
+
+        def on_status_bar_model_tag_clicked(self, event: StatusBar.ModelTagClicked) -> None:
+            self.tag_messages.append(event)
+
+        def on_status_bar_details_clicked(self, event: StatusBar.DetailsClicked) -> None:
+            self.tag_messages.append(event)
+
+    app = _RecordingApp()
+    async with app.run_test() as pilot:
+        sb = pilot.app.query_one(StatusBar)
+        sb.set_account(
+            LoginIndicatorState(
+                label="大熊猫",
+                tooltip="Signed in as 大熊猫",
+                logged_in=True,
+                managed=False,
+            )
+        )
+        await pilot.pause()
+
+        tag = sb.query_one("#account-tag", Static)
+        event = make_click(sb, screen_x=tag.region.x, screen_y=tag.region.y)
+        sb.on_click(event)
+        await pilot.pause()
+
+    assert event._no_default_action is False
+    assert event._stop_propagation is False
+    assert app.tag_messages == []

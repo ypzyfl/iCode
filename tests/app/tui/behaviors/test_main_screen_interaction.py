@@ -401,7 +401,9 @@ async def test_shell_mode_transitions_never_paint_half_applied_layout(tmp_path: 
                 description="leaving shell mode completes its refresh",
             )
             assert app.screen.shell_mode_state is False
-            assert app.screen.query_one(StatusBar).query_one(".status-selectors").display is False
+            # Outside shell mode the always-present account (login) tag keeps
+            # the selector row alive even with no profile/model configured.
+            assert app.screen.query_one(StatusBar).query_one(".status-selectors").display is True
         finally:
             del app._display
 

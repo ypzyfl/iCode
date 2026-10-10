@@ -6052,6 +6052,42 @@ msgstr ""
 msgid "tui.login.succeeded"
 msgstr ""
 
+#. English: Not logged in
+#. chrys-meta={"fingerprint":"f6d3b6e7723845d059c73263b49b8c13db38b17774eaa954d040abc356882e93","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/login_indicator.py
+msgid "tui.login_indicator.logged_out"
+msgstr ""
+
+#. English: Signed in
+#. chrys-meta={"fingerprint":"c3466bb53653eb971b6d63b309dc0a737a80212edc43e270ad9b9aa4590feca9","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/login_indicator.py
+msgid "tui.login_indicator.signed_in"
+msgstr ""
+
+#. English: Not logged in — run /login to sign in
+#. chrys-meta={"fingerprint":"9c7c16fc75f8b0ecf52462ef0d331b16a4455bec472d7f41bda21217b8983e77","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/login_indicator.py
+msgid "tui.login_indicator.tooltip.login_hint"
+msgstr ""
+
+#. English: {name} — login managed by the desktop app
+#. chrys-meta={"fingerprint":"2407b6941617e8075942b8fa4a4168b04e152fffec58980cb485e303614a70b3","multiline":false,"placeholders":["name"]}
+#: src/chrys/app/tui/screens/main/login_indicator.py
+msgid "tui.login_indicator.tooltip.managed"
+msgstr ""
+
+#. English: Signed in as {name}
+#. chrys-meta={"fingerprint":"5f43235aa47026249ebf3d7cf1927ea18f5846cdfe9af4cbae8e8d87dbd03aca","multiline":false,"placeholders":["name"]}
+#: src/chrys/app/tui/screens/main/login_indicator.py
+msgid "tui.login_indicator.tooltip.signed_in"
+msgstr ""
+
+#. English: Signed in as {name} ({ehr})
+#. chrys-meta={"fingerprint":"6ab6e1a03ed33a0e06041b0ac01608ec26aad6e134eb8786f6e7c7b55c6d5d5f","multiline":false,"placeholders":["ehr","name"]}
+#: src/chrys/app/tui/screens/main/login_indicator.py
+msgid "tui.login_indicator.tooltip.signed_in_with_ehr"
+msgstr ""
+
 #. English: Copied {count} line from '{module}'
 #. English-plural: Copied {count} lines from '{module}'
 #. chrys-meta={"fingerprint":"4aab8fbc259e563f04cbc3e5e78344e455d645881f14e24a92b4865d68e6aeee","multiline":false,"placeholders":["module"]}

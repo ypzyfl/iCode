@@ -2,8 +2,8 @@
 
 """StatusBar — profile/model selectors and agent activity above the InputBar.
 
-Layout: Agent [profile] Model [model] [LoadingIndicator] [status text] [run trail] ... [tool info]
-Flash:  Agent [profile] Model [model] [message text] ... [tool counts]
+Layout: Agent [profile] Model [model] [account] [LoadingIndicator] [status text] [run trail] ... [tool info]
+Flash:  Agent [profile] Model [model] [account] [message text] ... [tool counts]
 """
 
 from __future__ import annotations
@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from textual.app import ComposeResult
 
     from chrys.app.tui.i18n import LocaleController
+    from chrys.app.tui.screens.main.login_indicator import LoginIndicatorState
     from chrys.app.tui.screens.main.model_indicator import ModelIndicatorState
 
 
@@ -45,14 +46,21 @@ type StatusMessage = MessageRef | str
 type StatusTrail = StatusMessage | tuple[StatusMessage, ...]
 
 
+#: The account tag's leading status icon; it rides the tag color, so the
+#: logged-out class turns it gray together with the label.
+_ACCOUNT_TAG_ICON = "●"
+
 _WIDE_TAG_LAYOUT_MIN_COLUMNS = 72
 _WIDE_PROFILE_TAG_CELLS = 18
 _WIDE_MODEL_TAG_CELLS = 26
+_WIDE_ACCOUNT_TAG_CELLS = 18
 _NARROW_PROFILE_TAG_CELLS = 10
 _NARROW_MODEL_TAG_CELLS = 12
+_NARROW_ACCOUNT_TAG_CELLS = 14
 _COMPACT_LAYOUT_MIN_COLUMNS = 64
 _COMPACT_PROFILE_TAG_CELLS = 7
 _COMPACT_MODEL_TAG_CELLS = 10
+_COMPACT_ACCOUNT_TAG_CELLS = 9
 
 STATUS_TOOL_CALLS = msg(
     "tui.status.tool_calls",
@@ -212,6 +220,20 @@ class StatusBar(Widget):
         background: $accent 20%;
         color: $accent 50%;
     }
+    StatusBar > .status-selectors > .account-tag {
+        width: auto;
+        height: 1;
+        margin: 0 0 0 1;
+        padding: 0 1;
+        background: $accent 20%;
+        color: $accent;
+        text-style: bold;
+    }
+    StatusBar > .status-selectors > .account-tag.-logged-out {
+        background: $foreground 8%;
+        color: $text-muted;
+        text-style: none;
+    }
     StatusBar.-compact > .status-selectors > .model-tag {
         margin-left: 1;
     }
@@ -315,6 +337,7 @@ class StatusBar(Widget):
         self._current_model_tooltip: str = ""
         self._current_model_mode: Literal["configure", "select", "locked"] = "locked"
         self._current_model_visible = False
+        self._account_state: LoginIndicatorState | None = None
         self._content_shown = False
         self._execution_busy = False
         self._idle_shown = False
@@ -325,6 +348,7 @@ class StatusBar(Widget):
             yield _StatusBarChromeLabel("", id="profile-tag", classes="profile-tag")
             yield _StatusBarChromeLabel("", id="model-label", classes="selector-label model-selector-label")
             yield _StatusBarChromeLabel("", id="model-tag", classes="model-tag")
+            yield _StatusBarChromeLabel("", id="account-tag", classes="account-tag")
         with Horizontal(classes="status-body"):
             with Horizontal(classes="status-run"):
                 yield ChrysLoadingIndicator()
@@ -389,6 +413,16 @@ class StatusBar(Widget):
             self._sync_selector_visibility()
             self._show_selectors_only_if_hidden()
 
+    def set_account(self, state: LoginIndicatorState) -> None:
+        """Update the account login tag (display-only, never clickable)."""
+        if self._account_state == state:
+            return
+        self._account_state = state
+        if self.is_mounted:
+            self._refresh_tags()
+            self._sync_selector_visibility()
+            self._show_selectors_only_if_hidden()
+
     def set_input_locked(self, locked: bool) -> None:
         """Mirror the input bar's queued-injection lock for selector guards."""
         self.input_locked = locked
@@ -409,9 +443,18 @@ class StatusBar(Widget):
             return Text(description)
         return Text(f"{label}\n{description}")
 
-    def _tag_cell_limits(self, available_columns: int) -> tuple[int, int]:
+    def _account_tag_text(self) -> str:
+        """Full account tag text: the status icon plus the rendered label."""
+        state = self._account_state
+        if state is None:
+            return ""
+        if not state.label:
+            return _ACCOUNT_TAG_ICON
+        return f"{_ACCOUNT_TAG_ICON} {state.label}"
+
+    def _tag_cell_limits(self, available_columns: int) -> tuple[int, int, int]:
         if available_columns < _COMPACT_LAYOUT_MIN_COLUMNS:
-            return _COMPACT_PROFILE_TAG_CELLS, _COMPACT_MODEL_TAG_CELLS
+            return _COMPACT_PROFILE_TAG_CELLS, _COMPACT_MODEL_TAG_CELLS, _COMPACT_ACCOUNT_TAG_CELLS
         wide_selector_cells = self._selector_cells_for_limits(
             _WIDE_PROFILE_TAG_CELLS,
             _WIDE_MODEL_TAG_CELLS,
@@ -421,11 +464,16 @@ class StatusBar(Widget):
             and available_columns - wide_selector_cells >= _MIN_WIDE_STATUS_BODY_CELLS
         )
         if wide:
-            return _WIDE_PROFILE_TAG_CELLS, _WIDE_MODEL_TAG_CELLS
-        return _NARROW_PROFILE_TAG_CELLS, _NARROW_MODEL_TAG_CELLS
+            return _WIDE_PROFILE_TAG_CELLS, _WIDE_MODEL_TAG_CELLS, _WIDE_ACCOUNT_TAG_CELLS
+        return _NARROW_PROFILE_TAG_CELLS, _NARROW_MODEL_TAG_CELLS, _NARROW_ACCOUNT_TAG_CELLS
 
     def _selector_cells_for_limits(self, profile_limit: int, model_limit: int) -> int:
-        """Project selector width while reserving room for status content."""
+        """Project selector width while reserving room for status content.
+
+        The account tag is deliberately absent: it is non-interactive chrome
+        that must not demote the profile/model tags into a narrower tier, so
+        its width lands on the flexible status body instead.
+        """
         cells = _SELECTOR_GROUP_HORIZONTAL_PADDING_CELLS
         if self._current_profile:
             cells += cell_len(self._render_message(STATUS_AGENT_SELECTOR_LABEL.bind()))
@@ -445,7 +493,7 @@ class StatusBar(Widget):
         available_columns = self.size.width or self.app.size.width
         compact = available_columns < _COMPACT_LAYOUT_MIN_COLUMNS
         self.set_class(compact, "-compact")
-        profile_limit, model_limit = self._tag_cell_limits(available_columns)
+        profile_limit, model_limit, account_limit = self._tag_cell_limits(available_columns)
         profile_visible = bool(self._current_profile)
         agent_label = self.query_one("#agent-label", Static)
         agent_label.display = profile_visible and not compact
@@ -464,11 +512,26 @@ class StatusBar(Widget):
         model_tag.display = self._current_model_visible
         model_tag.update(self._truncate_tag(self._current_model, model_limit))
         model_tag.tooltip = self._full_tag_tooltip(self._current_model, self._current_model_tooltip)
+
+        account_state = self._account_state
+        account_tag = self.query_one("#account-tag", Static)
+        account_tag.display = account_state is not None
+        if account_state is None:
+            account_tag.update(Text(""))
+            account_tag.tooltip = None
+        else:
+            account_tag.set_class(not account_state.logged_in, "-logged-out")
+            account_tag.update(self._truncate_tag(self._account_tag_text(), account_limit))
+            account_tag.tooltip = Text(account_state.tooltip) if account_state.tooltip else None
         self._refresh_tag_interaction_state()
+
+    def _selectors_present(self) -> bool:
+        """Whether any selector chip — including the account tag — is set."""
+        return bool(self._current_profile) or self._current_model_visible or self._account_state is not None
 
     def _show_selectors_only_if_hidden(self) -> None:
         """Expose configured selectors without inventing an idle status message."""
-        if self.visible or self.shell_mode or not (self._current_profile or self._current_model_visible):
+        if self.visible or self.shell_mode or not self._selectors_present():
             return
         set_widgets_visibility_without_layout(
             [
@@ -522,7 +585,7 @@ class StatusBar(Widget):
         if not self.is_attached:
             return
         selectors = self.query_one(".status-selectors")
-        display = not self.shell_mode and bool(self._current_profile or self._current_model_visible)
+        display = not self.shell_mode and self._selectors_present()
         if selectors.display != display:
             selectors.display = display
 
@@ -540,9 +603,7 @@ class StatusBar(Widget):
         self._tool_trail = trail
         if self.is_mounted:
             if self._idle_shown:
-                idle_shown = not self.shell_mode and bool(
-                    self._current_profile or self._current_model_visible or self._tool_trail
-                )
+                idle_shown = not self.shell_mode and bool(self._selectors_present() or self._tool_trail)
                 set_widgets_visibility_without_layout(
                     [
                         (self, idle_shown),
@@ -627,9 +688,7 @@ class StatusBar(Widget):
         self._content_shown = False
         self._idle_shown = True
         self._refresh_trail()
-        idle_shown = not self.shell_mode and bool(
-            self._current_profile or self._current_model_visible or self._tool_trail
-        )
+        idle_shown = not self.shell_mode and bool(self._selectors_present() or self._tool_trail)
         set_widgets_visibility_without_layout(
             [
                 (self, idle_shown),
