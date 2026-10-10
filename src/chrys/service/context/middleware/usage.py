@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from chrys.foundation.errors import ProviderResponseError
 from chrys.kernel import ChatResponse, ResponseStream, normalize_stream_usage
 from chrys.kernel.instrumentation import _stream_error_of
 from chrys.kernel.middleware import ChatContext, ChatMiddleware
@@ -78,12 +79,13 @@ class UsageTrackingMiddleware(ChatMiddleware):
         self._call_count += 1
 
         # Execute the model call.  Validation failures — terminal or
-        # service-side retryable — still consumed provider tokens on the
-        # rejected attempt, so count their usage before re-raising to the
-        # executor error path or the whole-run retry boundary.
+        # service-side retryable — and responses the adapter failed still
+        # consumed provider tokens on the rejected attempt, so count their
+        # usage before re-raising to the executor error path or a retry
+        # boundary.
         try:
             await call_next()
-        except ResponseValidationError as err:
+        except (ResponseValidationError, ProviderResponseError) as err:
             if err.usage_details:
                 self._handle_usage(
                     dict(err.usage_details),
@@ -111,7 +113,7 @@ class UsageTrackingMiddleware(ChatMiddleware):
                 stream_error = _stream_error_of(result)
                 if (
                     not stream_usage_handled
-                    and isinstance(stream_error, ResponseValidationError)
+                    and isinstance(stream_error, ResponseValidationError | ProviderResponseError)
                     and stream_error.usage_details
                 ):
                     stream_usage_handled = True
@@ -121,14 +123,15 @@ class UsageTrackingMiddleware(ChatMiddleware):
                             use_local_context_estimate=self._should_guard_validation_error_usage(),
                         )
                     except Exception:
-                        logger.exception("Failed to report usage from stream-validation error")
+                        logger.exception("Failed to report usage from a failed stream")
 
             # Streaming: attach hooks to intercept per-iteration usage updates
             result.with_transform_hook(on_stream_update)
             result.with_result_hook(on_stream_final)
-            # Lazy response validation raises terminal failures during iteration,
-            # after this middleware's ``call_next`` frame has returned. Recover
-            # the consumed provider usage from that stream error during cleanup.
+            # Lazy response validation and the adapter raise failures during
+            # iteration, after this middleware's ``call_next`` frame has
+            # returned. Recover the consumed provider usage from that stream
+            # error during cleanup.
             result.with_cleanup_hook(on_stream_cleanup)
         # Non-streaming: capture usage directly from the ChatResponse
         elif isinstance(result, ChatResponse) and result.usage_details:
@@ -181,9 +184,10 @@ class UsageTrackingMiddleware(ChatMiddleware):
     def _should_guard_validation_error_usage(self) -> bool:
         """Return the conservative calibration guard for rejected responses.
 
-        Validation errors retain usage but not a reliable assembled response
-        shape, so a Responses dialect configured for hosted aggregate usage
-        must not calibrate from that provider input count.
+        Validation and adapter errors retain usage but not a reliable
+        assembled response shape, so a Responses dialect configured for
+        hosted aggregate usage must not calibrate from that provider input
+        count.
         """
         return self._use_local_context_estimate_for_hosted_usage and self._compaction_strategy is not None
 
@@ -326,52 +330,3 @@ def extract_cache_hit_tokens(usage: Mapping[str, Any]) -> int | None:
         if value is not None:
             return int(value)
     return None
-
-
-# ---------------------------------------------------------------------------
-# Shared formatting
-# ---------------------------------------------------------------------------
-
-
-def format_usage_hint(
-    usage: Mapping[str, Any],
-    *,
-    max_context_tokens: int,
-    warn_threshold_pct: float,
-    msg_count: int = 0,
-    call_count: int = 0,
-    sub_agent_names: list[str] | None = None,
-) -> str:
-    """Format a human-readable usage hint string."""
-    input_tokens = usage.get("input_token_count") or 0
-    output_tokens = usage.get("output_token_count") or 0
-    total_tokens = usage.get("total_token_count") or (input_tokens + output_tokens)
-    total_pct = round(total_tokens / max_context_tokens * 100, 1) if max_context_tokens else 0.0
-
-    parts = [
-        f"[Context Usage] current: {total_pct}% ({total_tokens:,}/{max_context_tokens:,})",
-    ]
-    if msg_count:
-        parts.append(f"history_messages={msg_count}")
-    if call_count:
-        parts.append(f"model_call#{call_count}_this_turn")
-
-    if total_pct >= warn_threshold_pct * 100:
-        parts.append(
-            "WARNING: Context usage is high. Use `list_compressed_contexts` to see "
-            "available fold markers, then `compress_context` with a marker_id to "
-            "compress older turns into a summary. Use `recall_context` to query "
-            "compressed blocks if you need specific details later."
-        )
-
-    if sub_agent_names:
-        names = ", ".join(f"`{n}`" for n in sub_agent_names)
-        parts.append(
-            f"TIP: Sub-agents are available ({names}). Prefer delegating to a sub-agent for "
-            "context-heavy but simple or repeated tasks (file searches, exploration, "
-            "bulk edits). Each sub-agent runs in its own context window, keeping "
-            "the main conversation lean. This is especially important when context "
-            "usage is high."
-        )
-
-    return " | ".join(parts)

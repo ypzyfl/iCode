@@ -12,32 +12,32 @@ In the commands below, `<version>` and `<architecture>` are placeholders. Replac
 
 ### macOS
 
-Choose `icode-macos-aarch64-v<version>-offline.tar.gz` for Apple silicon or `icode-macos-x86_64-v<version>-offline.tar.gz` for Intel, then run the following in your download directory:
+Choose `aixcoding-cli-macos-aarch64-v<version>-offline.tar.gz` for Apple silicon or `aixcoding-cli-macos-x86_64-v<version>-offline.tar.gz` for Intel, then run the following in your download directory:
 
 ```bash
-tar xzf icode-macos-<architecture>-v<version>-offline.tar.gz
-chmod +x ./icode
-./icode install
+tar xzf aixcoding-cli-macos-<architecture>-v<version>-offline.tar.gz
+chmod +x ./aixcoding-cli
+./aixcoding-cli install
 ```
 
 ### Linux
 
-Choose `icode-linux-x86_64-v<version>-offline.tar.gz` or `icode-linux-aarch64-v<version>-offline.tar.gz` for your processor, then run the following in your download directory:
+Choose `aixcoding-cli-linux-x86_64-v<version>-offline.tar.gz` or `aixcoding-cli-linux-aarch64-v<version>-offline.tar.gz` for your processor, then run the following in your download directory:
 
 ```bash
-tar xzf icode-linux-<architecture>-v<version>-offline.tar.gz
-chmod +x ./icode
-./icode install
+tar xzf aixcoding-cli-linux-<architecture>-v<version>-offline.tar.gz
+chmod +x ./aixcoding-cli
+./aixcoding-cli install
 ```
 
 The Linux x86-64 package requires glibc 2.17 or later, and the ARM64 package requires glibc 2.18 or later. Distributions that provide only musl, such as Alpine Linux, are not supported by the prebuilt packages.
 
 ### Windows
 
-Download and extract `icode-windows-x86_64-v<version>-offline.zip`. Open PowerShell, go to the extracted directory, and run:
+Download and extract `aixcoding-cli-windows-x86_64-v<version>-offline.zip`. Open PowerShell, go to the extracted directory, and run:
 
 ```powershell
-.\icode.exe install
+.\aixcoding-cli.exe install
 ```
 
 The installer attempts to add iCode to the current user's `PATH`. Open a new terminal after installation.
@@ -45,10 +45,10 @@ The installer attempts to add iCode to the current user's `PATH`. Open a new ter
 ### Verify the installation
 
 ```shell
-icode --version
+aixcoding-cli --version
 ```
 
-The command should print the iCode version number. If your system cannot find `icode` on macOS or Linux, add `~/.local/bin` to `PATH` as the installer instructs. If the installer reported that `~/.local/bin/icode` already exists, that command starts another program; use `chrys` instead. On Windows, open a new terminal; if the installer reported that updating the user PATH failed, add `%LOCALAPPDATA%\chrys\bin` to your user `PATH` manually.
+The command should print the iCode version number. If your system cannot find `aixcoding-cli` on macOS or Linux, add `~/.local/bin` to `PATH` as the installer instructs. If the installer reported that `~/.local/bin/aixcoding-cli` already exists, that command starts another program; use `chrys` instead. On Windows, open a new terminal; if the installer reported that updating the user PATH failed, add `%LOCALAPPDATA%\chrys\bin` to your user `PATH` manually.
 
 ## 2. Start iCode in a project
 
@@ -109,8 +109,6 @@ Analyze the task list implementation and propose a plan for adding a "Clear comp
 
 Q&A Agent may search for files, read their contents, or run read-only commands. Tool calls appear as cards. After completing its analysis, the agent presents an implementation plan.
 
-Your messages and the agent's replies are shown with Markdown formatting. To copy a message exactly as it was written, click **copy** next to its header. Text you select with the mouse is copied as it is displayed.
-
 ### Use Code Agent
 
 Code Agent handles tasks that require **modifying files, running commands, and validating results**. It reads the relevant code first, then implements, debugs, or refactors it as requested.
@@ -124,6 +122,20 @@ Implement the "Clear completed tasks" feature using the plan we just discussed. 
 If an approval dialog appears, review the tool call before approving it. Pay particular attention to the command, target files, and scope of its effects, and approve only when they match your expectations. For the behavior of each approval mode, see [Configure approval modes](../guides/configuration/approval.md).
 
 When the task is complete, review the agent's final response and use `/diff` to browse the file changes recorded in the current session. Then use Git or another version control tool to inspect the complete working directory changes. Confirm that the feature works correctly, the necessary tests pass, and there are no unrelated changes. Once you have verified the changes, you can commit them.
+
+### Read and copy replies
+
+All agents' replies support Markdown, formulas and Mermaid diagrams. Formulas in your own messages are not rendered as math.
+
+Lists and quotes can contain headings, tables, code and formulas.
+
+Single-line math is written with `$...$` or `\(...\)`. Display formulas in `math` code blocks, `$$...$$` or `\[...\]` can show fractions, matrices and aligned equations. Ordinary text, prices and shell variables keep their Markdown formatting. Formulas that are unsupported or too wide are shown as complete, wrapped source.
+
+For example, `$x^{n+1}$` displays as xⁿ⁺¹ and `$90^\circ$` as 90°.
+
+Mermaid code blocks appear as diagrams; choose **Open full diagram** to view and scroll the full result. Some diagrams are simplified with a notice; unsupported diagrams stay as source.
+
+Mouse selection copies what is displayed, without adding newlines for screen wrapping. Use **copy** beside the message header to copy the original Markdown and LaTeX. Reopening an older conversation uses the current rendering.
 
 ## 5. End the session
 

@@ -21,6 +21,7 @@ from chrys.service.context.compaction import (
     _group_messages_by_id,
     _ordered_group_ids,
 )
+from chrys.service.context.compaction.last_words_state import LastWordsState
 from chrys.service.context.providers.history import (
     CompressibleHistoryProvider,
 )
@@ -106,13 +107,15 @@ def _make_strategy(
     *,
     last_words_generator: object | None = None,
     reminder_middleware: object | None = None,
+    last_words: LastWordsState | None = None,
     **kwargs,
 ) -> UnifiedContextStrategy:
     """Create a strategy with Phase 4 collaborators stubbed by default.
 
     Tests that want to observe the LAST_WORDS pipeline can pass their own
     stub instances; tests that don't care still get drop-all Phase 4
-    behaviour out of the box.
+    behaviour out of the box.  A real middleware comes with the state it
+    renders (``reminder_pair``/``make_reminder_stack``), passed as *last_words*.
     """
     defaults = {
         "max_context_tokens": 100_000,
@@ -122,7 +125,13 @@ def _make_strategy(
     defaults.update(kwargs)
     strategy = UnifiedContextStrategy(**defaults)
     strategy.set_last_words_generator(last_words_generator or StubLastWordsGenerator())
-    strategy.set_reminder_middleware(reminder_middleware or StubReminderMiddleware())
+    if reminder_middleware is None:
+        reminder_middleware = StubReminderMiddleware(last_words)
+    if last_words is None:
+        if not isinstance(reminder_middleware, StubReminderMiddleware):
+            raise TypeError("A real reminder middleware needs the LAST_WORDS state it renders: pass last_words=.")
+        last_words = reminder_middleware.last_words
+    strategy.bind_reminder(reminder_middleware, last_words)
     return strategy
 
 
@@ -212,3 +221,44 @@ def _forced_phase4(messages: list[Message], **strategy_kwargs: Any) -> UnifiedCo
     """
     total = _estimate_tokens(messages)
     return _make_strategy(max_context_tokens=total + 50, trigger_pct=0.90, target_pct=0.01, **strategy_kwargs)
+
+
+def _anthropic_fetched_pdf_exchange(payload: str) -> list[Message]:
+    """An Anthropic web_fetch of a PDF, parsed by the real adapter: the result keeps the base64 ``source`` dict."""
+    from anthropic.types.beta import BetaMessage
+
+    from chrys.service.llm.anthropic_messages.decode import decode_blocks
+
+    response = BetaMessage.model_validate(
+        {
+            "id": "msg-1",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-test",
+            "stop_reason": "end_turn",
+            "stop_sequence": None,
+            "usage": {"input_tokens": 1, "output_tokens": 1},
+            "content": [
+                {
+                    "type": "server_tool_use",
+                    "id": "fetch-1",
+                    "name": "web_fetch",
+                    "input": {"url": "https://example.test/paper.pdf"},
+                },
+                {
+                    "type": "web_fetch_tool_result",
+                    "tool_use_id": "fetch-1",
+                    "content": {
+                        "type": "web_fetch_result",
+                        "url": "https://example.test/paper.pdf",
+                        "content": {
+                            "type": "document",
+                            "source": {"type": "base64", "media_type": "application/pdf", "data": payload},
+                        },
+                    },
+                },
+            ],
+        }
+    )
+    call, result = decode_blocks(response.content)
+    return [Message("assistant", [call]), Message("assistant", [result])]

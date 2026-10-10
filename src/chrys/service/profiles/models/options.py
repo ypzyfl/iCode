@@ -46,6 +46,19 @@ class ProtectedChatOptionsWarning:
         )
 
 
+# The Chat Completions option that carries ``ModelProfile.stream_requires_finish_reason``
+# to the client; it is never sent.
+STREAM_REQUIRES_FINISH_REASON_OPTION = "stream_requires_finish_reason"
+# The Responses option that routes OpenAI's prompt cache; a client sets one
+# itself unless the options do (a null: none).
+PROMPT_CACHE_KEY_OPTION = "prompt_cache_key"
+# The Anthropic options that carry ``ModelProfile.thinking_block_binding`` and
+# ``ModelProfile.auto_interleaved_thinking`` to the client when they are not
+# the defaults; neither is sent.
+THINKING_BLOCK_BINDING_OPTION = "thinking_block_binding"
+AUTO_INTERLEAVED_THINKING_OPTION = "auto_interleaved_thinking"
+_CHAT_COMPLETIONS_PROVIDERS = frozenset({"openai", "deepseek-openai", "glm-openai"})
+
 PROTECTED_TOP_LEVEL_CHAT_OPTION_KEYS = frozenset(
     {
         "messages",
@@ -91,6 +104,28 @@ def _drop_protected_chat_options(profile_name: str, options: dict[str, Any]) -> 
         sanitized["extra_body"] = cleaned_extra_body
     for path in protected:
         _log.warning("ModelProfile %r chat_options key %r is protected and will be ignored", profile_name, path)
+    return sanitized
+
+
+def _normalize_instructions_option(profile_name: str, options: dict[str, Any]) -> dict[str, Any]:
+    """Join a list-of-strings ``instructions`` one item per line; drop any other non-string.
+
+    The kernel concatenates instructions as text, so any other value would
+    reach the prompt as its Python repr.
+    """
+    value = options.get("instructions")
+    if value is None or isinstance(value, str):
+        return options
+    sanitized = dict(options)
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        sanitized["instructions"] = "\n".join(cast("list[str]", value))
+        return sanitized
+    _log.warning(
+        "ModelProfile %r chat_options key 'instructions' must be a string or a list of strings; ignoring %s",
+        profile_name,
+        type(value).__name__,
+    )
+    del sanitized["instructions"]
     return sanitized
 
 
@@ -147,6 +182,7 @@ def parse_chat_options(profile: ModelProfile) -> dict[str, Any] | None:
         _log.warning("ModelProfile %r chat_options is not a JSON object, ignoring: %r", profile.name, raw)
         return None
     opts = _drop_protected_chat_options(profile.name, opts)
+    opts = _normalize_instructions_option(profile.name, opts)
     opts = _drop_managed_extra_headers(profile.name, opts)
     resolved = cast(
         "dict[str, Any]",
@@ -233,12 +269,40 @@ def effective_chat_options(profile: ModelProfile) -> dict[str, Any] | None:
             # gate, conversation-id learning, session persistence) agrees
             # with what the service actually stores.
             effective["store"] = False
+        extra_body = effective.get("extra_body")
+        if (
+            PROMPT_CACHE_KEY_OPTION in effective
+            and effective[PROMPT_CACHE_KEY_OPTION] is None
+            and (extra_body is None or isinstance(extra_body, Mapping))
+        ):
+            # A null asks for no prompt cache key, but the agent drops options
+            # set to null, which would leave the client choosing one: the null
+            # rides in extra_body, which keeps it.
+            del effective[PROMPT_CACHE_KEY_OPTION]
+            effective["extra_body"] = {**(extra_body or {}), PROMPT_CACHE_KEY_OPTION: None}
     if profile.max_output_tokens > 0 and (
         effective is None or all(effective.get(alias) is None for alias in OUTPUT_CAP_OPTION_ALIASES)
     ):
         if effective is None or effective is opts:
             effective = dict(opts or {})
         effective["max_tokens"] = profile.max_output_tokens
+    if (
+        profile.stream_requires_finish_reason
+        and profile.provider in _CHAT_COMPLETIONS_PROVIDERS
+        and not uses_responses_wire_dialect(profile)
+    ):
+        if effective is None or effective is opts:
+            effective = dict(opts or {})
+        effective[STREAM_REQUIRES_FINISH_REASON_OPTION] = True
+    if profile.provider == "anthropic":
+        if profile.thinking_block_binding != "auto":
+            if effective is None or effective is opts:
+                effective = dict(opts or {})
+            effective[THINKING_BLOCK_BINDING_OPTION] = profile.thinking_block_binding
+        if not profile.auto_interleaved_thinking:
+            if effective is None or effective is opts:
+                effective = dict(opts or {})
+            effective[AUTO_INTERLEAVED_THINKING_OPTION] = False
     return effective
 
 
@@ -281,6 +345,50 @@ def responses_store_continuation_warning(profile: ModelProfile) -> str | None:
         "Context compaction is not supported in this mode yet: long "
         "sessions will not compact and may overflow the context window."
     )
+
+
+# Anthropic automatic prompt caching: one breakpoint the service places on the
+# last cacheable block of each request.
+ANTHROPIC_PROMPT_CACHE_CONTROL: Mapping[str, str] = {"type": "ephemeral"}
+
+
+def is_anthropic_claude_profile(profile: ModelProfile) -> bool:
+    """Return whether *profile* sends a Claude model over the Anthropic protocol."""
+    return profile.provider == "anthropic" and "claude" in profile.model_id.casefold()
+
+
+def lacks_anthropic_prompt_cache_option(profile: ModelProfile) -> bool:
+    """Return whether a Claude profile on the Anthropic protocol never asks for prompt caching.
+
+    Anthropic caches a prompt prefix only when the request carries
+    ``cache_control``, and Chrys does not add one itself (some gateways
+    reject the field), so such a profile pays full input price on every
+    call.  Either spelling counts: the top-level option or the same key
+    inside ``extra_body``.  Reads the raw options like the other save-time
+    checks; a value this helper cannot merge into (options that are not a
+    JSON object, an ``extra_body`` that is not one) returns False, since the
+    one-click fix could not apply.
+    """
+    if not is_anthropic_claude_profile(profile):
+        return False
+    raw = profile.chat_options
+    if not raw:
+        return True
+    try:
+        options = json.loads(raw)
+    except json.JSONDecodeError, TypeError:
+        return False
+    if not isinstance(options, dict) or "cache_control" in options:
+        return False
+    extra_body = options.get("extra_body")
+    if extra_body is None:
+        return True
+    return isinstance(extra_body, Mapping) and "cache_control" not in extra_body
+
+
+def with_anthropic_prompt_cache_option(extra_body: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Return *extra_body* plus Anthropic's automatic prompt-caching switch."""
+    return {**(extra_body or {}), "cache_control": dict(ANTHROPIC_PROMPT_CACHE_CONTROL)}
 
 
 def protected_chat_option_keys_warning_structured(profile: ModelProfile) -> ProtectedChatOptionsWarning | None:

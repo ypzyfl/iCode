@@ -33,7 +33,7 @@ def _suggestion_handler(locale_controller: LocaleController | None = None) -> Su
         command_actions=MagicMock(),
         callbacks=SuggestionCallbacks(
             notify_warning=MagicMock(),
-            show_file_suggestions=MagicMock(),
+            start_worker=MagicMock(),
             submit_user_text=MagicMock(),
             start_agent_profile_switch=MagicMock(),
             start_model_profile_switch=MagicMock(),
@@ -101,7 +101,7 @@ def test_completion_labels_localize_without_changing_values() -> None:
         "打开提示词编辑器",
         "打开工具设置",
         "打开子智能体设置",
-        "打开技能设置",
+        "打开 Skills 设置",
         "打开 MCP 服务器设置",
         "打开记忆设置",
         "打开压缩设置",
@@ -164,6 +164,8 @@ def test_manual_pages_render_english_byte_identically_and_translate_at_display(
         "  /fork         - Fork the current session\n"
         "  /rename       - Set or clear a custom session title\n"
         "  /sessions     - Browse saved sessions\n"
+        "  /login        - Log in with your AIxCoding account\n"
+        "  /logout       - Log out and clear the stored credential\n"
         "  /theme        - Set color theme\n"
         "  /language     - Set display language\n"
         "  /chdir        - Change working directory\n"

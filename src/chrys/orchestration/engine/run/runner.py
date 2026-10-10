@@ -21,6 +21,7 @@ from chrys.orchestration.engine.run.prompt_content import PromptContentPreparer
 from chrys.orchestration.engine.run.retry import RetryCoordinator
 from chrys.orchestration.engine.run.runtime_skills import RuntimeSkillRefresher
 from chrys.orchestration.engine.run.turn_hooks import TurnHookDispatcher
+from chrys.orchestration.engine.state.machine import EngineState, Trigger
 from chrys.orchestration.invoker.contracts import OverlappingRun, PreparedClosed, StaleContinuation, UnsupportedRequest
 from chrys.service.trajectory.preparation import PreparationOutcome, PreparationScope, PreparationTrace
 
@@ -181,7 +182,11 @@ class TurnRunner:
             or self._current.require_loaded().bindings.state.was_interrupted
         ):
             self._history.ensure_user_message(
-                text, created_at=created_at, contents=contents, item_id=self._opening_item_id
+                text,
+                created_at=created_at,
+                contents=contents,
+                item_id=self._opening_item_id,
+                reminder_source=self._current.require_loaded().bindings.inputs.input_properties,
             )
         self._tag_consumed_profile_switch()
         await self.finalize_current_run()
@@ -198,6 +203,10 @@ class TurnRunner:
     ) -> None:
         """Resume the agent from current state and finalize it."""
         _ = injection_window
+        # Retry keeps the invocation, not its input: until retry_request binds
+        # this pass's message, a recovery checkpoint must not lend the previous
+        # input's reminder record to unsent guidance.
+        self._current.require_loaded().bindings.inputs.input_properties = None
         try:
             await self.pre_run(
                 reset_batch_id=False,
@@ -301,7 +310,9 @@ class TurnRunner:
             # bind, or any other pre-yield admission failure) never reaches
             # that fallback, so mirror the fresh path here. ensure_user_message
             # is kind-aware and scoped to the current turn, so the post-yield
-            # and pre-executor-interrupt appends stay single-copy.
+            # and pre-executor-interrupt appends stay single-copy. A note sent
+            # to the model was appended after the yield with its reminder
+            # record; one rejected here was never sent and carries none.
             self._history.ensure_user_message(
                 additional_text, created_at=created_at, kind="injected", item_id=self._opening_item_id
             )
@@ -319,10 +330,12 @@ class TurnRunner:
         """Finalize the just-ended executor pass and close the terminal boundary."""
         try:
             outcome = await self._finalizer.finalize()
-            self._complete_finalized_run(outcome)
+            dropped_retry_cwd = self._complete_finalized_run(outcome)
         except BaseException:
             self._clear_current_input()
             raise
+        if dropped_retry_cwd is not None:
+            await self._retry_factory().report_retry_dropped_for_missing_cwd(dropped_retry_cwd)
         return outcome
 
     async def pre_run(
@@ -553,12 +566,12 @@ class TurnRunner:
 
     def _tag_consumed_profile_switch(self) -> None:
         """Tag the last user message when the reminder middleware consumed a profile switch."""
-        if self._current.loaded is None or not self._current.require_loaded().reminder_middleware.consumed_switch_to:
+        if self._current.loaded is None:
             return
-        self._history.tag_last_user_message(
-            HistoryMarkerKind.PROFILE_SWITCH_TO_KEY,
-            self._current.require_loaded().reminder_middleware.consumed_switch_to,
-        )
+        switched_to = self._current.require_loaded().reminder_middleware.sources.profile_switch.consumed_switch_to
+        if not switched_to:
+            return
+        self._history.tag_last_user_message(HistoryMarkerKind.PROFILE_SWITCH_TO_KEY, switched_to)
 
     def _queue_skill_reference_reminder(self, text: str, *, for_next_turn: bool) -> None:
         """Queue a system reminder when *text* starts with a loaded skill reference."""
@@ -588,10 +601,13 @@ class TurnRunner:
         record_skill_invocation(reference.skill.name, self._session.session_id)
         return format_skill_reference_reminder(reference)
 
-    def _complete_finalized_run(self, outcome: PostRunOutcome) -> None:
-        """Synchronously finish retry dispatch, scope expiry, and recovery cleanup."""
+    def _complete_finalized_run(self, outcome: PostRunOutcome) -> str | None:
+        """Synchronously finish retry dispatch, scope expiry, and recovery cleanup.
+
+        Return the missing working directory when it made a queued retry drop.
+        """
         task_before_pending_retry = self._turn_state.lease.run_task
-        self._retry_factory().start_pending_retry_if_due()
+        dropped_retry_cwd = self._retry_factory().start_pending_retry_if_due()
         self._turn_state.lease.discard_pre_executor_interrupt(task_before_pending_retry)
         task_after_pending_retry = self._turn_state.lease.run_task
         retry_dispatched = (
@@ -599,9 +615,14 @@ class TurnRunner:
             and task_after_pending_retry is not task_before_pending_retry
             and not task_after_pending_retry.done()
         )
+        if dropped_retry_cwd is not None and not retry_dispatched and self._fsm.state == EngineState.RUNNING:
+            # The pass moved PENDING_RETRY to RUNNING for a retry that will not
+            # start; end in the state the pass itself reached.
+            self._fsm.try_transition(Trigger.RUN_INTERRUPTED if outcome.interrupted else Trigger.RUN_COMPLETED)
         if not retry_dispatched and not outcome.failed:
             _expire_current_run_scope(self._turn_state, self._current, outcome.completed_scope)
         self._clear_current_input()
+        return dropped_retry_cwd
 
     def _clear_current_input(self) -> None:
         """Clear current-turn recovery input after run finalization."""

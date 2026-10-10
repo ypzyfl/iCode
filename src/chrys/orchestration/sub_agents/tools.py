@@ -94,9 +94,9 @@ from chrys.service.agent_middleware import (
     SubAgentEventMiddleware,
     SubAgentStatsMiddleware,
 )
-from chrys.service.agent_middleware.system_reminder import DropRoundBreakerState
 from chrys.service.approval.policy import ApprovalMode, ApprovalPolicy
 from chrys.service.approval.turn_context import TurnContextHolder
+from chrys.service.context.compaction.last_words_state import DropRoundBreakerState
 from chrys.service.context.compaction.spill import COMPACTIONS_DIR_NAME, sub_agent_dropped_turn_relative_path
 from chrys.service.context.manager import ContextManager
 from chrys.service.context.middleware.usage import UsageTrackingMiddleware
@@ -104,6 +104,7 @@ from chrys.service.hooks.events import HookEvent
 from chrys.service.llm.clients import create_client, effective_model_base_url
 from chrys.service.llm.route_sessions import derive_llm_route_session_id, llm_parent_session_id, llm_route_session_id
 from chrys.service.mcp.adapter import MCPAdapter
+from chrys.service.mcp.thinking_warning import warn_if_tool_loading_unbinds_thinking
 from chrys.service.profiles.agents.schema import DEFAULT_SUB_AGENT_CONCURRENCY
 from chrys.service.profiles.models.options import effective_chat_options, uses_responses_compact_continuation
 from chrys.service.profiles.models.schema import API_STYLE_RESPONSES
@@ -518,6 +519,9 @@ class SubAgentTools:
                 mcp_tools = await mcp_adapter.connect_all(profile.tools.mcp)
                 self._mcp_adapters[tool_name] = mcp_adapter
                 tools.extend(mcp_tools)
+                warn_if_tool_loading_unbinds_thinking(
+                    profile, sub_active_profile, chat_options, mcp_adapter.tool_names_by_server
+                )
 
             # Wire compaction + usage tracking for sub-agents.  Compression
             # tools (compress_context, recall_context, list_compressed_contexts)
@@ -577,6 +581,7 @@ class SubAgentTools:
                 profile.skills,
                 runtime=runtime,
                 session_dir=self._session_dir,
+                project_skills_enabled=settings.project_skills_enabled,
             )
             if skills_provider is not None:
                 shared_providers.append(skills_provider)

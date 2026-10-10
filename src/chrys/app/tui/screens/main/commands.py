@@ -84,6 +84,14 @@ _DESCRIPTION_RUNTIME = msg(
 )
 _DESCRIPTION_SETTINGS = msg("tui.commands.description.settings", fallback="Open the Settings panel")
 _DESCRIPTION_MAN = msg("tui.commands.description.man", fallback="Show manual page for a command")
+_DESCRIPTION_LOGIN = msg(
+    "tui.commands.description.login",
+    fallback="Log in with your AIxCoding account",
+)
+_DESCRIPTION_LOGOUT = msg(
+    "tui.commands.description.logout",
+    fallback="Log out and clear the stored credential",
+)
 
 _APPROVAL_MANUAL = msg(
     "tui.commands.approval.manual",
@@ -300,6 +308,29 @@ _MAN_FOLD_BODY = msg(
     ),
     multiline=True,
 )
+_MAN_LOGIN_BODY = msg(
+    "tui.man.login.body",
+    fallback=(
+        "Open the AIxCoding device-code login dialog.\n\n"
+        "The dialog shows a user code and opens the verification\n"
+        "page in your browser automatically; confirm the grant there\n"
+        "to finish logging in.\n\n"
+        "The credential is stored with OS-level encryption and is\n"
+        "validated silently on the next start. Cancelling the dialog\n"
+        "stores nothing."
+    ),
+    multiline=True,
+)
+_MAN_LOGOUT_BODY = msg(
+    "tui.man.logout.body",
+    fallback=(
+        "Clear the stored AIxCoding credential for the current\n"
+        "environment and log out.\n\n"
+        "Running this while already logged out is safe: the command\n"
+        "reports the state and does nothing."
+    ),
+    multiline=True,
+)
 _MAN_DIFF_BODY = msg(
     "tui.man.diff.body",
     fallback=(
@@ -457,6 +488,8 @@ class SlashCommandActionPort(Protocol):
     def runtime_details(self) -> None: ...
     def open_settings(self, tab: str) -> None: ...
     def show_man_pages(self, pages: list[ManPageSpec], *, start_index: int = 0) -> None: ...
+    def open_login_dialog(self) -> None: ...
+    def perform_logout(self) -> None: ...
     def notify_warning(
         self,
         message: MessageRef | str,
@@ -504,6 +537,8 @@ class SlashCommandActions:
     configure_settings: Callable[[str], None]
     show_manual_pages: Callable[[list[ManPageSpec], int], None]
     warn: Callable[[MessageRef | str, MessageRef | str, float | None], None]
+    open_login: Callable[[], None]
+    perform_account_logout: Callable[[], None]
 
     def open_workflows(self) -> None:
         self.workflow_selection()
@@ -610,6 +645,12 @@ class SlashCommandActions:
         timeout: float | None = 3,
     ) -> None:
         self.warn(message, title, timeout)
+
+    def open_login_dialog(self) -> None:
+        self.open_login()
+
+    def perform_logout(self) -> None:
+        self.perform_account_logout()
 
 
 class MainSlashCommandRegistry:
@@ -887,6 +928,20 @@ class MainSlashCommandRegistry:
                 _DESCRIPTION_SESSIONS.bind(),
                 action=lambda _: actions.browse_sessions(),
                 man_page=_MAN_SESSIONS_BODY.bind(),
+            ),
+            SlashCommandDef(
+                "login",
+                _DESCRIPTION_LOGIN.bind(),
+                action=lambda _arg: actions.open_login_dialog(),
+                allow_while_running=True,
+                man_page=_MAN_LOGIN_BODY.bind(),
+            ),
+            SlashCommandDef(
+                "logout",
+                _DESCRIPTION_LOGOUT.bind(),
+                action=lambda _arg: actions.perform_logout(),
+                allow_while_running=True,
+                man_page=_MAN_LOGOUT_BODY.bind(),
             ),
             SlashCommandDef(
                 "theme",

@@ -30,7 +30,6 @@ from chrys.orchestration.invoker.contracts import AbortCause, AbortResult
 from chrys.orchestration.invoker.resources import PreparedAgent
 from chrys.service.agent_middleware.control.approval import ApprovalMiddleware
 from chrys.service.agent_middleware.injection import InjectionMiddleware
-from chrys.service.agent_middleware.system_reminder import SystemReminderMiddleware
 from chrys.service.approval.judge import JudgeVerdict
 from chrys.service.approval.policy import ApprovalMode, ApprovalPolicy
 from chrys.service.hooks.events import HookEvent
@@ -51,7 +50,7 @@ from chrys.service.trajectory.hooks import HookOutcome
 from chrys.service.trajectory.preparation import PreparationOutcome, PreparationScope, PreparationTrace
 from chrys.service.trajectory.waits import WaitOutcome
 from tests.service.trajectory._fakes import FakeSink, make_context
-from tests.support.loaded_agents import install_loaded_agent, make_loaded_agent
+from tests.support.loaded_agents import install_loaded_agent, make_loaded_agent, reminder_resources
 from tests.support.turn_services import make_turn_retry
 
 
@@ -558,7 +557,7 @@ async def test_session_transition_settles_active_injection_and_blocking_hook_at_
     monkeypatch.setattr("chrys.orchestration.engine.assembly.trajectory_recorder.TrajectoryRecorder", lambda: recorder)
     engine = assemble_agent_engine(EventBus(), settings=Settings())
     engine.session.hook_manager = manager
-    install_loaded_agent(engine, reminder_middleware=SystemReminderMiddleware())
+    install_loaded_agent(engine, **reminder_resources())
     run_release = asyncio.Event()
     executor = _ActiveExecutor(context=recorder.context(), run_release=run_release)
     install_loaded_agent(engine, bindings=cast(Any, executor))
@@ -794,7 +793,7 @@ async def test_new_session_reuses_mcp_cache_and_final_shutdown_closes_it(tmp_pat
     with (
         patch.object(runtime_factory_module, "Agent", return_value=agent_mock),
         patch.object(runtime_factory_module, "ContextManager", return_value=fake_ctx),
-        patch.object(agent_builder_module, "create_client", return_value=MagicMock()),
+        patch.object(agent_builder_module, "create_client", return_value=MagicMock(aclose=AsyncMock())),
         patch.object(
             agent_builder_module,
             "resolve_selection_for_agent",
@@ -803,9 +802,9 @@ async def test_new_session_reuses_mcp_cache_and_final_shutdown_closes_it(tmp_pat
         patch.object(agent_builder_module, "effective_chat_options", return_value={}),
         patch.object(agent_builder_module, "LoopRecorder", return_value=MagicMock()),
         patch.object(runtime_factory_module, "SystemReminderMiddleware", return_value=MagicMock()),
-        patch.object(runtime_factory_module, "LastWordsGenerator", return_value=MagicMock()),
+        patch.object(runtime_factory_module, "LastWordsGenerator", return_value=MagicMock(aclose=AsyncMock())),
         patch.object(agent_builder_module, "TurnBindings", return_value=executor_mock),
-        patch.object(runtime_factory_module, "ApprovalMiddleware", return_value=MagicMock()),
+        patch.object(runtime_factory_module, "ApprovalMiddleware", return_value=MagicMock(close=AsyncMock())),
         patch.object(runtime_factory_module, "AskUserMiddleware", return_value=MagicMock()),
         patch.object(agent_builder_module, "ApprovalPolicy", return_value=MagicMock()),
         patch("chrys.service.tools.registry.ToolRegistry", return_value=fake_tool_registry),

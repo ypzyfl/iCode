@@ -96,7 +96,7 @@ def clear_call_registry() -> None:
 
 
 def build_telemetry_middleware(session_id: str | None, workspace_cwd: str | None = None) -> list[ChatMiddleware] | None:
-    """组栈入口（``instrumented.py`` 调用）；装配异常只降级为不上报。
+    """组栈入口（``clients.py::_assemble_stack`` 调用）；装配异常只降级为不上报。
 
     ``workspace_cwd``：会话工作区（``SessionEnvironment.cwd``，workspace 优先、
     启动目录兜底）——projectName / git 五件套的取值基（2026-10-09 修正：
