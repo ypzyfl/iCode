@@ -129,6 +129,26 @@ async def test_non_streaming_injects_payload_and_records_registry():
     assert entry[0] == telemetry["requestId"]
 
 
+async def test_text_only_response_still_records_session_latest():
+    """纯文本回合（模型不调工具）也刷新 session 级最新值（ACP ``_meta`` 回传源）。
+
+    回归防护：此前仅 ``record_call`` 顺带刷新，纯文本回合 registry 为空，
+    ``telemetry_response_meta`` 回传 None，桌面端整轮收不到遥测身份。
+    """
+    middleware = AixTelemetryMiddleware(session_id="sess-1")
+    text_response = ChatResponse(
+        messages=[Message("assistant", [Content.from_text("你好!")])],
+        finish_reason="stop",
+        model="test-model",
+    )
+    context = await _run_middleware(middleware, text_response)
+
+    telemetry = context.options["extra_body"]["telemetry"]  # type: ignore[index]
+    entry = resolve_call("", "sess-1")
+    assert entry is not None
+    assert entry[0] == telemetry["requestId"]
+
+
 async def test_payload_keeps_existing_extra_body():
     middleware = AixTelemetryMiddleware(session_id="sess-1")
     context = await _run_middleware(
