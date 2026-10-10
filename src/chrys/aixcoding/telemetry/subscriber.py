@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
 import weakref
 
 from chrys.aixcoding.telemetry.types import CodeStatus
@@ -154,6 +155,31 @@ def approval_tracker():
 _shared_client_instance = None
 
 
+def _resolve_token() -> str | None:
+    """token 头取值（发送期动态读取）：环境变量 > 登录凭据 > 配置文件。
+
+    覆盖语义对齐 catalog.py ``_catalog_token``（env 强制覆盖，登录 token 次之，
+    配置文件静态 token 兜底——mock 联调场景）。登录凭据读
+    ``aixcoding.auth`` 进程级单例的 ``stored_token``（动态 property：桌面端
+    委托 > 本地加密存储，含 TTL 过期判定，无网络 IO），登录/登出/过期在下
+    一条上报自动生效；登录模块不可用时静默回退。
+    """
+    from chrys.aixcoding.config import TOKEN_ENV, load_settings
+
+    env_token = os.environ.get(TOKEN_ENV, "").strip()
+    if env_token:
+        return env_token
+    try:
+        from aixcoding.auth import get_login_session
+
+        stored = get_login_session().stored_token
+    except Exception:
+        stored = None
+    if stored:
+        return stored
+    return load_settings().token
+
+
 def _shared_client():
     """进程级 TelemetryHttpClient（串行 HTTP 出口单例）。"""
     global _shared_client_instance
@@ -162,7 +188,13 @@ def _shared_client():
         from chrys.aixcoding.http import TelemetryHttpClient
 
         settings = load_settings()
-        _shared_client_instance = TelemetryHttpClient(settings.report_base_url, settings.token)
+        # token 走 _resolve_token 发送期动态取：本单例在引擎装配期（早于登录
+        # 完成）构造，构造期快照会把 None 固化，登录后的上报带不上真实 token。
+        _shared_client_instance = TelemetryHttpClient(
+            settings.report_base_url,
+            settings.token,
+            token_provider=_resolve_token,
+        )
     return _shared_client_instance
 
 

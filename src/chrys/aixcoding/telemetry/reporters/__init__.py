@@ -29,13 +29,12 @@ def common_fields(workspace_cwd: str | None = None) -> dict[str, Any]:
     projectName / git 五件套的取值基；缺省回退进程 cwd（2026-10-09 修正，
     对齐 aixcoding workspace 语义）。
     """
-    from chrys.aixcoding.config import load_settings
-    from chrys.aixcoding.context import current_channel, plugin_version
+    from chrys.aixcoding.context import current_channel, current_user_id, plugin_version
 
     fields: dict[str, Any] = {"pluginVersion": plugin_version()}
-    settings = load_settings()
-    if settings.user_id:
-        fields["userId"] = settings.user_id
+    user_id = current_user_id()
+    if user_id:
+        fields["userId"] = user_id
 
     channel = current_channel()
     fields["channelType"] = channel.channel_type
