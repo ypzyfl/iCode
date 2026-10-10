@@ -12,7 +12,7 @@ This guide uses a simple example to introduce writing and configuring hooks, fol
 
 ## Create your first hook
 
-The following steps create a project hook in the working directory of the current iCode session. It applies only to this working directory and appends the turn status to `hook-events.log` in that directory after each turn ends.
+The following steps create a project hook in the working directory of the current AIxCoding session. It applies only to this working directory and appends the turn status to `hook-events.log` in that directory after each turn ends.
 
 ### 1. Create the configuration
 
@@ -47,11 +47,11 @@ with Path("hook-events.log").open("a", encoding="utf-8") as log_file:
     log_file.write(f"turn={payload['turn']} status={payload['status']}\n")
 ```
 
-iCode provides the event's JSON input file through the `CHRYS_HOOK_PAYLOAD_FILE` environment variable. The input for `after_turn` includes `turn` and `status`, which contain the turn number and ending status. By default, the script runs in the current iCode session's working directory, so `hook-events.log` is also written there.
+AIxCoding provides the event's JSON input file through the `CHRYS_HOOK_PAYLOAD_FILE` environment variable. The input for `after_turn` includes `turn` and `status`, which contain the turn number and ending status. By default, the script runs in the current AIxCoding session's working directory, so `hook-events.log` is also written there.
 
 ### 3. Load and verify
 
-Switch sessions or restart iCode to apply the configuration on disk.
+Switch sessions or restart AIxCoding to apply the configuration on disk.
 
 In the terminal user interface (TUI), enter `/runtime` and open the **Hooks** tab. You should see `record-turn`. Submit a message and wait for the current turn to end, then check `hook-events.log` in the working directory. It should contain a line like this:
 
@@ -82,7 +82,7 @@ First, add this entry to the `hooks` list in `.chrys/hooks/hooks.yaml`:
       on_error: block
 ```
 
-This configuration matches only `filesystem.write` tool calls that have a `path` argument whose path ends in `.env`. Blocking hooks finish before iCode continues processing the call.
+This configuration matches only `filesystem.write` tool calls that have a `path` argument whose path ends in `.env`. Blocking hooks finish before AIxCoding continues processing the call.
 
 Then create `.chrys/hooks/scripts/protect_env.py`:
 
@@ -102,7 +102,7 @@ The script returns `action: block` and the rejection reason through the result f
 
 `on_error: block` also rejects the tool call if the script fails to start, times out, or returns a nonzero exit code. Use it for checks that must keep the restriction in place when they fail. This hook blocks only matching `filesystem.write` calls; shell commands are unaffected.
 
-After switching sessions or restarting iCode, create a dedicated test file, `hook-demo/.env`, with known content such as `HOOK_TEST=unchanged`. Ask the agent to attempt one modification using only `write_file` or `edit_file`, then stop after rejection without using the shell or another method. Check that the tool call is rejected before execution and displays the reason provided by the script. Then confirm that the file content is unchanged. You can delete `hook-demo/.env` after verification.
+After switching sessions or restarting AIxCoding, create a dedicated test file, `hook-demo/.env`, with known content such as `HOOK_TEST=unchanged`. Ask the agent to attempt one modification using only `write_file` or `edit_file`, then stop after rejection without using the shell or another method. Check that the tool call is rejected before execution and displays the reason provided by the script. Then confirm that the file content is unchanged. You can delete `hook-demo/.env` after verification.
 
 ## Example: add a system reminder for the model
 
@@ -137,9 +137,9 @@ with open(os.environ["CHRYS_HOOK_RESULT"], "w", encoding="utf-8") as result_file
     )
 ```
 
-Switch sessions or restart iCode to apply the configuration. The system reminder takes effect only after the blocking hook finishes successfully. iCode wraps the reminder in `<system-reminder>` tags and sends it to the model along with the user's submitted message. The reminder does not appear in the TUI conversation and is not saved in session data.
+Switch sessions or restart AIxCoding to apply the configuration. The system reminder takes effect only after the blocking hook finishes successfully. AIxCoding wraps the reminder in `<system-reminder>` tags and sends it to the model along with the user's submitted message. The reminder does not appear in the TUI conversation and is not saved in session data.
 
-To confirm that a `user_prompt_submit` hook is working, or to inspect the actual system reminder sent to the model, check the raw HTTP log of model requests. This log contains unredacted API keys and full conversation content, so enable it only temporarily for troubleshooting. In the TUI, press **F10**, go to **Security** > **Diagnostics**, enable **Capture raw HTTP traffic**, and restart iCode. Submit a message using the Code agent, then search for the reminder text "After modifying Python files" in `llm_raw_http.jsonl` in the current session directory. For its location, see [Find the session ID and storage location](../daily-use/sessions.md#find-the-session-id-and-storage-location). After verification, disable raw HTTP traffic capture and restart iCode again.
+To confirm that a `user_prompt_submit` hook is working, or to inspect the actual system reminder sent to the model, check the raw HTTP log of model requests. This log contains unredacted API keys and full conversation content, so enable it only temporarily for troubleshooting. In the TUI, press **F10**, go to **Security** > **Diagnostics**, enable **Capture raw HTTP traffic**, and restart AIxCoding. Submit a message using the Code agent, then search for the reminder text "After modifying Python files" in `llm_raw_http.jsonl` in the current session directory. For its location, see [Find the session ID and storage location](../daily-use/sessions.md#find-the-session-id-and-storage-location). After verification, disable raw HTTP traffic capture and restart AIxCoding again.
 
 To add a reminder only for certain tasks, have the script read `text` (the message the user just submitted) from `CHRYS_HOOK_PAYLOAD_FILE` and write `system_reminder` to `CHRYS_HOOK_RESULT` only when the message meets your conditions.
 
@@ -149,11 +149,11 @@ For most hooks, choose an execution mode based on whether the current operation 
 
 | Need | Recommended mode | Behavior |
 | --- | --- | --- |
-| Check, reject, or modify an operation before it continues | `blocking` | iCode waits for the hook to finish; some events apply the action decision from the result file |
-| Continue the current operation immediately, but let iCode wait for a limited time when the current turn or session ends | `async` | iCode continues immediately, then waits for the hook to finish at applicable events, within the wait limit |
-| Send ordinary notifications or record information in a task that can be interrupted by exit | `fire_and_forget` | iCode continues immediately and does not wait when the current turn or session ends; this is the default mode |
+| Check, reject, or modify an operation before it continues | `blocking` | AIxCoding waits for the hook to finish; some events apply the action decision from the result file |
+| Continue the current operation immediately, but let AIxCoding wait for a limited time when the current turn or session ends | `async` | AIxCoding continues immediately, then waits for the hook to finish at applicable events, within the wait limit |
+| Send ordinary notifications or record information in a task that can be interrupted by exit | `fire_and_forget` | AIxCoding continues immediately and does not wait when the current turn or session ends; this is the default mode |
 
-An asynchronous hook (`async`) does not delay the event that triggered it or the current operation. When the current turn or session ends, if an applicable asynchronous hook is still running, iCode waits for it to finish before ending the turn or session. iCode does not wait for asynchronous hooks triggered by `user_interrupt`. The wait limit at session end is configurable in [Global settings](../../reference/hooks.md#global-settings). To retry unfinished tasks after iCode exits, also configure `delivery: durable`.
+An asynchronous hook (`async`) does not delay the event that triggered it or the current operation. When the current turn or session ends, if an applicable asynchronous hook is still running, AIxCoding waits for it to finish before ending the turn or session. AIxCoding does not wait for asynchronous hooks triggered by `user_interrupt`. The wait limit at session end is configurable in [Global settings](../../reference/hooks.md#global-settings). To retry unfinished tasks after AIxCoding exits, also configure `delivery: durable`.
 
 ## Use global hooks
 

@@ -1,6 +1,6 @@
 # Theme File Reference
 
-iCode supports theme files for customizing the appearance of the terminal user interface (TUI). This page describes the file format, common color fields, and loading rules. To edit and save themes through the interface, see [Customize themes](../guides/configuration/themes.md).
+AIxCoding supports theme files for customizing the appearance of the terminal user interface (TUI). This page describes the file format, common color fields, and loading rules. To edit and save themes through the interface, see [Customize themes](../guides/configuration/themes.md).
 
 ## File Location and Naming
 
@@ -11,7 +11,7 @@ Store theme files in the following directory. Create it first if it does not exi
 | macOS / Linux | `~/.chrys/themes/` |
 | Windows | `%APPDATA%\chrys\themes\` |
 
-Theme files must use UTF-8 encoding and have a `.yaml` or `.yml` extension. Place them directly in this directory; iCode does not read theme files in subdirectories.
+Theme files must use UTF-8 encoding and have a `.yaml` or `.yml` extension. Place them directly in this directory; AIxCoding does not read theme files in subdirectories.
 
 The filename with the `.yaml` or `.yml` extension removed becomes the theme name. Theme names must meet these requirements:
 
@@ -19,13 +19,13 @@ The filename with the `.yaml` or `.yml` extension removed becomes the theme name
 * Not match a built-in theme name, ignoring case. Built-in names include `chrys`, `chrys-legacy`, `chrys-ansi`, the Textual themes in the theme list (such as `nord` and `textual-dark`), and the retired name `chrys-dark`.
 * Not end in `.yaml` or `.yml`, ignoring case. For example, `my-theme.yaml.yaml` is not a valid filename.
 
-When a `.yaml` file and a `.yml` file have the same theme name, iCode prefers `.yaml`. If the `.yaml` file is invalid, iCode still tries the `.yml` file. Only one theme is kept per name.
+When a `.yaml` file and a `.yml` file have the same theme name, AIxCoding prefers `.yaml`. If the `.yaml` file is invalid, AIxCoding still tries the `.yml` file. Only one theme is kept per name.
 
-After adding or editing a theme file, restart iCode to load it, then press **F9** and select the corresponding theme from the theme list to apply it.
+After adding or editing a theme file, restart AIxCoding to load it, then press **F9** and select the corresponding theme from the theme list to apply it.
 
 ## File Format
 
-The following example defines a custom dark theme in `icode-ocean.yaml`:
+The following example defines a custom dark theme in `aixcoding-cli-ocean.yaml`:
 
 ```yaml
 # Overall palette
@@ -49,7 +49,7 @@ variables:
   markdown-block-background: "#202c38"
 ```
 
-`primary` is the only required field. All other fields are optional. iCode fills in omitted colors automatically; see [Default Color Rules](#default-color-rules).
+`primary` is the only required field. All other fields are optional. AIxCoding fills in omitted colors automatically; see [Default Color Rules](#default-color-rules).
 
 ## Configuration Fields
 
@@ -144,6 +144,6 @@ The top-level field `text_alpha` is also accepted and must be a finite number, b
 
 ## Loading Failures
 
-If iCode finds malformed YAML, a missing `primary` field, unknown top-level fields, or invalid field values while loading, it displays a warning and skips the file. Use the warning to check the corresponding file, correct it, and restart iCode to load it again. Other valid themes remain available.
+If AIxCoding finds malformed YAML, a missing `primary` field, unknown top-level fields, or invalid field values while loading, it displays a warning and skips the file. Use the warning to check the corresponding file, correct it, and restart AIxCoding to load it again. Other valid themes remain available.
 
-If a theme loads successfully but a `variables` value cannot be used in the corresponding interface style when applied, iCode displays a warning and falls back to the default `chrys` theme. This fallback does not overwrite the saved theme selection. Correct the file, then restart iCode to try again.
+If a theme loads successfully but a `variables` value cannot be used in the corresponding interface style when applied, AIxCoding displays a warning and falls back to the default `chrys` theme. This fallback does not overwrite the saved theme selection. Correct the file, then restart AIxCoding to try again.

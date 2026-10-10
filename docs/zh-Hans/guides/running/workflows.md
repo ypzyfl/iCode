@@ -10,7 +10,7 @@
 
 ### 选择工作流
 
-在终端中进入所选项目目录，运行 `icode` 打开 TUI。在输入框输入 `/workflow`，打开工作流选择器，选择来源为内置的 `demo-workflow`。
+在终端中进入所选项目目录，运行 `aixcoding-cli` 打开 TUI。在输入框输入 `/workflow`，打开工作流选择器，选择来源为内置的 `demo-workflow`。
 
 也可以点击左上角的“应用模式：聊天”，选择“工作流”切换模式，然后再点击“新建会话”并选择工作流。
 
@@ -41,7 +41,7 @@
 
 运行结束并产生结果后，点击“■ 取消”右侧的“结果”查看最终输出。工作流有多个输出时，每个输出单独一个页签，页签名为对应的输出节点名称。“输出”页仍保留完整记录，包括节点状态和进度日志。再次点击“▶ 开始”，可填写新的输入并重新运行。
 
-同一工作流会话可以保存多次运行。在“工作流”“信息”等页签上方，点击“运行 1”“运行 2”等运行页签，可切换查看各次记录。退出并重新打开 iCode 后，先通过左上角的应用模式选择器切换到“工作流”。按 `F1` 或点击界面底部的 `f1 会话`，在会话列表中选择工作流会话，可查看历史输入、输出和节点记录。
+同一工作流会话可以保存多次运行。在“工作流”“信息”等页签上方，点击“运行 1”“运行 2”等运行页签，可切换查看各次记录。退出并重新打开 AIxCoding 后，先通过左上角的应用模式选择器切换到“工作流”。按 `F1` 或点击界面底部的 `f1 会话`，在会话列表中选择工作流会话，可查看历史输入、输出和节点记录。
 
 ## 创建第一个工作流
 
@@ -80,9 +80,9 @@ workflow = wf.build()
 输入 → hello 节点 → 工作流输出
 ```
 
-最后，`wf.build()` 检查并生成工作流。**文件必须将生成的对象赋给模块顶层的 `workflow` 变量，供 iCode 加载。**
+最后，`wf.build()` 检查并生成工作流。**文件必须将生成的对象赋给模块顶层的 `workflow` 变量，供 AIxCoding 加载。**
 
-保存文件后无需重启 iCode。点击“新建会话”，打开工作流选择器，选择 `greeting`。
+保存文件后无需重启 AIxCoding。点击“新建会话”，打开工作流选择器，选择 `greeting`。
 
 自定义文件首次加载或发生变化时，TUI 会要求检查源码并确认信任：工作流是可执行 Python，加载时就可能执行文件顶层代码。
 
@@ -90,7 +90,7 @@ workflow = wf.build()
 
 ## 使用其他 Python 环境
 
-默认使用运行 iCode 的 Python 解释器。工作流需要第三方库时，可以通过文件内的脚本元数据指定自备 Python 解释器或虚拟环境；依赖需自行安装，iCode 不会自动安装。配置方式见[工作流参考：执行环境](../../reference/workflows.md#执行环境)。本教程的 Python 示例仅使用标准库，无需额外准备环境。
+默认使用运行 AIxCoding 的 Python 解释器。工作流需要第三方库时，可以通过文件内的脚本元数据指定自备 Python 解释器或虚拟环境；依赖需自行安装，AIxCoding 不会自动安装。配置方式见[工作流参考：执行环境](../../reference/workflows.md#执行环境)。本教程的 Python 示例仅使用标准库，无需额外准备环境。
 
 ## 传递数据与询问用户
 
@@ -136,7 +136,7 @@ workflow = wf.build()
 
 节点通过 `return` 返回处理结果，返回值决定向下游传递的内容：
 
-- 返回字符串时，iCode 将字符串放入 `WorkflowValue.text`，并将 `data` 设为 `None`。本例中的 `describe()` 只需要输出说明，因此返回字符串。
+- 返回字符串时，AIxCoding 将字符串放入 `WorkflowValue.text`，并将 `data` 设为 `None`。本例中的 `describe()` 只需要输出说明，因此返回字符串。
 - 返回 `WorkflowValue` 时，可以同时传递文本和结构化数据，如本例中的 `parse_items()`。
 
 Python 节点函数可以接收一个或两个参数：`parse_items(value)` 接收 `WorkflowValue`；`describe(value, ctx)` 除了接收 `WorkflowValue`，还通过第二个参数接收执行上下文 `NodeContext`。`NodeContext` 提供与当前节点执行相关的操作。本例通过 `ctx.emit()` 向 TUI 报告当前节点的进度。
@@ -189,7 +189,7 @@ async def describe(value: WorkflowValue, ctx: NodeContext) -> str:
 
 ## 定义智能体节点
 
-### 使用 iCode 智能体
+### 使用 AIxCoding-CLI 智能体
 
 新建 `.chrys/workflows/learning_plan.py`：
 
@@ -225,11 +225,11 @@ workflow = wf.build()
 `wf.agent()` 用于定义智能体节点。在 `wf.agent("plan", profile="QA")` 中，`"plan"` 是节点名称，`profile="QA"` 选择智能体配置。使用以下命令查看可用配置：
 
 ```shell
-icode agents
-icode models
+aixcoding-cli agents
+aixcoding-cli models
 ```
 
-`profile` 填写 `icode agents` 输出中的 `Name`，可选参数 `model` 填写 `icode models` 输出中的 `Name`。需要为该节点指定模型时，替换注册语句，并将 `My model` 换成实际的模型配置名称：
+`profile` 填写 `aixcoding-cli agents` 输出中的 `Name`，可选参数 `model` 填写 `aixcoding-cli models` 输出中的 `Name`。需要为该节点指定模型时，替换注册语句，并将 `My model` 换成实际的模型配置名称：
 
 ```python
 plan = wf.agent("plan", profile="QA", model="My model")
@@ -253,7 +253,7 @@ plan = wf.agent(
 )
 ```
 
-对普通 iCode 智能体，`instructions_suffix` 追加在配置原有的 `instructions` 后，作为系统提示词的一部分；上游传入的 `text` 仍作为用户消息。
+对普通 AIxCoding 智能体，`instructions_suffix` 追加在配置原有的 `instructions` 后，作为系统提示词的一部分；上游传入的 `text` 仍作为用户消息。
 
 ### 使用 ACP 智能体
 
@@ -263,7 +263,7 @@ plan = wf.agent(
 plan = wf.agent("plan", profile="My ACP agent")
 ```
 
-将 `My ACP agent` 替换为 `icode agents` 中已有的 ACP 配置名称，并确保该配置指定的外部程序可以启动。
+将 `My ACP agent` 替换为 `aixcoding-cli agents` 中已有的 ACP 配置名称，并确保该配置指定的外部程序可以启动。
 
 ACP 节点默认使用外部智能体配置中的模型，不使用工作流默认模型。
 
@@ -564,13 +564,13 @@ CLI 适合无需人工交互的工作流：不支持 `ctx.ask()` 用户问答，
 在项目目录执行以下命令，列举可用的工作流：
 
 ```shell
-icode workflow list
+aixcoding-cli workflow list
 ```
 
 使用列表中的工作流 ID 运行工作流。将以下命令中的 `WORKFLOW_ID` 替换为实际的 ID：
 
 ```shell
-icode workflow run WORKFLOW_ID --input "输入文本" --trust
+aixcoding-cli workflow run WORKFLOW_ID --input "输入文本" --trust
 ```
 
 `--input` 设置起点节点收到的 `WorkflowValue.text`，省略时为空字符串。初始输入的 `data` 为 `None`，不能通过 CLI 参数直接设置；即使传入 JSON 字符串，也仍是文本，需要工作流自行解析。
@@ -598,7 +598,7 @@ Workflow Code review (review) · run 0b337219bb2e · session 890c8ee93562
 在终端中，结果里的控制字符会显示为 `�`。可以通过 `>` 将最终结果原样保存到文件，进度仍显示在终端中：
 
 ```shell
-icode workflow run WORKFLOW_ID --input "输入文本" > result.txt
+aixcoding-cli workflow run WORKFLOW_ID --input "输入文本" > result.txt
 ```
 
 如只需查看警告、错误和最终结果，可添加 `-q` 或 `--quiet`。
@@ -608,7 +608,7 @@ icode workflow run WORKFLOW_ID --input "输入文本" > result.txt
 添加 `--json` 后，CLI 不显示节点状态和进度消息，而是在运行结束后向 stdout 输出 JSON 格式的运行结果，包括运行状态、输出节点名称，以及各结果的 `text` 和 `data`：
 
 ```shell
-icode workflow run WORKFLOW_ID --input "输入文本" --json
+aixcoding-cli workflow run WORKFLOW_ID --input "输入文本" --json
 ```
 
 完整 JSON 字段和退出码见[工作流参考](../../reference/workflows.md#命令行)。

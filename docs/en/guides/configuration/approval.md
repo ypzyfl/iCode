@@ -1,10 +1,10 @@
 # Configure approval modes
 
-When an agent makes a tool call, such as running a Shell command or writing a file, iCode may require approval first. This guide explains how to choose an approval mode and handle approval requests in the terminal user interface (TUI), as well as how approval settings differ across ways of running iCode.
+When an agent makes a tool call, such as running a Shell command or writing a file, AIxCoding may require approval first. This guide explains how to choose an approval mode and handle approval requests in the terminal user interface (TUI), as well as how approval settings differ across ways of running AIxCoding.
 
 ## Understand the three approval modes
 
-The approval mode determines how iCode handles tool calls that require approval. Which calls require approval depends on both the `approval` policy in the agent profile and iCode's safety rules. See the [approval field in the agent profile reference](../../reference/agent-profile.md#approval).
+The approval mode determines how AIxCoding handles tool calls that require approval. Which calls require approval depends on both the `approval` policy in the agent profile and AIxCoding's safety rules. See the [approval field in the agent profile reference](../../reference/agent-profile.md#approval).
 
 The three approval modes behave as follows:
 
@@ -14,7 +14,7 @@ The three approval modes behave as follows:
 | AUTO | An approval judge model evaluates tool calls. Calls judged safe are approved automatically; suspicious calls are flagged for a person to decide. |
 | BYPASS | Tool calls run without asking, even when the agent configuration or safety rules require approval. |
 
-**Approval judge model**: In automatic mode, iCode calls the approval judge model and sends it the current time, the workspace directories, all user prompts of the current turn and the latest of them, and the tool name, tool kind, and arguments. By default, the approval judge uses the current session's model. To change it, press **F10** to open **Settings**, select the **Models & Agents** tab, and change **Approval judge model** in the **Model roles** section.
+**Approval judge model**: In automatic mode, AIxCoding calls the approval judge model and sends it the current time, the workspace directories, all user prompts of the current turn and the latest of them, and the tool name, tool kind, and arguments. By default, the approval judge uses the current session's model. To change it, press **F10** to open **Settings**, select the **Models & Agents** tab, and change **Approval judge model** in the **Model roles** section.
 
 > **Tip**
 >
@@ -41,7 +41,7 @@ Tool calls that require approval open an **Approval Required** dialog showing th
 
 - Press **Y** to approve or **N** to decline, or click the corresponding button. You cannot close the dialog with **Esc**; you must explicitly approve or decline.
 - When declining, you can provide a reason. The reason is sent to the agent to help it adjust its next steps. Once a reason is entered, the approve button is disabled.
-- In automatic mode, the dialog initially shows **Evaluating**. If the model judges the call safe, the dialog closes automatically. If the model judges it suspicious, the title changes to **Flagged by Auto-Review** and the dialog shows the reason and waits for a person to decide. You can also approve or decline directly while evaluation is in progress. If the approval judge model is unavailable or evaluation fails, iCode keeps the dialog open for a person to decide instead of approving the tool call automatically.
+- In automatic mode, the dialog initially shows **Evaluating**. If the model judges the call safe, the dialog closes automatically. If the model judges it suspicious, the title changes to **Flagged by Auto-Review** and the dialog shows the reason and waits for a person to decide. You can also approve or decline directly while evaluation is in progress. If the approval judge model is unavailable or evaluation fails, AIxCoding keeps the dialog open for a person to decide instead of approving the tool call automatically.
 
 ## Understand automatic approval and safety protections
 
@@ -61,19 +61,19 @@ Web tools send requests to outside services, so the `web_search` and `web_fetch`
 Select the built-in Code agent, then submit this request:
 
 ```text
-Use the Shell tool to run icode --version
+Use the Shell tool to run aixcoding-cli --version
 ```
 
 This command only displays the version and does not modify files, but it is not among the read-only Shell commands approved automatically. Expect the following results:
 
-- In manual mode, the **Approval Required** dialog opens. After approval, the iCode version is displayed.
+- In manual mode, the **Approval Required** dialog opens. After approval, AIxCoding version is displayed.
 - In automatic mode, the approval judge model will usually judge the command safe and approve it automatically. If the model flags it as suspicious, the dialog shows the evaluation reason and waits for a decision.
-- In bypass mode, the command runs and displays the iCode version without an approval dialog.
+- In bypass mode, the command runs and displays AIxCoding version without an approval dialog.
 
-## Approval modes in other ways of running iCode
+## Approval modes in other ways of running AIxCoding
 
-Other ways of running iCode use the following approval modes and switching methods:
+Other ways of running AIxCoding use the following approval modes and switching methods:
 
-- **Headless CLI (`icode run`)**: Always bypasses approval and provides no approval-related options.
-- **iCode ACP server**: Defaults to manual mode. Use `icode acp --approval manual|auto|bypass` to set the initial mode. ACP clients that support this capability can also switch the current session's mode.
-- **Browser-hosted TUI (`icode serve`)**: Use the TUI operations described earlier to switch approval modes and handle approval requests.
+- **Headless CLI (`aixcoding-cli run`)**: Always bypasses approval and provides no approval-related options.
+- **AIxCoding ACP server**: Defaults to manual mode. Use `aixcoding-cli acp --approval manual|auto|bypass` to set the initial mode. ACP clients that support this capability can also switch the current session's mode.
+- **Browser-hosted TUI (`aixcoding-cli serve`)**: Use the TUI operations described earlier to switch approval modes and handle approval requests.
