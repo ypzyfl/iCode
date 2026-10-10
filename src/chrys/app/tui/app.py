@@ -325,6 +325,7 @@ class ChrysApp(TuiVariableDefaultsMixin, App):
         # subsequent crashes append (so cascading teardown errors survive).
         self._crash_log_initialized = False
         self._startup_task: asyncio.Task[None] | None = None
+        self._login_silent_check_task: asyncio.Task[None] | None = None
         self._main_screen: MainScreen | None = None
         self._gc_freeze_watchdog: Timer | None = None
         self._gc_pointer_buttons_down: set[int] = set()
@@ -947,10 +948,25 @@ class ChrysApp(TuiVariableDefaultsMixin, App):
             # stay in force, so their warnings are due after all.
             await self._flush_deferred_settings_warnings()
 
+        # Startup login check: silently validates (and self-cleans) any stored
+        # AIxCoding credential; never blocks or disturbs the session start.
+        self._login_silent_check_task = asyncio.create_task(self._silent_login_check())
+
     async def _flush_deferred_settings_warnings(self) -> None:
         for w in self._deferred_settings_warnings:
             await self._bus.publish(w)
         self._deferred_settings_warnings.clear()
+
+    async def _silent_login_check(self) -> None:
+        """Validate the stored AIxCoding credential at startup, silently.
+
+        Offline is not a logout, a rejected credential self-cleans inside the
+        check, and startup must never be disturbed: every outcome is swallowed.
+        """
+        from aixcoding.auth import get_login_session
+
+        with contextlib.suppress(Exception):
+            await get_login_session().check_silent()
 
     async def _start_engine(self, profile: AgentProfile, screen: MainScreen) -> None:
         """Start the backend without holding Textual's mount path."""
@@ -1072,6 +1088,11 @@ class ChrysApp(TuiVariableDefaultsMixin, App):
             with contextlib.suppress(asyncio.CancelledError):
                 await self._startup_task
         self._startup_task = None
+        if self._login_silent_check_task is not None and not self._login_silent_check_task.done():
+            self._login_silent_check_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._login_silent_check_task
+        self._login_silent_check_task = None
         await self._engine.shutdown()
         # After the engine: its shutdown drains a still-finalizing run
         # whose success callback can schedule one last title task; the

@@ -132,6 +132,8 @@ def _make_handler(screen: _SuggestionScreen) -> SuggestionHandler:
             configure_settings=lambda _tab: None,
             show_manual_pages=lambda _pages, _start_index: None,
             warn=lambda message, title, timeout: screen.notify(message, title=title, timeout=timeout),
+            open_login=lambda: None,
+            perform_account_logout=lambda: None,
         ),
         callbacks=SuggestionCallbacks(
             notify_warning=lambda message, title, timeout: screen.notify(message, title=title, timeout=timeout),
