@@ -182,8 +182,8 @@ def _resolve_profile_api_key(profile: ModelProfile) -> str:
     explicit = resolve_env_templates(profile.api_key, location=f"model profile {profile.name!r} API Key")
     if explicit:
         return explicit
-    spec = PROVIDERS.get(profile.provider)
-    return os.environ.get(spec.api_key_env, "").strip() if spec is not None else ""
+    api_key_env = _PROVIDER_API_KEY_ENVS.get(profile.provider)
+    return os.environ.get(api_key_env, "").strip() if api_key_env is not None else ""
 
 
 def _validate_wire_charset(profile: ModelProfile, *, api_key: str, headers: dict[str, str]) -> None:
