@@ -9,8 +9,7 @@ parts that decide whether a server-side change reaches a running session.
 
 from __future__ import annotations
 
-import time
-from collections.abc import Callable
+import asyncio
 from pathlib import Path
 
 import pytest
@@ -21,6 +20,7 @@ from chrys.service.profiles.models.catalog import (
     start_periodic_sync,
 )
 from chrys.service.profiles.models.registry import ModelProfileRegistry
+from tests.support.waiting import wait_until
 
 _POLL_INTERVAL = 0.01
 
@@ -40,16 +40,7 @@ def _credentialed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(catalog_module, "has_catalog_credential", lambda: True)
 
 
-def _wait_for(predicate: Callable[[], bool], *, timeout: float = 5.0) -> bool:
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if predicate():
-            return True
-        time.sleep(_POLL_INTERVAL)
-    return False
-
-
-def test_syncs_on_the_clock_and_stops_when_signalled(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_syncs_on_the_clock_and_stops_when_signalled(monkeypatch: pytest.MonkeyPatch) -> None:
     """One fetch per interval, and setting the event ends the loop."""
     monkeypatch.setattr(catalog_module, "catalog_url", lambda: "http://127.0.0.1:1/base")
     monkeypatch.setattr(catalog_module, "sync_catalog_blocking", lambda **_kwargs: _result("a"))
@@ -58,14 +49,14 @@ def test_syncs_on_the_clock_and_stops_when_signalled(monkeypatch: pytest.MonkeyP
     stop = start_periodic_sync(interval=_POLL_INTERVAL, on_applied=seen.append)
     try:
         assert stop is not None, "a configured source must start the loop"
-        assert _wait_for(lambda: len(seen) >= 2), f"expected repeated syncs, got {len(seen)}"
+        assert await wait_until(lambda: len(seen) >= 2), f"expected repeated syncs, got {len(seen)}"
         assert seen[0].profile_ids == ("a",)
     finally:
         stop.set()
 
-    time.sleep(5 * _POLL_INTERVAL)
+    await asyncio.sleep(5 * _POLL_INTERVAL)
     settled = len(seen)
-    time.sleep(20 * _POLL_INTERVAL)
+    await asyncio.sleep(20 * _POLL_INTERVAL)
     assert len(seen) == settled, "a stopped loop must not keep fetching"
 
 
@@ -81,7 +72,7 @@ def test_no_credential_means_no_thread(monkeypatch: pytest.MonkeyPatch) -> None:
     assert start_periodic_sync(interval=_POLL_INTERVAL) is None
 
 
-def test_immediate_syncs_before_the_first_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_immediate_syncs_before_the_first_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
     """A login starts the loop mid-session: the list arrives now, not in a minute."""
     monkeypatch.setattr(catalog_module, "catalog_url", lambda: "http://127.0.0.1:1/base")
     monkeypatch.setattr(catalog_module, "has_catalog_credential", lambda: True)
@@ -91,13 +82,13 @@ def test_immediate_syncs_before_the_first_sleep(monkeypatch: pytest.MonkeyPatch)
     stop = start_periodic_sync(interval=60, immediate=True, on_applied=seen.append)
     try:
         assert stop is not None, "a credentialed source must start the loop"
-        assert _wait_for(lambda: len(seen) >= 1, timeout=2.0), "immediate never synced"
+        assert await wait_until(lambda: len(seen) >= 1, timeout=2.0), "immediate never synced"
         assert len(seen) == 1, "the first wait is a whole interval, so a second sync is too early"
     finally:
         stop.set()
 
 
-def test_sync_now_pulls_one_catalog_ahead_of_the_clock(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_sync_now_pulls_one_catalog_ahead_of_the_clock(monkeypatch: pytest.MonkeyPatch) -> None:
     """A login wakes a loop that is already running: the list arrives now, not at the next tick."""
     monkeypatch.setattr(catalog_module, "catalog_url", lambda: "http://127.0.0.1:1/base")
     monkeypatch.setattr(catalog_module, "sync_catalog_blocking", lambda **_kwargs: _result("a"))
@@ -107,10 +98,10 @@ def test_sync_now_pulls_one_catalog_ahead_of_the_clock(monkeypatch: pytest.Monke
     try:
         assert stop is not None, "a credentialed source must start the loop"
         # The interval is a minute: on the clock alone nothing arrives in time.
-        time.sleep(5 * _POLL_INTERVAL)
+        await asyncio.sleep(5 * _POLL_INTERVAL)
         assert not seen, "an untouched interval must not sync early"
         stop.sync_now()
-        assert _wait_for(lambda: len(seen) >= 1, timeout=2.0), "sync_now never synced"
+        assert await wait_until(lambda: len(seen) >= 1, timeout=2.0), "sync_now never synced"
         assert len(seen) == 1, "one request is one sync, not a loop restart"
     finally:
         stop.set()
@@ -131,7 +122,7 @@ def test_the_interval_is_the_environments_or_the_default(monkeypatch: pytest.Mon
         )
 
 
-def test_the_loop_polls_at_the_environments_interval(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_loop_polls_at_the_environments_interval(monkeypatch: pytest.MonkeyPatch) -> None:
     """The override reaches the loop: ``interval`` is resolved at start, not import."""
     monkeypatch.setattr(catalog_module, "catalog_url", lambda: "http://127.0.0.1:1/base")
     monkeypatch.setattr(catalog_module, "sync_catalog_blocking", lambda **_kwargs: _result("a"))
@@ -141,7 +132,7 @@ def test_the_loop_polls_at_the_environments_interval(monkeypatch: pytest.MonkeyP
     stop = start_periodic_sync(on_applied=seen.append)
     try:
         assert stop is not None, "a configured source must start the loop"
-        assert _wait_for(lambda: len(seen) >= 2), f"the override never took effect: {len(seen)} sync(s)"
+        assert await wait_until(lambda: len(seen) >= 2), f"the override never took effect: {len(seen)} sync(s)"
     finally:
         stop.set()
 
@@ -152,7 +143,7 @@ def test_without_a_source_there_is_nothing_to_poll(monkeypatch: pytest.MonkeyPat
     assert start_periodic_sync() is None
 
 
-def test_a_failing_callback_does_not_kill_the_loop(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_a_failing_callback_does_not_kill_the_loop(monkeypatch: pytest.MonkeyPatch) -> None:
     """The callback refreshes a registry; its failure must not end the clock."""
     monkeypatch.setattr(catalog_module, "catalog_url", lambda: "http://127.0.0.1:1/base")
     monkeypatch.setattr(catalog_module, "sync_catalog_blocking", lambda **_kwargs: _result("a"))
@@ -166,7 +157,7 @@ def test_a_failing_callback_does_not_kill_the_loop(monkeypatch: pytest.MonkeyPat
 
     stop = start_periodic_sync(interval=_POLL_INTERVAL, on_applied=_boom_once)
     try:
-        assert _wait_for(lambda: len(calls) >= 2), f"loop died after {len(calls)} call(s)"
+        assert await wait_until(lambda: len(calls) >= 2), f"loop died after {len(calls)} call(s)"
     finally:
         if stop is not None:
             stop.set()
