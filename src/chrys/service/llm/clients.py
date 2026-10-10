@@ -379,6 +379,7 @@ async def create_client(
     use_route_session_context: bool = False,
     session_dir: Path | None = None,
     tool_result_ceiling_tokens: int | None = None,
+    workspace_cwd: str | None = None,
 ) -> Any:
     """Create a chat client stack based on the configured ``ModelProfile``.
 
@@ -463,6 +464,8 @@ async def create_client(
         session_id=session_id,
         parent_session_id=parent_session_id,
         use_route_session_context=use_route_session_context,
+        # AIxCoding telemetry: 会话工作区(projectName/git 基准)随栈传入。
+        workspace_cwd=workspace_cwd,
         max_iterations=7777,
         max_consecutive_errors=10,
     )
@@ -581,6 +584,7 @@ def _assemble_stack(
     max_iterations: int,
     max_consecutive_errors: int,
     tool_result_ceiling_tokens: int | None,
+    workspace_cwd: str | None = None,
 ) -> ToolLoopLayer:
     """Wrap the wire client over *sdk_client* in the chrys loop + chat-middleware stack.
 
@@ -607,8 +611,12 @@ def _assemble_stack(
             use_route_session_context=use_route_session_context,
         ),
     )
+    # AIxCoding telemetry: llm-call piggyback middleware(chrys/aixcoding/telemetry/
+    # llm_telemetry.py)——随每次模型请求体注入 telemetry payload, 装配失败降级为不上报。
+    from chrys.aixcoding.telemetry.llm_telemetry import build_telemetry_middleware
+
     return ToolLoopLayer(
-        ChatMiddlewareLayer(wire_client),
+        ChatMiddlewareLayer(wire_client, middleware=build_telemetry_middleware(session_id, workspace_cwd)),
         max_iterations=max_iterations,
         max_consecutive_errors=max_consecutive_errors,
         tool_result_ceiling_tokens=tool_result_ceiling_tokens,
