@@ -5,11 +5,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from chrys.foundation.events.types import RuntimeModelDetails
 from chrys.foundation.i18n import Localizer, MessageRef, msg
 from chrys.foundation.i18n.formatting import sanitize_legacy_scalar
+
+if TYPE_CHECKING:
+    from chrys.service.profiles.models.registry import ModelProfileRegistry
 
 _SELECT_MODEL = msg("tui.model_indicator.label.select", fallback="Select Model")
 _CONFIGURE_TOOLTIP = msg("tui.model_indicator.tooltip.configure", fallback="Open model settings")

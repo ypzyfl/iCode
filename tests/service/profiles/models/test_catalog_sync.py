@@ -186,7 +186,7 @@ def test_the_tier_is_auths_tier(monkeypatch: pytest.MonkeyPatch) -> None:
     class _NoConfiguredBase:
         model_catalog_base_url = ""
 
-    monkeypatch.setattr(process_settings_module, "process_settings", lambda: _NoConfiguredBase())
+    monkeypatch.setattr(process_settings_module, "process_settings", _NoConfiguredBase)
 
     for tier in Environment:
         monkeypatch.setenv(environments.ENVIRONMENT_VARIABLE, tier.value)
