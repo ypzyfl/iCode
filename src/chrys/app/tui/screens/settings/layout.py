@@ -482,6 +482,11 @@ DEFERRED_KEYS: frozenset[str] = frozenset(
         "mutations.coordination.enabled",
         "mutations.parallel_implicit_tools",
         "workspace.change_notice.max_entries",
+        # Server-side model catalog endpoint: a deployment-level address whose
+        # default points at the built-in service. Pointing it elsewhere (a mock
+        # server, say) is a developer action via the settings file, not
+        # something the panel should invite users to edit.
+        "model.catalog.base_url",
     }
 )
 
