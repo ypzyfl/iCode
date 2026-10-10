@@ -1143,7 +1143,12 @@ async def test_auth_required_protects_tui_and_websocket_until_login() -> None:
         assert "10px/1.05" in login_text
         assert "<h1>Chrys</h1>" not in login_text
         assert "Password" in login_text
-        assert "TUI" not in login_text
+        # Not the TUI's own page: textual-serve's splash is the only response
+        # carrying its intro block, and the login page is a standalone document
+        # titled for authentication. Checking for a literal "TUI" here was
+        # flaky — a random CSRF token can contain those letters.
+        assert '<div class="intro">' not in login_text
+        assert f"<title>{APP_DISPLAY_NAME} Authentication</title>" in login_text
         csrf_token = _csrf_token(login_text)
 
         websocket_response = await client.get("/ws")

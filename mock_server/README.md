@@ -9,6 +9,7 @@
 | 子包 | 模拟目标 | 端点前缀 |
 |---|---|---|
 | `aixcoding_auth/` | AIxCoding 设备码登录认证服务 | `/api/v1/auth/...`、`/api/v1/user/info` |
+| `chrys_model_catalog/` | 服务端下发的模型目录 | `/model-catalog`、`/llm/api/v1/continue-config/dispatch` |
 
 未来新增（命名遵循下面的约定）：`oauth/`、`llm/`、`update_server/` 等。
 
@@ -18,10 +19,20 @@
 mock_server/
 ├── __init__.py             # 包标识 + 分级约定文档
 ├── README.md               # 本文件：分级约定 + 新增 mock 的步骤
-└── aixcoding_auth/         # AIxCoding 登录认证 mock
-    ├── __init__.py
-    ├── server.py           # HTTP server、授权状态机、本地验证页
-    └── README.md           # 具体端点 / 模式 / CLI 用法（测试在 tests/app/aixcoding/）
+├── aixcoding_auth/         # AIxCoding 登录认证 mock
+│   ├── __init__.py
+│   ├── server.py           # HTTP server、授权状态机、本地验证页
+│   └── README.md           # 具体端点 / 模式 / CLI 用法（测试在 tests/app/aixcoding/）
+├── chrys_model_catalog/    # 服务端模型目录 mock
+│   ├── __init__.py
+│   ├── server.py           # HTTP 装配、路由、start()/CLI
+│   ├── source.py           # 数据源：config_new.json（缺省）或 --catalog，每请求读
+│   ├── modes.py            # 故障模式与 payload 构造
+│   ├── state.py            # 运行时 mode/revision 开关
+│   ├── conftest.py         # pytest 夹具（direct_route）
+│   ├── test_server.py      # 集成测试 + 契约验证
+│   └── README.md           # 端点 / 故障模式 / CLI 用法
+└── <future>/               # 未来 mock，每个都按 chrys_model_catalog/ 的结构
 ```
 
 ## 为什么是 dev-only 顶层包

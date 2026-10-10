@@ -154,6 +154,7 @@ if TYPE_CHECKING:
 
     from chrys.app.tui.widgets.markdown.diagram.messages import DiagramOpenRequested
     from chrys.service.profiles.agents.schema import AgentProfile
+    from chrys.service.profiles.models.catalog import CatalogSyncHandle
 
 
 def _resolve_startup_profile(registry: AgentProfileRegistry, preferred_name: str) -> AgentProfile | None:
@@ -326,6 +327,9 @@ class ChrysApp(TuiVariableDefaultsMixin, App):
         self._crash_log_initialized = False
         self._startup_task: asyncio.Task[None] | None = None
         self._login_silent_check_task: asyncio.Task[None] | None = None
+        # The catalog poll's handle, or None when it is not running: it starts
+        # only with a credential, which a mid-session login supplies.
+        self._catalog_sync: CatalogSyncHandle | None = None
         self._main_screen: MainScreen | None = None
         self._gc_freeze_watchdog: Timer | None = None
         self._gc_pointer_buttons_down: set[int] = set()
@@ -957,6 +961,56 @@ class ChrysApp(TuiVariableDefaultsMixin, App):
             await self._bus.publish(w)
         self._deferred_settings_warnings.clear()
 
+    def start_catalog_sync(self, *, immediate: bool = False) -> None:
+        """Start polling the model catalog, if there is a credential to poll with.
+
+        Idempotent, and safe to call on every login: a second thread would
+        double the traffic and race the registry it refreshes, so a loop that
+        is already running is not started again — it is woken instead, and
+        *immediate* then buys one sync now instead of at the next tick. That is
+        what a login needs: it changes whose catalog is served, so the list
+        must not wait out the rest of an interval that began before it.
+
+        It stays a no-op while unauthenticated (:func:`start_periodic_sync`
+        returns ``None``, having logged why), so this can be called
+        unconditionally at startup and again after a login without asking
+        whether one happened.
+
+        After each sync the in-memory registry is replaced from disk and the
+        status-bar model indicator is refreshed, so a server-side rename lands
+        in the UI without a restart.
+        """
+        from chrys.service.profiles.models.catalog import (
+            CatalogSyncResult,
+            start_periodic_sync,
+        )
+
+        running = self._catalog_sync
+        if running is not None:
+            if immediate:
+                running.sync_now()
+            else:
+                logger.info("Model catalog sync already running; not starting another.")
+            return
+
+        def _on_applied(_result: CatalogSyncResult) -> None:
+            self._model_registry.replace_profiles()
+            screen = self._main_screen
+            if screen is not None and screen.is_mounted:
+                self.call_from_thread(screen._refresh_model_indicator)
+
+        self._catalog_sync = start_periodic_sync(
+            immediate=immediate,
+            on_applied=_on_applied,
+        )
+
+    def stop_catalog_sync(self) -> None:
+        """Stop polling — on logout and on exit, so nothing outlives the app."""
+        if self._catalog_sync is None:
+            return
+        self._catalog_sync.stop()
+        self._catalog_sync = None
+
     async def _silent_login_check(self) -> None:
         """Validate the stored AIxCoding credential at startup, silently.
 
@@ -1243,7 +1297,12 @@ def main(app_cls: type[ChrysApp] = ChrysApp) -> None:
 
         install_log_handler()
 
-        bootstrap = bootstrap_runtime(dotenv_override=True, project_root=Path(os.getcwd()))
+        # The TUI owns ~/.chrys/models, so it is the one frontend that asks for
+        # the startup catalog sync; every other entrypoint leaves the directory
+        # to whoever wrote it (see bootstrap_runtime).
+        bootstrap = bootstrap_runtime(
+            dotenv_override=True, project_root=Path(os.getcwd()), sync_model_catalog=True
+        )
 
         bus = EventBus()
         registry = AgentProfileRegistry()
@@ -1283,6 +1342,12 @@ def main(app_cls: type[ChrysApp] = ChrysApp) -> None:
             apply_saved_model_on_restore=not bool(args.model.strip()),
             session_title_updater=session_title_updater,
         )
+        # The catalog is polled, not fetched once: the bootstrap above ran the
+        # "immediately" sync, this keeps a long-lived session current without a
+        # restart. A session that has never logged in has no credential, so the
+        # poll starts later — MainScreen calls this again once a login supplies
+        # one. Stopped with the app, so nothing outlives the terminal.
+        app.start_catalog_sync()
         try:
             # On Windows, the ProactorEventLoop shutdown can raise KeyboardInterrupt
             # from GetQueuedCompletionStatus when a pending signal races with asyncio
@@ -1290,6 +1355,7 @@ def main(app_cls: type[ChrysApp] = ChrysApp) -> None:
             with contextlib.suppress(KeyboardInterrupt):
                 app.run()
         finally:
+            app.stop_catalog_sync()
             # Safety net: ensure terminal is fully restored after native Textual exits.
             # Textual should handle this, but shell PTY activity during shutdown can
             # race with cleanup, leaving mouse tracking, focus reports, or alt screen on.
