@@ -36,7 +36,7 @@ Filesystem restrictions may prevent AIxCoding from adding the `.conflict` marker
 
 ## Override built-in agents
 
-The original profiles for built-in agents are included with AIxCoding installation. When you edit and save a built-in agent through the TUI, AIxCoding creates a profile with the same name in the [user agent profile directory](#user-agent-profile-directory). For example, editing and saving the built-in agent named `Code` creates `Code.yaml`.
+The original profiles for built-in agents are included with the AIxCoding installation. When you edit and save a built-in agent through the TUI, AIxCoding creates a profile with the same name in the [user agent profile directory](#user-agent-profile-directory). For example, editing and saving the built-in agent named `Code` creates `Code.yaml`.
 
 The built-in agent names are `Code`, `QA`, `Explore`, and `General`. A profile manually created in the user agent profile directory with any of these `name` values also overrides the corresponding built-in agent. An override replaces the entire built-in profile; it does not inherit or merge any other fields from it. Delete the corresponding user profile and restart AIxCoding to restore the built-in profile.
 
@@ -76,7 +76,7 @@ If "Code review" appears in the list, the profile has loaded. If it does not app
 | `display_name` | String | Empty | Display name. |
 | `description` | String | Empty | Describes the agent's purpose. Also used as the default tool description for a sub-agent when none is specified. |
 | `sub_agent_only` | Boolean | `false` | If `true`, the agent cannot be selected as the main agent and can only be called by other agents. Forced to `true` for external ACP agents. |
-| `instructions` | String | Empty | Main behavioral instructions for agents of the built-in type. External ACP profiles ignore this field. |
+| `instructions` | String or list of strings | Empty | Main behavioral instructions for agents of the built-in type. A list is joined into one text, one item per line. External ACP profiles ignore this field. |
 | `model` | Object | `{}` | Binds a model profile. See [model](#model). |
 | `tools` | Object | `{}` | Configures built-in tools, MCP, and shell filtering. See [tools](#tools). |
 | `approval` | Object | See below | Configures which tool calls require approval. See [approval](#approval). |
@@ -179,7 +179,7 @@ Both `env` and `headers` are key-value mappings: enter the variable or header na
 | `bypass_proxy` | Boolean | `false` | HTTP | Whether to bypass HTTP/HTTPS proxies configured through environment variables and connect directly to the server. |
 | `terminate_on_close` | Boolean or `null` | `null` | HTTP | Whether to request termination of the remote session when closing the connection. `null` uses the default of `true`. |
 
-Use the server's original tool names in `allowed_tools` and `always_load`. `tool_name_prefix` changes the name the agent uses to call a tool; `approval.overrides` uses that same name. See [MCP tool names](./tool-kinds-and-names.md#mcp-tool-names) for naming rules.
+Use the server's original tool names in `allowed_tools` and `always_load`. `tool_name_prefix` changes the name the agent uses to call a tool; `approval.overrides` uses that same name. See [MCP tool names](./tool-kinds-and-names.md#mcp-tool-names) for naming rules. If a name you list could mean two tools — for example, with prefix `gh`, a server tool `search` becomes `gh_search`, the original name of another tool — the agent fails to load. The error names that entry and, for each tool it matches, a name that selects only that tool: here `search` for the server's `search` and `gh_gh_search` for the server's `gh_search`. Replace the entry with the names of only the tools you want the agent to use. If the error says no name selects a tool by itself, choose a different `tool_name_prefix`.
 
 When loading on demand is enabled, AIxCoding also adds control tools for listing, loading, and unloading MCP tools. Their naming rules are described in [MCP tool names](./tool-kinds-and-names.md#mcp-tool-names). In this case, `tool_name_prefix` cannot exceed 49 characters.
 
@@ -412,11 +412,11 @@ skills:
 | `script_timeout` | Positive integer | `300` | Maximum runtime for a skill script, in seconds. |
 | `script_extensions` | List of strings | `[.py, .sh, .ps1]` | Extensions allowed for skill scripts. The required interpreters must already be installed. |
 | `auto_load_user_agents_skills` | Boolean | `true` | Whether to load the user-level shared Agent Skills directory. |
-| `auto_load_cwd_agents_skills` | Boolean | `true` | Whether to load `.agents/skills` in the current working directory. Reloaded when switching working directories. |
+| `auto_load_cwd_agents_skills` | Boolean | `true` | Whether to load `.agents/skills` in the current working directory; “Load project skills” (`project.skills_enabled`) must also be on in settings. Reloaded when switching working directories. |
 
-The AIxCoding user skills directory is always loaded. The user-level shared Agent Skills directory and the current working directory's skills directory are loaded by default; each can be disabled with its corresponding `auto_load_*` field. For user-level directory paths, see [Skill installation locations](../guides/extensions/skills.md#skill-installation-locations).
+The AIxCoding user skills directory is always loaded. The user-level shared Agent Skills directory is loaded by default; the current working directory's skills directory loads once “Load project skills” is on in settings. Each can be disabled with its corresponding `auto_load_*` field. For user-level directory paths, see [Skill installation locations](../guides/extensions/skills.md#skill-installation-locations).
 
-When multiple sources contain skills with the same name, precedence from highest to lowest is: earlier directories in `paths`, AIxCoding user skills directory, the user-level shared Agent Skills directory, the current working directory's skills directory, and earlier definitions in `inline`. If one search root contains multiple skills with the same name, discovery order is unspecified. Keep only one to ensure that the intended version loads.
+When multiple sources contain skills with the same name, precedence from highest to lowest is: earlier directories in `paths`, the AIxCoding user skills directory, the user-level shared Agent Skills directory, the current working directory's skills directory, and earlier definitions in `inline`. If one search root contains multiple skills with the same name, discovery order is unspecified. Keep only one to ensure that the intended version loads.
 
 > **Note**: Skill scripts run as local processes without security sandbox isolation. Before adding a directory to `paths` or enabling an automatically loaded source, inspect its `SKILL.md`, scripts, and other relevant files. Load only trusted skills. Allowing a script extension does not install its interpreter.
 
@@ -426,7 +426,7 @@ When multiple sources contain skills with the same name, precedence from highest
 | --- | --- | --- | --- |
 | `name` | String | Required | 1-64 characters, using lowercase letters, digits, and hyphens. Hyphens cannot be consecutive or appear at the start or end. |
 | `description` | String | Required | Non-empty, up to 1024 characters. Helps the agent decide when to load the skill. |
-| `instructions` | String | Empty | Instructions provided to the agent when the skill is loaded. |
+| `instructions` | String or list of strings | Empty | Instructions provided to the agent when the skill is loaded. A list is joined into one text, one item per line. |
 | `resources` | List of objects | `[]` | Inline text resources loaded with the skill. See the following table. |
 
 | `resources` field | Type | Default | Description |
@@ -543,6 +543,6 @@ acp:
 | `handshake_timeout_seconds` | Number | `30.0` | Timeout in seconds for starting, initializing, and opening a session. Must be greater than `0`. Invalid YAML values fall back to the default with a warning. |
 | `idle_timeout_seconds` | Number | `600.0` | Timeout in seconds for inactivity during a call. `0` means no timeout; cannot be negative. Invalid YAML values fall back to the default with a warning. |
 
-**Directory scope for `allow_external_cwd`**: If an ACP client creates AIxCoding session and supplies additional working directories, the external agent can run in those directories and their subdirectories even when `allow_external_cwd` is `false`.
+**Directory scope for `allow_external_cwd`**: If an ACP client creates the AIxCoding session and supplies additional working directories, the external agent can run in those directories and their subdirectories even when `allow_external_cwd` is `false`.
 
-`command`, `args`, values in `env`, and `cwd` can use `{{ENV_VAR}}` to reference environment variables from AIxCoding process. Missing or empty variables cause startup to fail. For connection tests, working directory security boundaries, and how configuration options are applied, see [Configure external ACP agents](../guides/extensions/external-acp-agents.md).
+`command`, `args`, values in `env`, and `cwd` can use `{{ENV_VAR}}` to reference environment variables from the AIxCoding process. Missing or empty variables cause startup to fail. For connection tests, working directory security boundaries, and how configuration options are applied, see [Configure external ACP agents](../guides/extensions/external-acp-agents.md).

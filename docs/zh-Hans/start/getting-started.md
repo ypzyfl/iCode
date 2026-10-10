@@ -6,6 +6,8 @@
 
 AIxCoding-CLI 为 macOS、Linux 和 Windows 提供预构建的离线安装包。安装包已包含 Python 和运行依赖，无需另行安装 Python。
 
+请从 [AIxCoding-CLI Releases](https://github.com/0x7c13/chrys/releases) 下载最新版本。当前不要运行 `pip install chrys`：PyPI 上的这个名称属于另一个项目。
+
 以下命令中的 `<version>` 和 `<architecture>` 是占位符，请替换为下载文件名中的实际值。
 
 ### macOS
@@ -14,8 +16,8 @@ AIxCoding-CLI 为 macOS、Linux 和 Windows 提供预构建的离线安装包。
 
 ```bash
 tar xzf aixcoding-cli-macos-<architecture>-v<version>-offline.tar.gz
-chmod +x ./aixcoding
-./aixcoding install
+chmod +x ./aixcoding-cli
+./aixcoding-cli install
 ```
 
 ### Linux
@@ -24,8 +26,8 @@ chmod +x ./aixcoding
 
 ```bash
 tar xzf aixcoding-cli-linux-<architecture>-v<version>-offline.tar.gz
-chmod +x ./aixcoding
-./aixcoding install
+chmod +x ./aixcoding-cli
+./aixcoding-cli install
 ```
 
 Linux x86-64 安装包要求 glibc 2.17 或更高版本，ARM64 安装包要求 glibc 2.18 或更高版本。Alpine Linux 等只提供 musl 的发行版不在预构建包的支持范围内。
@@ -35,7 +37,7 @@ Linux x86-64 安装包要求 glibc 2.17 或更高版本，ARM64 安装包要求 
 下载 `aixcoding-cli-windows-x86_64-v<version>-offline.zip` 并解压，在 PowerShell 中进入解压目录，然后运行：
 
 ```powershell
-.\aixcoding.exe install
+.\aixcoding-cli.exe install
 ```
 
 安装器会尝试将 AIxCoding-CLI 加入当前用户的 `PATH`。安装完成后，请打开一个新终端。
@@ -43,10 +45,10 @@ Linux x86-64 安装包要求 glibc 2.17 或更高版本，ARM64 安装包要求 
 ### 验证安装
 
 ```shell
-aixcoding --version
+aixcoding-cli --version
 ```
 
-命令应输出 AIxCoding-CLI 的版本号。在 macOS 或 Linux 上，如果系统找不到 `aixcoding`，请按安装器的提示将 `~/.local/bin` 加入 `PATH`；如果安装器提示 `~/.local/bin/aixcoding` 已存在，该命令会启动其他程序，请改用 `chrys` 命令。在 Windows 上请打开新的终端；如果安装器提示更新用户 PATH 失败，请手动将 `%LOCALAPPDATA%\chrys\bin` 加入用户 `PATH`。
+命令应输出 AIxCoding-CLI 的版本号。在 macOS 或 Linux 上，如果系统找不到 `aixcoding-cli`，请按安装器的提示将 `~/.local/bin` 加入 `PATH`；如果安装器提示 `~/.local/bin/aixcoding-cli` 已存在，该命令会启动其他程序，请改用 `chrys` 命令。在 Windows 上请打开新的终端；如果安装器提示更新用户 PATH 失败，请手动将 `%LOCALAPPDATA%\chrys\bin` 加入用户 `PATH`。
 
 ## 2. 在项目中启动 AIxCoding-CLI
 
@@ -107,8 +109,6 @@ Q&A Agent 适合在**不修改项目的情况下**了解项目、分析代码、
 
 Q&A Agent 可能会搜索文件、读取文件内容或运行只读命令。工具调用会以卡片形式显示，完成分析后会给出实现方案。
 
-你发送的消息和智能体的回复都会按 Markdown 格式显示。要复制消息的原始内容，点击消息标题旁的**复制**；用鼠标选中文字复制时，得到的是显示出来的内容。
-
 ### 使用 Code Agent
 
 Code Agent 适用于需要**修改文件、运行命令和验证结果**的任务。它会先阅读相关代码，再按任务要求实现、调试或重构代码。
@@ -122,6 +122,20 @@ Q&A Agent 给出实现方案后，可以在同一会话中切换到 **Code Agent
 如果出现审批对话框，请检查即将执行的工具调用，尤其是命令内容、目标文件和影响范围，确认符合预期后再批准。有关不同审批模式的行为，请参阅[配置审批模式](../guides/configuration/approval.md)。
 
 任务完成后，检查智能体的最终回复，并通过 `/diff` 浏览当前会话记录的文件修改。随后使用 Git 等版本控制工具检查工作目录的完整变更，并确认功能正确、必要的测试已经通过且不包含无关改动。确认无误后，可以提交这些变更。
+
+### 阅读和复制回复
+
+所有智能体的回复都支持 Markdown、数学公式和 Mermaid 图表。你自己发送的消息中的公式不作数学渲染。
+
+列表和引用可以包含标题、表格、代码和公式。
+
+回复中，`$...$` 或 `\(...\)` 包围的公式以单行显示；`math` 代码块、`$$...$$` 或 `\[...\]` 中的块公式可显示分式、矩阵和对齐公式。普通文字、价格和 shell 变量保留原有 Markdown 格式。不支持或过宽的公式会完整显示为可换行的源码。
+
+例如，`$x^{n+1}$` 显示为 xⁿ⁺¹，`$90^\circ$` 显示为 90°。
+
+Mermaid 代码块会显示为图表，点击**打开完整图表**可查看、滚动完整内容。部分图表会简化显示并提示，不支持的图表保留源码。
+
+鼠标选择复制显示结果，不会因屏幕折行额外插入换行。消息标题旁的**复制**保留原始 Markdown 和 LaTeX。重新打开旧会话时，也会使用当前的渲染效果。
 
 ## 5. 结束本次使用
 

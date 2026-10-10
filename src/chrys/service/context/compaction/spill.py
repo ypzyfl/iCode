@@ -20,7 +20,7 @@ from urllib.parse import parse_qsl, urlsplit
 from uuid import uuid4
 
 from chrys.foundation.platform import get_platform
-from chrys.foundation.platform.files import _fsync_dir, atomic_write_text, is_utf8_encodable
+from chrys.foundation.platform.files import atomic_write_text, fsync_directory, is_utf8_encodable
 from chrys.foundation.text.images import hashable_image_identity
 from chrys.foundation.tool_execution_stamp import (
     canonicalize_effective_arguments,
@@ -29,11 +29,6 @@ from chrys.foundation.tool_execution_stamp import (
 from chrys.foundation.tool_result_metadata import TOOL_ERROR_KIND_METADATA_KEY
 from chrys.foundation.util.filenames import bounded_safe_stem, safe_platform_basename
 from chrys.kernel import TOOL_CALL_CONTENT_TYPES, Content, is_image_content
-from chrys.service.agent_middleware.system_reminder import (
-    DISPLAY_ARGUMENT_DEFAULT_MAX_CHARS,
-    DISPLAY_ARGUMENT_PATH_MAX_CHARS,
-    DISPLAY_ARGUMENT_REASON_MAX_CHARS,
-)
 
 if TYPE_CHECKING:
     from chrys.service.context.compaction.scoped import ScopedGroup
@@ -114,7 +109,7 @@ class CatalogRecord:
 
 @dataclass(frozen=True, slots=True)
 class SpillManifestItem:
-    """Neutral spill result converted to reminder-owned ``ManifestEntry`` state."""
+    """Neutral spill result converted to ``last_words_state.ManifestEntry`` state."""
 
     record_id: str
     group_id: str
@@ -822,7 +817,7 @@ def _write_note_record(
     quota.commit(reserved, len(payload), relative_path=relative_path.as_posix(), catalog_record=record)
     return SpillManifestItem(
         record_id=record_id,
-        # Synthetic marker: reminder-side ManifestEntry.from_state requires a
+        # Synthetic marker: last_words_state.ManifestEntry.from_state requires a
         # non-empty group_id, and an empty one would silently drop the entry
         # from the rendered manifest.
         group_id=NOTE_RECORD_GROUP_ID,
@@ -1193,7 +1188,7 @@ def _fsync_directory_chains(root: Path, directories: Iterable[Path]) -> None:
                 break
             current = current.parent
     for directory in sorted(pending, key=lambda path: len(path.parts), reverse=True):
-        _fsync_dir(directory)
+        fsync_directory(directory)
 
 
 def _read_live_catalog(root: Path) -> list[CatalogRecord]:
@@ -1834,6 +1829,16 @@ _DISPLAY_ARG_KEYS_BY_TOOL: dict[str, tuple[str, ...]] = {
 _EXTRA_DISPLAY_ARG_KEYS_BY_TOOL: dict[str, tuple[str, ...]] = {
     tool: ("reason",) for tool, keys in _DISPLAY_ARG_KEYS_BY_TOOL.items() if keys == ("command",)
 }
+# Catalog-line argument preview caps, sized to keep whole commands, paths, and
+# shell intents visible; the LAST_WORDS manifest's overall char/line budget
+# evicts oldest entries when a long listing overflows, so a longer preview
+# trades tail entries, not correctness.  ``last_words_state`` derives its
+# stored-field bound from them.
+DISPLAY_ARGUMENT_DEFAULT_MAX_CHARS = 120
+# Paths middle-truncate (``D:\Repos\…\test.py``) so the filename tail stays.
+DISPLAY_ARGUMENT_PATH_MAX_CHARS = 256
+# Shell tools append the model-stated ``reason="…"`` after the command.
+DISPLAY_ARGUMENT_REASON_MAX_CHARS = 80
 _DISPLAY_ARGUMENT_KEY_CAPS = {
     "path": DISPLAY_ARGUMENT_PATH_MAX_CHARS,
     "file_path": DISPLAY_ARGUMENT_PATH_MAX_CHARS,

@@ -1,4 +1,4 @@
-# AIxCoding-CLI settings file reference
+# AIxCoding settings file reference
 
 `settings.yaml` stores AIxCoding interface preferences, the default agent, and session and tool settings. This page lists common settings by purpose and explains file locations and format, how to write values, precedence when multiple sources are present, and which settings project files can override.
 
@@ -61,12 +61,14 @@ The `approval` keys control approval behavior when an agent requests an operatio
 | YAML key | Environment variable | Default | Type, values, and effect |
 | --- | --- | --- | --- |
 | `approval.default_mode` | `CHRYS_DEFAULT_APPROVAL_MODE` | `manual` | String; `manual` for manual approval, `auto` for automatic approval, or `bypass` to bypass approval. Setting the default mode does not switch the current session's mode |
+| `ui.approval.defer_while_judging` | None | `true` | Boolean; in automatic mode, whether the TUI opens the approval dialog only when the approval judge model flags a call or evaluation fails. `false` opens it at once while the call is evaluated. The ACP server and `aixcoding run` ignore it |
 | `project.config_enabled` | None | `false` | Boolean; whether to load project settings for each working directory. Must be enabled in user settings |
-| `project.hooks_enabled` | None | `true` | Boolean; whether to load project hooks from `.chrys/hooks` in the working directory. Does not affect user-level hooks |
+| `project.hooks_enabled` | None | `false` | Boolean; whether to load project hooks from `.chrys/hooks` in the working directory. Must be enabled in user settings. Does not affect user-level hooks |
+| `project.skills_enabled` | None | `false` | Boolean; whether to load project skills from `.agents/skills` in the working directory. Must be enabled in user settings. The agent's own “Load skills from working folder” option must also stay on |
 
 If you manually set the default approval mode to `bypass` in YAML or an environment variable, approval is bypassed the next time AIxCoding starts with that default. When you switch to `bypass` with `/approval` in the TUI, AIxCoding saves `auto` as the default mode; the TUI Settings dialog does not offer `bypass`.
 
-Hooks are external commands that AIxCoding runs on specific events. Project hooks and project settings are controlled separately: disabling `project.config_enabled` does not disable project hooks. For authoring and configuration, see [Configure and write hooks](../guides/extensions/hooks.md).
+Project settings, project hooks, and project skills come from the repository you open, so all three are off by default and each is turned on separately: enabling one does not enable the others. When the working directory has any of them that are off, AIxCoding shows a notice naming the setting to turn on. Hooks are external commands that AIxCoding runs on specific events; for authoring and configuration, see [Configure and write hooks](../guides/extensions/hooks.md). For skills, see [Install and use skills](../guides/extensions/skills.md).
 
 ### Sessions and file recovery
 
@@ -93,7 +95,7 @@ Changing the session storage root does not automatically move existing sessions.
 | `mutations.parallel_implicit_tools` | `CHRYS_PARALLEL_IMPLICIT_TOOLS` | `true` | Boolean; allow tools that may modify files, such as shell commands and skill scripts, to run in parallel within the same session. Setting this to `false` makes it easier to identify which tool call caused a file change |
 | `mutations.coordination.enabled` | `CHRYS_MUTATION_COORDINATION` | `true` | Boolean; help distinguish file changes made by different AIxCoding sessions sharing a working directory |
 
-Tools may also have their own output limits, such as limits on MCP results and skill resources. Setting `tools.result.ceiling_tokens` to `0` does not disable those limits or recover content that a tool has already truncated.
+Tools may also have their own output limits, such as limits on MCP results and skill resources. Setting `tools.result.ceiling_tokens` to `0` does not disable those limits or recover content that a tool has already truncated. Separately from these token limits, shell commands and skill scripts keep at most 32 MiB of each output stream.
 
 ### Web tools
 
@@ -127,7 +129,7 @@ The following settings have no corresponding environment variables.
 
 | YAML key | Default | Type, values, and effect |
 | --- | --- | --- |
-| `context.warn_threshold_pct` | `0.5` | Number; from `0` to `1`, representing the fraction of the context window in use. When the threshold is reached, the agent is notified of high context usage. The default threshold is 50%; this does not change when automatic compaction is triggered |
+| `context.warn_threshold_pct` | `0.5` | Number; from `0` to `1`, representing the fraction of the context window in use. When usage reaches the threshold, the agent is told once that context usage is high, and again only after usage has dropped below the threshold and reached it again. The default threshold is 50%; this does not change when automatic compaction is triggered |
 | `trajectory.verify_commands` | Built-in list of common test and check commands | String; comma-separated command terms that trajectory analysis uses to identify verification operations, such as `"pytest,ruff,npm test"`. A custom value replaces the entire list. This affects only analysis categories; it does not run the commands |
 
 ### Notifications
@@ -233,7 +235,7 @@ AIxCoding reports and ignores disallowed project keys, values that exceed overri
 | `aixcoding` (TUI) | Uses interface, input, and notification settings; the default agent comes from `agent.default_profile` |
 | `aixcoding run` | Always bypasses approval and does not wait for user answers; the default approval mode and question timeout settings do not change these behaviors |
 | `aixcoding acp` | Agent Client Protocol (ACP) server; the initial agent and approval mode are determined by `--agent` and `--approval`, defaulting to `Code` and `manual`, respectively. Questions wait indefinitely by default; set a timeout with `--ask-user-timeout` |
-| `aixcoding serve` | Hosts the TUI in a browser; configuration files and environment variables come from the machine running AIxCoding service |
+| `aixcoding serve` | Hosts the TUI in a browser; configuration files and environment variables come from the machine running the AIxCoding service |
 
 ## When a setting does not take effect
 

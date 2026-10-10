@@ -31,11 +31,11 @@ topics:
       zh-Hans: 运行 AIxCoding-CLI
       en: Running AIxCoding-CLI
     children:
-      - id: icode_run
+      - id: aixcoding_run
         path: guides/running/aixcoding-run.md
-      - id: icode_acp
+      - id: aixcoding_acp
         path: guides/running/aixcoding-acp.md
-      - id: icode_serve
+      - id: aixcoding_serve
         path: guides/running/aixcoding-serve.md
       - id: workflows
         path: guides/running/workflows.md
@@ -46,6 +46,8 @@ topics:
     children:
       - id: models
         path: guides/configuration/models.md
+      - id: chat_options
+        path: guides/configuration/chat-options.md
       - id: agents
         path: guides/configuration/agents.md
       - id: tools
