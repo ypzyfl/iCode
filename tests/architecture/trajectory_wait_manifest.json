@@ -1,5 +1,5 @@
 {
-  "inventory_sha256": "08b59eaeb036f6e325f5d2a0dc31022ffc3cf9e6f20dbe17247381816676e261",
+  "inventory_sha256": "cb275b23907f35220020a8c44522273f8d48decc5afb53c1dcfb80a554d93c53",
   "nodes": [
     {
       "cases": [
@@ -40338,7 +40338,7 @@
       "primitive": "awaitable",
       "qualname": "create_client",
       "source_column": 12,
-      "source_line": 515,
+      "source_line": 530,
       "wrapper_target": null
     },
     {
@@ -40358,7 +40358,7 @@
       "primitive": "wrapper",
       "qualname": "scoped_client",
       "source_column": 13,
-      "source_line": 627,
+      "source_line": 642,
       "wrapper_target": "chrys.service.llm.clients.create_client"
     },
     {
@@ -40378,7 +40378,7 @@
       "primitive": "awaitable",
       "qualname": "scoped_client",
       "source_column": 8,
-      "source_line": 631,
+      "source_line": 646,
       "wrapper_target": null
     },
     {
@@ -45700,6 +45700,66 @@
       "source_column": 40,
       "source_line": 538,
       "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "async with httpx.AsyncClient(timeout=timeout)",
+      "identity": "chrys.service.profiles.models.catalog:fetch_catalog:1",
+      "module": "chrys.service.profiles.models.catalog",
+      "ordinal": 1,
+      "primitive": "async_context",
+      "qualname": "fetch_catalog",
+      "source_column": 19,
+      "source_line": 534,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await client.get(endpoint, headers=headers)",
+      "identity": "chrys.service.profiles.models.catalog:fetch_catalog:2",
+      "module": "chrys.service.profiles.models.catalog",
+      "ordinal": 2,
+      "primitive": "queue",
+      "qualname": "fetch_catalog",
+      "source_column": 23,
+      "source_line": 535,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await fetch_catalog(url, timeout=timeout)",
+      "identity": "chrys.service.profiles.models.catalog:sync_catalog:1",
+      "module": "chrys.service.profiles.models.catalog",
+      "ordinal": 1,
+      "primitive": "wrapper",
+      "qualname": "sync_catalog",
+      "source_column": 14,
+      "source_line": 635,
+      "wrapper_target": "chrys.service.profiles.models.catalog.fetch_catalog"
     },
     {
       "cases": [

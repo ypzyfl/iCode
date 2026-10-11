@@ -23,7 +23,7 @@ uv run python mock_server/chrys_model_catalog/server.py --no-auth  # 只挂目�
 然后让 iCode 指向它：
 
 ```bash
-CHRYS_ENVIRONMENT=local CHRYS_AUTH_ENVIRONMENT=local uv run icode
+CHRYS_AUTH_ENVIRONMENT=local uv run icode
 ```
 
 ## 端点
@@ -32,6 +32,7 @@ CHRYS_ENVIRONMENT=local CHRYS_AUTH_ENVIRONMENT=local uv run icode
 |---|---|---|
 | GET | `/llm/api/v1/continue-config/dispatch` | 当前模式下的目录 payload（query 参数被忽略，客户端拼的 `scopeType`/`userId` 不影响响应） |
 | POST | `/mock/control` | `{"mode": "error", "delay": 8}` 运行时切换故障模式；响应体带回 mode / revision / version / 请求数 |
+| POST | `/v1/chat/completions` | LLM chat mock：请求行的统一日志只带出**认证头**（`token` / `Authorization` / 含 auth/key/secret 等字样的头，值打码，没有则显示 `(no credential header)`），不打印载荷；再按 `stream` 回最小合法 ChatCompletion 或 SSE 流。把 `config_new.json` 里模型的 `apiBase` 指到 `http://127.0.0.1:7777/v1` 即可走这条 |
 
 只留这两条 —— 外加默认同端口挂载的登录 mock：`POST /api/v1/auth/device/code`、
 `POST /api/v1/auth/device/token`、`POST /api/v1/user/info`、`GET /device/verify`。

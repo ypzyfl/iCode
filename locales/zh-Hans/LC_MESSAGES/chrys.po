@@ -862,6 +862,12 @@ msgstr "CHRYS_MAX_TRANSIENT_RETRIES={value} 超过上限 {limit}，已限制为 
 msgid "settings.max_transient_retries_invalid"
 msgstr "已忽略无效的 CHRYS_MAX_TRANSIENT_RETRIES={raw}；应为非负整数，将使用前端默认值。"
 
+#. English: Model catalog base URL
+#. chrys-meta={"fingerprint":"e6cd53a77c510f41e59f222a3b3dc6a61c6904ecd2f7682c4ac327f4d48c787f","multiline":false,"placeholders":[]}
+#: src/chrys/foundation/config/settings.py
+msgid "settings.model.catalog.base_url.label"
+msgstr "模型目录服务地址"
+
 #. English: Active model profile
 #. chrys-meta={"fingerprint":"1fa94dedf5f593c4f5b9d72de45505809a093ee822d1cd987a4ae11d4865daf5","multiline":false,"placeholders":[]}
 #: src/chrys/foundation/config/settings.py

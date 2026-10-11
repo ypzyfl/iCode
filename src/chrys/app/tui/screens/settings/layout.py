@@ -482,6 +482,7 @@ DEFERRED_KEYS: frozenset[str] = frozenset(
         "mutations.coordination.enabled",
         "mutations.parallel_implicit_tools",
         "workspace.change_notice.max_entries",
+        "model.catalog.base_url",
     }
 )
 

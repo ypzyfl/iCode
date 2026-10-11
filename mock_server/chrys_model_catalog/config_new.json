@@ -1,11 +1,11 @@
 {
   "models": [
     {
-       "title": "Granite 4.0 H Micro (Paid, cheapest)",
+      "title": "GPT-4o mini",
       "provider": "openrouter",
-      "model": "ibm-granite/granite-4.0-h-micro",
-      "apiBase": "https://openrouter.ai/api/v1",
-      "contextLength": 256000
+      "model": "openai/gpt-4o-mini",
+      "apiBase": "http://127.0.0.1:7777/v1",
+      "contextLength": 128000
     }
   ],
   "aa": {

@@ -23,7 +23,7 @@ Usage::
                   [--catalog FILE] [--mode {ok,empty,invalid,error,slow,stale}]
                   [--no-auth] [--auth-mode {auto,manual}]
 
-    CHRYS_ENVIRONMENT=local CHRYS_AUTH_ENVIRONMENT=local uv run icode
+    CHRYS_AUTH_ENVIRONMENT=local uv run icode
 
 Endpoints::
 
@@ -51,24 +51,30 @@ from urllib.parse import urlsplit
 # auth mock is self-contained and never hits this; pytest has the root already.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from mock_server.chrys_model_catalog.modes import (  # noqa: E402
+from mock_server.aixcoding_auth.server import (
+    API_PREFIX as AUTH_API_PREFIX,
+)
+from mock_server.aixcoding_auth.server import (
+    VERIFY_ROUTE as AUTH_VERIFY_ROUTE,
+)
+from mock_server.aixcoding_auth.server import (
+    MockAuthConfig,
+    MockAuthState,
+)
+from mock_server.aixcoding_auth.server import (
+    build_handler_class as build_auth_handler_class,
+)
+from mock_server.chrys_model_catalog.modes import (
     DEFAULT_DELAY,
     MODES,
     build_payload,
     delay_for,
     status_for,
 )
-from mock_server.chrys_model_catalog.source import CatalogSource, CatalogSourceError  # noqa: E402
-from mock_server.chrys_model_catalog.state import (  # noqa: E402
+from mock_server.chrys_model_catalog.source import CatalogSource, CatalogSourceError
+from mock_server.chrys_model_catalog.state import (
     CatalogMockState,
     UnknownModeError,
-)
-from mock_server.aixcoding_auth.server import (  # noqa: E402
-    API_PREFIX as AUTH_API_PREFIX,
-    VERIFY_ROUTE as AUTH_VERIFY_ROUTE,
-    MockAuthConfig,
-    MockAuthState,
-    build_handler_class as build_auth_handler_class,
 )
 
 logger = logging.getLogger("chrys.mock_model_catalog")
@@ -77,6 +83,10 @@ logger = logging.getLogger("chrys.mock_model_catalog")
 #: the one to spell out while the client still takes a full URL.
 CATALOG_ROUTE = "/llm/api/v1/continue-config/dispatch"
 CONTROL_ROUTE = "/mock/control"
+#: The OpenAI-style endpoint a synced profile's ``apiBase`` points at: with
+#: ``apiBase = http://127.0.0.1:7777/v1`` the SDK POSTs here, so a local run's
+#: model requests land on this mock instead of a real gateway.
+LLM_ROUTE = "/v1/chat/completions"
 
 DEFAULT_HOST = "127.0.0.1"
 #: The auth mock's port, because this is one server now: the client logs in
@@ -94,6 +104,100 @@ _LOOPBACK_HOSTS = ("127.0.0.1", "::1")
 AUTH_ROUTE_PREFIXES = (AUTH_API_PREFIX, "/device")
 
 MAX_CONTROL_BYTES = 64 * 1024
+
+#: A chat request carries the whole message history, so its body dwarfs a
+#: control one; 16 MiB sits far above any real request while staying bounded.
+MAX_LLM_BODY_BYTES = 16 * 1024 * 1024
+
+#: Headers whose value is mostly hidden in the log: a catalog request carries
+#: the caller's token, and an access log is not a credential store.
+_MASKED_HEADERS = frozenset(
+    {
+        "authorization",
+        "proxy-authorization",
+        "cookie",
+        "set-cookie",
+        "x-api-key",
+        "api-key",
+        "x-auth-token",
+    }
+)
+
+#: A credential arrives under many names besides ``Authorization`` —
+#: ``X-Access-Token``, ``X-Api-Key``, ``X-Session-Token`` and whatever the next
+#: gateway invents — so a name is also matched by what it contains. Anything
+#: that slips past both would be logged in the clear, which is the one thing
+#: this function must never do.
+_CREDENTIAL_NAME_PARTS = ("auth", "token", "key", "secret", "credential", "password", "cookie", "signature")
+
+
+def _is_credential_header(name: str) -> bool:
+    """Return whether *name* names a credential, by exact match or by content."""
+    lowered = name.lower()
+    return lowered in _MASKED_HEADERS or any(part in lowered for part in _CREDENTIAL_NAME_PARTS)
+
+
+#: How much of a credential both ends keep, and the length below which none of
+#: it is shown: hiding only the middle of a short secret leaves little enough
+#: that the ends give it away.
+_MASK_HEAD = 8
+_MASK_TAIL = 4
+_MASK_MIN_LENGTH = 16
+
+
+def _mask_value(value: str) -> str:
+    """Hide the middle of *value*, keeping both ends to tell keys apart."""
+    if len(value) <= _MASK_MIN_LENGTH:
+        return "<redacted>"
+    return f"{value[:_MASK_HEAD]}…{value[-_MASK_TAIL:]}"
+
+
+def _format_auth_headers(headers: Any) -> str:
+    """Render the request's credential headers, or note that it sent none.
+
+    Only credentials are logged: what the line is for is *whether* the caller
+    authenticated, not the dozen browser headers that ride along with it. The
+    value stays mostly hidden — enough to tell which key was sent, not enough
+    to put the secret in a log file.
+    """
+    lines: list[str] = []
+    for name, value in headers.items():
+        if _is_credential_header(name):
+            lines.append(f"    {name}: {_mask_value(value)} (len={len(value)})")
+    return "\n".join(lines) or "    (no credential header)"
+
+
+#: What the mock answers with — generic enough to be safe in any context.
+LLM_MOCK_REPLY = "Acknowledged by the chrys model-catalog mock LLM."
+
+
+def _llm_completion_body(model: str) -> dict[str, Any]:
+    """One minimal, valid ChatCompletion the OpenAI SDK accepts."""
+    return {
+        "id": "chatcmpl-chrys-mock",
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": model,
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": LLM_MOCK_REPLY},
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+    }
+
+
+def _llm_chunk(model: str, *, delta: dict[str, Any], finish_reason: str | None = None) -> dict[str, Any]:
+    """One ``chat.completion.chunk`` event for the streaming wire."""
+    return {
+        "id": "chatcmpl-chrys-mock",
+        "object": "chat.completion.chunk",
+        "created": int(time.time()),
+        "model": model,
+        "choices": [{"index": 0, "delta": delta, "finish_reason": finish_reason}],
+    }
 
 
 class RunningCatalogMock:
@@ -180,13 +284,18 @@ def build_handler_class() -> type[BaseHTTPRequestHandler]:
             server.state.requests += 1
             route = urlsplit(self.path).path.rstrip("/") or "/"
             if not server.quiet:
-                logger.info("%s %s", method, self._request_url())
+                logger.info("%s %s\n%s", method, self._request_url(), _format_auth_headers(self.headers))
 
             if route == CATALOG_ROUTE:
                 if method != "GET":
                     self._send_json(405, {"error": f"{method} not allowed on {route}"})
                     return
                 self._serve_catalog()
+            elif route == LLM_ROUTE:
+                if method != "POST":
+                    self._send_json(405, {"error": f"{method} not allowed on {route}"})
+                    return
+                self._serve_llm_chat()
             elif route == CONTROL_ROUTE:
                 if method != "POST":
                     self._send_json(405, {"error": f"{method} not allowed on {route}"})
@@ -232,6 +341,59 @@ def build_handler_class() -> type[BaseHTTPRequestHandler]:
             # The snapshot is the control response: no separate state endpoint.
             self._send_json(200, server.state.snapshot())
 
+        def _serve_llm_chat(self) -> None:
+            """Answer like OpenAI.
+
+            No extra logging here: ``_dispatch`` already logs every request
+            line together with its credential headers — ``token``,
+            ``Authorization``, anything auth-shaped, values masked — which is
+            all the mock is watched for. The payload is not logged.
+            """
+            body = self._read_llm_body()
+            if body is None:
+                self._send_json(400, {"error": "chat request body must be a JSON object"})
+                return
+            model = str(body.get("model") or "mock-model")
+            if body.get("stream") is True:
+                self._send_llm_stream(model)
+            else:
+                self._send_json(200, _llm_completion_body(model))
+
+        def _read_llm_body(self) -> dict[str, Any] | None:
+            """Read one chat request body; ``MAX_LLM_BODY_BYTES`` keeps it bounded."""
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                return None
+            if length > MAX_LLM_BODY_BYTES:
+                return None
+            raw = self.rfile.read(length) if length else b""
+            if not raw.strip():
+                return None
+            try:
+                parsed = json.loads(raw.decode("utf-8"))
+            except OSError, ValueError:
+                return None
+            return parsed if isinstance(parsed, dict) else None
+
+        def _send_llm_stream(self, model: str) -> None:
+            """Answer a streaming request with SSE chunks, then ``[DONE]``."""
+            events = (
+                _llm_chunk(model, delta={"role": "assistant", "content": LLM_MOCK_REPLY}),
+                _llm_chunk(model, delta={}, finish_reason="stop"),
+            )
+            stream = b"".join(f"data: {json.dumps(event, separators=(',', ':'))}\n\n".encode() for event in events)
+            stream += b"data: [DONE]\n\n"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            # No Content-Length: the stream's end is the connection's end —
+            # closing below is how the reader learns it is finished.
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.wfile.write(stream)
+            self.close_connection = True
+
         def _read_json_body(self) -> dict[str, Any] | None:
             try:
                 length = int(self.headers.get("Content-Length") or 0)
@@ -244,7 +406,7 @@ def build_handler_class() -> type[BaseHTTPRequestHandler]:
                 return {}
             try:
                 parsed = json.loads(raw.decode("utf-8"))
-            except (OSError, ValueError):
+            except OSError, ValueError:
                 return None
             return parsed if isinstance(parsed, dict) else None
 
@@ -287,9 +449,9 @@ def build_combined_handler_class(auth_state: MockAuthState) -> type[BaseHTTPRequ
         def _send_json(self, *args: Any) -> None:
             """Both parents define this, with different signatures."""
             if _is_auth_route(self.path):
-                auth_cls._send_json(self, *args)  # noqa: SLF001
+                auth_cls._send_json(self, *args)
             else:
-                catalog_cls._send_json(self, *args)  # noqa: SLF001
+                catalog_cls._send_json(self, *args)
 
         def log_message(self, format: str, *args: Any) -> None:
             if _is_auth_route(self.path):

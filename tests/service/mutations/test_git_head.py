@@ -135,7 +135,10 @@ def test_unborn_confirmation_shares_the_head_deadline(repo: Path, monkeypatch: p
     def run(root: str, args: list[str], *, timeout: float) -> subprocess.CompletedProcess[bytes] | None:
         nonlocal now
         remaining.append(timeout)
-        result = original(root, args, timeout=timeout)
+        # The decaying *timeout* is the arithmetic under test, not a wall-clock
+        # a loaded CI runner's git must beat: give the real subprocess the
+        # generous default so only the shared-deadline sequence is asserted.
+        result = original(root, args, timeout=git_state.GIT_TIMEOUT_SECONDS)
         now += 0.25
         return result
 
