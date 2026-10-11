@@ -43,7 +43,7 @@ To read the key from an environment variable, enter the following in the "API Ke
 {{PROVIDER_API_KEY}}
 ```
 
-Replace `PROVIDER_API_KEY` with the name of the environment variable that holds the key. Make sure the variable is set before starting iCode. Environment variable names can contain only letters, numbers, and underscores, and cannot start with a number.
+Replace `PROVIDER_API_KEY` with the name of the environment variable that holds the key. Make sure the variable is set before starting AIxCoding. Environment variable names can contain only letters, numbers, and underscores, and cannot start with a number.
 
 ### Clone a model profile
 
@@ -51,7 +51,7 @@ Clone an existing profile when you need another profile with mostly the same par
 
 1. Select the model profile to copy in the list on the left.
 2. Click "Clone".
-3. iCode creates and selects a copy containing all fields from the original profile, and generates a unique name for it.
+3. AIxCoding creates and selects a copy containing all fields from the original profile, and generates a unique name for it.
 4. Edit the profile name and any fields you want to change.
 5. Click "Save".
 
@@ -67,14 +67,14 @@ If you edit the model profile currently in use, the updated configuration applie
 
 ### Delete a model profile
 
-Deleting a profile removes its local model profile file and **cannot be undone in iCode**. Once you are sure you no longer need the profile:
+Deleting a profile removes its local model profile file and **cannot be undone in AIxCoding**. Once you are sure you no longer need the profile:
 
 1. Open the "Model Configuration" window.
 2. Select the profile to delete in the list on the left.
 3. Click "Delete".
 4. In the confirmation window, check the profile name again, then click "Delete".
 
-iCode keeps at least one model profile, so "Delete" is unavailable when only one remains. If you delete the profile currently in use, iCode automatically switches to another selectable profile after you close the configuration window.
+AIxCoding keeps at least one model profile, so "Delete" is unavailable when only one remains. If you delete the profile currently in use, AIxCoding automatically switches to another selectable profile after you close the configuration window.
 
 ## Switch and verify model profiles
 
@@ -105,16 +105,16 @@ After switching models, submit the following in the input field:
 Hello
 ```
 
-iCode should respond with a greeting. If the model service returns an error, first check the model ID, base URL, API key, and other model profile settings.
+AIxCoding should respond with a greeting. If the model service returns an error, first check the model ID, base URL, API key, and other model profile settings.
 
 If the error persists, compare the symptoms against the following cases:
 
-- **The error message contains `The Chat Completions client supports only n=1`**: With the Chat Completions style, iCode processes only one response per request and does not support multiple candidate responses, so the `n` parameter must be omitted or set to the integer `1`. Remove the value or set it to `1` in the profile's "Chat Options", including when it was set indirectly through `extra_body`.
+- **The error message contains `The Chat Completions client supports only n=1`**: With the Chat Completions style, AIxCoding processes only one response per request and does not support multiple candidate responses, so the `n` parameter must be omitted or set to the integer `1`. Remove the value or set it to `1` in the profile's "Chat Options", including when it was set indirectly through `extra_body`.
 - **The response has an `HTTP 200` status but is not a valid model reply**: for example a `text/html` Content-Type with an error page, an error JSON body, or an empty body. This means a gateway or proxy wrapped a backend error as a successful response; check that the selected API style matches the model service address, and review the proxy route.
 
-### If iCode can't reach the model service
+### If AIxCoding can't reach the model service
 
-When iCode can tell why a model request failed, it says so in plain words, with the original error text below it; a paused sub-agent's card shows both as well. While iCode retries, the retry notice shows only the plain-words message. If the device running iCode doesn't seem to have a network connection, iCode says so as well; check that first.
+When AIxCoding can tell why a model request failed, it says so in plain words, with the original error text below it; a paused sub-agent's card shows both as well. While AIxCoding retries, the retry notice shows only the plain-words message. If the device running AIxCoding doesn't seem to have a network connection, AIxCoding says so as well; check that first.
 
 | The message says | What to check |
 | --- | --- |

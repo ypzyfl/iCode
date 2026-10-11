@@ -1,20 +1,20 @@
 # OpenTelemetry 参考
 
-iCode 可通过 OpenTelemetry 记录智能体运行过程中产生的以下遥测数据：
+AIxCoding 可通过 OpenTelemetry 记录智能体运行过程中产生的以下遥测数据：
 
 - **追踪**：记录智能体运行、模型请求和工具调用等操作的起止时间、父子调用关系及错误信息，用于查看调用过程和定位耗时环节。
 - **日志**：按事件记录时间、级别和具体内容，例如工具调用成功、运行警告或错误信息；有调用上下文时，可与对应追踪关联。
 - **指标**：记录模型请求耗时、输入与输出 Token 数量、工具调用耗时等数值，用于汇总用量、耗时分布和变化趋势。
 
-收集器是接收遥测数据的服务。iCode 使用 OpenTelemetry Protocol（OTLP）向收集器发送数据。下文中的“端点”指收集器接收遥测数据的地址。
+收集器是接收遥测数据的服务。AIxCoding 使用 OpenTelemetry Protocol（OTLP）向收集器发送数据。下文中的“端点”指收集器接收遥测数据的地址。
 
-本页介绍 iCode 的 OpenTelemetry 配置、遥测数据的保存与导出方式，以及连接 OTLP 收集器的方法。
+本页介绍 AIxCoding 的 OpenTelemetry 配置、遥测数据的保存与导出方式，以及连接 OTLP 收集器的方法。
 
 ## 启用与数据去向
 
 ### 启用配置
 
-OpenTelemetry 默认关闭。可在终端用户界面（Terminal User Interface，TUI）的[设置 → 安全 → 遥测](../guides/configuration/settings.md#遥测)中启用，也可使用以下环境变量。**本页配置均在重启 iCode 后生效。**
+OpenTelemetry 默认关闭。可在终端用户界面（Terminal User Interface，TUI）的[设置 → 安全 → 遥测](../guides/configuration/settings.md#遥测)中启用，也可使用以下环境变量。**本页配置均在重启 AIxCoding 后生效。**
 
 | 环境变量 | 默认值 | 作用 |
 | --- | --- | --- |
@@ -29,7 +29,7 @@ OpenTelemetry 默认关闭。可在终端用户界面（Terminal User Interface�
 - 环境变量优先于文件中的对应配置生效，但不会修改该文件。
 - TUI 会显示环境变量指定的值，并禁用对应设置项的编辑。
 
-关闭 `CHRYS_OTEL` 或 TUI 中的“OpenTelemetry 导出”后，即使已配置端点或敏感数据选项，iCode 也不会保存或发送遥测数据。
+关闭 `CHRYS_OTEL` 或 TUI 中的“OpenTelemetry 导出”后，即使已配置端点或敏感数据选项，AIxCoding 也不会保存或发送遥测数据。
 
 ### 数据去向
 
@@ -45,7 +45,7 @@ OpenTelemetry 默认关闭。可在终端用户界面（Terminal User Interface�
 
 本地文件会在产生相应记录后创建。会话文件夹的位置见[查找会话 ID 和会话保存位置](../guides/daily-use/sessions.md#查找会话-id-和会话保存位置)。
 
-配置任一收集器端点并重启 iCode 后，iCode 将停止在本地保存遥测数据。远端导出失败时不会回退到本地保存，因此相关数据可能丢失。
+配置任一收集器端点并重启 AIxCoding 后，AIxCoding 将停止在本地保存遥测数据。远端导出失败时不会回退到本地保存，因此相关数据可能丢失。
 
 发送到接收端的数据是否保存以及保留多久，由接收端的配置决定。
 
@@ -88,7 +88,7 @@ OpenTelemetry 默认关闭。可在终端用户界面（Terminal User Interface�
 
 ### 协议与地址格式
 
-iCode 通过 OTLP/gRPC 发送数据，直接使用配置的端点地址。`OTEL_EXPORTER_OTLP_PROTOCOL` 应保持未设置或设为 `grpc`。iCode 安装包不包含 OTLP HTTP 导出器：设为 `http/protobuf`（或 `http`）时，OpenTelemetry 初始化失败，iCode 不会记录任何遥测数据，也不会保存到本地；设为其他值时不会导出任何数据。
+AIxCoding 通过 OTLP/gRPC 发送数据，直接使用配置的端点地址。`OTEL_EXPORTER_OTLP_PROTOCOL` 应保持未设置或设为 `grpc`。AIxCoding 安装包不包含 OTLP HTTP 导出器：设为 `http/protobuf`（或 `http`）时，OpenTelemetry 初始化失败，AIxCoding 不会记录任何遥测数据，也不会保存到本地；设为其他值时不会导出任何数据。
 
 端点地址须包含协议前缀：`http://` 使用未加密连接，适用于本机收集器；`https://` 使用 TLS。连接远端收集器时，请使用 `https://`，并按服务要求配置认证信息。
 
@@ -109,7 +109,7 @@ iCode 通过 OTLP/gRPC 发送数据，直接使用配置的端点地址。`OTEL_
 export OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer <token>"
 ```
 
-将 `<token>` 替换为收集器提供的令牌，并在启动 iCode 前设置。
+将 `<token>` 替换为收集器提供的令牌，并在启动 AIxCoding 前设置。
 
 类型专用请求头会与通用请求头合并；存在同名请求头时，类型专用值优先。
 
@@ -120,7 +120,7 @@ export OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer <token>"
 ```bash
 export CHRYS_OTEL=true
 export CHRYS_OTEL_ENDPOINT=http://localhost:4317
-icode
+aixcoding-cli
 ```
 
 此配置会通过未加密的 gRPC 连接将追踪、日志和指标发送到 `http://localhost:4317`。
@@ -129,32 +129,32 @@ icode
 
 ### 服务标识
 
-默认服务名（`service.name`）为 `chrys`，服务版本为当前安装的 iCode 版本。可在收集器或其连接的观测平台中按服务名查找数据。
+默认服务名（`service.name`）为 `chrys`，服务版本为当前安装的 AIxCoding 版本。可在收集器或其连接的观测平台中按服务名查找数据。
 
-如果多处运行的 iCode 向同一个收集器发送数据，可以用服务名和资源属性区分数据来源。资源属性是附在遥测数据上的标签，例如运行环境和实例名称。
+如果多处运行的 AIxCoding 向同一个收集器发送数据，可以用服务名和资源属性区分数据来源。资源属性是附在遥测数据上的标签，例如运行环境和实例名称。
 
-例如，在测试环境中运行一个 iCode 实例，可在 Bash 或 Zsh 中设置：
+例如，在测试环境中运行一个 AIxCoding 实例，可在 Bash 或 Zsh 中设置：
 
 ```bash
-export OTEL_SERVICE_NAME=icode-test
+export OTEL_SERVICE_NAME=aixcoding-cli-test
 export OTEL_RESOURCE_ATTRIBUTES="deployment.environment.name=staging,service.instance.id=test-01"
 ```
 
-在同一终端启动 iCode 后，导出的数据会带上以下标识，可在观测平台中据此筛选：
+在同一终端启动 AIxCoding 后，导出的数据会带上以下标识，可在观测平台中据此筛选：
 
 | 属性 | 示例值 | 含义 |
 | --- | --- | --- |
-| `service.name` | `icode-test` | 服务名称 |
+| `service.name` | `aixcoding-cli-test` | 服务名称 |
 | `deployment.environment.name` | `staging` | 运行环境，此处表示测试环境 |
-| `service.instance.id` | `test-01` | 实例名称，用于区分同一环境中的多个 iCode 实例 |
+| `service.instance.id` | `test-01` | 实例名称，用于区分同一环境中的多个 AIxCoding 实例 |
 
 `OTEL_RESOURCE_ATTRIBUTES` 使用逗号分隔多个 `名称=值`。其中的属性会覆盖同名默认属性；如果设置了 `service.name`，也会覆盖 `OTEL_SERVICE_NAME`。
 
-例如，设置 `OTEL_SERVICE_NAME=icode-test`，同时设置 `OTEL_RESOURCE_ATTRIBUTES="service.name=icode-qa"`，最终服务名为 `icode-qa`。
+例如，设置 `OTEL_SERVICE_NAME=aixcoding-cli-test`，同时设置 `OTEL_RESOURCE_ATTRIBUTES="service.name=aixcoding-cli-qa"`，最终服务名为 `aixcoding-cli-qa`。
 
 ### 指标与验证
 
-配置指标端点后（也可继承基础端点），iCode 每 5 秒尝试导出以下指标：
+配置指标端点后（也可继承基础端点），AIxCoding 每 5 秒尝试导出以下指标：
 
 | 指标 | 单位 | 统计内容 |
 | --- | --- | --- |
@@ -162,7 +162,7 @@ export OTEL_RESOURCE_ATTRIBUTES="deployment.environment.name=staging,service.ins
 | `gen_ai.client.token.usage` | Token | 模型请求的输入与输出 Token 数量，分别记录 |
 | `chrys.function.invocation.duration` | 秒 | 工具调用耗时 |
 
-iCode 会为 Token 用量自动添加 `gen_ai.token.type` 标签。在观测平台查询 `gen_ai.client.token.usage` 时：
+AIxCoding 会为 Token 用量自动添加 `gen_ai.token.type` 标签。在观测平台查询 `gen_ai.client.token.usage` 时：
 
 - 筛选 `gen_ai.token.type=input`，查看输入 Token 用量。
 - 筛选 `gen_ai.token.type=output`，查看输出 Token 用量。
@@ -172,6 +172,6 @@ iCode 会为 Token 用量自动添加 `gen_ai.token.type` 标签。在观测平�
 
 如果未收到数据，可依次检查：
 
-1. 是否已启用 OpenTelemetry，并在修改配置后重启 iCode。
+1. 是否已启用 OpenTelemetry，并在修改配置后重启 AIxCoding。
 2. 收集器是否在该端点接收 OTLP/gRPC，`OTEL_EXPORTER_OTLP_PROTOCOL` 是否未设置或设为 `grpc`，以及是否存在优先级更高的端点配置。
 3. 收集器是否需要认证，以及认证请求头是否配置正确。

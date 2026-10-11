@@ -22,6 +22,11 @@
 - [ ] 后端 spanId 口径（§8-5③）
 - [ ] 字段超集容忍度——后端（§8-6）
 
+## 挂起事项（记录在案，暂不实施）
+
+- [ ] **projectName/git 的 cwd 兜底对齐"宁缺毋错"**（方案 §8-9，用户指示 2026-10-10 暂不改）：`common_fields()` 与 `llm_telemetry.py:175` 在 `workspace_cwd` 缺失时回退 `Path.cwd()`（iCode 启动目录），与 fileName 缺失不相对化的口径不一致；改法=缺失时不补 projectName/git 字段，影响三处公共字段 + 测试。附带：`tool_detail.py` fileName 的 `file_path` fallback 永不命中，可顺手清理。
+- 已定稿待生效口径（2026-10-10 实施，此处仅备注）：文件路径统一走 `fileName`（`_FILE_NAME_TOOLS` = write_file/edit_file/read_file/view_image；read_file 移出 value 白名单；公共层 `reporters.relative_file_name`：工作区内相对/工作外绝对/工作区缺失原样）。专区 100 测试全绿，Smart Test 唯一失败为 safe-delete shim NUL 噪音（在案）。
+
 ## 源码修改清单（追版本唯一成本；⚠ 每项动手前需用户逐项确认）
 
 按实施里程碑排序（M1 = #1、#5；M2 = #2、#3、#4），编号见方案 §五。

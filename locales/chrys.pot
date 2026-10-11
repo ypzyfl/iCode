@@ -7353,8 +7353,9 @@ msgstr ""
 msgid "tui.model_config.provider_model"
 msgstr ""
 
-#. English: • Agent is running. This page is read-only.
-#. chrys-meta={"fingerprint":"2c1d9c5ee6873b430118a5b327031a85ab31bd7977a7d912ebcffa6d633308bf","multiline":false,"placeholders":[]}
+#. English: • Model configuration is centrally managed. Profiles can be
+#. selected but not edited here.
+#. chrys-meta={"fingerprint":"972e20ba261eb9e79e71f2e85ca3c5428a813c36411616392421fece4b3e4065","multiline":false,"placeholders":[]}
 #: src/chrys/app/tui/screens/models/screen.py
 msgid "tui.model_config.read_only_notice"
 msgstr ""

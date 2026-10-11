@@ -131,12 +131,13 @@ class LoginSession:
 
     @property
     def stored_user_id(self) -> str | None:
-        """The live user id (ehr), or ``None`` when absent/expired/corrupt.
+        """The logged-in user's id (``ehr``), or ``None`` without a live credential.
 
-        One accessor for both credential kinds: the parent-provided id while
-        a delegation is active, the stored ``userId`` after it falls back.
-        Like :attr:`stored_token` it never performs network I/O and the
-        empty string counts as absent.
+        The counterpart of :attr:`stored_token`: same source, same precedence
+        (a delegation shadows the store), no network I/O. It exists because a
+        request may need to *name* the user and not just authenticate as them
+        — the remote model config is served per user, and falls back to a
+        public default for an empty one.
         """
         delegated = self._active_delegated
         if delegated is not None:

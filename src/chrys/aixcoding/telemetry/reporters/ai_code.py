@@ -25,7 +25,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from chrys.aixcoding.telemetry.reporters import remember_bounded
+from chrys.aixcoding.telemetry.reporters import relative_file_name, remember_bounded
 from chrys.aixcoding.telemetry.types import CodeStatus
 
 if TYPE_CHECKING:
@@ -63,15 +63,6 @@ def ai_code_blocks(before_text: str | None, after_text: str) -> list[dict[str, i
 def _split_lines(text: str) -> list[str]:
     """按 CRLF/LF 分行（尾部保留空串，对齐 JS ``split(/\\r?\\n/)`` 行数口径）。"""
     return text.replace("\r\n", "\n").split("\n")
-
-
-def _relative_filepath(path: str, workspace_cwd: str | None = None) -> str:
-    """工作区相对路径（``workspace_cwd`` 缺省回退 cwd；越界回退绝对路径原文）。"""
-    try:
-        base = (Path(workspace_cwd) if workspace_cwd else Path.cwd()).resolve()
-        return str(Path(path).resolve().relative_to(base)).replace("\\", "/")
-    except ValueError, OSError:
-        return path
 
 
 class ApprovalTracker:
@@ -147,7 +138,7 @@ class AiCodeReporter:
         workspace = event.workspace_cwd or None
         payload: dict[str, Any] = {
             "reportId": str(uuid.uuid4()),
-            "filepath": _relative_filepath(path, workspace),
+            "filepath": relative_file_name(path, workspace),
             "blocks": ai_code_blocks(before_text if isinstance(before_text, str) else None, after_text),
             "sourceType": "edit",
             "sessionId": event.session_id,

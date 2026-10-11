@@ -64,7 +64,7 @@ observability = [
 all = ["chrys[tui,dev,doc_converter,observability]"]
 
 [project.scripts]
-icode = "chrys.app.cli.app:main"
+aixcoding-cli = "chrys.app.cli.app:main"
 chrys = "chrys.app.cli.app:main"
 
 [tool.uv.sources]

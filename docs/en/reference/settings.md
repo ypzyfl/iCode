@@ -1,8 +1,8 @@
-# iCode settings file reference
+# AIxCoding-CLI settings file reference
 
-`settings.yaml` stores iCode interface preferences, the default agent, and session and tool settings. This page lists common settings by purpose and explains file locations and format, how to write values, precedence when multiple sources are present, and which settings project files can override.
+`settings.yaml` stores AIxCoding interface preferences, the default agent, and session and tool settings. This page lists common settings by purpose and explains file locations and format, how to write values, precedence when multiple sources are present, and which settings project files can override.
 
-For steps to change settings in the terminal user interface (TUI) and when those changes take effect, see [Configure iCode settings](../guides/configuration/settings.md).
+For steps to change settings in the terminal user interface (TUI) and when those changes take effect, see [Configure AIxCoding settings](../guides/configuration/settings.md).
 
 ## File locations and format
 
@@ -11,7 +11,7 @@ For steps to change settings in the terminal user interface (TUI) and when those
 | User settings | `~/.chrys/settings.yaml` | `%APPDATA%\chrys\settings.yaml` | Store personal settings; the TUI Settings dialog writes to this file |
 | Project settings | `.chrys/settings.yaml` in the working directory | Same as macOS / Linux | Override some settings for that working directory; not loaded by default |
 
-iCode looks for `.chrys/settings.yaml` only in the current session's working directory. It does not search parent directories or subdirectories.
+AIxCoding looks for `.chrys/settings.yaml` only in the current session's working directory. It does not search parent directories or subdirectories.
 
 The file uses YAML. Dots in key names represent nesting. For example, write `llm.retry.max_transient` as:
 
@@ -21,7 +21,7 @@ llm:
     max_transient: 3
 ```
 
-After editing the settings file manually, save it and restart iCode for the changes to take effect.
+After editing the settings file manually, save it and restart AIxCoding for the changes to take effect.
 
 ## Settings keys
 
@@ -50,7 +50,7 @@ Model role keys take the ID or unique name of an existing model profile. Buddy d
 | `model.role.approval_judge` | `CHRYS_MODEL_PROFILE_APPROVAL_JUDGE` | Unset | String; the model profile used for automatic approval. Uses the current model when unset |
 | `model.role.session_title` | `CHRYS_MODEL_PROFILE_SESSION_TITLE` | Unset | String; the model profile used to generate session titles automatically. Uses the current model when unset |
 | `model.role.buddy_model_id` | `CHRYS_PET_MODEL` | Unset | String; the model used by Buddy, using the current model profile's connection. Uses the current model when unset |
-| `llm.retry.max_transient` | `CHRYS_MAX_TRANSIENT_RETRIES` | `null` | Integer or `null`; `null` uses the default retry count for the launch command: `10` for the TUI (including `icode serve`) and `icode acp`, or `18` for `icode run` and `icode workflow run`. The wait before each retry grows, up to 10 minutes. `0` disables automatic retries for transient errors; negative values are invalid; capped at `50` |
+| `llm.retry.max_transient` | `CHRYS_MAX_TRANSIENT_RETRIES` | `null` | Integer or `null`; `null` uses the default retry count for the launch command: `10` for the TUI (including `aixcoding-cli serve`) and `aixcoding-cli acp`, or `18` for `aixcoding-cli run` and `aixcoding-cli workflow run`. The wait before each retry grows, up to 10 minutes. `0` disables automatic retries for transient errors; negative values are invalid; capped at `50` |
 
 Transient error retries handle recoverable errors such as temporary network failures, request timeouts, and rate limits. Raising the count also increases the wait and number of requests before a final failure. This number is not the total number of model requests for the entire task.
 
@@ -64,9 +64,9 @@ The `approval` keys control approval behavior when an agent requests an operatio
 | `project.config_enabled` | None | `false` | Boolean; whether to load project settings for each working directory. Must be enabled in user settings |
 | `project.hooks_enabled` | None | `true` | Boolean; whether to load project hooks from `.chrys/hooks` in the working directory. Does not affect user-level hooks |
 
-If you manually set the default approval mode to `bypass` in YAML or an environment variable, approval is bypassed the next time iCode starts with that default. When you switch to `bypass` with `/approval` in the TUI, iCode saves `auto` as the default mode; the TUI Settings dialog does not offer `bypass`.
+If you manually set the default approval mode to `bypass` in YAML or an environment variable, approval is bypassed the next time AIxCoding starts with that default. When you switch to `bypass` with `/approval` in the TUI, AIxCoding saves `auto` as the default mode; the TUI Settings dialog does not offer `bypass`.
 
-Hooks are external commands that iCode runs on specific events. Project hooks and project settings are controlled separately: disabling `project.config_enabled` does not disable project hooks. For authoring and configuration, see [Configure and write hooks](../guides/extensions/hooks.md).
+Hooks are external commands that AIxCoding runs on specific events. Project hooks and project settings are controlled separately: disabling `project.config_enabled` does not disable project hooks. For authoring and configuration, see [Configure and write hooks](../guides/extensions/hooks.md).
 
 ### Sessions and file recovery
 
@@ -78,7 +78,7 @@ Hooks are external commands that iCode runs on specific events. Project hooks an
 | `mutations.snapshot.max_file_mb` | `CHRYS_MUTATION_SNAPSHOT_MAX_FILE_MB` | `50` | Integer; maximum size of an individual file backup, in MiB. `0` or a negative value removes the size limit. Files above the limit are still recorded as changed, but their content is not backed up, so that record cannot be used to display a diff or restore the file |
 | `mutations.snapshot.skip_binary` | `CHRYS_MUTATION_SNAPSHOT_SKIP_BINARY` | `true` | Boolean; whether to skip backing up binary file content. When set to `false`, the per-file size limit still applies |
 
-Changing the session storage root does not automatically move existing sessions. If the specified directory is unavailable, iCode reports it and falls back to the default location. For migration steps, see [Move session storage](../guides/daily-use/sessions.md#migrate-session-storage).
+Changing the session storage root does not automatically move existing sessions. If the specified directory is unavailable, AIxCoding reports it and falls back to the default location. For migration steps, see [Move session storage](../guides/daily-use/sessions.md#migrate-session-storage).
 
 ### Tools and working directory changes
 
@@ -91,7 +91,7 @@ Changing the session storage root does not automatically move existing sessions.
 | `workspace.change_notice.enabled` | `CHRYS_WORKSPACE_CHANGE_NOTICE` | `true` | Boolean; when processing a new prompt, give the agent a summary of working directory file changes since the previous prompt was submitted, including changes made by the agent and external changes |
 | `workspace.change_notice.max_entries` | `CHRYS_WORKSPACE_CHANGE_NOTICE_MAX_ENTRIES` | `50` | Integer; maximum number of entries in the change summary, from `1` to `100` |
 | `mutations.parallel_implicit_tools` | `CHRYS_PARALLEL_IMPLICIT_TOOLS` | `true` | Boolean; allow tools that may modify files, such as shell commands and skill scripts, to run in parallel within the same session. Setting this to `false` makes it easier to identify which tool call caused a file change |
-| `mutations.coordination.enabled` | `CHRYS_MUTATION_COORDINATION` | `true` | Boolean; help distinguish file changes made by different iCode sessions sharing a working directory |
+| `mutations.coordination.enabled` | `CHRYS_MUTATION_COORDINATION` | `true` | Boolean; help distinguish file changes made by different AIxCoding sessions sharing a working directory |
 
 Tools may also have their own output limits, such as limits on MCP results and skill resources. Setting `tools.result.ceiling_tokens` to `0` does not disable those limits or recover content that a tool has already truncated.
 
@@ -139,17 +139,17 @@ The following keys are all booleans, default to `true`, and have no correspondin
 | `notifications.enabled` | Master switch for event notifications |
 | `notifications.delivery.desktop` | Show desktop notifications |
 | `notifications.delivery.sound` | Play a sound |
-| `notifications.suppress_when_focused` | Suppress notifications while iCode has focus |
+| `notifications.suppress_when_focused` | Suppress notifications while AIxCoding has focus |
 | `notifications.events.approval_required` | Notify when approval is required |
 | `notifications.events.ask_user` | Notify when the agent needs input |
 | `notifications.events.turn_complete` | Notify when the agent completes a task |
 | `notifications.events.turn_error` | Notify when the agent encounters an error |
 
-To send a notification, the master switch, the corresponding event switch, and at least one delivery method must be enabled, and notifications must not be suppressed because iCode has focus. Turning off the master switch does not clear the other choices.
+To send a notification, the master switch, the corresponding event switch, and at least one delivery method must be enabled, and notifications must not be suppressed because AIxCoding has focus. Turning off the master switch does not clear the other choices.
 
 ### Diagnostics and telemetry
 
-**Raw HTTP logs may contain plaintext API keys, full prompts, and model responses.** Enable this only after confirming where the data will go and who can access it. After troubleshooting, turn off diagnostic options you no longer need and restart iCode.
+**Raw HTTP logs may contain plaintext API keys, full prompts, and model responses.** Enable this only after confirming where the data will go and who can access it. After troubleshooting, turn off diagnostic options you no longer need and restart AIxCoding.
 
 | YAML key | Environment variable | Default | Type, values, and effect |
 | --- | --- | --- | --- |
@@ -173,9 +173,9 @@ Each key is resolved independently in the following order, using the first valid
 | 5 | User settings |
 | 6 | Built-in defaults |
 
-At startup, iCode attempts to migrate iCode settings from the legacy user `.env` file into the user `settings.yaml` and remove the migrated lines. During the merge, existing keys in `settings.yaml` take precedence and are not overwritten. Settings that have not yet been migrated continue to apply at priority 3 in the table. If migration fails, iCode reports it and retries on the next startup. Environment variables such as model service API keys remain in `.env`.
+At startup, AIxCoding attempts to migrate AIxCoding settings from the legacy user `.env` file into the user `settings.yaml` and remove the migrated lines. During the merge, existing keys in `settings.yaml` take precedence and are not overwritten. Settings that have not yet been migrated continue to apply at priority 3 in the table. If migration fails, AIxCoding reports it and retries on the next startup. Environment variables such as model service API keys remain in `.env`.
 
-iCode settings in the working directory's `.env` file do not take effect. Write project settings in `.chrys/settings.yaml`.
+AIxCoding settings in the working directory's `.env` file do not take effect. Write project settings in `.chrys/settings.yaml`.
 
 ## Value syntax and invalid values
 
@@ -224,20 +224,20 @@ llm:
 
 After enabling project settings and restarting, if the user has not set a retry count, the project's `3` retries apply. If user YAML already sets `1`, the project's `3` is rejected and `1` still applies. A valid value in the startup environment always takes precedence.
 
-iCode reports and ignores disallowed project keys, values that exceed override restrictions, and unknown keys, while continuing to apply other valid settings.
+AIxCoding reports and ignores disallowed project keys, values that exceed override restrictions, and unknown keys, while continuing to apply other valid settings.
 
 ## Differences between launch commands
 
 | Launch command | Behavior related to settings files |
 | --- | --- |
-| `icode` (TUI) | Uses interface, input, and notification settings; the default agent comes from `agent.default_profile` |
-| `icode run` | Always bypasses approval and does not wait for user answers; the default approval mode and question timeout settings do not change these behaviors |
-| `icode acp` | Agent Client Protocol (ACP) server; the initial agent and approval mode are determined by `--agent` and `--approval`, defaulting to `Code` and `manual`, respectively. Questions wait indefinitely by default; set a timeout with `--ask-user-timeout` |
-| `icode serve` | Hosts the TUI in a browser; configuration files and environment variables come from the machine running the iCode service |
+| `aixcoding-cli` (TUI) | Uses interface, input, and notification settings; the default agent comes from `agent.default_profile` |
+| `aixcoding-cli run` | Always bypasses approval and does not wait for user answers; the default approval mode and question timeout settings do not change these behaviors |
+| `aixcoding-cli acp` | Agent Client Protocol (ACP) server; the initial agent and approval mode are determined by `--agent` and `--approval`, defaulting to `Code` and `manual`, respectively. Questions wait indefinitely by default; set a timeout with `--ask-user-timeout` |
+| `aixcoding-cli serve` | Hosts the TUI in a browser; configuration files and environment variables come from the machine running AIxCoding service |
 
 ## When a setting does not take effect
 
-1. Confirm that the settings file is in the correct location and that you have saved it and restarted iCode.
+1. Confirm that the settings file is in the correct location and that you have saved it and restarted AIxCoding.
 2. Check for a higher-priority source. Deleting a key from YAML does not clear values from other sources.
 3. For project settings, confirm that loading is enabled in user settings and that the key and override direction meet the restrictions.
-4. Check the messages iCode reports at startup. For how invalid values and unknown keys are handled, see [Value syntax and invalid values](#value-syntax-and-invalid-values); for directory-related messages, check [File locations and format](#file-locations-and-format).
+4. Check the messages AIxCoding reports at startup. For how invalid values and unknown keys are handled, see [Value syntax and invalid values](#value-syntax-and-invalid-values); for directory-related messages, check [File locations and format](#file-locations-and-format).

@@ -25,11 +25,10 @@ import difflib
 import json
 import logging
 from collections.abc import Mapping
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from chrys.aixcoding.telemetry.outcome import classify_result_metadata
-from chrys.aixcoding.telemetry.reporters import remember_bounded
+from chrys.aixcoding.telemetry.reporters import relative_file_name, remember_bounded
 from chrys.aixcoding.telemetry.types import (
     TOOL_DETAIL_SAVE,
     TOOL_DETAIL_UPDATE,
@@ -46,16 +45,17 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # -- 参数白名单（方案决策 #6：默认只放行"读了哪个 X"类短参数；全量模式可切） -------
-# 对齐 aixcoding ``toolUseReports.ts``（ReadFile/ReadSkill），按 iCode 工具集调整：
-# read_file → path（iCode input_model 的真实参数名，filesystem.py:487；2026-10-09
-# 真链路发现原写的 "filepath" 取不到值）；load_skill → skill_name（provider.py:604）。
+# 对齐 aixcoding ``toolUseReports.ts``，按 iCode 工具集调整后仅剩 load_skill →
+# skill_name（provider.py:604）。read_file 曾放行 value←path（2026-10-09 真链路
+# 修正字段名），2026-10-10 用户定稿改走 fileName——文件路径口径统一（_FILE_NAME_TOOLS）。
 VALUE_ARG_FIELD_BY_TOOL: dict[str, str] = {
-    "read_file": "path",
     "load_skill": "skill_name",
 }
 
-_WRITE_FILE_TOOLS = frozenset({"write_file", "edit_file"})
-"""写类工具（iCode ``_FILE_TOOLS``，mutations/tool_names.py:7）：save 附 fileName。"""
+_FILE_NAME_TOOLS = frozenset({"write_file", "edit_file", "read_file", "view_image"})
+"""save 附 fileName 的路径类工具：写类（iCode ``_FILE_TOOLS``）+ 只读文件工具
+（read_file/view_image，参数同为 path）。2026-10-10 用户定稿：路径统一走
+fileName（工程内相对/工程外绝对，``relative_file_name``），不再进 value 白名单。"""
 
 _FULL_VALUE_MAX_CHARS = 2000
 """全量模式（``toolParamMode: full``）value 截断上限，对齐 pi-acp toolParam。"""
@@ -123,24 +123,6 @@ def line_counts(result_metadata: Mapping[str, Any]) -> dict[str, int]:
     return {"originalLines": len(before_lines), "addedLines": added, "deletedLines": deleted}
 
 
-def relative_file_name(raw: str, workspace_cwd: str | None = None) -> str:
-    """fileName 口径（2026-10-09 用户定稿，对齐 aixcoding getRelativePathOfFile 语义）：
-    会话工作区（``workspace_cwd``，缺省回退进程 cwd）内的文件取**相对路径**
-    （含文件名，POSIX 分隔符）；工作区外或解析失败保留原样（绝对路径信息量更大）。
-    """
-    try:
-        path = Path(raw)
-        if not path.is_absolute():
-            return raw
-        resolved = path.resolve()
-        base = (Path(workspace_cwd) if workspace_cwd else Path.cwd()).resolve()
-        if resolved.is_relative_to(base):
-            return resolved.relative_to(base).as_posix()
-    except OSError, ValueError:
-        pass
-    return raw
-
-
 def _iso(value: datetime | None) -> str | None:
     return value.isoformat() if value is not None else None
 
@@ -178,9 +160,10 @@ class ToolDetailReporter:
         value = pick_value(event.tool_name, event.args, full_mode=load_settings().tool_param_mode == "full")
         if value is not None:
             payload["value"] = value
-        # csas 契约：写类工具 save 附 fileName（aixcoding-continue toolCallReporter.ts:70）。
-        # 工作区内取相对路径（含文件名），工作区外保留绝对路径（relative_file_name）。
-        if event.tool_name in _WRITE_FILE_TOOLS:
+        # csas 契约：路径类工具 save 附 fileName（aixcoding-continue 对所有带 filepath
+        # 参数的工具均上报 fileName，callToolById.ts:60）。2026-10-10 用户定稿：
+        # read_file/view_image 与写类同口径（工程内相对/工程外绝对），路径不再走 value。
+        if event.tool_name in _FILE_NAME_TOOLS:
             file_name = str(event.args.get("path") or event.args.get("file_path") or "").strip()
             if file_name:
                 payload["fileName"] = relative_file_name(file_name, event.workspace_cwd or None)

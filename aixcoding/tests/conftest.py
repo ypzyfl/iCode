@@ -11,6 +11,8 @@
   ``~/.chrys/aixcoding.yaml``；
 - 清宿主机残留的 ``AIXCODING_*`` / ``CHRYS_TELEMETRY_MOCK_*`` 环境变量，避免污染
   profile 判定（``monkeypatch`` 在测试结束后自动还原）；
+- 把 ``aixcoding.auth`` 标记为"未安装"：telemetry 的登录 token/userId 回退
+  路径不受宿主机真实登录状态影响（需要登录语义的用例自行注入 fake 模块）；
 - ``git_repo``：一次性小型 git 仓库（上游 ``git_template_repo`` 的单测试简化版，
   供 ``git_info`` 测试用）。
 
@@ -67,6 +69,12 @@ def _isolated_config_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Ite
     monkeypatch.undo()
     get_platform.cache_clear()
     get_platform()
+
+
+@pytest.fixture(autouse=True)
+def _no_login_session(monkeypatch: pytest.MonkeyPatch) -> None:
+    """把 ``aixcoding.auth`` 隔离为"未安装"（sys.modules 值为 None 即 import 失败）。"""
+    monkeypatch.setitem(sys.modules, "aixcoding.auth", None)
 
 
 @pytest.fixture

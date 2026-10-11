@@ -1,6 +1,6 @@
 # Configure agents
 
-iCode uses agent profiles to define an agent's name, instructions, model, available tools, sub-agents, and other settings. This guide explains how to create, clone, edit, reset, switch, and delete agent profiles in the terminal user interface (TUI), and how to configure models and sub-agents for an agent.
+AIxCoding uses agent profiles to define an agent's name, instructions, model, available tools, sub-agents, and other settings. This guide explains how to create, clone, edit, reset, switch, and delete agent profiles in the terminal user interface (TUI), and how to configure models and sub-agents for an agent.
 
 ## Open the agent configuration window
 
@@ -54,11 +54,11 @@ The following steps create an agent of the **Built-in** type. To connect an exte
 
 ### Clone an agent profile
 
-Use cloning to create a new profile based on an existing agent. Cloning creates an independent copy without changing the original profile. When you clone a built-in agent, iCode creates a custom agent copy that you can edit independently.
+Use cloning to create a new profile based on an existing agent. Cloning creates an independent copy without changing the original profile. When you clone a built-in agent, AIxCoding creates a custom agent copy that you can edit independently.
 
 1. Select the agent to clone in the list on the left.
 2. Click **Clone**.
-3. iCode copies the agent's configuration, generates unique values for its name and display name, and selects the new copy.
+3. AIxCoding copies the agent's configuration, generates unique values for its name and display name, and selects the new copy.
 4. Review and adjust the copy's name, display name, and other settings as needed.
 5. Click **Save** to finish creating it.
 
@@ -75,13 +75,13 @@ Use cloning to create a new profile based on an existing agent. Cloning creates 
 
 **Notes:**
 
-- You cannot change **Name** or **Agent Type** for the built-in agents included with iCode, such as Code Agent and Q&A Agent. Other settings can be adjusted as needed.
+- You cannot change **Name** or **Agent Type** for the built-in agents included with AIxCoding, such as Code Agent and Q&A Agent. Other settings can be adjusted as needed.
 - After editing a profile, click **Save** to apply the changes. Changes left unsaved when you close the agent configuration window do not take effect.
 - If you edit the agent used by the current session, the saved configuration takes effect for subsequent requests.
 
 ### Delete a custom agent profile
 
-Deleting a custom agent also removes its configuration stored on your machine. This cannot be undone in iCode. Built-in agents cannot be deleted.
+Deleting a custom agent also removes its configuration stored on your machine. This cannot be undone in AIxCoding. Built-in agents cannot be deleted.
 
 Before deleting a custom agent, ensure that:
 
@@ -94,15 +94,15 @@ To delete a custom agent:
 2. Click **Delete**.
 3. Check the agent name in the confirmation window, then confirm deletion.
 
-If you delete the agent currently in use, iCode automatically switches to another available main agent when you close the configuration window.
+If you delete the agent currently in use, AIxCoding automatically switches to another available main agent when you close the configuration window.
 
 ### Reset a built-in agent profile
 
-The built-in agents included with iCode cannot be deleted.
+The built-in agents included with AIxCoding cannot be deleted.
 
-When you edit and save a built-in agent, iCode creates a user profile file with the same name, such as `Code.yaml`, in the [user agent profile directory](../../reference/agent-profile.md#user-agent-profile-directory). This file stores both your changes and the other settings in effect at that time. For example, if you only add an MCP server, the saved profile contains that server and retains the current values of the other settings.
+When you edit and save a built-in agent, AIxCoding creates a user profile file with the same name, such as `Code.yaml`, in the [user agent profile directory](../../reference/agent-profile.md#user-agent-profile-directory). This file stores both your changes and the other settings in effect at that time. For example, if you only add an MCP server, the saved profile contains that server and retains the current values of the other settings.
 
-At startup, iCode gives precedence to the user profile file with the same name, instead of merging user and built-in settings field by field. As a result, after an iCode upgrade, updates to built-in defaults such as agent instructions are not automatically applied to that agent.
+At startup, AIxCoding gives precedence to the user profile file with the same name, instead of merging user and built-in settings field by field. As a result, after an AIxCoding upgrade, updates to built-in defaults such as agent instructions are not automatically applied to that agent.
 
 To adopt the built-in defaults from the current version, reset the built-in agent. Resetting preserves only skills, MCP server, and memory settings. Instructions, compaction, and all other settings return to the current version's built-in defaults.
 
@@ -139,7 +139,7 @@ A main agent interacts directly with the user. A sub-agent is called by another 
 
 An agent profile can be used both as a main agent and as a sub-agent called by other agents. Selecting **Sub-Agent only** prevents the agent from being selected as a main agent; it can only be called by other agents.
 
-The Code Agent and Q&A Agent included with iCode can serve as main agents. Explore and General are sub-agents only. External ACP agents are also sub-agents only. To configure them, see [Configure external ACP agents](../extensions/external-acp-agents.md).
+The Code Agent and Q&A Agent included with AIxCoding can serve as main agents. Explore and General are sub-agents only. External ACP agents are also sub-agents only. To configure them, see [Configure external ACP agents](../extensions/external-acp-agents.md).
 
 ### Configure sub-agents for an agent
 
@@ -175,4 +175,4 @@ You can switch the current agent through the input field or the status bar:
 - **Through the input field**: Enter `#` to display a list of available agents above the input field. Click an agent, or select one with the up and down arrow keys and press **Enter** to confirm.
 - **Through the status bar**: Click the agent name in the status bar above the input field to open the agent picker, then select the agent to use.
 
-After switching, iCode immediately uses the selected agent for subsequent requests. The current agent is grayed out in the list, with a hollow circle before its name. The list shows only profiles that can serve as main agents.
+After switching, AIxCoding immediately uses the selected agent for subsequent requests. The current agent is grayed out in the list, with a hollow circle before its name. The list shows only profiles that can serve as main agents.

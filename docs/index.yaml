@@ -14,7 +14,7 @@ topics:
       en: Quick Start
     children:
       - id: intro
-        path: start/what-is-icode.md
+        path: start/what-is-aixcoding.md
       - id: getting_started
         path: start/getting-started.md
   - id: daily_use
@@ -28,21 +28,21 @@ topics:
         path: guides/daily-use/workspaces.md
   - id: running
     labels:
-      zh-Hans: 运行 iCode
-      en: Running iCode
+      zh-Hans: 运行 AIxCoding-CLI
+      en: Running AIxCoding-CLI
     children:
       - id: icode_run
-        path: guides/running/icode-run.md
+        path: guides/running/aixcoding-run.md
       - id: icode_acp
-        path: guides/running/icode-acp.md
+        path: guides/running/aixcoding-acp.md
       - id: icode_serve
-        path: guides/running/icode-serve.md
+        path: guides/running/aixcoding-serve.md
       - id: workflows
         path: guides/running/workflows.md
   - id: configuration
     labels:
-      zh-Hans: 配置 iCode
-      en: Configuration
+      zh-Hans: 配置 AIxCoding-CLI
+      en: AIxCoding-CLI Configuration
     children:
       - id: models
         path: guides/configuration/models.md
@@ -64,8 +64,8 @@ topics:
         path: guides/configuration/themes.md
   - id: extensions
     labels:
-      zh-Hans: 扩展 iCode
-      en: Extensions
+      zh-Hans: 扩展 AIxCoding-CLI
+      en: AIxCoding-CLI Extensions
     children:
       - id: skills
         path: guides/extensions/skills.md

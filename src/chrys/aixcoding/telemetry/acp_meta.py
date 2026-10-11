@@ -14,12 +14,15 @@
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Mapping
 from typing import Any
 
 IDE_NAME_META_KEY = "agent-studio.dev/ide-name"
 IDE_VERSION_META_KEY = "agent-studio.dev/ide-version"
 FUNCTION_NAME_META_KEY = "agent-studio.dev/function-name"
+RESPONSE_ATTRIBUTION_META_KEY = "agent-studio.dev/response-attribution"
+FINAL_MODEL_IDENTITY_META_KEY = "agent-studio.dev/final-model-identity"
 TELEMETRY_META_KEY = "agent-studio.dev/telemetry"
 
 _MAX_OPTIONAL_VALUE_LENGTH = 512
@@ -54,8 +57,41 @@ def read_ide_channel_meta(kwargs: Mapping[str, Any]) -> None:
     set_current_function_name(_envelope_string(kwargs, FUNCTION_NAME_META_KEY, "functionName"))
 
 
-def telemetry_response_meta(session_id: str | None) -> dict[str, Any] | None:
-    """prompt 响应的 ``_meta``（telemetry envelope）；无关联数据时返回 ``None``。"""
+def read_response_attribution_span_id(kwargs: Mapping[str, Any]) -> str | None:
+    """从 prompt ``kwargs`` 读桌面端下发的归因 spanId（``response-attribution`` envelope）。
+
+    桌面端在每次 ``session/prompt`` 请求的 ``_meta`` 里下发该 spanId，要求
+    引擎在 ``final-model-identity`` 里原样回传（客户端据此校验归属）。值经
+    UUID 校验，非 UUID/缺 ``schemaVersion`` 一律返回 ``None``（不回传该键）。
+    """
+    value = kwargs.get(RESPONSE_ATTRIBUTION_META_KEY)
+    if not isinstance(value, Mapping):
+        return None
+    if value.get("schemaVersion") != 1:
+        return None
+    span_id = value.get("spanId")
+    if not isinstance(span_id, str) or not span_id:
+        return None
+    try:
+        uuid.UUID(span_id)
+    except ValueError:
+        return None
+    return span_id
+
+
+def telemetry_response_meta(session_id: str | None, attribution_span_id: str | None = None) -> dict[str, Any] | None:
+    """prompt 响应的 ``_meta``（telemetry + final-model-identity envelope）。
+
+    ``agent-studio.dev/telemetry``：``{schemaVersion: 1, requestId, spanId}``，
+    取 registry 的 session 级最新主对话调用，供 agent_studio_new 报 UI 交互
+    数据时 join。
+
+    ``agent-studio.dev/final-model-identity``：桌面端侧 responseAttribution/
+    落库的触发键（``acp-agent-host.ts`` 的 ``finalModelIdentity``，无兜底）。
+    spanId = 请求 ``_meta`` 下发的归因 spanId 原样回传，requestId = 引擎侧
+    模型请求 id，``source="model_request_id"``（iCode 的 id 为引擎铸造的请求
+    标识，非 provider 响应 id）。无关联数据时整体返回 ``None``。
+    """
     from chrys.aixcoding.telemetry.llm_telemetry import resolve_call
 
     request = resolve_call("", session_id)
@@ -64,4 +100,12 @@ def telemetry_response_meta(session_id: str | None) -> dict[str, Any] | None:
     envelope: dict[str, Any] = {"schemaVersion": 1, "requestId": request[0]}
     if request[1]:
         envelope["spanId"] = request[1]
-    return {TELEMETRY_META_KEY: envelope}
+    meta: dict[str, Any] = {TELEMETRY_META_KEY: envelope}
+    if attribution_span_id is not None:
+        meta[FINAL_MODEL_IDENTITY_META_KEY] = {
+            "schemaVersion": 1,
+            "spanId": attribution_span_id,
+            "requestId": request[0],
+            "source": "model_request_id",
+        }
+    return meta

@@ -128,7 +128,7 @@ payload.update(common_fields())
 self._add(payload)
 ```
 
-- `_relative_filepath`：以 cwd 为基准算相对路径（`Path.resolve().relative_to`），越界回退原文。
+- `filepath`：公共层 `reporters.relative_file_name()`（与 tool-detail `fileName` 同口径；2026-10-10 起本地 `_relative_filepath` 废弃——其相对入参按进程 cwd resolve，进程 cwd 为工作区子目录时会产出错位相对路径）。
 - git 四字段 `remoteUrl/branch/gitUserName/gitUserEmail` 单独取（`git_user_name`/`git_user_email` 为 M3 对 `GitInfo` 的扩展，来自 `git config`）。
 - `common_fields()` 复用与 tool-detail 同一收口（见 02 文档 §4.8）。
 
