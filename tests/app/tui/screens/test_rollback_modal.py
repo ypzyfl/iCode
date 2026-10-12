@@ -1898,7 +1898,7 @@ async def test_plan_warnings_surface_in_modal_before_confirm(tmp_path: Path) -> 
     tracker = _make_tracker_with_two_changes(tmp_path)
     warning = RollbackWarning(
         code="peer_active_window",
-        message="Another iCode session has an active command in this workspace; its changes may not be attributed yet.",
+        message="Another AIxCoding session has an active command in this workspace; its changes may not be attributed yet.",
     )
 
     def _augment(plan: RollbackPlan, _cwd: str) -> RollbackPlan:
