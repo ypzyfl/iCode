@@ -578,7 +578,7 @@ def test_agent_load_controller_surfaces_mcp_tool_collision_message() -> None:
     controller = AgentLoadDialogController(port)
     dialog = _FakeLoadDialog(title="Loading Agent", subtitle="Code")
     controller.dialog = dialog
-    message = "MCP server 'github' exposes permitted tool name collision with a reserved iCode tool: read_file"
+    message = "MCP server 'github' exposes permitted tool name collision with a reserved AIxCoding tool: read_file"
 
     controller.on_failed(AgentLoadFailed(operation="switch", agent_profile="Code", message=message))
 

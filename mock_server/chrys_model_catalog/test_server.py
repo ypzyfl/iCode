@@ -80,9 +80,7 @@ async def test_serves_builtin_sample(mock: RunningCatalogMock, direct_route: Non
 
 async def test_query_string_is_ignored(mock: RunningCatalogMock, direct_route: None) -> None:
     """The client appends scope/userId query params; they must not change the answer."""
-    response = await _get(
-        f"{_catalog(mock)}?scopeType=global&scopeValue=config&format=json&userId=someone"
-    )
+    response = await _get(f"{_catalog(mock)}?scopeType=global&scopeValue=config&format=json&userId=someone")
     assert response.status_code == 200
     assert response.json()["version"] == "mock-1"
 
@@ -206,3 +204,47 @@ async def test_empty_and_invalid_payloads_are_refused_by_the_client_parser(
     await _control(mock, mode="invalid")
     with pytest.raises(ModelCatalogError):
         parse_catalog((await _get(_catalog(mock))).json())
+
+
+async def _post_chat(running: RunningCatalogMock, body: dict[str, Any]) -> httpx.Response:
+    async with httpx.AsyncClient() as client:
+        return await client.post(f"{running.origin}{catalog_server.LLM_ROUTE}", json=body)
+
+
+async def test_llm_chat_non_streaming(mock: RunningCatalogMock, direct_route: None) -> None:
+    """A non-streaming chat request gets a minimal valid ChatCompletion back."""
+    response = await _post_chat(
+        mock,
+        {
+            "model": "mock-model",
+            "stream": False,
+            "temperature": 0.2,
+            "messages": [{"role": "user", "content": "ping"}],
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["model"] == "mock-model"
+    assert payload["object"] == "chat.completion"
+    choice = payload["choices"][0]
+    assert choice["message"]["role"] == "assistant"
+    assert choice["message"]["content"] == catalog_server.LLM_MOCK_REPLY
+    assert choice["finish_reason"] == "stop"
+
+
+async def test_llm_chat_streaming(mock: RunningCatalogMock, direct_route: None) -> None:
+    """A ``stream: True`` request is answered on the SSE wire and ends with [DONE]."""
+    response = await _post_chat(
+        mock,
+        {
+            "model": "mock-model",
+            "stream": True,
+            "messages": [{"role": "user", "content": "ping"}],
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    text = response.text
+    assert "chat.completion.chunk" in text
+    assert catalog_server.LLM_MOCK_REPLY in text
+    assert text.endswith("data: [DONE]\n\n")

@@ -200,12 +200,22 @@ def _set_chrys_request_headers(
     use_route_session_context: bool = False,
 ) -> None:
     """Set Chrys-managed metadata, including the ``X-Session-ID`` compatibility alias."""
+    from chrys.service.llm.clients import _login_token
+
     model_id = options.get("model")
     effective_session_id = (llm_route_session_id.get() or session_id) if use_route_session_context else session_id
     effective_parent_session_id = (
         (llm_parent_session_id.get() or parent_session_id) if use_route_session_context else parent_session_id
     )
-    if not model_id and not effective_session_id and not effective_parent_session_id:
+    # Send-time login token: the engine (and its LLM clients) are built before
+    # login can complete, so a construction-time snapshot would pin an empty
+    # token for the whole session — the same lesson the telemetry
+    # ``token_provider`` fix learned. Resolved per request, login/logout takes
+    # effect on the next request; it overrides any static ``token`` from the
+    # profile's ``http_headers`` (login credential is authoritative, matching
+    # the env > login > config precedence of ``catalog._catalog_token``).
+    login_token = _login_token()
+    if not model_id and not effective_session_id and not effective_parent_session_id and not login_token:
         # No Chrys metadata to merge — any caller-supplied extra headers
         # still go to the wire as-is, so they still need the charset gate.
         _reject_wire_unsafe_request_values(None, options.get("extra_headers"))
@@ -228,6 +238,8 @@ def _set_chrys_request_headers(
     if effective_parent_session_id:
         headers[X_PARENT_SESSION_ID_HEADER] = effective_parent_session_id
         headers[PARENT_SESSION_ID_HEADER] = effective_parent_session_id
+    if login_token:
+        headers["token"] = login_token
     options["extra_headers"] = headers
 
 

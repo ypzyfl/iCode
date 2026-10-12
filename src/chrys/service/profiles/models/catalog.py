@@ -31,6 +31,7 @@ import logging
 import os
 import re
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, fields
 from pathlib import Path
@@ -493,15 +494,35 @@ def _catalog_user_id() -> str:
     return (stored or "").strip()
 
 
+#: Query parameters the reference client hard-codes on every catalog request
+#: (``ConfigSyncService.fetchRemoteModelConfig``): the dispatch endpoint
+#: answers one global config scope, as JSON. ``userId`` is not among them —
+#: it is appended per login by :func:`_catalog_endpoint`.
+_CATALOG_FIXED_QUERY: tuple[tuple[str, str], ...] = (
+    ("scopeType", "global"),
+    ("scopeValue", "config"),
+    ("format", "json"),
+)
+
+
 def _catalog_endpoint(endpoint: str, user_id: str) -> str:
-    """Return *endpoint* carrying ``userId=``, replacing one it already has.
+    """Return *endpoint* carrying the fixed scope/format parameters and ``userId=``.
 
     The reference client concatenates ``&userId=`` onto a URL that already
     ends in a query; parsing instead keeps this right for a bare endpoint too,
-    which is what a configured base produces.
+    which is what a configured base produces. The scope/format parameters are
+    part of the wire contract, so they are always sent — replacing any a
+    configured URL happened to carry — while an existing ``userId`` is replaced
+    rather than duplicated.
     """
     parts = urlsplit(endpoint)
-    query = [(name, value) for name, value in parse_qsl(parts.query, keep_blank_values=True) if name != "userId"]
+    fixed = {name for name, _value in _CATALOG_FIXED_QUERY}
+    query = [
+        (name, value)
+        for name, value in parse_qsl(parts.query, keep_blank_values=True)
+        if name != "userId" and name not in fixed
+    ]
+    query.extend(_CATALOG_FIXED_QUERY)
     query.append(("userId", user_id))
     return urlunsplit(parts._replace(query=urlencode(query)))
 
@@ -532,17 +553,32 @@ async def fetch_catalog(url: str | None = None, *, timeout: float = _DEFAULT_FET
     headers: dict[str, str] = {"Accept": "application/json", "token": token}
     endpoint = _catalog_endpoint(endpoint, _catalog_user_id())
 
+    started = time.monotonic()
+    logger.info("Model catalog request: GET %s (timeout %.0fs).", endpoint, timeout)
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.get(endpoint, headers=headers)
             response.raise_for_status()
             payload: Any = response.json()
+    except httpx.HTTPStatusError as exc:
+        logger.warning("Model catalog request rejected by %s: HTTP %d.", endpoint, exc.response.status_code)
+        raise ModelCatalogError(f"Model catalog request failed: {exc}") from exc
     except httpx.HTTPError as exc:
+        logger.warning("Model catalog request to %s failed before a response: %s", endpoint, exc)
         raise ModelCatalogError(f"Model catalog request failed: {exc}") from exc
     except ValueError as exc:
+        logger.warning("Model catalog response from %s is not valid JSON: %s", endpoint, exc)
         raise ModelCatalogError(f"Model catalog response is not valid JSON: {exc}") from exc
 
-    return parse_catalog(payload)
+    catalog = parse_catalog(payload)
+    logger.info(
+        "Model catalog response: HTTP %d, %d model(s), version %.12s, in %.2fs.",
+        response.status_code,
+        len(catalog.items),
+        catalog.version,
+        time.monotonic() - started,
+    )
+    return catalog
 
 
 def _clear_directory(directory: Path) -> int:
