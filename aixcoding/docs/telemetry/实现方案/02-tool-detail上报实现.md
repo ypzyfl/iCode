@@ -10,6 +10,8 @@
 
 tool-detail 是**独立 HTTP 通道**（区别于 llm-call 的搭车通道）：从 EventBus 订阅工具事件，组装 `tool-detail/save` + `tool-detail/update` 报文，经 `aixcoding/http.py` 统一串行 HTTP 出口 POST 到 csas 后端。三类触发：
 
+仅 iCode TUI 环境的两种 `save` 报文使用 `channelName="icode"`，且 `channelVersion` 与同条报文的 `pluginVersion` 相同。桌面端保留 ACP `_meta` 下发的 ideName/ideVersion，headless/ACP 保留原渠道取值；`channelType` 不变。`update` 不携带这些公共字段，其他上报的渠道字段不变。
+
 | 触发 | 时机 | 上报 |
 |---|---|---|
 | 工具调用 Start | 审批后、执行前 | `save` + `update(PENDING=3)` |

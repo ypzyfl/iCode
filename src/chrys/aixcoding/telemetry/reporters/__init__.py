@@ -44,25 +44,28 @@ def relative_file_name(raw: str, workspace_cwd: str | None = None) -> str:
         return raw
 
 
-def common_fields(workspace_cwd: str | None = None) -> dict[str, Any]:
+def common_fields(workspace_cwd: str | None = None, *, tool_detail: bool = False) -> dict[str, Any]:
     """csas 报文公共字段（channel/git/plugin/project/userId）。
 
     ``workspace_cwd``：会话工作区（事件携带，``SessionEnvironment.cwd`` 同源）——
     projectName / git 五件套的取值基；缺省回退进程 cwd（2026-10-09 修正，
     对齐 aixcoding workspace 语义）。
     """
-    from chrys.aixcoding.context import current_channel, current_user_id, plugin_version
+    from chrys.aixcoding.context import CHANNEL_CLI, current_channel, current_user_id, plugin_version
 
-    fields: dict[str, Any] = {"pluginVersion": plugin_version()}
+    version = plugin_version()
+    fields: dict[str, Any] = {"pluginVersion": version}
     user_id = current_user_id()
     if user_id:
         fields["userId"] = user_id
 
     channel = current_channel()
     fields["channelType"] = channel.channel_type
-    fields["channelName"] = channel.channel_name
-    if channel.channel_version:
-        fields["channelVersion"] = channel.channel_version
+    icode_tui = tool_detail and channel.channel_type == CHANNEL_CLI and channel.channel_name == "icode-tui"
+    fields["channelName"] = "icode" if icode_tui else channel.channel_name
+    channel_version = version if icode_tui else channel.channel_version
+    if channel_version:
+        fields["channelVersion"] = channel_version
 
     cwd = Path(workspace_cwd) if workspace_cwd else Path.cwd()
     fields["projectName"] = cwd.name or str(cwd)

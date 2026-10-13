@@ -189,9 +189,12 @@ def test_line_counts_create_and_delete_rules():
 
 
 def test_reporter_start_then_result_ordering_and_fields():
+    from chrys.aixcoding.context import set_desktop_channel
+
     submitter = _CaptureSubmitter()
     reporter = ToolDetailReporter(submitter)
     record_call("pc-1", "req-9", "span-9", "sess-1")
+    set_desktop_channel("AgentStudio", "1.2.3")
 
     reporter.on_start(_start(provider_call_id="pc-1", args={"path": "src/a.py"}))
     reporter.on_result(
@@ -211,6 +214,9 @@ def test_reporter_start_then_result_ordering_and_fields():
     assert "value" not in save
     assert save["fileName"] == "src/a.py"
     assert save["pluginVersion"]
+    assert save["channelType"] == "desktop"
+    assert save["channelName"] == "AgentStudio"
+    assert save["channelVersion"] == "1.2.3"
     assert save["projectName"]
 
     pending = submitter.calls[1][1]
@@ -316,7 +322,28 @@ def test_reporter_rejected_marks_user_rejected():
     assert submitter.calls[2][1]["codeStatus"] == CodeStatus.USER_REJECTED
 
 
-def test_record_invocation_single_save():
+def test_tool_detail_tui_channel_fields(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr("sys.argv", ["icode"])
+    submitter = _CaptureSubmitter()
+    reporter = ToolDetailReporter(submitter)
+    reporter.on_start(_start())
+    save = submitter.calls[0][1]
+    assert save["channelName"] == "icode"
+    assert save["channelVersion"] == save["pluginVersion"]
+
+
+def test_tool_detail_headless_channel_unchanged(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr("sys.argv", ["icode", "run", "prompt"])
+    submitter = _CaptureSubmitter()
+    reporter = ToolDetailReporter(submitter)
+    reporter.on_start(_start())
+    save = submitter.calls[0][1]
+    assert save["channelName"] == "icode-cli"
+    assert "channelVersion" not in save
+
+
+def test_record_invocation_single_save(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr("sys.argv", ["icode"])
     submitter = _CaptureSubmitter()
     reporter = ToolDetailReporter(submitter)
     record_call("pc-0", "req-prev", "", "sess-1")
@@ -326,6 +353,8 @@ def test_record_invocation_single_save():
     assert save["funcName"] == "java_code_review"
     assert save["funcType"] == FuncType.SKILL
     assert save["sessionId"] == "sess-1"
+    assert save["channelName"] == "icode"
+    assert save["channelVersion"] == save["pluginVersion"]
     assert "requestId" not in save  # 输入触发不误挂上一轮请求（aixcoding 同语义）
     assert "spanId" not in save  # session 级 fallback span 为空则不带
 

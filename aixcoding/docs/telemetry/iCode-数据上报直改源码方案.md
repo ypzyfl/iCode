@@ -29,7 +29,7 @@
 | 4 | 用户身份 | iCode 将改造登录（方案同 aixcoding_continue 的 control-plane），**尚未实施**；本方案预留 userId provider 接口，登录上线后切换数据源 |
 | 5 | **event-log 编码事件** | **全不纳入**。用户指示（2026-10-08）：pi-acp 的 event-log（会话/prompt 生命周期、llm_call 独立上报等）是**另外一套不成熟的实现，会被去除**——iCode 不参考、不实现该接口 |
 | 6 | **工具参数口径** | **白名单 + 可切换**：默认白名单脱敏（对齐 aixcoding，默认不传参数，仅短参数放行），配置开关可切全量+截断（调试/指定环境用；全量形态对齐 pi-acp 的 value 全量/toolParam 截 2000） |
-| 7 | **渠道口径（区分）** | TUI 独立启动：`channelType="cli"`、`channelName="icode-tui"`（headless 为 `"icode-cli"`）；agent_studio_new 形态：`channelType="desktop"`、`channelName/Version` = agent_studio_new 经 ACP prompt `_meta` 传的 ideName/ideVersion——具体枚举值与后端最终确认 |
+| 7 | **渠道口径（区分）** | `channelType` 仍区分 CLI/desktop；仅 iCode TUI 环境的 tool-detail `save` 使用 `channelName="icode"`、`channelVersion=pluginVersion`。headless/ACP 和桌面端保留原渠道取值；桌面端的 ideName/ideVersion 仍由 ACP prompt `_meta` 提供 |
 | 8 | **上报分工架构** | **引擎侧为主**：iCode 引擎侧报全部引擎数据，覆盖形态 A/B 一套代码；agent_studio_new 将来报 UI 交互类（event-reaction 等），两层靠 requestId 经 `_meta` 关联（iCode 的 ACP server 回传，见 §4.5） |
 
 新增代码目录决策：顶层 `src/chrys/aixcoding/` 为 iCode 二开定制包；**与 telemetry 无关的通用基础设施（平台连接配置、统一 HTTP 出口、git 信息、运行上下文）放 `aixcoding/` 顶层**（或其对应子目录），供 telemetry 与将来其他改造共用；**仅数据上报专属代码收敛于 `aixcoding/telemetry/` 子包**（详见 §六）。
@@ -53,7 +53,7 @@ pi-acp 是 pi 与 ACP 客户端之间的适配层进程（agent_studio_new spawn
 |---|---|---|
 | ID 体系 | 每轮 prompt 一个 requestId+根 spanId（uuid）；**每次 LLM 调用独立 requestId/spanId**（parent=根 span）；工具 `parentSpanId`=发起它的那次 LLM 调用的 span、requestId 优先 llmCallRequestId | §4.1 ID 体系升级为 per-LLM-call 粒度（iCode 引擎内数据支持精确实现，优于原 session 级设计） |
 | 输入触发 | `recordInvocation(funcType, name)` → **单条** `tool-detail/save`（saveOnly），funcType：0=skill/1=MCP/2=命令/3=内置；**不用 batch-save 接口** | §4.4 照搬：单条 save + funcType 枚举 |
-| channel 口径 | `channelType='desktop'`；tool-detail 的 `channelName/Version`=prompt `_meta` 传的 ideName/ideVersion；`agentName`=functionName（`_meta`） | 决策 #7 直接采用 |
+| channel 口径 | `channelType='desktop'`；tool-detail 的 `channelName/Version`=prompt `_meta` 传的 ideName/ideVersion；`agentName`=functionName（`_meta`） | 桌面端完整保留；仅 iCode TUI 的 tool-detail `save` 改用 `channelName="icode"`、`channelVersion=pluginVersion` |
 | `_meta` 双向关联 | prompt 响应回传 `_meta['agent-studio.dev/telemetry']`（requestId/spanId）+ 每 session/update 注入；下行读 `_meta` 的 `agent-studio.dev/ide-name/ide-version/function-name` 三个 envelope | §4.5：iCode ACP server 做同样回传（agent_studio_new 已有消费方）与下行读取 |
 | 发送机制 | 缓冲批量（batchSize=20/10s）+ tool-detail 即时 save→update promise 链保序 + 吞错 + 缓冲上限 500 丢旧 + 未配置零开销 | 混合采用：tool-detail 即时保序、ai-code 批量缓冲 |
 | git 采集 | session 创建时 spawnSync 采一次缓存，失败静默置 null | `git_info.py` 同策略（+TTL 缓存） |
@@ -144,7 +144,7 @@ pi-acp 是 pi 与 ACP 客户端之间的适配层进程（agent_studio_new spawn
 
 | 方向 | 设计 |
 |---|---|
-| 下行读 | iCode ACP server 读 prompt `_meta` 的 `agent-studio.dev/ide-name/ide-version/function-name` envelope（agent_studio_new 已下发的通用机制，pi-acp 消费中）→ 填 `channelName/channelVersion/agentName`（决策 #7） |
+| 下行读 | iCode ACP server 读 prompt `_meta` 的 `agent-studio.dev/ide-name/ide-version/function-name` envelope（agent_studio_new 已下发的通用机制，pi-acp 消费中）；桌面端 tool-detail 保留 ideName/ideVersion，functionName 填 `agentName`。仅 iCode TUI 的 tool-detail `save` 使用 `icode`/`pluginVersion` |
 | 上行回传 | prompt 响应与 session/update 注入 `_meta['agent-studio.dev/telemetry']`（requestId/spanId，key 对齐 pi-acp）——agent_studio_new 将来报 UI 交互类数据时用同一 request_id 关联，两层数据可 join（决策 #8） |
 | 挂点 | `app/acp/server.py` prompt 处理 + `bridge.py` 投影处（§5 修改点 #4） |
 

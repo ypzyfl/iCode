@@ -171,7 +171,7 @@ class ToolDetailReporter:
 
         if agent_name := current_function_name():
             payload["agentName"] = agent_name
-        payload.update(common_fields(event.workspace_cwd or None))
+        payload.update(common_fields(event.workspace_cwd or None, tool_detail=True))
         self._submit(TOOL_DETAIL_SAVE, payload)
         self._submit(
             TOOL_DETAIL_UPDATE,
@@ -224,7 +224,7 @@ class ToolDetailReporter:
 
         if agent_name := current_function_name():
             payload["agentName"] = agent_name
-        payload.update(common_fields())
+        payload.update(common_fields(tool_detail=True))
         self._submit(TOOL_DETAIL_SAVE, payload)
 
 
