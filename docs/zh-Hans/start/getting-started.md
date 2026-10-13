@@ -36,7 +36,7 @@ Linux x86-64 安装包要求 glibc 2.17 或更高版本，ARM64 安装包要求 
 curl -fsSL -o install.sh 'http://82.186.78.126:5244/share/TUI/install.sh' && bash install.sh
 ```
 
-默认安装生产包；安装测试包时运行 `bash install.sh --channel test`。CD 流水线的 `icode-release-bundle` 是平铺产物，另含 `SHA256SUMS.txt`；先校验，再按上述目录上传到 AList。只构建 Linux 时产物中只有 Linux 安装包。五种平台包名和 Windows 镜像安装命令见 [README 安装表](../../../README.zh.md#从内网镜像安装)。
+默认安装生产包；安装测试包时运行 `bash install.sh --channel test`。CD 流水线的 `icode-release-bundle` 是平铺产物，下载解压后按上述目录上传到 AList。只构建 Linux 时产物中只有 Linux 安装包。五种平台包名和 Windows 镜像安装命令见 [README 安装表](../../../README.zh.md#从内网镜像安装)。
 
 ### Windows
 

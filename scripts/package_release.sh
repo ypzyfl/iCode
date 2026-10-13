@@ -62,14 +62,4 @@ cp "$script_dir/install.sh" "$output_dir/install.sh"
 cp "$repo_dir/release/INSTALL.md" "$output_dir/INSTALL.md"
 printf 'v%s\n' "$version" > "$output_dir/latest.txt"
 
-(
-  cd "$output_dir"
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum -- * > SHA256SUMS.txt
-    sha256sum -c SHA256SUMS.txt
-  else
-    shasum -a 256 -- * > SHA256SUMS.txt
-    shasum -a 256 -c SHA256SUMS.txt
-  fi
-)
 echo "Release bundle ready: $output_dir (v$version)"

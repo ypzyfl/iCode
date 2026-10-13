@@ -36,7 +36,7 @@ For the AList mirror rooted at `http://82.186.78.126:5244/share/TUI`, place `ins
 curl -fsSL -o install.sh 'http://82.186.78.126:5244/share/TUI/install.sh' && bash install.sh
 ```
 
-Production is the default; run `bash install.sh --channel test` for test packages. The CD workflow's `icode-release-bundle` artifact contains the files in a flat directory plus `SHA256SUMS.txt`. Verify the checksum before arranging the files in AList. A build limited to Linux contains only Linux packages. See the [README installation table](../../../README.md#install-from-an-internal-mirror) for all five platform package names and the Windows mirror commands.
+Production is the default; run `bash install.sh --channel test` for test packages. The CD workflow's `icode-release-bundle` artifact contains the files in a flat directory; arrange them in AList as described above. A build limited to Linux contains only Linux packages. See the [README installation table](../../../README.md#install-from-an-internal-mirror) for all five platform package names and the Windows mirror commands.
 
 ### Windows
 

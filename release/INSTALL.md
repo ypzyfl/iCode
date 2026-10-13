@@ -14,7 +14,7 @@ AIxCoding-CLI 是一个运行在终端里的智能体平台（TUI）。安装包
 
 ## 安装
 
-CD 流水线会生成平铺的 `icode-release-bundle` 构建产物，其中包含各平台安装包、`install.sh`、`latest.txt` 和 `SHA256SUMS.txt`。从 GitHub Actions 下载并解压后，先在原目录执行 `sha256sum -c SHA256SUMS.txt` 校验产物，再按下面的结构上传到 AList。版本号和摘要由流水线生成，无需手工修改。只构建 Linux 时，产物中不会有 macOS 或 Windows 包。
+CD 流水线会生成平铺的 `icode-release-bundle` 构建产物，其中包含各平台安装包、`install.sh` 和 `latest.txt`。从 GitHub Actions 下载并解压后，按下面的结构上传到 AList。版本号由流水线生成，无需手工修改。只构建 Linux 时，产物中不会有 macOS 或 Windows 包。
 
 ```text
 http://82.186.78.126:5244/share/TUI/
@@ -53,7 +53,7 @@ curl -fsSL -o install.sh 'http://82.186.78.126:5244/share/TUI/install.sh' && bas
 bash install.sh --from ./aixcoding-cli-linux-aarch64-v<版本>-offline.tar.gz
 ```
 
-如果拿到的是 ZIP 包，将命令末尾换成实际 ZIP 文件名，例如 `bash install.sh --from ./aixcoding-cli-linux-aarch64-v<版本>-offline.zip`。无需准备 `SHA256SUMS.txt`；如果发布方提供了安装包的摘要，可选用 `--sha256 <64 位摘要>` 校验。`latest.txt` 仅用于在线安装。
+如果拿到的是 ZIP 包，将命令末尾换成实际 ZIP 文件名，例如 `bash install.sh --from ./aixcoding-cli-linux-aarch64-v<版本>-offline.zip`。安装不需要摘要文件；如果发布方单独提供了安装包摘要，可选用 `--sha256 <64 位摘要>` 校验。`latest.txt` 仅用于在线安装。
 
 Linux ARM 包的根目录应有名为 `aixcoding-cli` 的 Linux aarch64 可执行文件。安装后的启动命令是 `aixcoding`。包含 `.exe` 的 ZIP 是 Windows 包，不能在 Linux 上安装。
 

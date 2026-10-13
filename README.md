@@ -103,8 +103,8 @@ that root. Put each environment's `latest.txt` in `生产包/` or `测试包/`, 
 archives under a base-version folder such as `生产包/0.28.0/`. A development
 archive keeps its full `-dev-<commit>` suffix in the filename but goes in the
 `0.28.0/` folder. The CD workflow's `icode-release-bundle` artifact provides
-these files in a flat bundle; verify its `SHA256SUMS.txt` before placing them
-in AList. A Linux-only build does not include macOS or Windows packages.
+these files in a flat bundle; place them in AList as shown above. A Linux-only
+build does not include macOS or Windows packages.
 
 | Machine | Package in the mirror | Install command |
 | --- | --- | --- |

@@ -92,7 +92,7 @@ iCode 不附带任何模型配置，因此首次启动时请按 **F4** 添加一
 AList 根目录是 `http://82.186.78.126:5244/share/TUI`。将 `install.sh` 放在根目录；
 分别把 `latest.txt` 放在 `生产包/`、`测试包/`，把各环境的安装包放在其基础版本目录中，例如
 `生产包/0.28.0/`。开发包文件名保留完整的 `-dev-<提交号>`，但仍放进 `0.28.0/`。
-CD 的 `icode-release-bundle` 是平铺产物；上传 AList 前先用其中的 `SHA256SUMS.txt` 校验，再按上述目录摆放。
+CD 的 `icode-release-bundle` 是平铺产物；下载解压后按上述目录摆放到 AList。
 只选择 Linux 的 CD 运行不会产出 macOS 和 Windows 包。
 
 | 目标环境 | 镜像中对应的包 | 安装命令 |
