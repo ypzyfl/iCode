@@ -38,6 +38,14 @@ CD 流水线的 `icode-release-bundle` 产物会把安装包、`install.sh`、`l
 
 从内网镜像安装时，请先下载 `install.sh`，确认下载成功后再运行，避免 `curl | bash` 在下载失败时执行空脚本却显示成功。安装失败时，脚本会报告阶段和错误。Linux ARM 的 ZIP 根目录须有名为 `icode` 或 `aixcoding-cli` 的 Linux aarch64 可执行文件；使用此脚本安装后的启动命令是 `aixcoding`。包含 `.exe` 的是 Windows 包。
 
+Linux ARM64、Linux x86-64、macOS Apple 芯片和 macOS Intel 使用同一条在线安装命令；脚本会自动识别平台并下载对应的包。把示例地址替换为同时存放 `install.sh`、`latest.txt` 和目标平台安装包的镜像目录：
+
+```bash
+curl -fsSL -o install.sh 'http://镜像地址/icode/install.sh' && ICODE_BASE_URL='http://镜像地址/icode' bash install.sh
+```
+
+五种构建目标各自的包名及 Windows PowerShell 镜像安装命令见 [README 安装表](../../../README.zh.md#从内网镜像安装打包好的-tui)。Windows 包通过 `icode.exe install` 安装，不运行 `install.sh`。
+
 ### Windows
 
 下载 `icode-windows-x86_64-v<version>-offline.zip` 并解压，在 PowerShell 中进入解压目录，然后运行：

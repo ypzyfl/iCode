@@ -38,6 +38,14 @@ The CD workflow's `icode-release-bundle` artifact contains the archives, `instal
 
 For an internal mirror, download `install.sh` before running it so a failed download cannot appear to be a successful empty `curl | bash` run. The script reports its current stage and an error on failure. On Linux ARM, a ZIP must contain a Linux aarch64 executable named `icode` or `aixcoding-cli` at its root; the launch command installed by this script is `aixcoding`. A package containing an `.exe` is for Windows.
 
+The same online command works on Linux ARM64, Linux x86-64, macOS Apple silicon, and macOS Intel; the script detects the platform and downloads its archive. Replace the example URL with the mirror directory containing `install.sh`, `latest.txt`, and the matching archive:
+
+```bash
+curl -fsSL -o install.sh 'http://mirror.example/icode/install.sh' && ICODE_BASE_URL='http://mirror.example/icode' bash install.sh
+```
+
+For the exact package name for each of the five build targets and the Windows PowerShell mirror commands, see the [README installation table](../../../README.md#install-a-packaged-tui-from-an-internal-mirror). The Windows package is installed with `icode.exe install`; `install.sh` runs only on Linux and macOS.
+
 ### Windows
 
 Download and extract `icode-windows-x86_64-v<version>-offline.zip`. Open PowerShell, go to the extracted directory, and run:

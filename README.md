@@ -96,6 +96,45 @@ uv run icode               # `uv run chrys` starts the same thing (`Chrys` is ou
 
 iCode ships no model profiles, so press **F4** on first launch to add one.
 
+## Install a packaged TUI from an internal mirror
+
+Upload the files from the CD workflow's `icode-release-bundle` artifact to one
+mirror directory. It contains `install.sh`, `latest.txt`, `SHA256SUMS.txt`, and
+the packages built for the selected platforms. Replace `http://mirror.example/icode`
+below with the URL of that directory. The mirror must contain the package for
+the machine you are installing on; a Linux-only CD run does not produce the
+macOS or Windows packages.
+
+| Machine | Package selected from the mirror | Install command |
+| --- | --- | --- |
+| Linux ARM64 (aarch64) | `icode-linux-aarch64-v<version>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://mirror.example/icode/install.sh' && ICODE_BASE_URL='http://mirror.example/icode' bash install.sh` |
+| Linux x86-64 | `icode-linux-x86_64-v<version>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://mirror.example/icode/install.sh' && ICODE_BASE_URL='http://mirror.example/icode' bash install.sh` |
+| macOS Apple silicon | `icode-macos-aarch64-v<version>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://mirror.example/icode/install.sh' && ICODE_BASE_URL='http://mirror.example/icode' bash install.sh` |
+| macOS Intel | `icode-macos-x86_64-v<version>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://mirror.example/icode/install.sh' && ICODE_BASE_URL='http://mirror.example/icode' bash install.sh` |
+| Windows x86-64 | `icode-windows-x86_64-v<version>-offline.zip` | Use the PowerShell commands below; `install.sh` does not run on Windows. |
+
+On Linux and macOS, the script reads `latest.txt`, selects the matching package,
+and installs the `aixcoding` command. Downloading the script before running it
+ensures a failed download stops the install. Open a new terminal, then run
+`aixcoding --version` to check the installation. Linux x86-64 requires glibc
+2.17 or later; Linux ARM64 requires glibc 2.18 or later.
+
+On Windows, run this in PowerShell from the directory where you want to download
+the package:
+
+```powershell
+$mirror = 'http://mirror.example/icode'
+$version = (Invoke-RestMethod "$mirror/latest.txt").Trim().TrimStart('v')
+$archive = "icode-windows-x86_64-v$version-offline.zip"
+Invoke-WebRequest "$mirror/$archive" -OutFile $archive
+Expand-Archive $archive -DestinationPath '.\icode-windows-x86_64' -Force
+& '.\icode-windows-x86_64\icode.exe' install
+```
+
+Open a new PowerShell window and run `icode --version`. The current Windows
+installer provides the `icode` command; the `aixcoding` alias is created by
+`install.sh` on Linux and macOS.
+
 ## User guide
 
 Press **F8** inside iCode to open the built-in user guide, a complete walkthrough of using it.

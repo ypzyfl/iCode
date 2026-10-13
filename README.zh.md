@@ -87,6 +87,38 @@ uv run icode               # `uv run chrys` 启动的是同一个程序（`Chrys
 
 iCode 不附带任何模型配置，因此首次启动时请按 **F4** 添加一个。
 
+## 从内网镜像安装打包好的 TUI
+
+将 CD 流水线的 `icode-release-bundle` 产物解压并上传到镜像的同一目录。产物包含 `install.sh`、
+`latest.txt`、`SHA256SUMS.txt` 和本次所选平台的安装包。下面的 `http://镜像地址/icode` 请换成该目录的实际地址。
+镜像中必须有目标机器对应的包；只选择 Linux 的 CD 运行不会产出 macOS 和 Windows 包。
+
+| 目标环境 | 镜像中对应的包 | 安装命令 |
+| --- | --- | --- |
+| Linux ARM64（aarch64） | `icode-linux-aarch64-v<版本>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://镜像地址/icode/install.sh' && ICODE_BASE_URL='http://镜像地址/icode' bash install.sh` |
+| Linux x86-64 | `icode-linux-x86_64-v<版本>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://镜像地址/icode/install.sh' && ICODE_BASE_URL='http://镜像地址/icode' bash install.sh` |
+| macOS Apple 芯片 | `icode-macos-aarch64-v<版本>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://镜像地址/icode/install.sh' && ICODE_BASE_URL='http://镜像地址/icode' bash install.sh` |
+| macOS Intel | `icode-macos-x86_64-v<版本>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://镜像地址/icode/install.sh' && ICODE_BASE_URL='http://镜像地址/icode' bash install.sh` |
+| Windows x86-64 | `icode-windows-x86_64-v<版本>-offline.zip` | 使用下方 PowerShell 命令；Windows 不运行 `install.sh`。 |
+
+Linux 和 macOS 上，脚本会读取 `latest.txt` 并自动识别系统和架构，下载安装对应的包。先下载成功再执行脚本，
+可以避免下载失败时空管道看起来像安装成功。安装后打开新终端，运行 `aixcoding --version` 验证。
+Linux x86-64 要求 glibc ≥ 2.17，Linux ARM64 要求 glibc ≥ 2.18。
+
+Windows 请在 PowerShell 中进入准备存放安装包的目录，执行：
+
+```powershell
+$mirror = 'http://镜像地址/icode'
+$version = (Invoke-RestMethod "$mirror/latest.txt").Trim().TrimStart('v')
+$archive = "icode-windows-x86_64-v$version-offline.zip"
+Invoke-WebRequest "$mirror/$archive" -OutFile $archive
+Expand-Archive $archive -DestinationPath '.\icode-windows-x86_64' -Force
+& '.\icode-windows-x86_64\icode.exe' install
+```
+
+安装后打开新的 PowerShell 窗口，运行 `icode --version` 验证。当前 Windows 安装器提供 `icode` 命令；
+`aixcoding` 别名由 Linux/macOS 的 `install.sh` 创建。
+
 ## 用户指南
 
 在 iCode 中按 **F8** 即可打开内置的用户指南，其中完整介绍了 iCode 的使用方法。相同的内容也位于 [`docs/`](docs/) 目录，提供 [English](docs/en/start/what-is-icode.md) 和 [简体中文](docs/zh-Hans/start/what-is-icode.md) 两个版本。
