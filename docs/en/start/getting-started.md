@@ -30,13 +30,13 @@ chmod +x ./aixcoding-cli
 
 The Linux x86-64 package requires glibc 2.17 or later, and the ARM64 package requires glibc 2.18 or later. Distributions that provide only musl, such as Alpine Linux, are not supported by the prebuilt packages.
 
-For an internal mirror containing `install.sh`, `latest.txt`, and the matching package, Linux and macOS users can install with one command. The script detects the platform and creates an `aixcoding` launch command:
+For the AList mirror rooted at `http://82.186.78.126:5244/share/TUI`, place `install.sh` at the root, `latest.txt` in `生产包/` or `测试包/`, and each package under that environment's base-version directory (for example, `生产包/0.28.0/`). Linux and macOS users can install with one command. The script detects the platform and creates an `aixcoding` launch command:
 
 ```bash
-curl -fsSL -o install.sh 'http://mirror.example/aixcoding/install.sh' && ICODE_BASE_URL='http://mirror.example/aixcoding' bash install.sh
+curl -fsSL -o install.sh 'http://82.186.78.126:5244/share/TUI/install.sh' && bash install.sh
 ```
 
-The CD workflow's `icode-release-bundle` artifact contains these files plus `SHA256SUMS.txt`; copy its extracted contents into one mirror directory. A build limited to Linux contains only Linux packages. See the [README installation table](../../../README.md#install-from-an-internal-mirror) for all five platform package names and the Windows mirror commands.
+Production is the default; run `bash install.sh --channel test` for test packages. The CD workflow's `icode-release-bundle` artifact contains the files in a flat directory plus `SHA256SUMS.txt`. Verify the checksum before arranging the files in AList. A build limited to Linux contains only Linux packages. See the [README installation table](../../../README.md#install-from-an-internal-mirror) for all five platform package names and the Windows mirror commands.
 
 ### Windows
 

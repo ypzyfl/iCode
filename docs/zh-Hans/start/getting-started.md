@@ -30,13 +30,13 @@ chmod +x ./aixcoding-cli
 
 Linux x86-64 安装包要求 glibc 2.17 或更高版本，ARM64 安装包要求 glibc 2.18 或更高版本。Alpine Linux 等只提供 musl 的发行版不在预构建包的支持范围内。
 
-如果内网镜像目录同时提供 `install.sh`、`latest.txt` 和目标平台安装包，Linux 与 macOS 用户可执行同一条命令。脚本会自动识别平台，并创建 `aixcoding` 启动命令：
+在 AList 根目录 `http://82.186.78.126:5244/share/TUI` 放置 `install.sh`；分别在 `生产包/`、`测试包/` 放置 `latest.txt`，并把安装包放在对应环境的基础版本目录（例如 `生产包/0.28.0/`）。Linux 与 macOS 用户可执行同一条命令；脚本会自动识别平台，并创建 `aixcoding` 启动命令：
 
 ```bash
-curl -fsSL -o install.sh 'http://镜像地址/aixcoding/install.sh' && ICODE_BASE_URL='http://镜像地址/aixcoding' bash install.sh
+curl -fsSL -o install.sh 'http://82.186.78.126:5244/share/TUI/install.sh' && bash install.sh
 ```
 
-CD 流水线的 `icode-release-bundle` 产物包含这些文件和 `SHA256SUMS.txt`；将解压后的文件放入镜像的同一目录。只构建 Linux 时产物中只有 Linux 安装包。五种平台包名和 Windows 镜像安装命令见 [README 安装表](../../../README.zh.md#从内网镜像安装)。
+默认安装生产包；安装测试包时运行 `bash install.sh --channel test`。CD 流水线的 `icode-release-bundle` 是平铺产物，另含 `SHA256SUMS.txt`；先校验，再按上述目录上传到 AList。只构建 Linux 时产物中只有 Linux 安装包。五种平台包名和 Windows 镜像安装命令见 [README 安装表](../../../README.zh.md#从内网镜像安装)。
 
 ### Windows
 

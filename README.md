@@ -98,21 +98,28 @@ iCode ships no model profiles, so press **F4** on first launch to add one.
 
 ## Install from an internal mirror
 
-Upload the CD workflow's `icode-release-bundle` artifact to one mirror directory.
-It contains `install.sh`, `latest.txt`, `SHA256SUMS.txt`, and the packages for
-the selected platforms. Replace `http://mirror.example/aixcoding` below with
-that directory's URL. A Linux-only build does not include macOS or Windows packages.
+The AList root is `http://82.186.78.126:5244/share/TUI`. Put `install.sh` at
+that root. Put each environment's `latest.txt` in `生产包/` or `测试包/`, and its
+archives under a base-version folder such as `生产包/0.28.0/`. A development
+archive keeps its full `-dev-<commit>` suffix in the filename but goes in the
+`0.28.0/` folder. The CD workflow's `icode-release-bundle` artifact provides
+these files in a flat bundle; verify its `SHA256SUMS.txt` before placing them
+in AList. A Linux-only build does not include macOS or Windows packages.
 
 | Machine | Package in the mirror | Install command |
 | --- | --- | --- |
-| Linux ARM64 | `aixcoding-cli-linux-aarch64-v<version>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://mirror.example/aixcoding/install.sh' && ICODE_BASE_URL='http://mirror.example/aixcoding' bash install.sh` |
-| Linux x86-64 | `aixcoding-cli-linux-x86_64-v<version>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://mirror.example/aixcoding/install.sh' && ICODE_BASE_URL='http://mirror.example/aixcoding' bash install.sh` |
-| macOS Apple silicon | `aixcoding-cli-macos-aarch64-v<version>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://mirror.example/aixcoding/install.sh' && ICODE_BASE_URL='http://mirror.example/aixcoding' bash install.sh` |
-| macOS Intel | `aixcoding-cli-macos-x86_64-v<version>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://mirror.example/aixcoding/install.sh' && ICODE_BASE_URL='http://mirror.example/aixcoding' bash install.sh` |
+| Linux ARM64 | `aixcoding-cli-linux-aarch64-v<version>-offline.tar.gz` | `curl -fsSL 'http://82.186.78.126:5244/share/TUI/install.sh' \| bash` |
+| Linux x86-64 | `aixcoding-cli-linux-x86_64-v<version>-offline.tar.gz` | `curl -fsSL 'http://82.186.78.126:5244/share/TUI/install.sh' \| bash` |
+| macOS Apple silicon | `aixcoding-cli-macos-aarch64-v<version>-offline.tar.gz` | `curl -fsSL 'http://82.186.78.126:5244/share/TUI/install.sh' \| bash` |
+| macOS Intel | `aixcoding-cli-macos-x86_64-v<version>-offline.tar.gz` | `curl -fsSL 'http://82.186.78.126:5244/share/TUI/install.sh' \| bash` |
 | Windows x86-64 | `aixcoding-cli-windows-x86_64-v<version>-offline.zip` | Use the PowerShell commands below. |
 
-On Linux and macOS, the script reads `latest.txt`, selects the matching package,
-and installs the `aixcoding` command. Open a new terminal and run
+On Linux and macOS, the script installs from `生产包` by default. For `测试包`,
+download the script and run `bash install.sh --channel test`. To ensure a failed
+script download stops the command, use
+`curl -fsSL -o install.sh 'http://82.186.78.126:5244/share/TUI/install.sh' && bash install.sh`.
+The script selects the matching package and installs the `aixcoding` command.
+Open a new terminal and run
 `aixcoding --version` to verify it. Linux x86-64 requires glibc 2.17 or later;
 Linux ARM64 requires glibc 2.18 or later.
 
@@ -120,10 +127,12 @@ On Windows, run this in PowerShell from the directory where you want to download
 the package:
 
 ```powershell
-$mirror = 'http://mirror.example/aixcoding'
-$version = (Invoke-RestMethod "$mirror/latest.txt").Trim().TrimStart('v')
+$mirror = 'http://82.186.78.126:5244/share/TUI'
+$channel = '生产包' # change to 测试包 for test packages
+$version = (Invoke-RestMethod "$mirror/$channel/latest.txt").Trim().TrimStart('v')
+$versionDir = $version -replace '-dev-.*$', ''
 $archive = "aixcoding-cli-windows-x86_64-v$version-offline.zip"
-Invoke-WebRequest "$mirror/$archive" -OutFile $archive
+Invoke-WebRequest "$mirror/$channel/$versionDir/$archive" -OutFile $archive
 Expand-Archive $archive -DestinationPath '.\aixcoding-cli-windows-x86_64' -Force
 & '.\aixcoding-cli-windows-x86_64\aixcoding-cli.exe' install
 ```

@@ -89,28 +89,35 @@ iCode 不附带任何模型配置，因此首次启动时请按 **F4** 添加一
 
 ## 从内网镜像安装
 
-将 CD 流水线的 `icode-release-bundle` 产物解压并上传到镜像的同一目录。产物包含 `install.sh`、
-`latest.txt`、`SHA256SUMS.txt` 和所选平台的安装包。下面的 `http://镜像地址/aixcoding` 请换成实际目录地址。
+AList 根目录是 `http://82.186.78.126:5244/share/TUI`。将 `install.sh` 放在根目录；
+分别把 `latest.txt` 放在 `生产包/`、`测试包/`，把各环境的安装包放在其基础版本目录中，例如
+`生产包/0.28.0/`。开发包文件名保留完整的 `-dev-<提交号>`，但仍放进 `0.28.0/`。
+CD 的 `icode-release-bundle` 是平铺产物；上传 AList 前先用其中的 `SHA256SUMS.txt` 校验，再按上述目录摆放。
 只选择 Linux 的 CD 运行不会产出 macOS 和 Windows 包。
 
 | 目标环境 | 镜像中对应的包 | 安装命令 |
 | --- | --- | --- |
-| Linux ARM64 | `aixcoding-cli-linux-aarch64-v<版本>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://镜像地址/aixcoding/install.sh' && ICODE_BASE_URL='http://镜像地址/aixcoding' bash install.sh` |
-| Linux x86-64 | `aixcoding-cli-linux-x86_64-v<版本>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://镜像地址/aixcoding/install.sh' && ICODE_BASE_URL='http://镜像地址/aixcoding' bash install.sh` |
-| macOS Apple 芯片 | `aixcoding-cli-macos-aarch64-v<版本>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://镜像地址/aixcoding/install.sh' && ICODE_BASE_URL='http://镜像地址/aixcoding' bash install.sh` |
-| macOS Intel | `aixcoding-cli-macos-x86_64-v<版本>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://镜像地址/aixcoding/install.sh' && ICODE_BASE_URL='http://镜像地址/aixcoding' bash install.sh` |
+| Linux ARM64 | `aixcoding-cli-linux-aarch64-v<版本>-offline.tar.gz` | `curl -fsSL 'http://82.186.78.126:5244/share/TUI/install.sh' \| bash` |
+| Linux x86-64 | `aixcoding-cli-linux-x86_64-v<版本>-offline.tar.gz` | `curl -fsSL 'http://82.186.78.126:5244/share/TUI/install.sh' \| bash` |
+| macOS Apple 芯片 | `aixcoding-cli-macos-aarch64-v<版本>-offline.tar.gz` | `curl -fsSL 'http://82.186.78.126:5244/share/TUI/install.sh' \| bash` |
+| macOS Intel | `aixcoding-cli-macos-x86_64-v<版本>-offline.tar.gz` | `curl -fsSL 'http://82.186.78.126:5244/share/TUI/install.sh' \| bash` |
 | Windows x86-64 | `aixcoding-cli-windows-x86_64-v<版本>-offline.zip` | 使用下方 PowerShell 命令。 |
 
-Linux 和 macOS 上，脚本会读取 `latest.txt` 并自动识别系统和架构。安装后打开新终端，运行
+Linux 和 macOS 默认安装 `生产包`。安装 `测试包` 时先下载脚本，再运行 `bash install.sh --channel test`。
+为确保脚本下载失败时安装立即停止，可使用
+`curl -fsSL -o install.sh 'http://82.186.78.126:5244/share/TUI/install.sh' && bash install.sh`。
+脚本会读取对应环境的 `latest.txt`，自动识别系统和架构。安装后打开新终端，运行
 `aixcoding --version` 验证。Linux x86-64 要求 glibc ≥ 2.17，Linux ARM64 要求 glibc ≥ 2.18。
 
 Windows 请在 PowerShell 中进入准备存放安装包的目录，执行：
 
 ```powershell
-$mirror = 'http://镜像地址/aixcoding'
-$version = (Invoke-RestMethod "$mirror/latest.txt").Trim().TrimStart('v')
+$mirror = 'http://82.186.78.126:5244/share/TUI'
+$channel = '生产包' # 测试包改为 测试包
+$version = (Invoke-RestMethod "$mirror/$channel/latest.txt").Trim().TrimStart('v')
+$versionDir = $version -replace '-dev-.*$', ''
 $archive = "aixcoding-cli-windows-x86_64-v$version-offline.zip"
-Invoke-WebRequest "$mirror/$archive" -OutFile $archive
+Invoke-WebRequest "$mirror/$channel/$versionDir/$archive" -OutFile $archive
 Expand-Archive $archive -DestinationPath '.\aixcoding-cli-windows-x86_64' -Force
 & '.\aixcoding-cli-windows-x86_64\aixcoding-cli.exe' install
 ```

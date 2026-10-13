@@ -3,32 +3,37 @@
 # AIxCoding-CLI TUI 安装器（内网友好）
 #
 # 在线安装（先下载脚本，下载失败时不会启动安装）:
-#   curl -fSL -o install.sh http://<镜像地址>/install.sh && bash install.sh
+#   curl -fsSL -o install.sh http://82.186.78.126:5244/share/TUI/install.sh && bash install.sh
 #
 # 在线模式从制品镜像（ICODE_BASE_URL）下载；离线模式（--from）直接安装本地包。
 # 安装动作复用包内可执行文件的 `install` 命令，再创建 aixcoding 启动命令。
 #
-# 镜像侧文件（ICODE_BASE_URL 指向的目录需要提供）:
-#   install.sh                                  本安装器（即本文件）
-#   latest.txt                                  最新版本号，如 v0.28.0（在线模式必需，除非用 --version）
-#   aixcoding-cli-<平台>-v<版本>-offline.tar.gz|.zip    平台资产（包内可执行文件为 aixcoding-cli）
+# 镜像侧文件（ICODE_BASE_URL 指向 TUI 根目录）:
+#   install.sh                                          本安装器（即本文件）
+#   生产包/latest.txt、测试包/latest.txt                各环境的最新版本号
+#   <环境>/<版本目录>/aixcoding-cli-<平台>-v<版本>-offline.tar.gz|.zip
+# 版本目录使用基础版本号，如 0.28.0；开发包文件名保留 -dev-<提交号>。
 #
 # 发版时上传新资产并更新 latest.txt；本文件无需随发版更新。
 #
 set -Eeuo pipefail
 
-# ===== 配置区（部署时改这里；也可用环境变量 ICODE_BASE_URL 覆盖） =====
-ICODE_BASE_URL="${ICODE_BASE_URL:-http://fileserver.intranet/icode/releases}"
+# ===== 配置区（也可用环境变量覆盖） =====
+ICODE_BASE_URL="${ICODE_BASE_URL:-http://82.186.78.126:5244/share/TUI}"
+CHANNEL="${ICODE_CHANNEL:-prod}"
 
 # ======================================================================
 
 # ===== 全局状态 =====
 VERSION=""
+VERSION_DIR=""
 FROM=""
 EXPECTED_SHA256=""
 OS=""
 MACHINE=""
 PLATFORM=""
+CHANNEL_LABEL=""
+CHANNEL_URL=""
 ARCHIVE=""
 ARCHIVE_NAME=""
 WORK_DIR=""
@@ -80,20 +85,23 @@ AIxCoding-CLI TUI 安装器（macOS / Linux）
 
 安装后的启动命令: aixcoding
 
-在线安装（先确认脚本下载成功）:
-  curl -fSL -o install.sh ${ICODE_BASE_URL}/install.sh && bash install.sh
+在线安装（默认生产包，先确认脚本下载成功）:
+  curl -fsSL -o install.sh ${ICODE_BASE_URL}/install.sh && bash install.sh
 
 用法:
-  bash install.sh                            在线安装最新版（从 ICODE_BASE_URL）
+  bash install.sh                            在线安装生产包最新版
+  bash install.sh --channel test             在线安装测试包最新版
   bash install.sh --version v0.28.0          在线安装指定版本
   bash install.sh --from <包路径>            离线安装本地包（tar.gz / zip）
 
 选项（等号形式同样支持，如 --version=v0.28.0）:
+  --channel <prod|test>  选择生产包或测试包（默认 prod）
   --sha256 <digest>   可选：用指定的 SHA-256 摘要校验安装包
   -h, --help          显示本帮助
 
 环境变量:
-  ICODE_BASE_URL      制品镜像根地址（当前: ${ICODE_BASE_URL}）
+  ICODE_BASE_URL      TUI 镜像根地址（当前: ${ICODE_BASE_URL}）
+  ICODE_CHANNEL       默认环境，prod 或 test（当前: ${CHANNEL}）
   CURL_EXTRA          追加给 curl 的额外参数（如代理）
 EOF
 }
@@ -104,6 +112,8 @@ parse_args() {
     case "$1" in
       --version)    [ $# -ge 2 ] && [ -n "$2" ] || die "--version 需要非空版本号"; VERSION=$2; shift 2 ;;
       --version=*)  VERSION=${1#--version=}; [ -n "$VERSION" ] || die "--version 需要非空版本号"; shift ;;
+      --channel)    [ $# -ge 2 ] && [ -n "$2" ] || die "--channel 需要 prod 或 test"; CHANNEL=$2; shift 2 ;;
+      --channel=*)  CHANNEL=${1#--channel=}; [ -n "$CHANNEL" ] || die "--channel 需要 prod 或 test"; shift ;;
       --from)       [ $# -ge 2 ] && [ -n "$2" ] || die "--from 需要非空包路径"; FROM=$2; shift 2 ;;
       --from=*)     FROM=${1#--from=}; [ -n "$FROM" ] || die "--from 需要非空包路径"; shift ;;
       --sha256)     [ $# -ge 2 ] && [ -n "$2" ] || die "--sha256 需要非空摘要"; EXPECTED_SHA256=$2; shift 2 ;;
@@ -116,6 +126,22 @@ parse_args() {
   if [ -n "$EXPECTED_SHA256" ]; then
     [[ "$EXPECTED_SHA256" =~ ^[[:xdigit:]]{64}$ ]] || die "--sha256 需要 64 位十六进制摘要"
   fi
+}
+
+resolve_channel() {
+  local segment
+  case "$CHANNEL" in
+    prod|production|生产包)
+      CHANNEL_LABEL=生产包
+      segment=%E7%94%9F%E4%BA%A7%E5%8C%85
+      ;;
+    test|测试包)
+      CHANNEL_LABEL=测试包
+      segment=%E6%B5%8B%E8%AF%95%E5%8C%85
+      ;;
+    *) die "无效环境: ${CHANNEL}（只能是 prod 或 test）" ;;
+  esac
+  CHANNEL_URL="${ICODE_BASE_URL%/}/${segment}"
 }
 
 detect_platform() {
@@ -196,21 +222,22 @@ obtain_archive() {
   need curl
   VERSION="${VERSION#v}"
   if [ -z "$VERSION" ]; then
-    info "获取最新版本号（${ICODE_BASE_URL}/latest.txt）"
+    info "获取${CHANNEL_LABEL}最新版本号（${CHANNEL_URL}/latest.txt）"
     local rc=0
-    fetch "${ICODE_BASE_URL}/latest.txt" "${WORK_DIR}/latest.txt" || rc=$?
-    [ "$rc" -eq 0 ] || die "无法获取 latest.txt（curl exit ${rc}）。请检查 ICODE_BASE_URL 与网络；或用 --version 指定版本；或用 --from 离线安装"
+    fetch "${CHANNEL_URL}/latest.txt" "${WORK_DIR}/latest.txt" || rc=$?
+    [ "$rc" -eq 0 ] || die "无法获取${CHANNEL_LABEL}/latest.txt（curl exit ${rc}）。请检查镜像地址与网络；或用 --version 指定版本；或用 --from 离线安装"
     VERSION=$(sed -E 's/^[[:space:]]*[vV][[:space:]]*//; s/[[:space:]]*$//' "${WORK_DIR}/latest.txt" | tr -d '\r')
     [ -n "$VERSION" ] || die "latest.txt 内容为空（应为一行版本号，如 v0.28.0）"
   fi
   [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([._-][[:alnum:]._-]+)?$ ]] || die "版本号格式无效: ${VERSION}（检查 latest.txt 或 --version）"
+  VERSION_DIR=${VERSION%%-dev-*}
 
   # 在线下载：优先 tar.gz，镜像上没有时自动尝试同版本 zip
   local asset="" rc=0
   for candidate in "aixcoding-cli-${PLATFORM}-v${VERSION}-offline.tar.gz" "aixcoding-cli-${PLATFORM}-v${VERSION}-offline.zip"; do
-    info "下载 ${ICODE_BASE_URL}/${candidate}"
+    info "下载 ${CHANNEL_URL}/${VERSION_DIR}/${candidate}"
     rc=0
-    fetch "${ICODE_BASE_URL}/${candidate}" "${WORK_DIR}/${candidate}" --show-progress || rc=$?
+    fetch "${CHANNEL_URL}/${VERSION_DIR}/${candidate}" "${WORK_DIR}/${candidate}" --show-progress || rc=$?
     if [ "$rc" -eq 0 ]; then
       asset=$candidate
       break
@@ -220,7 +247,7 @@ obtain_archive() {
   done
   if [ -z "$asset" ]; then
     if [ "$rc" -eq 22 ]; then
-      die "下载失败（HTTP 错误）: 检查镜像访问权限、${PLATFORM} 平台 v${VERSION} 的资产文件名和 latest.txt；也可用 --from 安装本地包"
+      die "下载失败（HTTP 错误）: 检查${CHANNEL_LABEL}/${VERSION_DIR}/ 中 ${PLATFORM} 平台 v${VERSION} 的安装包；也可用 --from 安装本地包"
     fi
     die "下载失败（curl exit ${rc}）。检查网络/代理（可用 CURL_EXTRA 传参），或改用 --from 离线安装"
   fi
@@ -366,6 +393,8 @@ print_finish() {
 main() {
   STAGE="解析参数"
   parse_args "$@"
+  STAGE="选择环境"
+  resolve_channel
   [ -n "${HOME:-}" ] || die "HOME 未设置，无法确定当前用户的安装目录"
   STAGE="检测平台"
   detect_platform

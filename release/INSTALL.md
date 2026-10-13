@@ -14,20 +14,35 @@ AIxCoding-CLI 是一个运行在终端里的智能体平台（TUI）。安装包
 
 ## 安装
 
-CD 流水线会生成 `icode-release-bundle` 构建产物，其中包含各平台安装包、`install.sh`、`latest.txt` 和 `SHA256SUMS.txt`。从 GitHub Actions 下载并解压后，把文件一起摆渡到 AList 的同一目录；这些文件由流水线按本次构建版本和实际包内容生成，不需要手工改版本号或摘要。上传前可在 Linux 上进入该目录执行 `sha256sum -c SHA256SUMS.txt` 检查传输是否完整。部分平台的手动构建只包含所选平台，请确认镜像所需的平台包齐全，再用这份 `latest.txt` 替换镜像中的版本指针。
+CD 流水线会生成平铺的 `icode-release-bundle` 构建产物，其中包含各平台安装包、`install.sh`、`latest.txt` 和 `SHA256SUMS.txt`。从 GitHub Actions 下载并解压后，先在原目录执行 `sha256sum -c SHA256SUMS.txt` 校验产物，再按下面的结构上传到 AList。版本号和摘要由流水线生成，无需手工修改。只构建 Linux 时，产物中不会有 macOS 或 Windows 包。
+
+```text
+http://82.186.78.126:5244/share/TUI/
+├── install.sh
+├── 生产包/
+│   ├── latest.txt                 # 例如 v0.28.0-dev-9f8e3b3
+│   └── 0.28.0/
+│       └── aixcoding-cli-<平台>-v0.28.0-dev-9f8e3b3-offline.tar.gz
+└── 测试包/
+    ├── latest.txt
+    └── 0.28.0/
+        └── aixcoding-cli-<平台>-v0.28.0-dev-9f8e3b3-offline.tar.gz
+```
+
+`install.sh` 放在 TUI 根目录；把本次构建的 `latest.txt` 放进对应环境目录，把安装包放进基础版本目录（开发包去掉文件名中的 `-dev-<提交号>` 得到目录名）。两个环境可以指向不同版本。只有确认该环境所需平台的安装包已经上传完毕，才替换它的 `latest.txt`。
 
 ### 方式一：从内网镜像安装
 
 ```bash
-curl -fsSL -o install.sh 'http://<镜像地址>/install.sh' && ICODE_BASE_URL='http://<镜像地址>' bash install.sh
+curl -fsSL -o install.sh 'http://82.186.78.126:5244/share/TUI/install.sh' && bash install.sh
 ```
 
-在线安装会读取镜像同一目录的 `latest.txt`，并按版本下载对应平台的安装包。
+默认读取 `生产包/latest.txt`。安装测试包时运行 `bash install.sh --channel test`；在线安装会根据版本和平台从对应环境的版本目录下载安装包。
 
 安装指定版本：
 
 ```bash
-curl -fsSL -o install.sh 'http://<镜像地址>/install.sh' && ICODE_BASE_URL='http://<镜像地址>' bash install.sh --version v0.28.0
+curl -fsSL -o install.sh 'http://82.186.78.126:5244/share/TUI/install.sh' && bash install.sh --version v0.28.0
 ```
 
 ### 方式二：离线安装（拿不到镜像时，如安全摆渡场景）
