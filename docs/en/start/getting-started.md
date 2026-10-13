@@ -30,6 +30,14 @@ chmod +x ./aixcoding-cli
 
 The Linux x86-64 package requires glibc 2.17 or later, and the ARM64 package requires glibc 2.18 or later. Distributions that provide only musl, such as Alpine Linux, are not supported by the prebuilt packages.
 
+For an internal mirror containing `install.sh`, `latest.txt`, and the matching package, Linux and macOS users can install with one command. The script detects the platform and creates an `aixcoding` launch command:
+
+```bash
+curl -fsSL -o install.sh 'http://mirror.example/aixcoding/install.sh' && ICODE_BASE_URL='http://mirror.example/aixcoding' bash install.sh
+```
+
+The CD workflow's `icode-release-bundle` artifact contains these files plus `SHA256SUMS.txt`; copy its extracted contents into one mirror directory. A build limited to Linux contains only Linux packages. See the [README installation table](../../../README.md#install-from-an-internal-mirror) for all five platform package names and the Windows mirror commands.
+
 ### Windows
 
 Download and extract `aixcoding-cli-windows-x86_64-v<version>-offline.zip`. Open PowerShell, go to the extracted directory, and run:

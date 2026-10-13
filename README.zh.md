@@ -87,6 +87,36 @@ uv run aixcoding-cli               # `uv run chrys` 启动的是同一个程序�
 
 iCode 不附带任何模型配置，因此首次启动时请按 **F4** 添加一个。
 
+## 从内网镜像安装
+
+将 CD 流水线的 `icode-release-bundle` 产物解压并上传到镜像的同一目录。产物包含 `install.sh`、
+`latest.txt`、`SHA256SUMS.txt` 和所选平台的安装包。下面的 `http://镜像地址/aixcoding` 请换成实际目录地址。
+只选择 Linux 的 CD 运行不会产出 macOS 和 Windows 包。
+
+| 目标环境 | 镜像中对应的包 | 安装命令 |
+| --- | --- | --- |
+| Linux ARM64 | `aixcoding-cli-linux-aarch64-v<版本>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://镜像地址/aixcoding/install.sh' && ICODE_BASE_URL='http://镜像地址/aixcoding' bash install.sh` |
+| Linux x86-64 | `aixcoding-cli-linux-x86_64-v<版本>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://镜像地址/aixcoding/install.sh' && ICODE_BASE_URL='http://镜像地址/aixcoding' bash install.sh` |
+| macOS Apple 芯片 | `aixcoding-cli-macos-aarch64-v<版本>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://镜像地址/aixcoding/install.sh' && ICODE_BASE_URL='http://镜像地址/aixcoding' bash install.sh` |
+| macOS Intel | `aixcoding-cli-macos-x86_64-v<版本>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://镜像地址/aixcoding/install.sh' && ICODE_BASE_URL='http://镜像地址/aixcoding' bash install.sh` |
+| Windows x86-64 | `aixcoding-cli-windows-x86_64-v<版本>-offline.zip` | 使用下方 PowerShell 命令。 |
+
+Linux 和 macOS 上，脚本会读取 `latest.txt` 并自动识别系统和架构。安装后打开新终端，运行
+`aixcoding --version` 验证。Linux x86-64 要求 glibc ≥ 2.17，Linux ARM64 要求 glibc ≥ 2.18。
+
+Windows 请在 PowerShell 中进入准备存放安装包的目录，执行：
+
+```powershell
+$mirror = 'http://镜像地址/aixcoding'
+$version = (Invoke-RestMethod "$mirror/latest.txt").Trim().TrimStart('v')
+$archive = "aixcoding-cli-windows-x86_64-v$version-offline.zip"
+Invoke-WebRequest "$mirror/$archive" -OutFile $archive
+Expand-Archive $archive -DestinationPath '.\aixcoding-cli-windows-x86_64' -Force
+& '.\aixcoding-cli-windows-x86_64\aixcoding-cli.exe' install
+```
+
+安装后打开新的 PowerShell 窗口，运行 `aixcoding-cli --version` 验证。Windows 不运行 `install.sh`。
+
 ## 用户指南
 
 在 AIxCoding 中按 **F8** 即可打开内置的用户指南，其中完整介绍了 AIxCoding 的使用方法。相同的内容也位于 [`docs/`](docs/) 目录，提供 [English](docs/en/start/what-is-aixcoding.md) 和 [简体中文](docs/zh-Hans/start/what-is-aixcoding.md) 两个版本。

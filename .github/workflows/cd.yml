@@ -371,36 +371,43 @@ jobs:
           name: ${{ steps.name.outputs.artifact }}
           path: ${{ steps.name.outputs.binary }}
 
+  # ── Package files for GitHub Releases and the internal mirror ───────
+  package-release:
+    name: Package release bundle
+    needs: [build-wheel, build-binaries]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          path: artifacts
+
+      - name: Assemble release bundle
+        run: bash scripts/package_release.sh artifacts bundle
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: icode-release-bundle
+          path: bundle/
+          if-no-files-found: error
+          compression-level: 0
+
   # ── Create GitHub Release (tag pushes only) ─────────────────────────
   release:
     name: Publish release
     if: startsWith(github.ref, 'refs/tags/v') || startsWith(inputs.ref, 'v')
-    needs: [build-wheel, build-binaries]
+    needs: package-release
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          path: artifacts
-
-      - name: Collect release assets
-        run: |
-          mkdir release
-          # Archive binaries: tar.gz for Linux/macOS, zip for Windows
-          # Binary inside the archive is "aixcoding-cli" (or "aixcoding-cli.exe");
-          # the archive filename carries the product/platform info.
-          for dir in artifacts/aixcoding-cli-*/; do
-            [ -d "$dir" ] || continue
-            artifact=$(basename "$dir")
-            if [ -f "$dir/aixcoding-cli.exe" ]; then
-              (cd "$dir" && zip -q "$OLDPWD/release/${artifact}.zip" "aixcoding-cli.exe")
-            elif [ -f "$dir/aixcoding-cli" ]; then
-              tar -czf "release/${artifact}.tar.gz" -C "$dir" "aixcoding-cli"
-            fi
-          done
-          cp artifacts/wheel/*.whl release/
-          cd release && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+          name: icode-release-bundle
+          path: release
 
       - name: Create release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2

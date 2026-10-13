@@ -96,6 +96,41 @@ uv run aixcoding-cli               # `uv run chrys` starts the same thing (`Chry
 
 iCode ships no model profiles, so press **F4** on first launch to add one.
 
+## Install from an internal mirror
+
+Upload the CD workflow's `icode-release-bundle` artifact to one mirror directory.
+It contains `install.sh`, `latest.txt`, `SHA256SUMS.txt`, and the packages for
+the selected platforms. Replace `http://mirror.example/aixcoding` below with
+that directory's URL. A Linux-only build does not include macOS or Windows packages.
+
+| Machine | Package in the mirror | Install command |
+| --- | --- | --- |
+| Linux ARM64 | `aixcoding-cli-linux-aarch64-v<version>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://mirror.example/aixcoding/install.sh' && ICODE_BASE_URL='http://mirror.example/aixcoding' bash install.sh` |
+| Linux x86-64 | `aixcoding-cli-linux-x86_64-v<version>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://mirror.example/aixcoding/install.sh' && ICODE_BASE_URL='http://mirror.example/aixcoding' bash install.sh` |
+| macOS Apple silicon | `aixcoding-cli-macos-aarch64-v<version>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://mirror.example/aixcoding/install.sh' && ICODE_BASE_URL='http://mirror.example/aixcoding' bash install.sh` |
+| macOS Intel | `aixcoding-cli-macos-x86_64-v<version>-offline.tar.gz` | `curl -fsSL -o install.sh 'http://mirror.example/aixcoding/install.sh' && ICODE_BASE_URL='http://mirror.example/aixcoding' bash install.sh` |
+| Windows x86-64 | `aixcoding-cli-windows-x86_64-v<version>-offline.zip` | Use the PowerShell commands below. |
+
+On Linux and macOS, the script reads `latest.txt`, selects the matching package,
+and installs the `aixcoding` command. Open a new terminal and run
+`aixcoding --version` to verify it. Linux x86-64 requires glibc 2.17 or later;
+Linux ARM64 requires glibc 2.18 or later.
+
+On Windows, run this in PowerShell from the directory where you want to download
+the package:
+
+```powershell
+$mirror = 'http://mirror.example/aixcoding'
+$version = (Invoke-RestMethod "$mirror/latest.txt").Trim().TrimStart('v')
+$archive = "aixcoding-cli-windows-x86_64-v$version-offline.zip"
+Invoke-WebRequest "$mirror/$archive" -OutFile $archive
+Expand-Archive $archive -DestinationPath '.\aixcoding-cli-windows-x86_64' -Force
+& '.\aixcoding-cli-windows-x86_64\aixcoding-cli.exe' install
+```
+
+Open a new PowerShell window and run `aixcoding-cli --version`. The shell
+`install.sh` is for Linux and macOS.
+
 ## User guide
 
 Press **F8** inside AIxCoding to open the built-in user guide, a complete walkthrough of using it.
