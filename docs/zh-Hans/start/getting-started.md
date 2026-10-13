@@ -32,6 +32,12 @@ chmod +x ./icode
 
 Linux x86-64 安装包要求 glibc 2.17 或更高版本，ARM64 安装包要求 glibc 2.18 或更高版本。Alpine Linux 等只提供 musl 的发行版不在预构建包的支持范围内。
 
+如果组织同时提供 `install.sh` 和离线安装包，可以直接安装 `.tar.gz` 或 `.zip` 包，无须先解压。运行 `bash install.sh --from ./<安装包文件名>`，无须准备 `SHA256SUMS.txt`；如有可信的安装包摘要，可另加 `--sha256 <摘要>` 校验。
+
+CD 流水线的 `icode-release-bundle` 产物会把安装包、`install.sh`、`latest.txt` 和 `SHA256SUMS.txt` 放在一起；版本号与摘要由流水线从实际构建产物生成。将解压后的文件一起上传到内网镜像即可，无须手工修改版本号或摘要。在线安装时用 `ICODE_BASE_URL` 指向该镜像目录。
+
+从内网镜像安装时，请先下载 `install.sh`，确认下载成功后再运行，避免 `curl | bash` 在下载失败时执行空脚本却显示成功。安装失败时，脚本会报告阶段和错误。Linux ARM 的 ZIP 根目录须有名为 `icode` 或 `aixcoding-cli` 的 Linux aarch64 可执行文件；使用此脚本安装后的启动命令是 `aixcoding`。包含 `.exe` 的是 Windows 包。
+
 ### Windows
 
 下载 `icode-windows-x86_64-v<version>-offline.zip` 并解压，在 PowerShell 中进入解压目录，然后运行：

@@ -32,6 +32,12 @@ chmod +x ./icode
 
 The Linux x86-64 package requires glibc 2.17 or later, and the ARM64 package requires glibc 2.18 or later. Distributions that provide only musl, such as Alpine Linux, are not supported by the prebuilt packages.
 
+If your organization supplies `install.sh` alongside an offline archive, you can install either a `.tar.gz` or `.zip` package without extracting it first. Run `bash install.sh --from ./<archive-filename>`. A `SHA256SUMS.txt` file is not required; use `--sha256 <digest>` if you have a trusted checksum for the archive.
+
+The CD workflow's `icode-release-bundle` artifact contains the archives, `install.sh`, `latest.txt`, and `SHA256SUMS.txt` together. The workflow derives the version and checksums from the built files. Copy the extracted files to the same internal mirror directory; set `ICODE_BASE_URL` to that directory for online installation.
+
+For an internal mirror, download `install.sh` before running it so a failed download cannot appear to be a successful empty `curl | bash` run. The script reports its current stage and an error on failure. On Linux ARM, a ZIP must contain a Linux aarch64 executable named `icode` or `aixcoding-cli` at its root; the launch command installed by this script is `aixcoding`. A package containing an `.exe` is for Windows.
+
 ### Windows
 
 Download and extract `icode-windows-x86_64-v<version>-offline.zip`. Open PowerShell, go to the extracted directory, and run:
