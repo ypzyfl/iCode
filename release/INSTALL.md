@@ -14,38 +14,38 @@ AIxCoding-CLI 是一个运行在终端里的智能体平台（TUI）。安装包
 
 ## 安装
 
-CD 流水线生成平铺的 `icode-release-bundle`，包含各平台安装包、`install.sh`、`README.md`、`version.txt` 和 Python wheel。上传 FTP 时只需 `install.sh` 和要发布的安装包。只构建 Linux 时，产物中不会有 macOS 或 Windows 包。
+CD 流水线生成平铺的 `icode-release-bundle`，包含各平台安装包、`install.sh`、`README.md`、`version.txt` 和 Python wheel。上传到 HTTP 下载目录时只需 `install.sh` 和要发布的安装包。只构建 Linux 时，产物中不会有 macOS 或 Windows 包。
 
 ```text
-ftp://82.186.78.127/homepage/aixcoding-TUI/
+/homepage/aixcoding/                         # HTTP: /aixcoding/file/aixcoding/
 ├── install.sh
 ├── channels/
-│   ├── prod.txt                   # 生产当前版本，例如 0.28.0
-│   └── test.txt                   # 测试当前版本，例如 0.28.0-dev-9f8e3b3
+│   └── cli/
+│       ├── prod.txt                         # 一行完整版本号
+│       └── test.txt                         # 如 0.28.0-dev-9011ff5
 └── releases/
-    ├── 0.28.0/
-    │   └── aixcoding-cli-<平台>-v0.28.0-offline.tar.gz
-    └── 0.28.0-dev-9f8e3b3/
-        └── aixcoding-cli-<平台>-v0.28.0-dev-9f8e3b3-offline.tar.gz
+    └── cli/
+        └── 0.28.0-dev-9011ff5/
+            └── aixcoding-cli-linux-x86_64-v0.28.0-dev-9011ff5-offline.zip
 ```
 
-从 bundle 中把 `install.sh` 放到 FTP 根目录，并把需要的平台安装包放入 `releases/<完整版本>/`；其他文件和整个 bundle 压缩包无需上传。确认安装包上传完毕后，手动将完整版本号写入 `channels/test.txt` 或 `channels/prod.txt`。测试通过后发布同一构建到生产，只需更新 `channels/prod.txt`，无需复制二进制。两个频道文件都只包含一行完整版本号；首次发布时分别准备。
+从 bundle 中把 `install.sh` 放到 HTTP 根目录，并把需要的平台安装包放入 `releases/cli/<完整版本>/`；其他文件和整个 bundle 压缩包无需上传。确认安装包上传完毕后，手动将完整版本号写入 `channels/cli/test.txt` 或 `channels/cli/prod.txt`。测试通过后发布同一构建到生产，只需更新 `channels/cli/prod.txt`，无需复制二进制。两个频道文件都只包含一行完整版本号；首次发布时分别准备。
 已上传的旧安装包若以 `icode-` 开头，保持原文件名即可；脚本会尝试该包名，并接受包内根目录的 `icode` 可执行文件。
 
 ### 方式一：从内网镜像安装
 
-若 FTP 服务器要求登录，在当前用户的 `~/.netrc` 中配置 FTP 主机、用户名和密码，然后执行 `chmod 600 ~/.netrc`。安装脚本会在有该文件时使用它。若服务器对 TUI 目录开放匿名只读，则无需凭据，下载脚本时可省去 `--netrc`。不要把密码写进 URL 或脚本。
+HTTP 下载地址可直接访问，无需配置 FTP 凭据。
 
 ```bash
-curl --netrc -fsSL -o install.sh 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' && bash install.sh
+curl -fsSL -o install.sh 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' && bash install.sh
 ```
 
-默认读取 `channels/prod.txt`。安装测试包时运行 `bash install.sh --channel test`；在线安装会根据完整版本号和平台从 `releases/` 目录下载安装包。
+默认读取 `channels/cli/prod.txt`。安装测试包时运行 `bash install.sh --channel test`；在线安装会根据完整版本号和平台从 `releases/cli/` 目录下载安装包。
 
 安装指定版本：
 
 ```bash
-curl --netrc -fsSL -o install.sh 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' && bash install.sh --version v0.28.0
+curl -fsSL -o install.sh 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' && bash install.sh --version v0.28.0-dev-9011ff5
 ```
 
 ### 方式二：离线安装（拿不到镜像时，如安全摆渡场景）
@@ -56,7 +56,7 @@ curl --netrc -fsSL -o install.sh 'ftp://82.186.78.127/homepage/aixcoding-TUI/ins
 bash install.sh --from ./aixcoding-cli-linux-aarch64-v<版本>-offline.tar.gz
 ```
 
-如果拿到的是 ZIP 包，将命令末尾换成实际 ZIP 文件名，例如 `bash install.sh --from ./aixcoding-cli-linux-aarch64-v<版本>-offline.zip`。安装不需要摘要文件；如果发布方单独提供了安装包摘要，可选用 `--sha256 <64 位摘要>` 校验。`channels/*.txt` 仅用于未指定 `--version` 的在线安装。
+如果拿到的是 ZIP 包，将命令末尾换成实际 ZIP 文件名，例如 `bash install.sh --from ./aixcoding-cli-linux-aarch64-v<版本>-offline.zip`。安装不需要摘要文件；如果发布方单独提供了安装包摘要，可选用 `--sha256 <64 位摘要>` 校验。`channels/cli/*.txt` 仅用于未指定 `--version` 的在线安装。
 
 Linux ARM 包的根目录应有名为 `aixcoding-cli` 或 `icode` 的 Linux aarch64 可执行文件。安装后的启动命令是 `aixcoding`。包含 `.exe` 的 ZIP 是 Windows 包，不能在 Linux 上安装。
 

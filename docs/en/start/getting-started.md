@@ -30,13 +30,13 @@ chmod +x ./aixcoding-cli
 
 The Linux x86-64 package requires glibc 2.17 or later, and the ARM64 package requires glibc 2.18 or later. Distributions that provide only musl, such as Alpine Linux, are not supported by the prebuilt packages.
 
-For the FTP directory rooted at `ftp://82.186.78.127/homepage/aixcoding-TUI`, place `install.sh` at the root, channel pointers in `channels/prod.txt` and `channels/test.txt`, and each package under `releases/<full-version>/`. If the FTP server requires login, configure the account in curl's `~/.netrc` and set its permissions to `600`. With anonymous read access, omit `--netrc` from the initial download and no credentials are needed. Linux and macOS users can install with one command. The script detects the platform and creates an `aixcoding` launch command:
+The HTTP download root is `http://22.189.54.139/aixcoding/file/aixcoding`, mapped from `/homepage/aixcoding/` on the server. Put `install.sh` at the root, channel pointers in `channels/cli/prod.txt` and `channels/cli/test.txt`, and each package under `releases/cli/<full-version>/`. No FTP credentials are needed. Linux and macOS users can install with one command. The script detects the platform and creates an `aixcoding` launch command:
 
 ```bash
-curl --netrc -fsSL -o install.sh 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' && bash install.sh
+curl -fsSL -o install.sh 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' && bash install.sh
 ```
 
-Production is the default; run `bash install.sh --channel test` for test packages. The CD workflow's flat `icode-release-bundle` artifact includes platform archives, `install.sh`, `README.md`, `version.txt`, and a wheel. Upload only `install.sh` to the FTP root and the needed archives to `releases/<full-version>/`, then manually write the full version to the relevant channel file. A build limited to Linux contains only Linux packages. See the [README installation table](../../../README.md#install-from-an-internal-mirror) for all five platform package names and the Windows mirror commands.
+Production is the default; run `bash install.sh --channel test` for test packages. The CD workflow's flat `icode-release-bundle` artifact includes platform archives, `install.sh`, `README.md`, `version.txt`, and a wheel. Upload only `install.sh` to the HTTP root and the needed archives to `releases/cli/<full-version>/`, then manually write the full version to the relevant channel file. A build limited to Linux contains only Linux packages. See the [README installation table](../../../README.md#install-from-an-internal-mirror) for all five platform package names and the Windows mirror commands.
 Previously uploaded archives named `icode-<platform>-v<version>-offline.tar.gz` or `.zip` also work when they contain a root-level `icode` executable.
 
 ### Windows

@@ -98,34 +98,31 @@ iCode ships no model profiles, so press **F4** on first launch to add one.
 
 ## Install from an internal mirror
 
-The FTP root is `ftp://82.186.78.127/homepage/aixcoding-TUI`. Put `install.sh` at that root. `channels/prod.txt` and `channels/test.txt` each hold
-one full version, and archives go in `releases/<full-version>/`. The CD
+The HTTP download root is `http://22.189.54.139/aixcoding/file/aixcoding`. Put `install.sh` at that root. `channels/cli/prod.txt` and `channels/cli/test.txt` each hold
+one full version, and archives go in `releases/cli/<full-version>/`. The CD
 workflow's flat `icode-release-bundle` artifact includes the platform archives,
 `install.sh`, `README.md`, `version.txt`, and a wheel. Upload only `install.sh`
-to the FTP root and the matching archives to `releases/<full-version>/`.
-Set `channels/prod.txt` or `channels/test.txt` manually to the full version
+to the HTTP root and the matching archives to `releases/cli/<full-version>/`.
+Set `channels/cli/prod.txt` or `channels/cli/test.txt` manually to the full version
 after the upload finishes. A Linux-only build does not include macOS or
 Windows packages.
 For previously uploaded packages, the installer also accepts `icode-<platform>-v<version>-offline.tar.gz` or `.zip` with a root-level `icode` executable.
 
-If the FTP server requires login, configure curl's `~/.netrc` with the FTP
-host, username, and password, then run `chmod 600 ~/.netrc`. The installer
-uses that file when present. If the server grants anonymous read access to the
-TUI directory, no credentials are needed: omit `--netrc` from the initial
-`curl` command. No credentials belong in the URL or script.
+The HTTP download endpoint requires no FTP credentials. The public URL path
+`/aixcoding/file/aixcoding/` maps to the server directory `/homepage/aixcoding/`.
 
 | Machine | Package in the mirror | Install command |
 | --- | --- | --- |
-| Linux ARM64 | `aixcoding-cli-linux-aarch64-v<version>-offline.tar.gz` | `curl --netrc -fsSL 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' \| bash` |
-| Linux x86-64 | `aixcoding-cli-linux-x86_64-v<version>-offline.tar.gz` | `curl --netrc -fsSL 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' \| bash` |
-| macOS Apple silicon | `aixcoding-cli-macos-aarch64-v<version>-offline.tar.gz` | `curl --netrc -fsSL 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' \| bash` |
-| macOS Intel | `aixcoding-cli-macos-x86_64-v<version>-offline.tar.gz` | `curl --netrc -fsSL 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' \| bash` |
+| Linux ARM64 | `aixcoding-cli-linux-aarch64-v<version>-offline.tar.gz` | `curl -fsSL 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' \| bash` |
+| Linux x86-64 | `aixcoding-cli-linux-x86_64-v<version>-offline.tar.gz` | `curl -fsSL 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' \| bash` |
+| macOS Apple silicon | `aixcoding-cli-macos-aarch64-v<version>-offline.tar.gz` | `curl -fsSL 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' \| bash` |
+| macOS Intel | `aixcoding-cli-macos-x86_64-v<version>-offline.tar.gz` | `curl -fsSL 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' \| bash` |
 | Windows x86-64 | `aixcoding-cli-windows-x86_64-v<version>-offline.zip` | Use the PowerShell commands below. |
 
-On Linux and macOS, the script reads `channels/prod.txt` by default. For test packages,
+On Linux and macOS, the script reads `channels/cli/prod.txt` by default. For test packages,
 download the script and run `bash install.sh --channel test`. To ensure a failed
 script download stops the command, use
-`curl --netrc -fsSL -o install.sh 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' && bash install.sh`.
+`curl -fsSL -o install.sh 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' && bash install.sh`.
 The script selects the matching package and installs the `aixcoding` command.
 Open a new terminal and run
 `aixcoding --version` to verify it. Linux x86-64 requires glibc 2.17 or later;
@@ -135,11 +132,11 @@ On Windows, run this in PowerShell from the directory where you want to download
 the package:
 
 ```powershell
-$mirror = 'ftp://82.186.78.127/homepage/aixcoding-TUI'
+$mirror = 'http://22.189.54.139/aixcoding/file/aixcoding'
 $channel = 'prod' # change to test for test packages
-$version = (curl.exe --netrc-optional --silent --show-error --fail "$mirror/channels/$channel.txt").Trim().TrimStart('v')
+$version = (curl.exe --silent --show-error --fail "$mirror/channels/cli/$channel.txt").Trim().TrimStart('v')
 $archive = "aixcoding-cli-windows-x86_64-v$version-offline.zip"
-curl.exe --netrc-optional --fail --location --output $archive "$mirror/releases/$version/$archive"
+curl.exe --fail --location --output $archive "$mirror/releases/cli/$version/$archive"
 Expand-Archive $archive -DestinationPath '.\aixcoding-cli-windows-x86_64' -Force
 & '.\aixcoding-cli-windows-x86_64\aixcoding-cli.exe' install
 ```

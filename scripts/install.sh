@@ -3,22 +3,22 @@
 # AIxCoding-CLI TUI 安装器（内网友好）
 #
 # 在线安装（先下载脚本，下载失败时不会启动安装）:
-#   curl --netrc -fsSL -o install.sh ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh && bash install.sh
+#   curl -fsSL -o install.sh http://22.189.54.139/aixcoding/file/aixcoding/install.sh && bash install.sh
 #
 # 在线模式从制品镜像（ICODE_BASE_URL）下载；离线模式（--from）直接安装本地包。
 # 安装动作复用包内可执行文件的 `install` 命令，再创建 aixcoding 启动命令。
 #
 # 镜像侧文件（ICODE_BASE_URL 指向 TUI 根目录）:
 #   install.sh                                          本安装器（即本文件）
-#   channels/prod.txt、channels/test.txt                各环境当前指向的完整版本号
-#   releases/<完整版本>/aixcoding-cli-<平台>-v<版本>-offline.tar.gz|.zip
+#   channels/cli/prod.txt、channels/cli/test.txt                各环境当前指向的完整版本号
+#   releases/cli/<完整版本>/aixcoding-cli-<平台>-v<版本>-offline.tar.gz|.zip
 #
-# 发版时先上传 releases/<完整版本>/，最后更新对应的 channels/*.txt。
+# 发版时先上传 releases/cli/<完整版本>/，最后更新对应的 channels/cli/*.txt。
 #
 set -Eeuo pipefail
 
 # ===== 配置区（也可用环境变量覆盖） =====
-ICODE_BASE_URL="${ICODE_BASE_URL:-ftp://82.186.78.127/homepage/aixcoding-TUI}"
+ICODE_BASE_URL="${ICODE_BASE_URL:-http://22.189.54.139/aixcoding/file/aixcoding}"
 CHANNEL="${ICODE_CHANNEL:-prod}"
 
 # ======================================================================
@@ -87,7 +87,7 @@ AIxCoding-CLI TUI 安装器（macOS / Linux）
 安装后的启动命令: aixcoding
 
 在线安装（默认生产包，先确认脚本下载成功）:
-  curl --netrc -fsSL -o install.sh ${ICODE_BASE_URL}/install.sh && bash install.sh
+  curl -fsSL -o install.sh ${ICODE_BASE_URL}/install.sh && bash install.sh
 
 用法:
   bash install.sh                            在线安装生产包当前版本
@@ -103,7 +103,6 @@ AIxCoding-CLI TUI 安装器（macOS / Linux）
 环境变量:
   ICODE_BASE_URL      TUI 镜像根地址（当前: ${ICODE_BASE_URL}）
   ICODE_CHANNEL       默认环境，prod 或 test（当前: ${CHANNEL}）
-  ~/.netrc            FTP 需要认证时由 curl 读取；匿名只读 FTP 无需配置
   CURL_EXTRA          追加给 curl 的额外参数（如代理）
 EOF
 }
@@ -142,7 +141,7 @@ resolve_channel() {
       ;;
     *) die "无效环境: ${CHANNEL}（只能是 prod 或 test）" ;;
   esac
-  CHANNEL_FILE="${ICODE_BASE_URL%/}/channels/${CHANNEL}.txt"
+  CHANNEL_FILE="${ICODE_BASE_URL%/}/channels/cli/${CHANNEL}.txt"
 }
 
 detect_platform() {
@@ -226,11 +225,11 @@ obtain_archive() {
     info "获取${CHANNEL_LABEL}当前版本号（${CHANNEL_FILE}）"
     local rc=0
     fetch "$CHANNEL_FILE" "${WORK_DIR}/channel.txt" || rc=$?
-    [ "$rc" -eq 0 ] || die "无法获取 channels/${CHANNEL}.txt（curl exit ${rc}）。请检查镜像地址与网络；或用 --version 指定版本；或用 --from 离线安装"
+    [ "$rc" -eq 0 ] || die "无法获取 channels/cli/${CHANNEL}.txt（curl exit ${rc}）。请检查镜像地址与网络；或用 --version 指定版本；或用 --from 离线安装"
     VERSION=$(sed -E 's/^[[:space:]]*[vV][[:space:]]*//; s/[[:space:]]*$//' "${WORK_DIR}/channel.txt" | tr -d '\r')
-    [ -n "$VERSION" ] || die "channels/${CHANNEL}.txt 内容为空（应为一行完整版本号，如 0.28.0）"
+    [ -n "$VERSION" ] || die "channels/cli/${CHANNEL}.txt 内容为空（应为一行完整版本号，如 0.28.0）"
   fi
-  [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([._-][[:alnum:]._-]+)?$ ]] || die "版本号格式无效: ${VERSION}（检查 channels/${CHANNEL}.txt 或 --version）"
+  [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([._-][[:alnum:]._-]+)?$ ]] || die "版本号格式无效: ${VERSION}（检查 channels/cli/${CHANNEL}.txt 或 --version）"
 
   # 在线下载：优先当前包名，并兼容已发布的 icode-* 安装包。
   local asset="" rc=0
@@ -239,9 +238,9 @@ obtain_archive() {
     "aixcoding-cli-${PLATFORM}-v${VERSION}-offline.zip" \
     "icode-${PLATFORM}-v${VERSION}-offline.tar.gz" \
     "icode-${PLATFORM}-v${VERSION}-offline.zip"; do
-    info "下载 ${ICODE_BASE_URL%/}/releases/${VERSION}/${candidate}"
+    info "下载 ${ICODE_BASE_URL%/}/releases/cli/${VERSION}/${candidate}"
     rc=0
-    fetch "${ICODE_BASE_URL%/}/releases/${VERSION}/${candidate}" "${WORK_DIR}/${candidate}" --show-progress || rc=$?
+    fetch "${ICODE_BASE_URL%/}/releases/cli/${VERSION}/${candidate}" "${WORK_DIR}/${candidate}" --show-progress || rc=$?
     if [ "$rc" -eq 0 ]; then
       asset=$candidate
       break
@@ -251,7 +250,7 @@ obtain_archive() {
   done
   if [ -z "$asset" ]; then
     if [ "$rc" -eq 22 ] || [ "$rc" -eq 78 ]; then
-      die "下载失败（远端文件不存在）: 检查 releases/${VERSION}/ 中 ${PLATFORM} 平台的安装包，以及 channels/${CHANNEL}.txt 指向的版本；也可用 --from 安装本地包"
+      die "下载失败（远端文件不存在）: 检查 releases/cli/${VERSION}/ 中 ${PLATFORM} 平台的安装包，以及 channels/cli/${CHANNEL}.txt 指向的版本；也可用 --from 安装本地包"
     fi
     die "下载失败（curl exit ${rc}）。检查网络/代理（可用 CURL_EXTRA 传参），或改用 --from 离线安装"
   fi

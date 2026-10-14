@@ -30,13 +30,13 @@ chmod +x ./aixcoding-cli
 
 Linux x86-64 安装包要求 glibc 2.17 或更高版本，ARM64 安装包要求 glibc 2.18 或更高版本。Alpine Linux 等只提供 musl 的发行版不在预构建包的支持范围内。
 
-在 FTP 根目录 `ftp://82.186.78.127/homepage/aixcoding-TUI` 放置 `install.sh`；在 `channels/prod.txt`、`channels/test.txt` 放置对应频道的完整版本号，并把安装包放在 `releases/<完整版本号>/`。若 FTP 服务器要求登录，先在 curl 的 `~/.netrc` 配置 FTP 账号并将文件权限设为 `600`；若服务器开放匿名只读，下载脚本时省去 `--netrc`，无需凭据。Linux 与 macOS 用户可执行同一条命令；脚本会自动识别平台，并创建 `aixcoding` 启动命令：
+HTTP 下载根地址为 `http://22.189.54.139/aixcoding/file/aixcoding`，对应服务器目录 `/homepage/aixcoding/`。根目录放 `install.sh`；`channels/cli/prod.txt`、`channels/cli/test.txt` 各存一行完整版本号，安装包放在 `releases/cli/<完整版本号>/`。无需 FTP 凭据。Linux 与 macOS 用户可执行同一条命令；脚本会自动识别平台，并创建 `aixcoding` 启动命令：
 
 ```bash
-curl --netrc -fsSL -o install.sh 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' && bash install.sh
+curl -fsSL -o install.sh 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' && bash install.sh
 ```
 
-默认安装生产包；安装测试包时运行 `bash install.sh --channel test`。CD 流水线的平铺 `icode-release-bundle` 包含各平台安装包、`install.sh`、`README.md`、`version.txt` 和 wheel。只需手动把 `install.sh` 放在 FTP 根目录、安装包放在 `releases/<完整版本号>/`，再将完整版本号写入对应频道文件；其他 bundle 文件无需上传。只构建 Linux 时产物中只有 Linux 安装包。五种平台包名和 Windows 镜像安装命令见 [README 安装表](../../../README.zh.md#从内网镜像安装)。
+默认安装生产包；安装测试包时运行 `bash install.sh --channel test`。CD 流水线的平铺 `icode-release-bundle` 包含各平台安装包、`install.sh`、`README.md`、`version.txt` 和 wheel。只需手动把 `install.sh` 放在 HTTP 根目录、安装包放在 `releases/cli/<完整版本号>/`，再将完整版本号写入对应频道文件；其他 bundle 文件无需上传。只构建 Linux 时产物中只有 Linux 安装包。五种平台包名和 Windows 镜像安装命令见 [README 安装表](../../../README.zh.md#从内网镜像安装)。
 此前已上传的 `icode-<平台>-v<版本>-offline.tar.gz` 或 `.zip` 也可使用，包内根目录需有 `icode` 可执行文件。
 
 ### Windows
