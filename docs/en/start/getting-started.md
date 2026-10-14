@@ -30,13 +30,13 @@ chmod +x ./aixcoding-cli
 
 The Linux x86-64 package requires glibc 2.17 or later, and the ARM64 package requires glibc 2.18 or later. Distributions that provide only musl, such as Alpine Linux, are not supported by the prebuilt packages.
 
-For the AList mirror rooted at `http://82.186.78.126:5244/share/TUI`, place `install.sh` at the root, `latest.txt` in `生产包/` or `测试包/`, and each package under that environment's base-version directory (for example, `生产包/0.28.0/`). Linux and macOS users can install with one command. The script detects the platform and creates an `aixcoding` launch command:
+For the AList mirror rooted at `http://82.186.78.126:5244/share/TUI`, place `install.sh` and `README.md` at the root, channel pointers in `channels/prod.txt` and `channels/test.txt`, and each package under `releases/<full-version>/`. Linux and macOS users can install with one command. The script detects the platform and creates an `aixcoding` launch command:
 
 ```bash
 curl -fsSL -o install.sh 'http://82.186.78.126:5244/share/TUI/install.sh' && bash install.sh
 ```
 
-Production is the default; run `bash install.sh --channel test` for test packages. The CD workflow's `icode-release-bundle` artifact contains the files in a flat directory; arrange them in AList as described above. A build limited to Linux contains only Linux packages. See the [README installation table](../../../README.md#install-from-an-internal-mirror) for all five platform package names and the Windows mirror commands.
+Production is the default; run `bash install.sh --channel test` for test packages. The CD workflow's flat `icode-release-bundle` artifact contains the platform archives, `install.sh`, `README.md`, `version.txt`, and a wheel. Put the needed archives in `releases/<full-version>/`, then copy the version from `version.txt` into the relevant channel file. The wheel does not go in the TUI mirror. A build limited to Linux contains only Linux packages. See the [README installation table](../../../README.md#install-from-an-internal-mirror) for all five platform package names and the Windows mirror commands.
 
 ### Windows
 

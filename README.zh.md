@@ -89,10 +89,11 @@ iCode 不附带任何模型配置，因此首次启动时请按 **F4** 添加一
 
 ## 从内网镜像安装
 
-AList 根目录是 `http://82.186.78.126:5244/share/TUI`。将 `install.sh` 放在根目录；
-分别把 `latest.txt` 放在 `生产包/`、`测试包/`，把各环境的安装包放在其基础版本目录中，例如
-`生产包/0.28.0/`。开发包文件名保留完整的 `-dev-<提交号>`，但仍放进 `0.28.0/`。
-CD 的 `icode-release-bundle` 是平铺产物；下载解压后按上述目录摆放到 AList。
+AList 根目录是 `http://82.186.78.126:5244/share/TUI`。根目录放 `install.sh` 和
+`README.md`；`channels/prod.txt`、`channels/test.txt` 各存一行完整版本号，安装包放在
+`releases/<完整版本号>/`。CD 的 `icode-release-bundle` 是平铺产物，包含各平台安装包、
+`install.sh`、`README.md`、`version.txt` 和 wheel。将对应的安装包放入版本目录，
+确认上传完成后，将 `version.txt` 的内容写入本次要更新的频道文件；wheel 无需上传到 TUI。
 只选择 Linux 的 CD 运行不会产出 macOS 和 Windows 包。
 
 | 目标环境 | 镜像中对应的包 | 安装命令 |
@@ -106,18 +107,17 @@ CD 的 `icode-release-bundle` 是平铺产物；下载解压后按上述目录�
 Linux 和 macOS 默认安装 `生产包`。安装 `测试包` 时先下载脚本，再运行 `bash install.sh --channel test`。
 为确保脚本下载失败时安装立即停止，可使用
 `curl -fsSL -o install.sh 'http://82.186.78.126:5244/share/TUI/install.sh' && bash install.sh`。
-脚本会读取对应环境的 `latest.txt`，自动识别系统和架构。安装后打开新终端，运行
+脚本会读取对应频道的版本指针，自动识别系统和架构。安装后打开新终端，运行
 `aixcoding --version` 验证。Linux x86-64 要求 glibc ≥ 2.17，Linux ARM64 要求 glibc ≥ 2.18。
 
 Windows 请在 PowerShell 中进入准备存放安装包的目录，执行：
 
 ```powershell
 $mirror = 'http://82.186.78.126:5244/share/TUI'
-$channel = '生产包' # 测试包改为 测试包
-$version = (Invoke-RestMethod "$mirror/$channel/latest.txt").Trim().TrimStart('v')
-$versionDir = $version -replace '-dev-.*$', ''
+$channel = 'prod' # 测试包改为 test
+$version = (Invoke-RestMethod "$mirror/channels/$channel.txt").Trim().TrimStart('v')
 $archive = "aixcoding-cli-windows-x86_64-v$version-offline.zip"
-Invoke-WebRequest "$mirror/$channel/$versionDir/$archive" -OutFile $archive
+Invoke-WebRequest "$mirror/releases/$version/$archive" -OutFile $archive
 Expand-Archive $archive -DestinationPath '.\aixcoding-cli-windows-x86_64' -Force
 & '.\aixcoding-cli-windows-x86_64\aixcoding-cli.exe' install
 ```

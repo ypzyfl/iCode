@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 
-# Assemble the files that are copied together to the internal release mirror.
+# Assemble the files for manual placement in the internal release mirror.
 set -euo pipefail
 
 artifacts_dir=${1:-artifacts}
@@ -59,7 +59,7 @@ if [ "$wheel_version" = "$wheel_name" ] || [[ "$version" != "$wheel_version" && 
 fi
 cp "${wheel_files[@]}" "$output_dir/"
 cp "$script_dir/install.sh" "$output_dir/install.sh"
-cp "$repo_dir/release/INSTALL.md" "$output_dir/INSTALL.md"
-printf 'v%s\n' "$version" > "$output_dir/latest.txt"
+cp "$repo_dir/release/INSTALL.md" "$output_dir/README.md"
+printf '%s\n' "$version" > "$output_dir/version.txt"
 
 echo "Release bundle ready: $output_dir (v$version)"

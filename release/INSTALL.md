@@ -14,22 +14,23 @@ AIxCoding-CLI 是一个运行在终端里的智能体平台（TUI）。安装包
 
 ## 安装
 
-CD 流水线会生成平铺的 `icode-release-bundle` 构建产物，其中包含各平台安装包、`install.sh` 和 `latest.txt`。从 GitHub Actions 下载并解压后，按下面的结构上传到 AList。版本号由流水线生成，无需手工修改。只构建 Linux 时，产物中不会有 macOS 或 Windows 包。
+CD 流水线生成平铺的 `icode-release-bundle`：各平台安装包、`install.sh`、`README.md`、`version.txt` 和 Python wheel。`version.txt` 是本次构建的完整版本号，不会自动改变生产或测试频道。只构建 Linux 时，产物中不会有 macOS 或 Windows 包。
 
 ```text
 http://82.186.78.126:5244/share/TUI/
 ├── install.sh
-├── 生产包/
-│   ├── latest.txt                 # 例如 v0.28.0-dev-9f8e3b3
-│   └── 0.28.0/
-│       └── aixcoding-cli-<平台>-v0.28.0-dev-9f8e3b3-offline.tar.gz
-└── 测试包/
-    ├── latest.txt
-    └── 0.28.0/
+├── README.md
+├── channels/
+│   ├── prod.txt                   # 生产当前版本，例如 0.28.0
+│   └── test.txt                   # 测试当前版本，例如 0.28.0-dev-9f8e3b3
+└── releases/
+    ├── 0.28.0/
+    │   └── aixcoding-cli-<平台>-v0.28.0-offline.tar.gz
+    └── 0.28.0-dev-9f8e3b3/
         └── aixcoding-cli-<平台>-v0.28.0-dev-9f8e3b3-offline.tar.gz
 ```
 
-`install.sh` 放在 TUI 根目录；把本次构建的 `latest.txt` 放进对应环境目录，把安装包放进基础版本目录（开发包去掉文件名中的 `-dev-<提交号>` 得到目录名）。两个环境可以指向不同版本。只有确认该环境所需平台的安装包已经上传完毕，才替换它的 `latest.txt`。
+从 bundle 中读取 `version.txt`，把需要的平台安装包放入 AList 的 `releases/<完整版本>/`；不要把整个 `icode-release-bundle` 压缩包放进去。按需将 `install.sh` 和 `README.md` 放在 TUI 根目录，wheel 无需上传到 TUI。确认安装包上传完毕后，把 `version.txt` 的内容复制到 `channels/test.txt` 或 `channels/prod.txt`，只更新本次要发布的频道。测试通过后发布同一构建到生产，只需更新 `channels/prod.txt`，无需复制二进制。两个频道文件都只包含一行完整版本号；首次发布时分别准备。
 
 ### 方式一：从内网镜像安装
 
@@ -37,7 +38,7 @@ http://82.186.78.126:5244/share/TUI/
 curl -fsSL -o install.sh 'http://82.186.78.126:5244/share/TUI/install.sh' && bash install.sh
 ```
 
-默认读取 `生产包/latest.txt`。安装测试包时运行 `bash install.sh --channel test`；在线安装会根据版本和平台从对应环境的版本目录下载安装包。
+默认读取 `channels/prod.txt`。安装测试包时运行 `bash install.sh --channel test`；在线安装会根据完整版本号和平台从 `releases/` 目录下载安装包。
 
 安装指定版本：
 
@@ -53,7 +54,7 @@ curl -fsSL -o install.sh 'http://82.186.78.126:5244/share/TUI/install.sh' && bas
 bash install.sh --from ./aixcoding-cli-linux-aarch64-v<版本>-offline.tar.gz
 ```
 
-如果拿到的是 ZIP 包，将命令末尾换成实际 ZIP 文件名，例如 `bash install.sh --from ./aixcoding-cli-linux-aarch64-v<版本>-offline.zip`。安装不需要摘要文件；如果发布方单独提供了安装包摘要，可选用 `--sha256 <64 位摘要>` 校验。`latest.txt` 仅用于在线安装。
+如果拿到的是 ZIP 包，将命令末尾换成实际 ZIP 文件名，例如 `bash install.sh --from ./aixcoding-cli-linux-aarch64-v<版本>-offline.zip`。安装不需要摘要文件；如果发布方单独提供了安装包摘要，可选用 `--sha256 <64 位摘要>` 校验。`channels/*.txt` 仅用于未指定 `--version` 的在线安装。
 
 Linux ARM 包的根目录应有名为 `aixcoding-cli` 的 Linux aarch64 可执行文件。安装后的启动命令是 `aixcoding`。包含 `.exe` 的 ZIP 是 Windows 包，不能在 Linux 上安装。
 

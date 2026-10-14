@@ -98,12 +98,13 @@ iCode ships no model profiles, so press **F4** on first launch to add one.
 
 ## Install from an internal mirror
 
-The AList root is `http://82.186.78.126:5244/share/TUI`. Put `install.sh` at
-that root. Put each environment's `latest.txt` in `生产包/` or `测试包/`, and its
-archives under a base-version folder such as `生产包/0.28.0/`. A development
-archive keeps its full `-dev-<commit>` suffix in the filename but goes in the
-`0.28.0/` folder. The CD workflow's `icode-release-bundle` artifact provides
-these files in a flat bundle; place them in AList as shown above. A Linux-only
+The AList root is `http://82.186.78.126:5244/share/TUI`. Put `install.sh` and
+`README.md` at that root. `channels/prod.txt` and `channels/test.txt` each hold
+one full version, and archives go in `releases/<full-version>/`. The CD
+workflow's flat `icode-release-bundle` artifact includes the archives,
+`install.sh`, `README.md`, `version.txt`, and a wheel. Upload the matching
+archives to the release directory, then copy `version.txt` to the channel file
+you want to advance. The wheel does not go in the TUI mirror. A Linux-only
 build does not include macOS or Windows packages.
 
 | Machine | Package in the mirror | Install command |
@@ -114,7 +115,7 @@ build does not include macOS or Windows packages.
 | macOS Intel | `aixcoding-cli-macos-x86_64-v<version>-offline.tar.gz` | `curl -fsSL 'http://82.186.78.126:5244/share/TUI/install.sh' \| bash` |
 | Windows x86-64 | `aixcoding-cli-windows-x86_64-v<version>-offline.zip` | Use the PowerShell commands below. |
 
-On Linux and macOS, the script installs from `生产包` by default. For `测试包`,
+On Linux and macOS, the script reads `channels/prod.txt` by default. For test packages,
 download the script and run `bash install.sh --channel test`. To ensure a failed
 script download stops the command, use
 `curl -fsSL -o install.sh 'http://82.186.78.126:5244/share/TUI/install.sh' && bash install.sh`.
@@ -128,11 +129,10 @@ the package:
 
 ```powershell
 $mirror = 'http://82.186.78.126:5244/share/TUI'
-$channel = '生产包' # change to 测试包 for test packages
-$version = (Invoke-RestMethod "$mirror/$channel/latest.txt").Trim().TrimStart('v')
-$versionDir = $version -replace '-dev-.*$', ''
+$channel = 'prod' # change to test for test packages
+$version = (Invoke-RestMethod "$mirror/channels/$channel.txt").Trim().TrimStart('v')
 $archive = "aixcoding-cli-windows-x86_64-v$version-offline.zip"
-Invoke-WebRequest "$mirror/$channel/$versionDir/$archive" -OutFile $archive
+Invoke-WebRequest "$mirror/releases/$version/$archive" -OutFile $archive
 Expand-Archive $archive -DestinationPath '.\aixcoding-cli-windows-x86_64' -Force
 & '.\aixcoding-cli-windows-x86_64\aixcoding-cli.exe' install
 ```

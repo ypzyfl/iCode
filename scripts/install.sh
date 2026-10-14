@@ -10,11 +10,10 @@
 #
 # 镜像侧文件（ICODE_BASE_URL 指向 TUI 根目录）:
 #   install.sh                                          本安装器（即本文件）
-#   生产包/latest.txt、测试包/latest.txt                各环境的最新版本号
-#   <环境>/<版本目录>/aixcoding-cli-<平台>-v<版本>-offline.tar.gz|.zip
-# 版本目录使用基础版本号，如 0.28.0；开发包文件名保留 -dev-<提交号>。
+#   channels/prod.txt、channels/test.txt                各环境当前指向的完整版本号
+#   releases/<完整版本>/aixcoding-cli-<平台>-v<版本>-offline.tar.gz|.zip
 #
-# 发版时上传新资产并更新 latest.txt；本文件无需随发版更新。
+# 发版时先上传 releases/<完整版本>/，最后更新对应的 channels/*.txt。
 #
 set -Eeuo pipefail
 
@@ -26,14 +25,13 @@ CHANNEL="${ICODE_CHANNEL:-prod}"
 
 # ===== 全局状态 =====
 VERSION=""
-VERSION_DIR=""
 FROM=""
 EXPECTED_SHA256=""
 OS=""
 MACHINE=""
 PLATFORM=""
 CHANNEL_LABEL=""
-CHANNEL_URL=""
+CHANNEL_FILE=""
 ARCHIVE=""
 ARCHIVE_NAME=""
 WORK_DIR=""
@@ -89,8 +87,8 @@ AIxCoding-CLI TUI 安装器（macOS / Linux）
   curl -fsSL -o install.sh ${ICODE_BASE_URL}/install.sh && bash install.sh
 
 用法:
-  bash install.sh                            在线安装生产包最新版
-  bash install.sh --channel test             在线安装测试包最新版
+  bash install.sh                            在线安装生产包当前版本
+  bash install.sh --channel test             在线安装测试包当前版本
   bash install.sh --version v0.28.0          在线安装指定版本
   bash install.sh --from <包路径>            离线安装本地包（tar.gz / zip）
 
@@ -129,19 +127,18 @@ parse_args() {
 }
 
 resolve_channel() {
-  local segment
   case "$CHANNEL" in
     prod|production|生产包)
       CHANNEL_LABEL=生产包
-      segment=%E7%94%9F%E4%BA%A7%E5%8C%85
+      CHANNEL=prod
       ;;
     test|测试包)
       CHANNEL_LABEL=测试包
-      segment=%E6%B5%8B%E8%AF%95%E5%8C%85
+      CHANNEL=test
       ;;
     *) die "无效环境: ${CHANNEL}（只能是 prod 或 test）" ;;
   esac
-  CHANNEL_URL="${ICODE_BASE_URL%/}/${segment}"
+  CHANNEL_FILE="${ICODE_BASE_URL%/}/channels/${CHANNEL}.txt"
 }
 
 detect_platform() {
@@ -222,22 +219,21 @@ obtain_archive() {
   need curl
   VERSION="${VERSION#v}"
   if [ -z "$VERSION" ]; then
-    info "获取${CHANNEL_LABEL}最新版本号（${CHANNEL_URL}/latest.txt）"
+    info "获取${CHANNEL_LABEL}当前版本号（${CHANNEL_FILE}）"
     local rc=0
-    fetch "${CHANNEL_URL}/latest.txt" "${WORK_DIR}/latest.txt" || rc=$?
-    [ "$rc" -eq 0 ] || die "无法获取${CHANNEL_LABEL}/latest.txt（curl exit ${rc}）。请检查镜像地址与网络；或用 --version 指定版本；或用 --from 离线安装"
-    VERSION=$(sed -E 's/^[[:space:]]*[vV][[:space:]]*//; s/[[:space:]]*$//' "${WORK_DIR}/latest.txt" | tr -d '\r')
-    [ -n "$VERSION" ] || die "latest.txt 内容为空（应为一行版本号，如 v0.28.0）"
+    fetch "$CHANNEL_FILE" "${WORK_DIR}/channel.txt" || rc=$?
+    [ "$rc" -eq 0 ] || die "无法获取 channels/${CHANNEL}.txt（curl exit ${rc}）。请检查镜像地址与网络；或用 --version 指定版本；或用 --from 离线安装"
+    VERSION=$(sed -E 's/^[[:space:]]*[vV][[:space:]]*//; s/[[:space:]]*$//' "${WORK_DIR}/channel.txt" | tr -d '\r')
+    [ -n "$VERSION" ] || die "channels/${CHANNEL}.txt 内容为空（应为一行完整版本号，如 0.28.0）"
   fi
-  [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([._-][[:alnum:]._-]+)?$ ]] || die "版本号格式无效: ${VERSION}（检查 latest.txt 或 --version）"
-  VERSION_DIR=${VERSION%%-dev-*}
+  [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([._-][[:alnum:]._-]+)?$ ]] || die "版本号格式无效: ${VERSION}（检查 channels/${CHANNEL}.txt 或 --version）"
 
   # 在线下载：优先 tar.gz，镜像上没有时自动尝试同版本 zip
   local asset="" rc=0
   for candidate in "aixcoding-cli-${PLATFORM}-v${VERSION}-offline.tar.gz" "aixcoding-cli-${PLATFORM}-v${VERSION}-offline.zip"; do
-    info "下载 ${CHANNEL_URL}/${VERSION_DIR}/${candidate}"
+    info "下载 ${ICODE_BASE_URL%/}/releases/${VERSION}/${candidate}"
     rc=0
-    fetch "${CHANNEL_URL}/${VERSION_DIR}/${candidate}" "${WORK_DIR}/${candidate}" --show-progress || rc=$?
+    fetch "${ICODE_BASE_URL%/}/releases/${VERSION}/${candidate}" "${WORK_DIR}/${candidate}" --show-progress || rc=$?
     if [ "$rc" -eq 0 ]; then
       asset=$candidate
       break
@@ -247,7 +243,7 @@ obtain_archive() {
   done
   if [ -z "$asset" ]; then
     if [ "$rc" -eq 22 ]; then
-      die "下载失败（HTTP 错误）: 检查${CHANNEL_LABEL}/${VERSION_DIR}/ 中 ${PLATFORM} 平台 v${VERSION} 的安装包；也可用 --from 安装本地包"
+      die "下载失败（HTTP 错误）: 检查 releases/${VERSION}/ 中 ${PLATFORM} 平台的安装包，以及 channels/${CHANNEL}.txt 指向的版本；也可用 --from 安装本地包"
     fi
     die "下载失败（curl exit ${rc}）。检查网络/代理（可用 CURL_EXTRA 传参），或改用 --from 离线安装"
   fi
