@@ -89,35 +89,38 @@ iCode 不附带任何模型配置，因此首次启动时请按 **F4** 添加一
 
 ## 从内网镜像安装
 
-AList 根目录是 `http://82.186.78.126:5244/share/TUI`。根目录放 `install.sh` 和
-`README.md`；`channels/prod.txt`、`channels/test.txt` 各存一行完整版本号，安装包放在
-`releases/<完整版本号>/`。CD 的 `icode-release-bundle` 是平铺产物，包含各平台安装包、
-`install.sh`、`README.md`、`version.txt` 和 wheel。将对应的安装包放入版本目录，
-确认上传完成后，将 `version.txt` 的内容写入本次要更新的频道文件；wheel 无需上传到 TUI。
-只选择 Linux 的 CD 运行不会产出 macOS 和 Windows 包。
+FTP 根目录为 `ftp://82.186.78.127/homepage/aixcoding-TUI`。根目录放 `install.sh`；`channels/prod.txt`、`channels/test.txt` 各存一行完整版本号，安装包放在
+`releases/<完整版本号>/`。CD 的 `icode-release-bundle` 是平铺产物，包含各平台安装包、`install.sh`、
+`README.md`、`version.txt` 和 wheel。只需手动将 `install.sh` 放在 FTP 根目录、
+对应安装包放入版本目录；确认上传完成后，手动把完整版本号写入本次要更新的频道文件。
+其他 bundle 文件无需上传。只选择 Linux 的 CD 运行不会产出 macOS 和 Windows 包。
+对于已经上传的旧包，安装脚本也兼容 `icode-<平台>-v<版本>-offline.tar.gz` 或 `.zip`，包内根目录可执行文件为 `icode`。
+
+先在当前用户的 `~/.netrc` 配置 FTP 主机、用户名和密码，并执行 `chmod 600 ~/.netrc`。
+脚本通过 `curl --netrc` 读取凭据，不要把密码写入下载地址或脚本。
 
 | 目标环境 | 镜像中对应的包 | 安装命令 |
 | --- | --- | --- |
-| Linux ARM64 | `aixcoding-cli-linux-aarch64-v<版本>-offline.tar.gz` | `curl -fsSL 'http://82.186.78.126:5244/share/TUI/install.sh' \| bash` |
-| Linux x86-64 | `aixcoding-cli-linux-x86_64-v<版本>-offline.tar.gz` | `curl -fsSL 'http://82.186.78.126:5244/share/TUI/install.sh' \| bash` |
-| macOS Apple 芯片 | `aixcoding-cli-macos-aarch64-v<版本>-offline.tar.gz` | `curl -fsSL 'http://82.186.78.126:5244/share/TUI/install.sh' \| bash` |
-| macOS Intel | `aixcoding-cli-macos-x86_64-v<版本>-offline.tar.gz` | `curl -fsSL 'http://82.186.78.126:5244/share/TUI/install.sh' \| bash` |
+| Linux ARM64 | `aixcoding-cli-linux-aarch64-v<版本>-offline.tar.gz` | `curl --netrc -fsSL 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' \| bash` |
+| Linux x86-64 | `aixcoding-cli-linux-x86_64-v<版本>-offline.tar.gz` | `curl --netrc -fsSL 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' \| bash` |
+| macOS Apple 芯片 | `aixcoding-cli-macos-aarch64-v<版本>-offline.tar.gz` | `curl --netrc -fsSL 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' \| bash` |
+| macOS Intel | `aixcoding-cli-macos-x86_64-v<版本>-offline.tar.gz` | `curl --netrc -fsSL 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' \| bash` |
 | Windows x86-64 | `aixcoding-cli-windows-x86_64-v<版本>-offline.zip` | 使用下方 PowerShell 命令。 |
 
 Linux 和 macOS 默认安装 `生产包`。安装 `测试包` 时先下载脚本，再运行 `bash install.sh --channel test`。
 为确保脚本下载失败时安装立即停止，可使用
-`curl -fsSL -o install.sh 'http://82.186.78.126:5244/share/TUI/install.sh' && bash install.sh`。
+`curl --netrc -fsSL -o install.sh 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' && bash install.sh`。
 脚本会读取对应频道的版本指针，自动识别系统和架构。安装后打开新终端，运行
 `aixcoding --version` 验证。Linux x86-64 要求 glibc ≥ 2.17，Linux ARM64 要求 glibc ≥ 2.18。
 
 Windows 请在 PowerShell 中进入准备存放安装包的目录，执行：
 
 ```powershell
-$mirror = 'http://82.186.78.126:5244/share/TUI'
+$mirror = 'ftp://82.186.78.127/homepage/aixcoding-TUI'
 $channel = 'prod' # 测试包改为 test
-$version = (Invoke-RestMethod "$mirror/channels/$channel.txt").Trim().TrimStart('v')
+$version = (curl.exe --netrc --silent --show-error --fail "$mirror/channels/$channel.txt").Trim().TrimStart('v')
 $archive = "aixcoding-cli-windows-x86_64-v$version-offline.zip"
-Invoke-WebRequest "$mirror/releases/$version/$archive" -OutFile $archive
+curl.exe --netrc --fail --location --output $archive "$mirror/releases/$version/$archive"
 Expand-Archive $archive -DestinationPath '.\aixcoding-cli-windows-x86_64' -Force
 & '.\aixcoding-cli-windows-x86_64\aixcoding-cli.exe' install
 ```

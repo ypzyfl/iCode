@@ -30,13 +30,14 @@ chmod +x ./aixcoding-cli
 
 The Linux x86-64 package requires glibc 2.17 or later, and the ARM64 package requires glibc 2.18 or later. Distributions that provide only musl, such as Alpine Linux, are not supported by the prebuilt packages.
 
-For the AList mirror rooted at `http://82.186.78.126:5244/share/TUI`, place `install.sh` and `README.md` at the root, channel pointers in `channels/prod.txt` and `channels/test.txt`, and each package under `releases/<full-version>/`. Linux and macOS users can install with one command. The script detects the platform and creates an `aixcoding` launch command:
+For the FTP directory rooted at `ftp://82.186.78.127/homepage/aixcoding-TUI`, place `install.sh` at the root, channel pointers in `channels/prod.txt` and `channels/test.txt`, and each package under `releases/<full-version>/`. Configure the FTP account in curl's `~/.netrc` and set its permissions to `600`. Linux and macOS users can install with one command. The script detects the platform and creates an `aixcoding` launch command:
 
 ```bash
-curl -fsSL -o install.sh 'http://82.186.78.126:5244/share/TUI/install.sh' && bash install.sh
+curl --netrc -fsSL -o install.sh 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' && bash install.sh
 ```
 
-Production is the default; run `bash install.sh --channel test` for test packages. The CD workflow's flat `icode-release-bundle` artifact contains the platform archives, `install.sh`, `README.md`, `version.txt`, and a wheel. Put the needed archives in `releases/<full-version>/`, then copy the version from `version.txt` into the relevant channel file. The wheel does not go in the TUI mirror. A build limited to Linux contains only Linux packages. See the [README installation table](../../../README.md#install-from-an-internal-mirror) for all five platform package names and the Windows mirror commands.
+Production is the default; run `bash install.sh --channel test` for test packages. The CD workflow's flat `icode-release-bundle` artifact includes platform archives, `install.sh`, `README.md`, `version.txt`, and a wheel. Upload only `install.sh` to the FTP root and the needed archives to `releases/<full-version>/`, then manually write the full version to the relevant channel file. A build limited to Linux contains only Linux packages. See the [README installation table](../../../README.md#install-from-an-internal-mirror) for all five platform package names and the Windows mirror commands.
+Previously uploaded archives named `icode-<platform>-v<version>-offline.tar.gz` or `.zip` also work when they contain a root-level `icode` executable.
 
 ### Windows
 

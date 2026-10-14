@@ -3,7 +3,7 @@
 # AIxCoding-CLI TUI 安装器（内网友好）
 #
 # 在线安装（先下载脚本，下载失败时不会启动安装）:
-#   curl -fsSL -o install.sh http://82.186.78.126:5244/share/TUI/install.sh && bash install.sh
+#   curl --netrc -fsSL -o install.sh ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh && bash install.sh
 #
 # 在线模式从制品镜像（ICODE_BASE_URL）下载；离线模式（--from）直接安装本地包。
 # 安装动作复用包内可执行文件的 `install` 命令，再创建 aixcoding 启动命令。
@@ -18,7 +18,7 @@
 set -Eeuo pipefail
 
 # ===== 配置区（也可用环境变量覆盖） =====
-ICODE_BASE_URL="${ICODE_BASE_URL:-http://82.186.78.126:5244/share/TUI}"
+ICODE_BASE_URL="${ICODE_BASE_URL:-ftp://82.186.78.127/homepage/aixcoding-TUI}"
 CHANNEL="${ICODE_CHANNEL:-prod}"
 
 # ======================================================================
@@ -65,7 +65,7 @@ sha256_of() {
 }
 
 # fetch <url> <输出文件> [--show-progress]
-# 统一的下载入口；返回 curl 的退出码（22 = HTTP 错误，多为镜像缺文件）。
+# 统一的下载入口；缺文件通常返回 22（HTTP）或 78（FTP）。
 fetch() {
   local url=$1 out=$2 mode=${3:-}
   local args=(--fail --location --retry 3 --connect-timeout 15)
@@ -74,6 +74,9 @@ fetch() {
   else
     args+=(-sS)
   fi
+  case "$url" in
+    ftp://*|ftps://*) args+=(--netrc) ;;
+  esac
   curl "${args[@]}" ${CURL_EXTRA:-} -o "$out" "$url"
 }
 
@@ -84,7 +87,7 @@ AIxCoding-CLI TUI 安装器（macOS / Linux）
 安装后的启动命令: aixcoding
 
 在线安装（默认生产包，先确认脚本下载成功）:
-  curl -fsSL -o install.sh ${ICODE_BASE_URL}/install.sh && bash install.sh
+  curl --netrc -fsSL -o install.sh ${ICODE_BASE_URL}/install.sh && bash install.sh
 
 用法:
   bash install.sh                            在线安装生产包当前版本
@@ -100,6 +103,7 @@ AIxCoding-CLI TUI 安装器（macOS / Linux）
 环境变量:
   ICODE_BASE_URL      TUI 镜像根地址（当前: ${ICODE_BASE_URL}）
   ICODE_CHANNEL       默认环境，prod 或 test（当前: ${CHANNEL}）
+  ~/.netrc            FTP 账号凭据由 curl 读取，脚本不保存密码
   CURL_EXTRA          追加给 curl 的额外参数（如代理）
 EOF
 }
@@ -228,9 +232,13 @@ obtain_archive() {
   fi
   [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([._-][[:alnum:]._-]+)?$ ]] || die "版本号格式无效: ${VERSION}（检查 channels/${CHANNEL}.txt 或 --version）"
 
-  # 在线下载：优先 tar.gz，镜像上没有时自动尝试同版本 zip
+  # 在线下载：优先当前包名，并兼容已发布的 icode-* 安装包。
   local asset="" rc=0
-  for candidate in "aixcoding-cli-${PLATFORM}-v${VERSION}-offline.tar.gz" "aixcoding-cli-${PLATFORM}-v${VERSION}-offline.zip"; do
+  for candidate in \
+    "aixcoding-cli-${PLATFORM}-v${VERSION}-offline.tar.gz" \
+    "aixcoding-cli-${PLATFORM}-v${VERSION}-offline.zip" \
+    "icode-${PLATFORM}-v${VERSION}-offline.tar.gz" \
+    "icode-${PLATFORM}-v${VERSION}-offline.zip"; do
     info "下载 ${ICODE_BASE_URL%/}/releases/${VERSION}/${candidate}"
     rc=0
     fetch "${ICODE_BASE_URL%/}/releases/${VERSION}/${candidate}" "${WORK_DIR}/${candidate}" --show-progress || rc=$?
@@ -238,12 +246,12 @@ obtain_archive() {
       asset=$candidate
       break
     fi
-    # 仅 HTTP 错误（多为 404）才值得尝试另一种格式；网络类错误直接报出
-    [ "$rc" -eq 22 ] || break
+    # 缺文件时再尝试另一种包名或格式；网络和认证错误直接报出。
+    [ "$rc" -eq 22 ] || [ "$rc" -eq 78 ] || break
   done
   if [ -z "$asset" ]; then
-    if [ "$rc" -eq 22 ]; then
-      die "下载失败（HTTP 错误）: 检查 releases/${VERSION}/ 中 ${PLATFORM} 平台的安装包，以及 channels/${CHANNEL}.txt 指向的版本；也可用 --from 安装本地包"
+    if [ "$rc" -eq 22 ] || [ "$rc" -eq 78 ]; then
+      die "下载失败（远端文件不存在）: 检查 releases/${VERSION}/ 中 ${PLATFORM} 平台的安装包，以及 channels/${CHANNEL}.txt 指向的版本；也可用 --from 安装本地包"
     fi
     die "下载失败（curl exit ${rc}）。检查网络/代理（可用 CURL_EXTRA 传参），或改用 --from 离线安装"
   fi
@@ -280,10 +288,12 @@ extract_archive() {
   esac
   if [ -f "${EXTRACT_DIR}/aixcoding-cli" ]; then
     BINARY_NAME=aixcoding-cli
-  elif [ -f "${EXTRACT_DIR}/aixcoding-cli.exe" ]; then
+  elif [ -f "${EXTRACT_DIR}/icode" ]; then
+    BINARY_NAME=icode
+  elif [ -f "${EXTRACT_DIR}/aixcoding-cli.exe" ] || [ -f "${EXTRACT_DIR}/icode.exe" ]; then
     die "这是 Windows 安装包（内含 .exe 可执行文件）。请在 Windows 上解压后运行对应的 .exe install"
   else
-    die "包内未找到根目录下的 aixcoding-cli 可执行文件；请核对安装包内容和平台"
+    die "包内未找到根目录下的 aixcoding-cli 或 icode 可执行文件；请核对安装包内容和平台"
   fi
   BINARY_PATH="${EXTRACT_DIR}/${BINARY_NAME}"
   chmod +x "$BINARY_PATH"

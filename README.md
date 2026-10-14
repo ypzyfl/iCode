@@ -98,27 +98,32 @@ iCode ships no model profiles, so press **F4** on first launch to add one.
 
 ## Install from an internal mirror
 
-The AList root is `http://82.186.78.126:5244/share/TUI`. Put `install.sh` and
-`README.md` at that root. `channels/prod.txt` and `channels/test.txt` each hold
+The FTP root is `ftp://82.186.78.127/homepage/aixcoding-TUI`. Put `install.sh` at that root. `channels/prod.txt` and `channels/test.txt` each hold
 one full version, and archives go in `releases/<full-version>/`. The CD
-workflow's flat `icode-release-bundle` artifact includes the archives,
-`install.sh`, `README.md`, `version.txt`, and a wheel. Upload the matching
-archives to the release directory, then copy `version.txt` to the channel file
-you want to advance. The wheel does not go in the TUI mirror. A Linux-only
-build does not include macOS or Windows packages.
+workflow's flat `icode-release-bundle` artifact includes the platform archives,
+`install.sh`, `README.md`, `version.txt`, and a wheel. Upload only `install.sh`
+to the FTP root and the matching archives to `releases/<full-version>/`.
+Set `channels/prod.txt` or `channels/test.txt` manually to the full version
+after the upload finishes. A Linux-only build does not include macOS or
+Windows packages.
+For previously uploaded packages, the installer also accepts `icode-<platform>-v<version>-offline.tar.gz` or `.zip` with a root-level `icode` executable.
+
+Configure curl's `~/.netrc` with the FTP host, username, and password, then run
+`chmod 600 ~/.netrc`. The script uses `curl --netrc` for FTP downloads; no
+credentials belong in the URL or script.
 
 | Machine | Package in the mirror | Install command |
 | --- | --- | --- |
-| Linux ARM64 | `aixcoding-cli-linux-aarch64-v<version>-offline.tar.gz` | `curl -fsSL 'http://82.186.78.126:5244/share/TUI/install.sh' \| bash` |
-| Linux x86-64 | `aixcoding-cli-linux-x86_64-v<version>-offline.tar.gz` | `curl -fsSL 'http://82.186.78.126:5244/share/TUI/install.sh' \| bash` |
-| macOS Apple silicon | `aixcoding-cli-macos-aarch64-v<version>-offline.tar.gz` | `curl -fsSL 'http://82.186.78.126:5244/share/TUI/install.sh' \| bash` |
-| macOS Intel | `aixcoding-cli-macos-x86_64-v<version>-offline.tar.gz` | `curl -fsSL 'http://82.186.78.126:5244/share/TUI/install.sh' \| bash` |
+| Linux ARM64 | `aixcoding-cli-linux-aarch64-v<version>-offline.tar.gz` | `curl --netrc -fsSL 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' \| bash` |
+| Linux x86-64 | `aixcoding-cli-linux-x86_64-v<version>-offline.tar.gz` | `curl --netrc -fsSL 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' \| bash` |
+| macOS Apple silicon | `aixcoding-cli-macos-aarch64-v<version>-offline.tar.gz` | `curl --netrc -fsSL 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' \| bash` |
+| macOS Intel | `aixcoding-cli-macos-x86_64-v<version>-offline.tar.gz` | `curl --netrc -fsSL 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' \| bash` |
 | Windows x86-64 | `aixcoding-cli-windows-x86_64-v<version>-offline.zip` | Use the PowerShell commands below. |
 
 On Linux and macOS, the script reads `channels/prod.txt` by default. For test packages,
 download the script and run `bash install.sh --channel test`. To ensure a failed
 script download stops the command, use
-`curl -fsSL -o install.sh 'http://82.186.78.126:5244/share/TUI/install.sh' && bash install.sh`.
+`curl --netrc -fsSL -o install.sh 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' && bash install.sh`.
 The script selects the matching package and installs the `aixcoding` command.
 Open a new terminal and run
 `aixcoding --version` to verify it. Linux x86-64 requires glibc 2.17 or later;
@@ -128,11 +133,11 @@ On Windows, run this in PowerShell from the directory where you want to download
 the package:
 
 ```powershell
-$mirror = 'http://82.186.78.126:5244/share/TUI'
+$mirror = 'ftp://82.186.78.127/homepage/aixcoding-TUI'
 $channel = 'prod' # change to test for test packages
-$version = (Invoke-RestMethod "$mirror/channels/$channel.txt").Trim().TrimStart('v')
+$version = (curl.exe --netrc --silent --show-error --fail "$mirror/channels/$channel.txt").Trim().TrimStart('v')
 $archive = "aixcoding-cli-windows-x86_64-v$version-offline.zip"
-Invoke-WebRequest "$mirror/releases/$version/$archive" -OutFile $archive
+curl.exe --netrc --fail --location --output $archive "$mirror/releases/$version/$archive"
 Expand-Archive $archive -DestinationPath '.\aixcoding-cli-windows-x86_64' -Force
 & '.\aixcoding-cli-windows-x86_64\aixcoding-cli.exe' install
 ```
