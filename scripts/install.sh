@@ -75,7 +75,7 @@ fetch() {
     args+=(-sS)
   fi
   case "$url" in
-    ftp://*|ftps://*) args+=(--netrc) ;;
+    ftp://*|ftps://*) args+=(--netrc-optional) ;;
   esac
   curl "${args[@]}" ${CURL_EXTRA:-} -o "$out" "$url"
 }
@@ -103,7 +103,7 @@ AIxCoding-CLI TUI 安装器（macOS / Linux）
 环境变量:
   ICODE_BASE_URL      TUI 镜像根地址（当前: ${ICODE_BASE_URL}）
   ICODE_CHANNEL       默认环境，prod 或 test（当前: ${CHANNEL}）
-  ~/.netrc            FTP 账号凭据由 curl 读取，脚本不保存密码
+  ~/.netrc            FTP 需要认证时由 curl 读取；匿名只读 FTP 无需配置
   CURL_EXTRA          追加给 curl 的额外参数（如代理）
 EOF
 }

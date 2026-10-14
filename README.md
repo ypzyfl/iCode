@@ -108,9 +108,11 @@ after the upload finishes. A Linux-only build does not include macOS or
 Windows packages.
 For previously uploaded packages, the installer also accepts `icode-<platform>-v<version>-offline.tar.gz` or `.zip` with a root-level `icode` executable.
 
-Configure curl's `~/.netrc` with the FTP host, username, and password, then run
-`chmod 600 ~/.netrc`. The script uses `curl --netrc` for FTP downloads; no
-credentials belong in the URL or script.
+If the FTP server requires login, configure curl's `~/.netrc` with the FTP
+host, username, and password, then run `chmod 600 ~/.netrc`. The installer
+uses that file when present. If the server grants anonymous read access to the
+TUI directory, no credentials are needed: omit `--netrc` from the initial
+`curl` command. No credentials belong in the URL or script.
 
 | Machine | Package in the mirror | Install command |
 | --- | --- | --- |
@@ -135,9 +137,9 @@ the package:
 ```powershell
 $mirror = 'ftp://82.186.78.127/homepage/aixcoding-TUI'
 $channel = 'prod' # change to test for test packages
-$version = (curl.exe --netrc --silent --show-error --fail "$mirror/channels/$channel.txt").Trim().TrimStart('v')
+$version = (curl.exe --netrc-optional --silent --show-error --fail "$mirror/channels/$channel.txt").Trim().TrimStart('v')
 $archive = "aixcoding-cli-windows-x86_64-v$version-offline.zip"
-curl.exe --netrc --fail --location --output $archive "$mirror/releases/$version/$archive"
+curl.exe --netrc-optional --fail --location --output $archive "$mirror/releases/$version/$archive"
 Expand-Archive $archive -DestinationPath '.\aixcoding-cli-windows-x86_64' -Force
 & '.\aixcoding-cli-windows-x86_64\aixcoding-cli.exe' install
 ```

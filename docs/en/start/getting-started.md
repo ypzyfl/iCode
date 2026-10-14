@@ -30,7 +30,7 @@ chmod +x ./aixcoding-cli
 
 The Linux x86-64 package requires glibc 2.17 or later, and the ARM64 package requires glibc 2.18 or later. Distributions that provide only musl, such as Alpine Linux, are not supported by the prebuilt packages.
 
-For the FTP directory rooted at `ftp://82.186.78.127/homepage/aixcoding-TUI`, place `install.sh` at the root, channel pointers in `channels/prod.txt` and `channels/test.txt`, and each package under `releases/<full-version>/`. Configure the FTP account in curl's `~/.netrc` and set its permissions to `600`. Linux and macOS users can install with one command. The script detects the platform and creates an `aixcoding` launch command:
+For the FTP directory rooted at `ftp://82.186.78.127/homepage/aixcoding-TUI`, place `install.sh` at the root, channel pointers in `channels/prod.txt` and `channels/test.txt`, and each package under `releases/<full-version>/`. If the FTP server requires login, configure the account in curl's `~/.netrc` and set its permissions to `600`. With anonymous read access, omit `--netrc` from the initial download and no credentials are needed. Linux and macOS users can install with one command. The script detects the platform and creates an `aixcoding` launch command:
 
 ```bash
 curl --netrc -fsSL -o install.sh 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' && bash install.sh

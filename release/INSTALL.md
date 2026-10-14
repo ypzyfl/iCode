@@ -34,7 +34,7 @@ ftp://82.186.78.127/homepage/aixcoding-TUI/
 
 ### 方式一：从内网镜像安装
 
-在当前用户的 `~/.netrc` 中配置 FTP 主机、用户名和密码，然后执行 `chmod 600 ~/.netrc`。安装脚本会自动让 curl 使用该文件，不要把密码写进 URL 或脚本。
+若 FTP 服务器要求登录，在当前用户的 `~/.netrc` 中配置 FTP 主机、用户名和密码，然后执行 `chmod 600 ~/.netrc`。安装脚本会在有该文件时使用它。若服务器对 TUI 目录开放匿名只读，则无需凭据，下载脚本时可省去 `--netrc`。不要把密码写进 URL 或脚本。
 
 ```bash
 curl --netrc -fsSL -o install.sh 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' && bash install.sh

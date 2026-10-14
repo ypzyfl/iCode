@@ -30,7 +30,7 @@ chmod +x ./aixcoding-cli
 
 Linux x86-64 安装包要求 glibc 2.17 或更高版本，ARM64 安装包要求 glibc 2.18 或更高版本。Alpine Linux 等只提供 musl 的发行版不在预构建包的支持范围内。
 
-在 FTP 根目录 `ftp://82.186.78.127/homepage/aixcoding-TUI` 放置 `install.sh`；在 `channels/prod.txt`、`channels/test.txt` 放置对应频道的完整版本号，并把安装包放在 `releases/<完整版本号>/`。先在 curl 的 `~/.netrc` 配置 FTP 账号并将文件权限设为 `600`。Linux 与 macOS 用户可执行同一条命令；脚本会自动识别平台，并创建 `aixcoding` 启动命令：
+在 FTP 根目录 `ftp://82.186.78.127/homepage/aixcoding-TUI` 放置 `install.sh`；在 `channels/prod.txt`、`channels/test.txt` 放置对应频道的完整版本号，并把安装包放在 `releases/<完整版本号>/`。若 FTP 服务器要求登录，先在 curl 的 `~/.netrc` 配置 FTP 账号并将文件权限设为 `600`；若服务器开放匿名只读，下载脚本时省去 `--netrc`，无需凭据。Linux 与 macOS 用户可执行同一条命令；脚本会自动识别平台，并创建 `aixcoding` 启动命令：
 
 ```bash
 curl --netrc -fsSL -o install.sh 'ftp://82.186.78.127/homepage/aixcoding-TUI/install.sh' && bash install.sh

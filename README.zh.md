@@ -96,8 +96,9 @@ FTP 根目录为 `ftp://82.186.78.127/homepage/aixcoding-TUI`。根目录放 `in
 其他 bundle 文件无需上传。只选择 Linux 的 CD 运行不会产出 macOS 和 Windows 包。
 对于已经上传的旧包，安装脚本也兼容 `icode-<平台>-v<版本>-offline.tar.gz` 或 `.zip`，包内根目录可执行文件为 `icode`。
 
-先在当前用户的 `~/.netrc` 配置 FTP 主机、用户名和密码，并执行 `chmod 600 ~/.netrc`。
-脚本通过 `curl --netrc` 读取凭据，不要把密码写入下载地址或脚本。
+若 FTP 服务器要求登录，先在当前用户的 `~/.netrc` 配置 FTP 主机、用户名和密码，
+并执行 `chmod 600 ~/.netrc`。脚本有该文件时会读取。若服务器已对 TUI 目录开放匿名只读，
+则无需凭据，下载脚本时也可省去 `--netrc`。不要把密码写入下载地址或脚本。
 
 | 目标环境 | 镜像中对应的包 | 安装命令 |
 | --- | --- | --- |
@@ -118,9 +119,9 @@ Windows 请在 PowerShell 中进入准备存放安装包的目录，执行：
 ```powershell
 $mirror = 'ftp://82.186.78.127/homepage/aixcoding-TUI'
 $channel = 'prod' # 测试包改为 test
-$version = (curl.exe --netrc --silent --show-error --fail "$mirror/channels/$channel.txt").Trim().TrimStart('v')
+$version = (curl.exe --netrc-optional --silent --show-error --fail "$mirror/channels/$channel.txt").Trim().TrimStart('v')
 $archive = "aixcoding-cli-windows-x86_64-v$version-offline.zip"
-curl.exe --netrc --fail --location --output $archive "$mirror/releases/$version/$archive"
+curl.exe --netrc-optional --fail --location --output $archive "$mirror/releases/$version/$archive"
 Expand-Archive $archive -DestinationPath '.\aixcoding-cli-windows-x86_64' -Force
 & '.\aixcoding-cli-windows-x86_64\aixcoding-cli.exe' install
 ```
