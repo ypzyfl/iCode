@@ -1022,64 +1022,6 @@ skills:
     assert profile.skills.auto_load_cwd_agents_skills is False
 
 
-def test_load_skills_auto_load_aixcoding_user_skills_default(tmp_path: Path) -> None:
-    """Default (field absent) → auto_load_aixcoding_user_skills is True."""
-    p = tmp_path / "default_aixcoding_user.yaml"
-    p.write_text(
-        """\
-name: default-aixcoding-user
-skills: {}
-""",
-        encoding="utf-8",
-    )
-    profile = load_profile_from_yaml(p)
-    assert profile.skills.auto_load_aixcoding_user_skills is True
-
-
-def test_load_skills_auto_load_aixcoding_user_skills_disabled(tmp_path: Path) -> None:
-    """Verify auto_load_aixcoding_user_skills can be disabled via YAML."""
-    p = tmp_path / "no_aixcoding_user.yaml"
-    p.write_text(
-        """\
-name: no-aixcoding-user
-skills:
-  auto_load_aixcoding_user_skills: false
-""",
-        encoding="utf-8",
-    )
-    profile = load_profile_from_yaml(p)
-    assert profile.skills.auto_load_aixcoding_user_skills is False
-
-
-def test_load_skills_auto_load_aixcoding_cwd_skills_default(tmp_path: Path) -> None:
-    """Default (field absent) → auto_load_aixcoding_cwd_skills is True."""
-    p = tmp_path / "default_aixcoding_cwd.yaml"
-    p.write_text(
-        """\
-name: default-aixcoding-cwd
-skills: {}
-""",
-        encoding="utf-8",
-    )
-    profile = load_profile_from_yaml(p)
-    assert profile.skills.auto_load_aixcoding_cwd_skills is True
-
-
-def test_load_skills_auto_load_aixcoding_cwd_skills_disabled(tmp_path: Path) -> None:
-    """Verify auto_load_aixcoding_cwd_skills can be disabled via YAML."""
-    p = tmp_path / "no_aixcoding_cwd.yaml"
-    p.write_text(
-        """\
-name: no-aixcoding-cwd
-skills:
-  auto_load_aixcoding_cwd_skills: false
-""",
-        encoding="utf-8",
-    )
-    profile = load_profile_from_yaml(p)
-    assert profile.skills.auto_load_aixcoding_cwd_skills is False
-
-
 def test_load_skills_script_timeout(tmp_path: Path) -> None:
     """Verify script_timeout is parsed from YAML."""
     p = tmp_path / "timeout.yaml"

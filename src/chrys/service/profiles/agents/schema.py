@@ -150,13 +150,6 @@ class SkillsConfig:
     Reloaded automatically when the workspace cwd changes (``/chdir`` or the
     file picker) because the agent is rebuilt with a fresh ``SessionEnvironment``.
     Default True; harmless when the directory does not exist."""
-    auto_load_aixcoding_user_skills: bool = True
-    """When True, also auto-load skills from ``~/.aixcoding/skills`` (the AIxCoding
-    user skills directory shared with the AIxCoding desktop clients). Default True."""
-    auto_load_aixcoding_cwd_skills: bool = True
-    """When True, also auto-load skills from ``<cwd>/.aixcoding/skills`` — the
-    project-local AIxCoding skills directory under the current working directory.
-    Reloaded automatically when the workspace cwd changes. Default True."""
 
 
 @dataclass

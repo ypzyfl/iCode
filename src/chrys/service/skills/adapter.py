@@ -221,16 +221,6 @@ def user_agents_dir() -> Path:
     return Path.home() / ".agents"
 
 
-def user_aixcoding_dir() -> Path:
-    """Return the AIxCoding user directory at ``~/.aixcoding``.
-
-    Shared with the AIxCoding desktop clients; callers append sub-directories
-    (e.g. ``"skills"``).  Exposed as a module-level helper for the same
-    monkeypatch/testing reasons as :func:`user_agents_dir`.
-    """
-    return Path.home() / ".aixcoding"
-
-
 def _resolve_config_path(raw: str, runtime: SessionEnvironment | None) -> str:
     """Resolve a profile-configured skill path for discovery.
 
@@ -253,21 +243,13 @@ def _is_absolute_config_path(raw: str) -> bool:
 def _collect_skill_paths(config: SkillsConfig, runtime: SessionEnvironment | None = None) -> list[str]:
     """Merge profile skill paths with the default user/project skills directories.
 
-    Six auto-loaded locations (earlier wins on same-named skills):
+    Three auto-loaded locations:
 
     * ``~/.chrys/skills/`` — always included so Chrys-specific skills added
       later in a session can be discovered without an agent rebuild.
-    * ``~/.aixcoding/skills/`` — included when
-      ``config.auto_load_aixcoding_user_skills`` is True.  Shared with the
-      AIxCoding desktop clients (default: True); takes precedence over
-      ``~/.agents/skills/``.
     * ``~/.agents/skills/`` — included when ``config.auto_load_user_agents_skills``
       is True.  This is a shared cross-tool skills directory opt-in per
       profile (default: True).
-    * ``<runtime.cwd>/.aixcoding/skills/`` — included when ``runtime`` is provided
-      AND ``config.auto_load_aixcoding_cwd_skills`` is True.  Shared with the
-      AIxCoding desktop clients (default: True); takes precedence over
-      ``<runtime.cwd>/.agents/skills/``.
     * ``<runtime.cwd>/.agents/skills/`` — included when ``runtime`` is provided
       AND ``config.auto_load_cwd_agents_skills`` is True.  Reloaded
       automatically when the workspace cwd changes because the agent is rebuilt
@@ -294,21 +276,10 @@ def _collect_skill_paths(config: SkillsConfig, runtime: SessionEnvironment | Non
     chrys_user_dir = get_platform().config_dir / "skills"
     append_unique(str(chrys_user_dir.expanduser().resolve()))
 
-    # Opt-in (default on): ~/.aixcoding/skills/ — shared with AIxCoding desktop.
-    # Before ~/.agents/skills/ so aixcoding wins on same-named skills.
-    if config.auto_load_aixcoding_user_skills:
-        aixcoding_user_dir = user_aixcoding_dir() / "skills"
-        append_unique(str(aixcoding_user_dir.expanduser().resolve()))
-
     # Opt-in (default on): ~/.agents/skills/.
     if config.auto_load_user_agents_skills:
         shared_dir = user_agents_dir() / "skills"
         append_unique(str(shared_dir.expanduser().resolve()))
-
-    # Opt-in (default on): <cwd>/.aixcoding/skills/ — shared with AIxCoding desktop.
-    if runtime is not None and config.auto_load_aixcoding_cwd_skills and runtime.cwd:
-        aixcoding_cwd_dir = Path(runtime.cwd) / ".aixcoding" / "skills"
-        append_unique(str(aixcoding_cwd_dir.expanduser().resolve()))
 
     # Opt-in (default on): <cwd>/.agents/skills/.
     # Tied to the agent's SessionEnvironment (not os.getcwd()) so it follows the

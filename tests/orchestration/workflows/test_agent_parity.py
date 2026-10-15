@@ -157,11 +157,7 @@ async def test_a_node_sees_its_profile_skills_and_memory(tmp_path: Path, monkeyp
     )
     profile = make_profile()
     profile.skills = SkillsConfig(
-        paths=[str(tmp_path / "skills")],
-        auto_load_user_agents_skills=False,
-        auto_load_cwd_agents_skills=False,
-        auto_load_aixcoding_user_skills=False,
-        auto_load_aixcoding_cwd_skills=False,
+        paths=[str(tmp_path / "skills")], auto_load_user_agents_skills=False, auto_load_cwd_agents_skills=False
     )
     profile.memory = MemoryConfig(files=["NOTES.md"])
     write_workflow(project, "skilled", _WORKFLOW)

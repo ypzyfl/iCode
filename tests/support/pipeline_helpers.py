@@ -245,13 +245,7 @@ async def create_test_engine(
         name="test-pipeline",
         instructions="You are a test assistant. Use the tools provided.",
         tools=ToolsConfig(builtins=[]),
-        skills=skills
-        or SkillsConfig(
-            auto_load_user_agents_skills=False,
-            auto_load_cwd_agents_skills=False,
-            auto_load_aixcoding_user_skills=False,
-            auto_load_aixcoding_cwd_skills=False,
-        ),
+        skills=skills or SkillsConfig(auto_load_user_agents_skills=False, auto_load_cwd_agents_skills=False),
         approval=ApprovalConfig(default=approval_default, overrides=approval_overrides or {}),
         compaction=compaction or CompactionConfig(enabled=False),
     )
