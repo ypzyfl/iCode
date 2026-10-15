@@ -8,7 +8,7 @@
 
 ## 一、概述
 
-ai-code 上报记录"AI 生成的代码块"——`write_file` / `edit_file` 执行成功后，把生成内容按 diff 切成 blocks，经批量缓冲 POST 到 `ai-code/save`。数据源是工具执行结果的 SnapshotStore 全文快照（`metadata["file_snapshot"]` 的 before/after），不重复读取磁盘。
+ai-code 上报记录"AI 生成的代码块"——`write_file` / `edit_file` 执行成功后，经批量缓冲 POST 到 `ai-code/save`。`edit_file` 优先使用工具调用参数 `old_string` / `new_string` / `replace_all`，结合结果事件的 SnapshotStore before/after 全文快照定位执行后的代码片段；`write_file` 的 `content` 是完整文件，上报全文。不重复读取磁盘。
 
 > 归属关系：ai-code 与 tool-detail 共享同一 EventBus 订阅链路（`subscriber.attach()` 里同一 `_on_start`/`_on_result` 同时分发两个 reporter，见 02 文档 §4.1），但 ai-code 走 **批量缓冲**（`BatchBuffer`）而非即时串行队列。
 
@@ -20,9 +20,9 @@ ai-code 上报记录"AI 生成的代码块"——`write_file` / `edit_file` 执�
    ▼
 AiCodeReporter.on_result
    ├─ 判定：写类工具？未报错？有 after_text？有 path？
-   ├─ ai_code_blocks(before, after) → blocks（整文件单 block）
+   ├─ ai_code_blocks(before, after, edit_args) → edit_file 片段 blocks / write_file 全文 block
    ├─ ApprovalTracker.adopted_code_status → codeStatus（五态）
-   ├─ 组装 payload（reportId/filepath/blocks/sourceType/requestId/git 四字段）
+   ├─ 组装 payload（reportId/filepath/blocks/sourceType/inputMethod/language/requestId/git 四字段）
    ▼
 BatchBuffer.add()  ← 满 20 条或 10s flush，超 500 丢旧
    ▼
@@ -33,9 +33,9 @@ POST {report_base_url}/ai-code/save
 
 | 职责 | 文件（相对 `src/chrys/`） | 关键行 |
 |---|---|---|
-| reporter 组装 | `aixcoding/telemetry/reporters/ai_code.py` | 全文 184 行 |
-| blocks 计算 | 同上 `ai_code_blocks` | 50-60 |
-| 审批采纳追踪 | 同上 `ApprovalTracker` | 76-109 |
+| reporter 组装 | `aixcoding/telemetry/reporters/ai_code.py` | `AiCodeReporter` |
+| blocks 计算 | 同上 | `ai_code_blocks` |
+| 审批采纳追踪 | 同上 | `ApprovalTracker` |
 | 批量缓冲 | `aixcoding/http.py` | `BatchBuffer` 103-165 |
 | 订阅分发（双 reporter） | `aixcoding/telemetry/subscriber.py` | 60-83、132-141 |
 | codeStatus 枚举 | `aixcoding/telemetry/types.py` | 30-35 |
@@ -46,39 +46,15 @@ POST {report_base_url}/ai-code/save
 
 `FILE_WRITE_TOOLS = frozenset({"write_file", "edit_file"})`（对齐 service 层 `_FILE_TOOLS`；shell 隐式写不报）。`on_result` 里同时满足才上报：写类工具、`on_start` 时记录过 args、未报错（`errored=False`）、`after_text` 非空、`path` 非空：
 
-```python
-# aixcoding/telemetry/reporters/ai_code.py:123-140
-def on_result(self, event, *, code_status, errored):
-    args = self._args_by_call.pop(event.call_id, None)
-    if args is None or event.tool_name not in FILE_WRITE_TOOLS or errored:
-        return
-    snapshot = event.metadata.get("file_snapshot")
-    before_text = getattr(snapshot, "before_text", None)
-    after_text = getattr(snapshot, "after_text", None)
-    if not isinstance(after_text, str) or not after_text:
-        return
-    path = args.get("path")
-    if not isinstance(path, str) or not path:
-        return
-```
+`file_snapshot` 的实际类型是 `(before_text, after_text)` 元组；组包前会检查这两个值、工具参数 `path` 和非空 blocks。
 
 ### 4.2 blocks 计算
 
-`ai_code_blocks` 对齐 pi-acp `aiCodeBlocks` 语义：**整文件一个 block**，`rangeStart` 定位旧文中新文本首行，找不到回退 1：
+`pi-acp` 的整文件单 block 实现会使一次普通插入得到 `1..新文件末行`；桌面端则优先使用工具给出的 `newText` 编辑片段，并在执行后的文件中定位片段。这里采用后者的片段口径，数据源是本项目 `edit_file` 的 `old_string` / `new_string` / `replace_all` 参数。
 
-```python
-# aixcoding/telemetry/reporters/ai_code.py:50-60
-def ai_code_blocks(before_text, after_text):
-    if not after_text:
-        return []
-    new_line_count = len(_split_lines(after_text))
-    range_start = 1
-    if before_text is not None:
-        index = before_text.find(after_text)
-        if index >= 0:
-            range_start = before_text[:index].count("\n") + 1
-    return [{"snippet": after_text, "rangeStart": range_start, "rangeEnd": range_start + new_line_count - 1}]
-```
+- 当 before 按工具参数替换后与 after 一致时，按替换位置生成 block；`replace_all=true` 为每次替换生成一个 block。`snippet` 是工具的 `new_string`，所以若它包含未改变的上下文，行号也覆盖这些上下文行。
+- 工具结果没有结构化行号，`rangeStart` 必须数执行后快照中片段之前的换行；`rangeEnd` 按片段最后一个实际字符所在行计算，末尾换行不额外算一行。CRLF/CR 先按工具行为规范化为 LF 再定位。
+- 如果快照与工具参数不能精确重建，只在 `new_string` 于 after 中唯一出现时定位；否则沿用桌面端的全文回退。纯删除没有生成代码，不发 ai-code。`write_file` 上报全文，范围是 `1..文件实际末行`。
 
 ### 4.3 codeStatus 采纳判定（五态映射）
 
@@ -103,30 +79,7 @@ def adopted_code_status(self, call_id, session_id, *, rejected):
 
 ### 4.4 payload 组装
 
-```python
-# aixcoding/telemetry/reporters/ai_code.py:145-174
-payload = {
-    "reportId": str(uuid.uuid4()),
-    "filepath": _relative_filepath(path),        # git 相对路径，越界回退绝对路径
-    "blocks": ai_code_blocks(before_text, after_text),
-    "sourceType": "edit",
-    "sessionId": event.session_id,
-    "codeStatus": code_status,
-    "spanId": event.origin.invocation_id,
-}
-request = resolve_call(event.provider_call_id, event.session_id)
-if request is not None:
-    payload["requestId"] = request[0]            # per-call registry 反查
-...
-payload.update({
-    "remoteUrl": _git_field("git_remote"),
-    "branch": _git_field("git_branch"),
-    "gitUserName": _git_field("git_user_name"),  # git config user.name（M3 扩展）
-    "gitUserEmail": _git_field("git_user_email"),
-})
-payload.update(common_fields())
-self._add(payload)
-```
+报文增加 `inputMethod="ai_generated"`，与 pi-acp 的工具写入默认值一致；复制/导出等 UI 行为不在此 reporter 的触发范围。`language` 使用工具参数 `path` 的扩展名查表：以 pi-acp 的语言名称为准，并补充桌面端支持的扩展名；未知扩展名不发送该字段。`apiUsageExtraId` 仍未有可用来源，本次不填。
 
 - `filepath`：公共层 `reporters.relative_file_name()`（与 tool-detail `fileName` 同口径；2026-10-10 起本地 `_relative_filepath` 废弃——其相对入参按进程 cwd resolve，进程 cwd 为工作区子目录时会产出错位相对路径）。
 - git 四字段 `remoteUrl/branch/gitUserName/gitUserEmail` 单独取（`git_user_name`/`git_user_email` 为 M3 对 `GitInfo` 的扩展，来自 `git config`）。
@@ -152,7 +105,7 @@ def default_ai_code_reporter():
 
 ## 五、验证状态
 
-- **单测级（已通过）**：`aixcoding/tests/test_ai_code.py` 13 项（blocks 四形态/采纳语义四路径/reporter 触发与跳过/订阅端到端）。
+- **单测级**：`aixcoding/tests/test_ai_code.py` 覆盖 100 行中插入、批量替换、CRLF/末尾换行、无法定位时的回退、字段取值和订阅分发。
 - **真链路（待验，plan.md M3 验收）**：write_file / edit_file mock SQLite 入库核对；审批批准/拒绝两路径 codeStatus 正确（5/4；judge+auto+bypass=1）。
 - **前置待办**：codeStatus 五态映射产品/后端定稿（§8-3）。
 

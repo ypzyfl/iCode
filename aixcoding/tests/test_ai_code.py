@@ -1,4 +1,4 @@
-# ruff: noqa: RUF002, S101
+# ruff: noqa: RUF002, RUF003, S101
 """M3 测试：ai-code blocks / codeStatus 采纳语义 / reporter 报文（方案 §4.3）。"""
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from chrys.aixcoding.telemetry.reporters.ai_code import (
     AiCodeReporter,
     ApprovalTracker,
     ai_code_blocks,
+    language_from_path,
 )
 from chrys.aixcoding.telemetry.types import CodeStatus
 from chrys.foundation.events.bus import EventBus
@@ -26,6 +27,7 @@ from chrys.foundation.events.types import (
     InvocationToolCallStart,
 )
 from chrys.foundation.models.invocations import InvocationOrigin
+from chrys.service.tools.builtins.filesystem import EditFilePlan, plan_edit_file
 
 
 @pytest.fixture(autouse=True)
@@ -59,6 +61,7 @@ def _write_start(
 def _write_result(
     call_id: str = "c1",
     *,
+    tool_name: str = "write_file",
     before: str | None = None,
     after: str = "hello\nworld",
     errored: bool = False,
@@ -70,7 +73,7 @@ def _write_result(
         metadata["errored"] = True
     return InvocationToolCallResult(
         origin=_origin(),
-        tool_name="write_file",
+        tool_name=tool_name,
         call_id=call_id,
         result="ok",
         duration_ms=50,
@@ -95,21 +98,71 @@ def test_blocks_new_file():
     assert blocks == [{"snippet": "a\nb\nc", "rangeStart": 1, "rangeEnd": 3}]
 
 
-def test_blocks_locates_embedded_text():
-    before = "line1\nline2\nhello\nworld\nline5"
-    blocks = ai_code_blocks(before, "hello\nworld")
-    assert blocks[0]["rangeStart"] == 3
-    assert blocks[0]["rangeEnd"] == 4
+def test_blocks_edit_inserts_line_in_100_line_file():
+    before = "\n".join(f"line {number}" for number in range(1, 101))
+    after = before.replace("line 50", "line 50\ninserted", 1)
+    blocks = ai_code_blocks(
+        before,
+        after,
+        edit_args={"old_string": "line 50", "new_string": "line 50\ninserted"},
+    )
+    assert blocks == [{"snippet": "line 50\ninserted", "rangeStart": 50, "rangeEnd": 51}]
 
 
-def test_blocks_replacement_falls_back_to_one():
-    blocks = ai_code_blocks("old content here", "brand new")
-    assert blocks[0]["rangeStart"] == 1
-    assert blocks[0]["rangeEnd"] == 1
+def test_blocks_match_real_edit_file_plan(tmp_path):
+    path = tmp_path / "example.py"
+    path.write_text("first\nold\nlast\n", encoding="utf-8")
+    plan = plan_edit_file(str(path), "old", "new")
+    assert isinstance(plan, EditFilePlan)
+    blocks = ai_code_blocks(
+        plan.before_text,
+        plan.after_text,
+        edit_args={"old_string": "old", "new_string": "new"},
+    )
+    assert blocks == [{"snippet": "new", "rangeStart": 2, "rangeEnd": 2}]
+
+
+def test_blocks_replace_all_uses_each_tool_fragment():
+    before = "head\nold\nmiddle\nold\ntail"
+    after = before.replace("old", "new\nline")
+    blocks = ai_code_blocks(
+        before,
+        after,
+        edit_args={"old_string": "old", "new_string": "new\nline", "replace_all": True},
+    )
+    assert blocks == [
+        {"snippet": "new\nline", "rangeStart": 2, "rangeEnd": 3},
+        {"snippet": "new\nline", "rangeStart": 5, "rangeEnd": 6},
+    ]
+
+
+def test_blocks_edit_crlf_and_trailing_newline():
+    before = "first\r\nold\r\nlast\r\n"
+    after = "first\r\nnew\r\nlast\r\n"
+    blocks = ai_code_blocks(before, after, edit_args={"old_string": "old", "new_string": "new"})
+    assert blocks == [{"snippet": "new", "rangeStart": 2, "rangeEnd": 2}]
+    assert ai_code_blocks(None, after)[0]["rangeEnd"] == 3
+    assert ai_code_blocks(None, after)[0]["snippet"] == after
+
+
+def test_blocks_ambiguous_fallback_reports_whole_file():
+    blocks = ai_code_blocks("old", "same\nsame", edit_args={"old_string": "old", "new_string": "same"})
+    assert blocks == [{"snippet": "same\nsame", "rangeStart": 1, "rangeEnd": 2}]
+
+
+def test_blocks_deletion_only_has_no_generated_code():
+    assert ai_code_blocks("keep\nremove", "keep\n", edit_args={"old_string": "remove", "new_string": ""}) == []
 
 
 def test_blocks_empty_after():
     assert ai_code_blocks("x", "") == []
+
+
+def test_language_from_path_uses_reference_extension_mapping():
+    assert language_from_path("src/Module.TSX") == "typescript"
+    assert language_from_path("src/component.vue") == "vue"
+    assert language_from_path("script.sh") == "shell"
+    assert language_from_path("README") is None
 
 
 # -- codeStatus 采纳语义 --------------------------------------------------------
@@ -162,6 +215,8 @@ def test_reporter_write_success_emits_payload():
     payload = add.payloads[0]
     assert payload["filepath"] == "src/a.py"
     assert payload["sourceType"] == "edit"
+    assert payload["inputMethod"] == "ai_generated"
+    assert payload["language"] == "python"
     assert payload["codeStatus"] == 5
     # spanId 语义修正（2026-10-09）：来自 registry 根 span，无记录时不带
     # （原 invocation_id 退出报文——与 tool-detail 同款修正）。
@@ -170,6 +225,18 @@ def test_reporter_write_success_emits_payload():
     assert payload["reportId"]
     assert payload["pluginVersion"]
     assert payload["projectName"]
+
+
+def test_reporter_edit_uses_tool_arguments_for_block_range():
+    before = "first\nold\nlast"
+    after = "first\nnew\nlast"
+    add = _CaptureAdd()
+    reporter = AiCodeReporter(add)
+    reporter.on_start(
+        _write_start(tool_name="edit_file", args={"path": "src/a.py", "old_string": "old", "new_string": "new"})
+    )
+    reporter.on_result(_write_result(tool_name="edit_file", before=before, after=after), code_status=1, errored=False)
+    assert add.payloads[0]["blocks"] == [{"snippet": "new", "rangeStart": 2, "rangeEnd": 2}]
 
 
 def test_reporter_skips_errored_and_non_write_tools():
