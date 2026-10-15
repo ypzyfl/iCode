@@ -2,9 +2,8 @@
 """ai-code/save 组装（方案 §4.3）：写类工具成功后的 AI 代码块上报。
 
 数据源：``write_file`` / ``edit_file``（``_FILE_TOOLS``；shell 隐式写不报）。
-before/after 全文取 Result 事件 ``metadata["file_snapshot"]``（SnapshotStore
-解码的 ``FileMutationTextSnapshot``）；blocks 对齐 pi-acp ``aiCodeBlocks``
-（整文件一个 block；rangeStart 定位旧文中新文本首行，找不到回退 1）。
+before/after 全文取 Result 事件 ``metadata["file_snapshot"]``。edit_file 优先
+使用工具参数中的 old_string/new_string 定位执行后片段；write_file 上报全文。
 
 codeStatus 采纳语义（§4.3；五态映射待 §8-3 定稿）：
 - 拒绝（Result metadata ``approval=user_rejected``）→ 4——注意拒绝时工具不
@@ -46,23 +45,117 @@ FILE_WRITE_TOOLS = frozenset({"write_file", "edit_file"})
 
 _MODE_MANUAL = "manual"
 
+_LANGUAGE_BY_EXT = {
+    "ts": "typescript",
+    "tsx": "typescript",
+    "js": "javascript",
+    "jsx": "javascript",
+    "py": "python",
+    "java": "java",
+    "go": "go",
+    "rs": "rust",
+    "c": "c",
+    "h": "c",
+    "cpp": "cpp",
+    "hpp": "cpp",
+    "cs": "csharp",
+    "rb": "ruby",
+    "php": "php",
+    "swift": "swift",
+    "kt": "kotlin",
+    "scala": "scala",
+    "sh": "shell",
+    "bash": "shell",
+    "zsh": "shell",
+    "ps1": "powershell",
+    "sql": "sql",
+    "html": "html",
+    "css": "css",
+    "scss": "scss",
+    "less": "less",
+    "json": "json",
+    "yaml": "yaml",
+    "yml": "yaml",
+    "xml": "xml",
+    "md": "markdown",
+    "vue": "vue",
+    "lua": "lua",
+    "dart": "dart",
+    "r": "r",
+}
 
-def ai_code_blocks(before_text: str | None, after_text: str) -> list[dict[str, int | str]]:
-    """before/after → blocks（整文件一个 block，对齐 pi-acp 语义）。"""
+
+def language_from_path(path: str) -> str | None:
+    """Use the same extension-to-language names as pi-acp."""
+    return _LANGUAGE_BY_EXT.get(Path(path).suffix.lower().removeprefix("."))
+
+
+def _normalize_newlines(text: str) -> str:
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def _block(text: str, offset: int, snippet: str, *, start: int | None = None) -> dict[str, int | str]:
+    if start is None:
+        start = text[:offset].count("\n") + 1
+    # The final newline terminates the last content line; it is not another line.
+    end = start + snippet[:-1].count("\n")
+    return {"snippet": snippet, "rangeStart": start, "rangeEnd": end}
+
+
+def _whole_file_block(text: str) -> list[dict[str, int | str]]:
+    return [_block(text, 0, text)] if text else []
+
+
+def _unique_fragment_block(text: str, snippet: str) -> list[dict[str, int | str]] | None:
+    offset = text.find(snippet)
+    if offset < 0 or text.find(snippet, offset + 1) >= 0:
+        return None
+    return [_block(text, offset, snippet)]
+
+
+def ai_code_blocks(
+    before_text: str | None,
+    after_text: str,
+    *,
+    edit_args: Mapping[str, Any] | None = None,
+) -> list[dict[str, int | str]]:
+    """Use exact edit arguments to locate changed fragments in the final file."""
     if not after_text:
         return []
-    new_line_count = len(_split_lines(after_text))
-    range_start = 1
-    if before_text is not None:
-        index = before_text.find(after_text)
-        if index >= 0:
-            range_start = before_text[:index].count("\n") + 1
-    return [{"snippet": after_text, "rangeStart": range_start, "rangeEnd": range_start + new_line_count - 1}]
-
-
-def _split_lines(text: str) -> list[str]:
-    """按 CRLF/LF 分行（尾部保留空串，对齐 JS ``split(/\\r?\\n/)`` 行数口径）。"""
-    return text.replace("\r\n", "\n").split("\n")
+    after = _normalize_newlines(after_text)
+    if edit_args is None:
+        return _whole_file_block(after_text)
+    old_arg = edit_args.get("old_string")
+    new_arg = edit_args.get("new_string")
+    if not isinstance(old_arg, str) or not old_arg or not isinstance(new_arg, str):
+        return _whole_file_block(after_text)
+    old = _normalize_newlines(old_arg)
+    new = _normalize_newlines(new_arg)
+    if not new:
+        return []
+    before = _normalize_newlines(before_text) if before_text is not None else None
+    replace_all = edit_args.get("replace_all") is True
+    if before is not None and before.replace(old, new, -1 if replace_all else 1) == after:
+        blocks: list[dict[str, int | str]] = []
+        search_from = 0
+        offset_shift = 0
+        line = 1
+        line_from = 0
+        while (old_offset := before.find(old, search_from)) >= 0:
+            offset = old_offset + offset_shift
+            line += after.count("\n", line_from, offset)
+            blocks.append(_block(after, offset, new, start=line))
+            if len(blocks) > 64:
+                return _whole_file_block(after_text)
+            if not replace_all:
+                break
+            search_from = old_offset + len(old)
+            offset_shift += len(new) - len(old)
+            line_from = offset + len(new)
+            line += new.count("\n")
+        if blocks:
+            return blocks
+    return _unique_fragment_block(after, new) or _whole_file_block(after_text)
 
 
 class ApprovalTracker:
@@ -131,6 +224,13 @@ class AiCodeReporter:
         path = args.get("path")
         if not isinstance(path, str) or not path:
             return
+        blocks = ai_code_blocks(
+            before_text if isinstance(before_text, str) else None,
+            after_text,
+            edit_args=args if event.tool_name == "edit_file" else None,
+        )
+        if not blocks:
+            return
 
         from chrys.aixcoding.telemetry.llm_telemetry import resolve_call
         from chrys.aixcoding.telemetry.reporters import common_fields
@@ -139,11 +239,14 @@ class AiCodeReporter:
         payload: dict[str, Any] = {
             "reportId": str(uuid.uuid4()),
             "filepath": relative_file_name(path, workspace),
-            "blocks": ai_code_blocks(before_text if isinstance(before_text, str) else None, after_text),
+            "blocks": blocks,
             "sourceType": "edit",
+            "inputMethod": "ai_generated",
             "sessionId": event.session_id,
             "codeStatus": code_status,
         }
+        if language := language_from_path(path):
+            payload["language"] = language
         request = resolve_call(event.provider_call_id, event.session_id)
         if request is not None:
             payload["requestId"] = request[0]
