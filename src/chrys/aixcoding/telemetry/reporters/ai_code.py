@@ -45,78 +45,19 @@ FILE_WRITE_TOOLS = frozenset({"write_file", "edit_file"})
 
 _MODE_MANUAL = "manual"
 
-_LANGUAGE_BY_EXT = {
-    "ts": "typescript",
-    "tsx": "typescript",
-    "js": "javascript",
-    "jsx": "javascript",
-    "mjs": "javascript",
-    "cjs": "javascript",
-    "py": "python",
-    "java": "java",
-    "go": "go",
-    "rs": "rust",
-    "c": "c",
-    "h": "c",
-    "cpp": "cpp",
-    "cc": "cpp",
-    "cxx": "cpp",
-    "hpp": "cpp",
-    "cs": "csharp",
-    "rb": "ruby",
-    "php": "php",
-    "swift": "swift",
-    "kt": "kotlin",
-    "kts": "kotlin",
-    "scala": "scala",
-    "sh": "shell",
-    "bash": "shell",
-    "zsh": "shell",
-    "ps1": "powershell",
-    "sql": "sql",
-    "html": "html",
-    "css": "css",
-    "scss": "scss",
-    "sass": "scss",
-    "less": "less",
-    "json": "json",
-    "jsonc": "json",
-    "yaml": "yaml",
-    "yml": "yaml",
-    "ym": "yaml",
-    "xml": "xml",
-    "md": "markdown",
-    "vue": "vue",
-    "lua": "lua",
-    "dart": "dart",
-    "r": "r",
-    "toml": "ini",
-    "ini": "ini",
-    "cfg": "ini",
-    "vb": "vbnet",
-    "fs": "fsharp",
-    "fsx": "fsharp",
-    "bat": "dos",
-    "cmd": "dos",
-    "pl": "perl",
-    "mm": "objectivec",
-    "cob": "cobol",
-    "txt": "plaintext",
-    "log": "plaintext",
-}
-
 
 def language_from_path(path: str) -> str | None:
-    """Use the pi-acp extension names, with additional desktop mappings."""
-    return _LANGUAGE_BY_EXT.get(Path(path).suffix.lower().removeprefix("."))
+    """Use the file extension as the optional language value."""
+    return Path(path).suffix.lower().removeprefix(".") or None
 
 
 def _normalize_newlines(text: str) -> str:
     return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
-def _block(text: str, offset: int, snippet: str) -> dict[str, int | str]:
-    start = text[:offset].count("\n") + 1
+def _block(text: str, offset: int, snippet: str, *, start: int | None = None) -> dict[str, int | str]:
+    if start is None:
+        start = text[:offset].count("\n") + 1
     # The final newline terminates the last content line; it is not another line.
     end = start + snippet[:-1].count("\n")
     return {"snippet": snippet, "rangeStart": start, "rangeEnd": end}
@@ -159,14 +100,20 @@ def ai_code_blocks(
         blocks: list[dict[str, int | str]] = []
         search_from = 0
         offset_shift = 0
+        line = 1
+        line_from = 0
         while (old_offset := before.find(old, search_from)) >= 0:
-            blocks.append(_block(after, old_offset + offset_shift, new))
+            offset = old_offset + offset_shift
+            line += after.count("\n", line_from, offset)
+            blocks.append(_block(after, offset, new, start=line))
             if len(blocks) > 64:
                 return _whole_file_block(after_text)
             if not replace_all:
                 break
             search_from = old_offset + len(old)
             offset_shift += len(new) - len(old)
+            line_from = offset + len(new)
+            line += new.count("\n")
         if blocks:
             return blocks
     return _unique_fragment_block(after, new) or _whole_file_block(after_text)

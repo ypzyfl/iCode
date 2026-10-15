@@ -110,7 +110,7 @@
 
 ### 新增文件
 
-- [x] `src/chrys/aixcoding/telemetry/reporters/ai_code.py`——`edit_file` 使用工具 `old_string/new_string/replace_all` 与结果快照定位片段行号，`write_file` 上报全文；`inputMethod=ai_generated`、`language` 按扩展名映射；`ApprovalTracker` 判定 codeStatus；`BatchBuffer` 满 20 条或 10s flush
+- [x] `src/chrys/aixcoding/telemetry/reporters/ai_code.py`——`edit_file` 使用工具 `old_string/new_string/replace_all` 与结果快照定位片段行号，`write_file` 上报全文；`inputMethod=ai_generated`、`language` 直接取小写扩展名；`ApprovalTracker` 判定 codeStatus；`BatchBuffer` 满 20 条或 10s flush
 - [x] `aixcoding/tests/test_ai_code.py`——覆盖片段行号、批量替换、换行口径、字段取值、采纳语义与订阅分发
 - [x] 附带：`git_info.py` 的 `GitInfo` 加 `git_user_name`/`git_user_email`（git config）；`http.py` 的 `BatchBuffer.add` 惰性启动定时 flush（TUI 同步构造期无循环可用）
 
