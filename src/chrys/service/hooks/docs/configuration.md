@@ -122,7 +122,7 @@ same cwd reuse the current manager.
 Trust model: a project hooks file ships with the repo and runs
 arbitrary subprocesses without an in-process approval prompt. The
 same trust model applies to global hooks, `<cwd>/.agents/skills/`,
-and `AGENTS.md` auto-load. Cloning a repo and running Chrys inside
+`<cwd>/.aixcoding/skills/`, and `AGENTS.md` auto-load. Cloning a repo and running Chrys inside
 it is a trust decision.
 
 ---

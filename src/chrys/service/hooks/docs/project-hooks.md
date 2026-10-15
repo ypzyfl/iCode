@@ -23,7 +23,8 @@ This document is the design for that feature. For the YAML format see
   the global layer).**
 - Pure addition — no behavior change when no project file is present.
 - Match existing per-workspace config patterns in Chrys (skills at
-  `<cwd>/.agents/skills/`, workspace-relative `AGENTS.md`).
+  `<cwd>/.agents/skills/` and `<cwd>/.aixcoding/skills/`, workspace-relative
+  `AGENTS.md`).
 
 ## Non-goals
 
@@ -195,8 +196,8 @@ arbitrary subprocess and is executed without an in-process approval
 gate. The same trust model already applies to:
 
 - The global `<config_dir>/hooks/hooks.yaml`.
-- Skills loaded from `<cwd>/.agents/skills/` (opt-in per profile, but
-  when enabled, no approval prompt).
+- Skills loaded from `<cwd>/.agents/skills/` and `<cwd>/.aixcoding/skills/`
+  (opt-in per profile, but when enabled, no approval prompt).
 - `AGENTS.md` auto-loaded as a memory file.
 
 If a user `git clone`s a repository and runs Chrys inside it, the

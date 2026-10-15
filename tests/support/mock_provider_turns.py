@@ -96,7 +96,12 @@ async def run_mock_provider_turn(
         name="mock-provider-turn",
         instructions="Reply briefly.",
         tools=ToolsConfig(builtins=[]),
-        skills=SkillsConfig(auto_load_user_agents_skills=False, auto_load_cwd_agents_skills=False),
+        skills=SkillsConfig(
+            auto_load_user_agents_skills=False,
+            auto_load_cwd_agents_skills=False,
+            auto_load_aixcoding_user_skills=False,
+            auto_load_aixcoding_cwd_skills=False,
+        ),
         approval=ApprovalConfig(default="auto"),
         compaction=CompactionConfig(enabled=False),
     )

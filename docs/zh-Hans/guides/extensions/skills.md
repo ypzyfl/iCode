@@ -9,18 +9,23 @@
 | 位置 | 适合情况                                 | AIxCoding 中的加载方式 |
 | --- |--------------------------------------| --- |
 | AIxCoding 用户技能目录 | 希望 AIxCoding 中所有“内置”类型的智能体都能使用           | 始终自动加载 |
+| AIxCoding 共享用户目录（`~/.aixcoding/skills`） | 在 AIxCoding CLI 与 AIxCoding 桌面端之间共享技能     | 默认自动加载，可针对智能体关闭 |
 | Agent Skills 共享目录 | 希望在 AIxCoding 与其他支持 Agent Skills 的工具之间共享 | 默认自动加载，可针对智能体关闭 |
+| `<working-directory>/.aixcoding/skills` | 只希望在当前工作目录中使用的 AIxCoding 专属技能           | 默认自动加载，可针对智能体关闭 |
 | `<working-directory>/.agents/skills` | 只希望在当前工作目录中使用                         | 默认自动加载，可针对智能体关闭 |
 | 自定义目录 | 希望从指定位置加载                            | 需要在相应智能体配置中手动添加 |
 
 其中，`<working-directory>` 表示当前工作目录。切换工作目录后，AIxCoding 会重新加载新工作目录中的技能。
 
-两个用户级技能目录在不同平台上的路径如下：
+用户级技能目录在不同平台上的路径如下：
 
 | 目录 | macOS 和 Linux | Windows |
 | --- | --- | --- |
 | AIxCoding 用户技能目录 | `~/.chrys/skills` | `%APPDATA%\chrys\skills` |
+| AIxCoding 共享用户目录 | `~/.aixcoding/skills` | `%USERPROFILE%\.aixcoding\skills` |
 | Agent Skills 共享目录 | `~/.agents/skills` | `%USERPROFILE%\.agents\skills` |
+
+多个目录中出现同名技能时，AIxCoding 专属目录优先于对应的 Agent Skills 目录：`~/.aixcoding/skills` 优先于 `~/.agents/skills`，`<working-directory>/.aixcoding/skills` 优先于 `<working-directory>/.agents/skills`。
 
 对于前三种安装位置，将技能目录复制或移动到对应位置即可。使用自定义目录时，无需移动技能，只需在相应智能体的配置中添加技能所在目录。
 
