@@ -246,6 +246,7 @@ async def test_create_provider_returns_empty_provider_when_empty(
     fake_platform = type("P", (), {"config_dir": tmp_path})()
     monkeypatch.setattr("chrys.foundation.platform.get_platform", lambda: fake_platform)
     monkeypatch.setattr("chrys.service.skills.adapter.user_agents_dir", lambda: tmp_path / ".agents")
+    monkeypatch.setattr("chrys.service.skills.adapter.user_aixcoding_dir", lambda: tmp_path / ".aixcoding")
     config = SkillsConfig()
     provider, warnings = await create_skills_provider(config)
     assert provider is not None
@@ -304,6 +305,88 @@ def test_collect_skill_paths_skips_user_agents_dir_when_toggle_off(
     assert str(fake_agents_skills) not in paths
 
 
+def test_user_aixcoding_dir_points_home() -> None:
+    """``user_aixcoding_dir()`` resolves to ``~/.aixcoding`` under the user home."""
+    from chrys.service.skills.adapter import user_aixcoding_dir
+
+    assert user_aixcoding_dir() == Path.home() / ".aixcoding"
+
+
+def test_user_aixcoding_dir_follows_monkeypatched_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from chrys.service.skills.adapter import user_aixcoding_dir
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    assert user_aixcoding_dir() == tmp_path / ".aixcoding"
+
+
+def test_collect_skill_paths_auto_loads_user_aixcoding_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """With the toggle on (default), ~/.aixcoding/skills is auto-included."""
+    from chrys.service.skills.adapter import _collect_skill_paths
+
+    fake_chrys_dir = tmp_path / "chrys"
+    fake_aixcoding_root = tmp_path / "aixcoding_root"
+    fake_aixcoding_skills = fake_aixcoding_root / "skills"
+    fake_aixcoding_skills.mkdir(parents=True)
+    (fake_aixcoding_skills / "demo").mkdir()
+
+    fake_platform = type("P", (), {"config_dir": fake_chrys_dir})()
+    monkeypatch.setattr("chrys.foundation.platform.get_platform", lambda: fake_platform)
+    monkeypatch.setattr("chrys.service.skills.adapter.user_agents_dir", lambda: tmp_path / "agents_root")
+    monkeypatch.setattr("chrys.service.skills.adapter.user_aixcoding_dir", lambda: fake_aixcoding_root)
+
+    paths = _collect_skill_paths(SkillsConfig())
+    assert str(fake_aixcoding_skills) in paths
+
+
+def test_collect_skill_paths_skips_user_aixcoding_dir_when_toggle_off(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Toggle off → ~/.aixcoding/skills is excluded while ~/.agents/skills stays (D2)."""
+    from chrys.service.skills.adapter import _collect_skill_paths
+
+    fake_chrys_dir = tmp_path / "chrys"
+    fake_aixcoding_root = tmp_path / "aixcoding_root"
+    fake_aixcoding_skills = fake_aixcoding_root / "skills"
+    fake_aixcoding_skills.mkdir(parents=True)
+    (fake_aixcoding_skills / "demo").mkdir()
+    fake_agents_skills = tmp_path / "agents_root" / "skills"
+    fake_agents_skills.mkdir(parents=True)
+    (fake_agents_skills / "demo").mkdir()
+
+    fake_platform = type("P", (), {"config_dir": fake_chrys_dir})()
+    monkeypatch.setattr("chrys.foundation.platform.get_platform", lambda: fake_platform)
+    monkeypatch.setattr("chrys.service.skills.adapter.user_agents_dir", lambda: tmp_path / "agents_root")
+    monkeypatch.setattr("chrys.service.skills.adapter.user_aixcoding_dir", lambda: fake_aixcoding_root)
+
+    paths = _collect_skill_paths(
+        SkillsConfig(
+            auto_load_aixcoding_user_skills=False,
+            auto_load_aixcoding_cwd_skills=False,
+        )
+    )
+    assert str(fake_aixcoding_skills) not in paths
+    assert str(fake_agents_skills) in paths
+
+
+def test_collect_skill_paths_aixcoding_user_dir_precedes_user_agents(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """~/.aixcoding/skills comes before ~/.agents/skills so aixcoding wins on clashes (D3)."""
+    from chrys.service.skills.adapter import _collect_skill_paths
+
+    fake_chrys_dir = tmp_path / "chrys"
+    fake_platform = type("P", (), {"config_dir": fake_chrys_dir})()
+    monkeypatch.setattr("chrys.foundation.platform.get_platform", lambda: fake_platform)
+    monkeypatch.setattr("chrys.service.skills.adapter.user_agents_dir", lambda: tmp_path / "agents_root")
+    monkeypatch.setattr("chrys.service.skills.adapter.user_aixcoding_dir", lambda: tmp_path / "aixcoding_root")
+
+    paths = _collect_skill_paths(SkillsConfig())
+    assert paths.index(str((tmp_path / "aixcoding_root" / "skills").resolve())) < paths.index(
+        str((tmp_path / "agents_root" / "skills").resolve())
+    )
+
+
 def _make_runtime(cwd: Path) -> object:
     """Build a minimal ``SessionEnvironment`` for the cwd-skills tests.
 
@@ -323,6 +406,7 @@ def _isolate_auto_skill_dirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     fake_platform = type("P", (), {"config_dir": fake_chrys_dir})()
     monkeypatch.setattr("chrys.foundation.platform.get_platform", lambda: fake_platform)
     monkeypatch.setattr("chrys.service.skills.adapter.user_agents_dir", lambda: fake_agents_root)
+    monkeypatch.setattr("chrys.service.skills.adapter.user_aixcoding_dir", lambda: tmp_path / "aixcoding-root")
 
 
 def test_collect_skill_paths_auto_loads_cwd_agents_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -365,6 +449,102 @@ def test_collect_skill_paths_skips_cwd_dir_when_toggle_off(tmp_path: Path, monke
         runtime=_make_runtime(cwd),
     )
     assert str(cwd_skills) not in paths
+
+
+def test_collect_skill_paths_auto_loads_cwd_aixcoding_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """With the toggle on (default), <cwd>/.aixcoding/skills is auto-included."""
+    from chrys.service.skills.adapter import _collect_skill_paths
+
+    fake_chrys_dir = tmp_path / "chrys"
+    fake_platform = type("P", (), {"config_dir": fake_chrys_dir})()
+    monkeypatch.setattr("chrys.foundation.platform.get_platform", lambda: fake_platform)
+    monkeypatch.setattr("chrys.service.skills.adapter.user_agents_dir", lambda: tmp_path / "agents_root")
+    monkeypatch.setattr("chrys.service.skills.adapter.user_aixcoding_dir", lambda: tmp_path / "aixcoding_root")
+
+    cwd = tmp_path / "project"
+    cwd_aixcoding_skills = cwd / ".aixcoding" / "skills"
+    cwd_aixcoding_skills.mkdir(parents=True)
+    (cwd_aixcoding_skills / "demo").mkdir()
+
+    paths = _collect_skill_paths(SkillsConfig(), runtime=_make_runtime(cwd))
+    assert str(cwd_aixcoding_skills) in paths
+
+
+def test_collect_skill_paths_skips_cwd_aixcoding_dir_when_toggle_off(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Toggle off → <cwd>/.aixcoding/skills excluded while <cwd>/.agents/skills stays (D2)."""
+    from chrys.service.skills.adapter import _collect_skill_paths
+
+    fake_chrys_dir = tmp_path / "chrys"
+    fake_platform = type("P", (), {"config_dir": fake_chrys_dir})()
+    monkeypatch.setattr("chrys.foundation.platform.get_platform", lambda: fake_platform)
+    monkeypatch.setattr("chrys.service.skills.adapter.user_agents_dir", lambda: tmp_path / "agents_root")
+    monkeypatch.setattr("chrys.service.skills.adapter.user_aixcoding_dir", lambda: tmp_path / "aixcoding_root")
+
+    cwd = tmp_path / "project"
+    cwd_aixcoding_skills = cwd / ".aixcoding" / "skills"
+    cwd_aixcoding_skills.mkdir(parents=True)
+    (cwd_aixcoding_skills / "demo").mkdir()
+    cwd_agents_skills = cwd / ".agents" / "skills"
+    cwd_agents_skills.mkdir(parents=True)
+    (cwd_agents_skills / "demo").mkdir()
+
+    paths = _collect_skill_paths(
+        SkillsConfig(auto_load_aixcoding_cwd_skills=False),
+        runtime=_make_runtime(cwd),
+    )
+    assert str(cwd_aixcoding_skills) not in paths
+    assert str(cwd_agents_skills) in paths
+
+
+def test_collect_skill_paths_cwd_aixcoding_dir_precedes_cwd_agents(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """<cwd>/.aixcoding/skills comes before <cwd>/.agents/skills (D3)."""
+    from chrys.service.skills.adapter import _collect_skill_paths
+
+    fake_chrys_dir = tmp_path / "chrys"
+    fake_platform = type("P", (), {"config_dir": fake_chrys_dir})()
+    monkeypatch.setattr("chrys.foundation.platform.get_platform", lambda: fake_platform)
+    monkeypatch.setattr("chrys.service.skills.adapter.user_agents_dir", lambda: tmp_path / "agents_root")
+    monkeypatch.setattr("chrys.service.skills.adapter.user_aixcoding_dir", lambda: tmp_path / "aixcoding_root")
+
+    cwd = tmp_path / "project"
+    cwd_aixcoding_skills = cwd / ".aixcoding" / "skills"
+    cwd_aixcoding_skills.mkdir(parents=True)
+    (cwd_aixcoding_skills / "demo").mkdir()
+    cwd_agents_skills = cwd / ".agents" / "skills"
+    cwd_agents_skills.mkdir(parents=True)
+    (cwd_agents_skills / "demo").mkdir()
+
+    paths = _collect_skill_paths(SkillsConfig(), runtime=_make_runtime(cwd))
+    assert paths.index(str(cwd_aixcoding_skills.resolve())) < paths.index(str(cwd_agents_skills.resolve()))
+
+
+def test_collect_skill_paths_old_agents_toggles_do_not_affect_aixcoding_dirs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Disabling the legacy .agents toggles leaves both .aixcoding dirs included (D2 regression point)."""
+    from chrys.service.skills.adapter import _collect_skill_paths
+
+    fake_chrys_dir = tmp_path / "chrys"
+    fake_platform = type("P", (), {"config_dir": fake_chrys_dir})()
+    monkeypatch.setattr("chrys.foundation.platform.get_platform", lambda: fake_platform)
+    monkeypatch.setattr("chrys.service.skills.adapter.user_agents_dir", lambda: tmp_path / "agents_root")
+    monkeypatch.setattr("chrys.service.skills.adapter.user_aixcoding_dir", lambda: tmp_path / "aixcoding_root")
+
+    cwd = tmp_path / "project"
+    cwd_aixcoding_skills = cwd / ".aixcoding" / "skills"
+    cwd_aixcoding_skills.mkdir(parents=True)
+    (cwd_aixcoding_skills / "demo").mkdir()
+
+    paths = _collect_skill_paths(
+        SkillsConfig(auto_load_user_agents_skills=False, auto_load_cwd_agents_skills=False),
+        runtime=_make_runtime(cwd),
+    )
+    assert str((tmp_path / "aixcoding_root" / "skills").resolve()) in paths
+    assert str(cwd_aixcoding_skills) in paths
 
 
 def test_collect_skill_paths_includes_cwd_when_dir_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

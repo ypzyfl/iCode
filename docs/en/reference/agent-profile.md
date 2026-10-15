@@ -393,6 +393,8 @@ skills:
   script_extensions: [.py, .sh, .ps1]
   auto_load_user_agents_skills: true
   auto_load_cwd_agents_skills: true
+  auto_load_aixcoding_user_skills: true
+  auto_load_aixcoding_cwd_skills: true
   inline:
     - name: release-notes
       description: Draft user-facing release notes from commits
@@ -413,10 +415,12 @@ skills:
 | `script_extensions` | List of strings | `[.py, .sh, .ps1]` | Extensions allowed for skill scripts. The required interpreters must already be installed. |
 | `auto_load_user_agents_skills` | Boolean | `true` | Whether to load the user-level shared Agent Skills directory. |
 | `auto_load_cwd_agents_skills` | Boolean | `true` | Whether to load `.agents/skills` in the current working directory. Reloaded when switching working directories. |
+| `auto_load_aixcoding_user_skills` | Boolean | `true` | Whether to load the AIxCoding shared user skills directory (`~/.aixcoding/skills`, shared with the AIxCoding desktop clients). |
+| `auto_load_aixcoding_cwd_skills` | Boolean | `true` | Whether to load `.aixcoding/skills` in the current working directory. Reloaded when switching working directories. |
 
-The AIxCoding user skills directory is always loaded. The user-level shared Agent Skills directory and the current working directory's skills directory are loaded by default; each can be disabled with its corresponding `auto_load_*` field. For user-level directory paths, see [Skill installation locations](../guides/extensions/skills.md#skill-installation-locations).
+The AIxCoding user skills directory is always loaded. The other automatically loaded directories are on by default; each can be disabled with its corresponding `auto_load_*` field. For user-level directory paths, see [Skill installation locations](../guides/extensions/skills.md#skill-installation-locations).
 
-When multiple sources contain skills with the same name, precedence from highest to lowest is: earlier directories in `paths`, AIxCoding user skills directory, the user-level shared Agent Skills directory, the current working directory's skills directory, and earlier definitions in `inline`. If one search root contains multiple skills with the same name, discovery order is unspecified. Keep only one to ensure that the intended version loads.
+When multiple sources contain skills with the same name, precedence from highest to lowest is: earlier directories in `paths`, AIxCoding user skills directory, the AIxCoding shared user directory (`~/.aixcoding/skills`), the user-level shared Agent Skills directory, `.aixcoding/skills` in the current working directory, `.agents/skills` in the current working directory, and earlier definitions in `inline`. If one search root contains multiple skills with the same name, discovery order is unspecified. Keep only one to ensure that the intended version loads.
 
 > **Note**: Skill scripts run as local processes without security sandbox isolation. Before adding a directory to `paths` or enabling an automatically loaded source, inspect its `SKILL.md`, scripts, and other relevant files. Load only trusted skills. Allowing a script extension does not install its interpreter.
 
