@@ -257,7 +257,7 @@ src/chrys/aixcoding/              # iCode 二开定制顶层包（将来登录�
 |---|---|---|
 | `telemetry/api/v1/tool-detail/save` | 工具 Start（执行前）/ 输入触发命中 | `funcId←call_id`、`funcName←tool_name/skill 名`、`funcType←tool_kind 映射(0/1/3)`、`value←args 白名单(可切全量)`、`sessionId/spanId←事件`、`requestId←per-call registry`、`userId/git*/channel*/pluginVersion/projectName←统一出口补齐` |
 | `telemetry/api/v1/tool-detail/update` | Result / 兜底 | `toolUseId←call_id`、`codeStatus←五态映射(§4.3)`、`executionDurationMs←duration_ms`、`executionStartedAt/finishedAt←timestamp`、`originalLines/addedLines/deletedLines←SnapshotStore difflib（写类工具）`、`failureType←outcome(timeout/cancelled/error)`、`toolErrorMessage←result 错误文本` |
-| `ai-code/save` | 写类工具成功后 | `reportId←uuid`、`filepath←git 相对路径`、`blocks←SnapshotStore difflib`、`sourceType="edit"`、git 四字段←`git_info` |
+| `ai-code/save` | 写类工具成功后 | `reportId←uuid`、`filepath←git 相对路径`、`blocks←edit_file 参数与修改前后快照定位（write_file 为全文）`、`sourceType="edit"`、git 四字段←`git_info` |
 | （无独立接口）llm-call | 每次模型请求 | `body.telemetry`：`requestId←每次调用 uuid4`、`sessionId←middleware 构造传参`、`spanId←uuid5(session_id:turn_id)`、`eventType="llm"`、`eventSubType←side_call 判定(agent/system)`、`channel*(决策 #7)/pluginVersion/projectName`、git 五件套←`git_info` |
 
 > 明确排除：`event-log/save|update`（pi-acp 现有但不成熟、将被去除——用户指示 2026-10-08，已记录于 §2.2）；`tool-detail/batch-save`（输入触发用单条 save）；`completion-event/*`（无补全）；`event-reaction/*`（agent_studio_new UI 层将来职责）。

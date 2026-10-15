@@ -27,7 +27,7 @@ from chrys.foundation.events.types import (
     InvocationToolCallStart,
 )
 from chrys.foundation.models.invocations import InvocationOrigin
-from chrys.service.tools.builtins.filesystem import EditFilePlan, plan_edit_file
+from chrys.service.tools.builtins.filesystem import EditFilePlan, WriteFilePlan, plan_edit_file, plan_write_file
 
 
 @pytest.fixture(autouse=True)
@@ -96,6 +96,16 @@ class _CaptureAdd:
 def test_blocks_new_file():
     blocks = ai_code_blocks(None, "a\nb\nc")
     assert blocks == [{"snippet": "a\nb\nc", "rangeStart": 1, "rangeEnd": 3}]
+
+
+def test_blocks_write_file_preserves_lone_cr_and_counts_lines(tmp_path):
+    path = tmp_path / "legacy.txt"
+    path.write_bytes(b"old\rtext\r")
+    plan = plan_write_file(str(path), "first\nsecond\n", overwrite=True)
+    assert isinstance(plan, WriteFilePlan)
+    assert plan.write_content == "first\rsecond\r"
+    blocks = ai_code_blocks(plan.before_display_content, plan.write_content)
+    assert blocks == [{"snippet": "first\rsecond\r", "rangeStart": 1, "rangeEnd": 2}]
 
 
 def test_blocks_edit_inserts_line_in_100_line_file():

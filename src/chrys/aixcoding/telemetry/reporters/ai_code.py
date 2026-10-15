@@ -98,7 +98,7 @@ def _block(text: str, offset: int, snippet: str, *, start: int | None = None) ->
     if start is None:
         start = text[:offset].count("\n") + 1
     # The final newline terminates the last content line; it is not another line.
-    end = start + snippet[:-1].count("\n")
+    end = start + _normalize_newlines(snippet)[:-1].count("\n")
     return {"snippet": snippet, "rangeStart": start, "rangeEnd": end}
 
 

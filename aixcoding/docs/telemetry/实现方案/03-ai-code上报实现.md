@@ -54,7 +54,7 @@ POST {report_base_url}/ai-code/save
 
 - 当 before 按工具参数替换后与 after 一致时，按替换位置生成 block；`replace_all=true` 为每次替换生成一个 block。`snippet` 是工具的 `new_string`，所以若它包含未改变的上下文，行号也覆盖这些上下文行。
 - 工具结果没有结构化行号，`rangeStart` 必须数执行后快照中片段之前的换行；`rangeEnd` 按片段最后一个实际字符所在行计算，末尾换行不额外算一行。CRLF/CR 先按工具行为规范化为 LF 再定位。
-- 如果快照与工具参数不能精确重建，只在 `new_string` 于 after 中唯一出现时定位；否则沿用桌面端的全文回退。纯删除没有生成代码，不发 ai-code。`write_file` 上报全文，范围是 `1..文件实际末行`。
+- 如果快照与工具参数不能精确重建，只在 `new_string` 于 after 中唯一出现时定位；否则沿用桌面端的全文回退。纯删除没有生成代码，不发 ai-code。`write_file` 上报全文，范围是 `1..文件实际末行`；LF、CRLF 和单独 CR 都按同一行数口径计算，片段保留原始换行。
 
 ### 4.3 codeStatus 采纳判定（五态映射）
 
