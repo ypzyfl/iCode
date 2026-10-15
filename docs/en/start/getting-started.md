@@ -30,24 +30,24 @@ chmod +x ./aixcoding-cli
 
 The Linux x86-64 package requires glibc 2.17 or later, and the ARM64 package requires glibc 2.18 or later. Distributions that provide only musl, such as Alpine Linux, are not supported by the prebuilt packages.
 
-The HTTP download root is `http://22.189.54.139/aixcoding/file/aixcoding`, mapped from `/homepage/aixcoding/` on the server. Put `install.sh` at the root, channel pointers in `channels/cli/prod.txt` and `channels/cli/test.txt`, and each package under `releases/cli/<full-version>/`. No FTP credentials are needed. Linux and macOS users can install with one command. The script detects the platform and creates an `aixcoding` launch command:
+The HTTP download root is `http://22.189.54.139/aixcoding/file/aixcoding`, mapped from `/homepage/aixcoding/` on the server. Put `install.sh` and `install.ps1` at the root, channel pointers in `channels/cli/prod.txt` and `channels/cli/test.txt`, and each package under `releases/cli/<full-version>/`. No FTP credentials are needed. Linux and macOS users can install with one command. The script detects the platform and creates an `aixcoding` launch command:
 
 ```bash
 curl -fsSL -o install.sh 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' && bash install.sh
 ```
 
-Production is the default; run `bash install.sh --channel test` for test packages. The CD workflow's flat `icode-release-bundle` artifact includes platform archives, `install.sh`, `README.md`, `version.txt`, and a wheel. Upload only `install.sh` to the HTTP root and the needed archives to `releases/cli/<full-version>/`, then manually write the full version to the relevant channel file. A build limited to Linux contains only Linux packages. See the [README installation table](../../../README.md#install-from-an-internal-mirror) for all five platform package names and the Windows mirror commands.
-Previously uploaded archives named `icode-<platform>-v<version>-offline.tar.gz` or `.zip` also work when they contain a root-level `icode` executable.
+Production is the default; run `bash install.sh --channel test` for test packages. The CD workflow uploads each platform binary separately and does not bundle installer scripts. Place both installer scripts in the HTTP root manually, upload the needed platform artifact ZIPs to `releases/cli/<full-version>/`, and write the full version to the relevant channel file. The wheel artifact is used for building and is not needed in the HTTP mirror. A build limited to Linux contains only Linux binaries. See the [README installation table](../../../README.md#install-from-an-internal-mirror) for all five platform package names.
+For Linux/macOS, `install.sh` also accepts previously uploaded archives named `icode-<platform>-v<version>-offline.tar.gz` or `.zip` when they contain a root-level `icode` executable.
 
 ### Windows
 
-Download and extract `aixcoding-cli-windows-x86_64-v<version>-offline.zip`. Open PowerShell, go to the extracted directory, and run:
+Run this in PowerShell to install the production channel's current Windows x86-64 release:
 
 ```powershell
-.\aixcoding-cli.exe install
+irm 'http://22.189.54.139/aixcoding/file/aixcoding/install.ps1' | iex
 ```
 
-The installer attempts to add AIxCoding-CLI to the current user's `PATH`. Open a new terminal after installation.
+For the test channel, set `$env:ICODE_CHANNEL='test'` before running the command. The installer attempts to add AIxCoding-CLI to the current user's `PATH`. Open a new terminal after installation.
 
 ### Verify the installation
 

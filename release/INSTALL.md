@@ -14,11 +14,12 @@ AIxCoding-CLI 是一个运行在终端里的智能体平台（TUI）。安装包
 
 ## 安装
 
-CD 流水线生成平铺的 `icode-release-bundle`，包含各平台安装包、`install.sh`、`README.md`、`version.txt` 和 Python wheel。上传到 HTTP 下载目录时只需 `install.sh` 和要发布的安装包。只构建 Linux 时，产物中不会有 macOS 或 Windows 包。
+CD 流水线分别上传各平台二进制 Artifact，不生成包含安装脚本的 release bundle。手动将两个安装脚本和要发布的平台包放到 HTTP 下载目录；构建用 wheel 无需上传。只构建 Linux 时，产物中不会有 macOS 或 Windows 包。
 
 ```text
 /homepage/aixcoding/                         # HTTP: /aixcoding/file/aixcoding/
 ├── install.sh
+├── install.ps1
 ├── channels/
 │   └── cli/
 │       ├── prod.txt                         # 一行完整版本号
@@ -29,8 +30,8 @@ CD 流水线生成平铺的 `icode-release-bundle`，包含各平台安装包、
             └── aixcoding-cli-linux-x86_64-v0.28.0-dev-9011ff5-offline.zip
 ```
 
-从 bundle 中把 `install.sh` 放到 HTTP 根目录，并把需要的平台安装包放入 `releases/cli/<完整版本>/`；其他文件和整个 bundle 压缩包无需上传。确认安装包上传完毕后，手动将完整版本号写入 `channels/cli/test.txt` 或 `channels/cli/prod.txt`。测试通过后发布同一构建到生产，只需更新 `channels/cli/prod.txt`，无需复制二进制。两个频道文件都只包含一行完整版本号；首次发布时分别准备。
-已上传的旧安装包若以 `icode-` 开头，保持原文件名即可；脚本会尝试该包名，并接受包内根目录的 `icode` 可执行文件。
+手动把 `install.sh` 和 `install.ps1` 放到 HTTP 根目录，并把需要的平台包放入 `releases/cli/<完整版本>/`。手动运行 CD 时，可下载对应平台的 Artifact ZIP；Linux/macOS 的 ZIP 包也可直接由 `install.sh` 安装。确认安装包上传完毕后，手动将完整版本号写入 `channels/cli/test.txt` 或 `channels/cli/prod.txt`。测试通过后发布同一构建到生产，只需更新 `channels/cli/prod.txt`，无需复制二进制。两个频道文件都只包含一行完整版本号；首次发布时分别准备。
+已上传的 Linux/macOS 旧安装包若以 `icode-` 开头，保持原文件名即可；`install.sh` 会尝试该包名，并接受包内根目录的 `icode` 可执行文件。
 
 ### 方式一：从内网镜像安装
 
@@ -41,6 +42,14 @@ curl -fsSL -o install.sh 'http://22.189.54.139/aixcoding/file/aixcoding/install.
 ```
 
 默认读取 `channels/cli/prod.txt`。安装测试包时运行 `bash install.sh --channel test`；在线安装会根据完整版本号和平台从 `releases/cli/` 目录下载安装包。
+
+Windows x86-64 在 PowerShell 中使用另一条单行命令（需要先上传 `install.ps1` 和 Windows ZIP 包）：
+
+```powershell
+irm 'http://22.189.54.139/aixcoding/file/aixcoding/install.ps1' | iex
+```
+
+默认读取生产频道；测试频道可先运行 `$env:ICODE_CHANNEL='test'`，再执行上述命令。安装后新开 PowerShell，运行 `aixcoding-cli --version` 验证。
 
 安装指定版本：
 

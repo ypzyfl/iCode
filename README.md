@@ -98,15 +98,16 @@ iCode ships no model profiles, so press **F4** on first launch to add one.
 
 ## Install from an internal mirror
 
-The HTTP download root is `http://22.189.54.139/aixcoding/file/aixcoding`. Put `install.sh` at that root. `channels/cli/prod.txt` and `channels/cli/test.txt` each hold
+The HTTP download root is `http://22.189.54.139/aixcoding/file/aixcoding`. Put `install.sh` and `install.ps1` at that root. `channels/cli/prod.txt` and `channels/cli/test.txt` each hold
 one full version, and archives go in `releases/cli/<full-version>/`. The CD
-workflow's flat `icode-release-bundle` artifact includes the platform archives,
-`install.sh`, `README.md`, `version.txt`, and a wheel. Upload only `install.sh`
-to the HTTP root and the matching archives to `releases/cli/<full-version>/`.
+workflow uploads each platform binary as a separate artifact; it does not bundle
+the installer scripts. Place `install.sh` and `install.ps1` in the HTTP root
+manually, and upload the matching binary artifact ZIPs to `releases/cli/<full-version>/`.
 Set `channels/cli/prod.txt` or `channels/cli/test.txt` manually to the full version
 after the upload finishes. A Linux-only build does not include macOS or
-Windows packages.
-For previously uploaded packages, the installer also accepts `icode-<platform>-v<version>-offline.tar.gz` or `.zip` with a root-level `icode` executable.
+Windows packages. The build also uploads a wheel used to assemble the binaries;
+it is not needed in the HTTP mirror.
+For previously uploaded Linux/macOS packages, `install.sh` also accepts `icode-<platform>-v<version>-offline.tar.gz` or `.zip` with a root-level `icode` executable.
 
 The HTTP download endpoint requires no FTP credentials. The public URL path
 `/aixcoding/file/aixcoding/` maps to the server directory `/homepage/aixcoding/`.
@@ -117,7 +118,7 @@ The HTTP download endpoint requires no FTP credentials. The public URL path
 | Linux x86-64 | `aixcoding-cli-linux-x86_64-v<version>-offline.tar.gz` | `curl -fsSL 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' \| bash` |
 | macOS Apple silicon | `aixcoding-cli-macos-aarch64-v<version>-offline.tar.gz` | `curl -fsSL 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' \| bash` |
 | macOS Intel | `aixcoding-cli-macos-x86_64-v<version>-offline.tar.gz` | `curl -fsSL 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' \| bash` |
-| Windows x86-64 | `aixcoding-cli-windows-x86_64-v<version>-offline.zip` | Use the PowerShell commands below. |
+| Windows x86-64 | `aixcoding-cli-windows-x86_64-v<version>-offline.zip` | `irm 'http://22.189.54.139/aixcoding/file/aixcoding/install.ps1' \| iex` (PowerShell) |
 
 On Linux and macOS, the script reads `channels/cli/prod.txt` by default. For test packages,
 download the script and run `bash install.sh --channel test`. To ensure a failed
@@ -128,21 +129,18 @@ Open a new terminal and run
 `aixcoding --version` to verify it. Linux x86-64 requires glibc 2.17 or later;
 Linux ARM64 requires glibc 2.18 or later.
 
-On Windows, run this in PowerShell from the directory where you want to download
-the package:
+On Windows, run the one-line command in the table in PowerShell. It installs the
+current production version. For the test channel, run
+`$env:ICODE_CHANNEL='test'; irm 'http://22.189.54.139/aixcoding/file/aixcoding/install.ps1' | iex`.
+To inspect the script first or install a specific version, download it and run it locally:
 
 ```powershell
-$mirror = 'http://22.189.54.139/aixcoding/file/aixcoding'
-$channel = 'prod' # change to test for test packages
-$version = (curl.exe --silent --show-error --fail "$mirror/channels/cli/$channel.txt").Trim().TrimStart('v')
-$archive = "aixcoding-cli-windows-x86_64-v$version-offline.zip"
-curl.exe --fail --location --output $archive "$mirror/releases/cli/$version/$archive"
-Expand-Archive $archive -DestinationPath '.\aixcoding-cli-windows-x86_64' -Force
-& '.\aixcoding-cli-windows-x86_64\aixcoding-cli.exe' install
+Invoke-WebRequest 'http://22.189.54.139/aixcoding/file/aixcoding/install.ps1' -OutFile install.ps1
+.\install.ps1 -Version 0.28.0-dev-9011ff5
 ```
 
 Open a new PowerShell window and run `aixcoding-cli --version`. The shell
-`install.sh` is for Linux and macOS.
+`install.sh` is for Linux and macOS; `install.ps1` is for Windows x86-64.
 
 ## User guide
 
