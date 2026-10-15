@@ -79,7 +79,7 @@ def adopted_code_status(self, call_id, session_id, *, rejected):
 
 ### 4.4 payload 组装
 
-报文增加 `inputMethod="ai_generated"`，与 pi-acp 的工具写入默认值一致；复制/导出等 UI 行为不在此 reporter 的触发范围。`language` 直接取工具参数 `path` 的小写扩展名（不含点）；无扩展名不发送该字段。它可能与其他端的语言名称口径不同，例如 `.py` 上报 `py`，而 pi-acp 上报 `python`。`apiUsageExtraId` 仍未有可用来源，本次不填。
+报文增加 `inputMethod="ai_generated"`，与 pi-acp 的工具写入默认值一致；复制/导出等 UI 行为不在此 reporter 的触发范围。`language` 根据工具参数 `path` 的小写扩展名，使用 pi-acp 的扩展名到语言名映射；未知或无扩展名时不发送该字段。`apiUsageExtraId` 仍未有可用来源，本次不填。
 
 - `filepath`：公共层 `reporters.relative_file_name()`（与 tool-detail `fileName` 同口径；2026-10-10 起本地 `_relative_filepath` 废弃——其相对入参按进程 cwd resolve，进程 cwd 为工作区子目录时会产出错位相对路径）。
 - git 四字段 `remoteUrl/branch/gitUserName/gitUserEmail` 单独取（`git_user_name`/`git_user_email` 为 M3 对 `GitInfo` 的扩展，来自 `git config`）。

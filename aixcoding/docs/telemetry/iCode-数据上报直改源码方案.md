@@ -127,7 +127,7 @@ pi-acp 是 pi 与 ACP 客户端之间的适配层进程（agent_studio_new spawn
 | 项 | 设计 |
 |---|---|
 | 数据源 | `write_file`/`edit_file`（`_FILE_TOOLS`；shell 隐式写不报）。`edit_file` 用工具参数 `old_string/new_string/replace_all` 与 SnapshotStore before/after 快照定位变更片段，`write_file` 上报全文；工具没有结构化行号，片段行号需从执行后快照计算 |
-| payload | `reportId`(uuid)、`filepath`(工作区相对路径)、`blocks`、`sourceType:"edit"`、`inputMethod:"ai_generated"`、直接取路径小写扩展名的 `language`、`remoteUrl/branch/gitUserName/gitUserEmail` |
+| payload | `reportId`(uuid)、`filepath`(工作区相对路径)、`blocks`、`sourceType:"edit"`、`inputMethod:"ai_generated"`、按 pi-acp 扩展名映射的 `language`、`remoteUrl/branch/gitUserName/gitUserEmail` |
 | 采纳语义（codeStatus，基于事实 #11/#12 升级） | iCode 是**审批即写入**：`user_approved`（decider=USER，用户看过 diff 预览）→ `5`；`user_rejected` → `4`；`judge 批准/auto_approved（安全只读静默放行）/bypass_approved` → `1`；mode 真值源：订阅 `ApprovalModeUpdated` 流。此映射需产品侧确认（§8-3），机制上 ACP/TUI 同源一处实现 |
 | 触发时机 | 工具执行成功（Result 无错误且带 file mutation）后上报，批量缓冲（对齐 pi-acp batchSize 机制） |
 

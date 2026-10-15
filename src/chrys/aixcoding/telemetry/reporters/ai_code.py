@@ -45,10 +45,49 @@ FILE_WRITE_TOOLS = frozenset({"write_file", "edit_file"})
 
 _MODE_MANUAL = "manual"
 
+_LANGUAGE_BY_EXT = {
+    "ts": "typescript",
+    "tsx": "typescript",
+    "js": "javascript",
+    "jsx": "javascript",
+    "py": "python",
+    "java": "java",
+    "go": "go",
+    "rs": "rust",
+    "c": "c",
+    "h": "c",
+    "cpp": "cpp",
+    "hpp": "cpp",
+    "cs": "csharp",
+    "rb": "ruby",
+    "php": "php",
+    "swift": "swift",
+    "kt": "kotlin",
+    "scala": "scala",
+    "sh": "shell",
+    "bash": "shell",
+    "zsh": "shell",
+    "ps1": "powershell",
+    "sql": "sql",
+    "html": "html",
+    "css": "css",
+    "scss": "scss",
+    "less": "less",
+    "json": "json",
+    "yaml": "yaml",
+    "yml": "yaml",
+    "xml": "xml",
+    "md": "markdown",
+    "vue": "vue",
+    "lua": "lua",
+    "dart": "dart",
+    "r": "r",
+}
+
 
 def language_from_path(path: str) -> str | None:
-    """Use the file extension as the optional language value."""
-    return Path(path).suffix.lower().removeprefix(".") or None
+    """Use the same extension-to-language names as pi-acp."""
+    return _LANGUAGE_BY_EXT.get(Path(path).suffix.lower().removeprefix("."))
 
 
 def _normalize_newlines(text: str) -> str:

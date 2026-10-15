@@ -158,11 +158,12 @@ def test_blocks_empty_after():
     assert ai_code_blocks("x", "") == []
 
 
-def test_language_from_path_uses_extension_directly():
-    assert language_from_path("src/Module.TSX") == "tsx"
+def test_language_from_path_matches_pi_acp_mapping():
+    assert language_from_path("src/Module.TSX") == "typescript"
     assert language_from_path("src/component.vue") == "vue"
-    assert language_from_path("script.sh") == "sh"
+    assert language_from_path("script.sh") == "shell"
     assert language_from_path("README") is None
+    assert language_from_path("archive.unknown") is None
 
 
 # -- codeStatus 采纳语义 --------------------------------------------------------
@@ -216,7 +217,7 @@ def test_reporter_write_success_emits_payload():
     assert payload["filepath"] == "src/a.py"
     assert payload["sourceType"] == "edit"
     assert payload["inputMethod"] == "ai_generated"
-    assert payload["language"] == "py"
+    assert payload["language"] == "python"
     assert payload["codeStatus"] == 5
     # spanId 语义修正（2026-10-09）：来自 registry 根 span，无记录时不带
     # （原 invocation_id 退出报文——与 tool-detail 同款修正）。
