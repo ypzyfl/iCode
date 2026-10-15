@@ -126,8 +126,8 @@ pi-acp 是 pi 与 ACP 客户端之间的适配层进程（agent_studio_new spawn
 
 | 项 | 设计 |
 |---|---|
-| 数据源 | `write_file`/`edit_file`（`_FILE_TOOLS`；shell 隐式写不报）。`args` 即完整生成代码；before/after 全文从 SnapshotStore 取，`difflib` 算 `blocks[{snippet, rangeStart, rangeEnd}]` |
-| payload | `reportId`(uuid)、`filepath`(git 相对路径)、`blocks`、`sourceType:"edit"`、`remoteUrl/branch/gitUserName/gitUserEmail` |
+| 数据源 | `write_file`/`edit_file`（`_FILE_TOOLS`；shell 隐式写不报）。`edit_file` 用工具参数 `old_string/new_string/replace_all` 与 SnapshotStore before/after 快照定位变更片段，`write_file` 上报全文；工具没有结构化行号，片段行号需从执行后快照计算 |
+| payload | `reportId`(uuid)、`filepath`(工作区相对路径)、`blocks`、`sourceType:"edit"`、`inputMethod:"ai_generated"`、按 pi-acp 扩展名映射的 `language`、`remoteUrl/branch/gitUserName/gitUserEmail` |
 | 采纳语义（codeStatus，基于事实 #11/#12 升级） | iCode 是**审批即写入**：`user_approved`（decider=USER，用户看过 diff 预览）→ `5`；`user_rejected` → `4`；`judge 批准/auto_approved（安全只读静默放行）/bypass_approved` → `1`；mode 真值源：订阅 `ApprovalModeUpdated` 流。此映射需产品侧确认（§8-3），机制上 ACP/TUI 同源一处实现 |
 | 触发时机 | 工具执行成功（Result 无错误且带 file mutation）后上报，批量缓冲（对齐 pi-acp batchSize 机制） |
 
@@ -257,7 +257,7 @@ src/chrys/aixcoding/              # iCode 二开定制顶层包（将来登录�
 |---|---|---|
 | `telemetry/api/v1/tool-detail/save` | 工具 Start（执行前）/ 输入触发命中 | `funcId←call_id`、`funcName←tool_name/skill 名`、`funcType←tool_kind 映射(0/1/3)`、`value←args 白名单(可切全量)`、`sessionId/spanId←事件`、`requestId←per-call registry`、`userId/git*/channel*/pluginVersion/projectName←统一出口补齐` |
 | `telemetry/api/v1/tool-detail/update` | Result / 兜底 | `toolUseId←call_id`、`codeStatus←五态映射(§4.3)`、`executionDurationMs←duration_ms`、`executionStartedAt/finishedAt←timestamp`、`originalLines/addedLines/deletedLines←SnapshotStore difflib（写类工具）`、`failureType←outcome(timeout/cancelled/error)`、`toolErrorMessage←result 错误文本` |
-| `ai-code/save` | 写类工具成功后 | `reportId←uuid`、`filepath←git 相对路径`、`blocks←SnapshotStore difflib`、`sourceType="edit"`、git 四字段←`git_info` |
+| `ai-code/save` | 写类工具成功后 | `reportId←uuid`、`filepath←git 相对路径`、`blocks←edit_file 参数与修改前后快照定位（write_file 为全文）`、`sourceType="edit"`、git 四字段←`git_info` |
 | （无独立接口）llm-call | 每次模型请求 | `body.telemetry`：`requestId←每次调用 uuid4`、`sessionId←middleware 构造传参`、`spanId←uuid5(session_id:turn_id)`、`eventType="llm"`、`eventSubType←side_call 判定(agent/system)`、`channel*(决策 #7)/pluginVersion/projectName`、git 五件套←`git_info` |
 
 > 明确排除：`event-log/save|update`（pi-acp 现有但不成熟、将被去除——用户指示 2026-10-08，已记录于 §2.2）；`tool-detail/batch-save`（输入触发用单条 save）；`completion-event/*`（无补全）；`event-reaction/*`（agent_studio_new UI 层将来职责）。
