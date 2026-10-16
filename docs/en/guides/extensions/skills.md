@@ -9,18 +9,23 @@ Choose an installation location based on where the skill should be available and
 | Location | When to use it | How AIxCoding loads it |
 | --- | --- | --- |
 | AIxCoding user skills directory | Make skills available to all agents of the "Built-in" type in AIxCoding | Always loaded automatically |
+| AIxCoding shared user directory (`~/.aixcoding/skills`) | Share skills between the AIxCoding CLI and AIxCoding desktop clients | Loaded automatically by default; can be disabled per agent |
 | Agent Skills shared directory | Share skills between AIxCoding and other tools that support Agent Skills | Loaded automatically by default; can be disabled per agent |
+| `<working-directory>/.aixcoding/skills` | AIxCoding-specific skills for the current working directory | Loaded automatically by default; can be disabled per agent |
 | `<working-directory>/.agents/skills` | Make skills available only in the current working directory | Loaded automatically by default; can be disabled per agent |
 | Custom directory | Load skills from a specific location | Must be added manually to the corresponding agent's configuration |
 
 Here, `<working-directory>` is the current working directory. When you switch working directories, AIxCoding reloads the skills from the new working directory.
 
-The two user-level skills directories have the following paths on each platform:
+The user-level skills directories have the following paths on each platform:
 
 | Directory | macOS and Linux | Windows |
 | --- | --- | --- |
 | AIxCoding user skills directory | `~/.chrys/skills` | `%APPDATA%\chrys\skills` |
+| AIxCoding shared user directory | `~/.aixcoding/skills` | `%USERPROFILE%\.aixcoding\skills` |
 | Agent Skills shared directory | `~/.agents/skills` | `%USERPROFILE%\.agents\skills` |
+
+When multiple directories contain skills with the same name, the AIxCoding-specific directories take precedence over the corresponding Agent Skills directories: `~/.aixcoding/skills` wins over `~/.agents/skills`, and `<working-directory>/.aixcoding/skills` wins over `<working-directory>/.agents/skills`.
 
 For the first three installation locations, copy or move the skill directory to the corresponding location. For a custom directory, there is no need to move the skill; add its directory to the corresponding agent's configuration.
 

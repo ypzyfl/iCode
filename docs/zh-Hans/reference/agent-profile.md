@@ -393,6 +393,8 @@ skills:
   script_extensions: [.py, .sh, .ps1]
   auto_load_user_agents_skills: true
   auto_load_cwd_agents_skills: true
+  auto_load_aixcoding_user_skills: true
+  auto_load_aixcoding_cwd_skills: true
   inline:
     - name: release-notes
       description: 根据提交记录起草面向用户的发布说明
@@ -413,10 +415,12 @@ skills:
 | `script_extensions` | 字符串列表 | `[.py, .sh, .ps1]` | 允许作为技能脚本运行的扩展名；所需解释器必须已经安装。 |
 | `auto_load_user_agents_skills` | 布尔值 | `true` | 是否加载 Agent Skills 用户级共享目录。 |
 | `auto_load_cwd_agents_skills` | 布尔值 | `true` | 是否加载当前工作目录的 `.agents/skills`。切换工作目录后重新加载。 |
+| `auto_load_aixcoding_user_skills` | 布尔值 | `true` | 是否加载 AIxCoding 共享用户技能目录（`~/.aixcoding/skills`，与 AIxCoding 桌面端共享）。 |
+| `auto_load_aixcoding_cwd_skills` | 布尔值 | `true` | 是否加载当前工作目录的 `.aixcoding/skills`。切换工作目录后重新加载。 |
 
-AIxCoding 用户技能目录始终加载；Agent Skills 用户级共享目录和当前工作目录技能目录默认加载，可分别通过两个 `auto_load_*` 字段关闭。用户级技能目录路径见[技能安装位置](../guides/extensions/skills.md#技能安装位置)。
+AIxCoding 用户技能目录始终加载；其余自动加载目录默认开启，可分别通过对应的 `auto_load_*` 字段关闭。用户级技能目录路径见[技能安装位置](../guides/extensions/skills.md#技能安装位置)。
 
-多个来源出现同名技能时，优先级从高到低为：`paths` 中靠前的目录、AIxCoding 用户技能目录、Agent Skills 用户级共享目录、当前工作目录技能目录、`inline` 中靠前的定义。同一个搜索根目录中存在多个同名技能时，发现顺序不确定；为确保加载指定版本，请只保留其中一个。
+多个来源出现同名技能时，优先级从高到低为：`paths` 中靠前的目录、AIxCoding 用户技能目录、AIxCoding 共享用户目录（`~/.aixcoding/skills`）、Agent Skills 用户级共享目录、当前工作目录的 `.aixcoding/skills`、当前工作目录的 `.agents/skills`、`inline` 中靠前的定义。同一个搜索根目录中存在多个同名技能时，发现顺序不确定；为确保加载指定版本，请只保留其中一个。
 
 > **注意**：技能脚本作为本地进程运行，不受安全沙箱隔离。将目录加入 `paths` 或启用自动加载来源前，请检查其中的 `SKILL.md`、脚本和其他相关文件，只加载可信技能。允许某种脚本扩展名不会自动安装对应解释器。
 
