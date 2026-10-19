@@ -43,6 +43,7 @@ from chrys.app.tui.screens.main.copy_actions import CopyActionController, parse_
 from chrys.app.tui.screens.main.diff_controller import DiffController, LiveDiffOwner, LiveDiffTracker
 from chrys.app.tui.screens.main.event_handlers import BackendEventCallbacks, BackendEventHandler
 from chrys.app.tui.screens.main.input_flow import InputFlowController
+from chrys.app.tui.screens.main.login_indicator import compute_login_indicator_state
 from chrys.app.tui.screens.main.model_indicator import (
     compute_model_indicator_state,
     is_model_selection_locked,
@@ -968,8 +969,25 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
     def refresh_localization(self) -> None:
         """Recompute screen-owned localized chrome text in place."""
         self._refresh_model_indicator()
+        self.refresh_login_indicator()
         if self._workflow.workflow_mode:
             self._workflow.request_refresh()
+
+    def refresh_login_indicator(self, *, account: AccountInfo | None = None) -> None:
+        """Recompute the header account badge from the login session (no network I/O).
+
+        ``account`` is the freshest ``user/info`` result when the caller has
+        one; without it the badge falls back to the stored ehr, so an offline
+        start still shows a signed-in chip.
+        """
+        from aixcoding.auth import get_login_session
+
+        state = compute_login_indicator_state(
+            get_login_session(),
+            self._language_localizer(),
+            account=account,
+        )
+        self.query_one(AppHeader).set_login_indicator(state)
 
     def _available_languages(self) -> list[tuple[str, Content]]:
         localizer = self._language_localizer()
@@ -1536,6 +1554,7 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         if self._locale_controller is not None:
             self._locale_controller.register_surface(self)
         self._refresh_model_indicator()
+        self.refresh_login_indicator()
         self._update_subtitle()
         self._git_branch_closed = False
         self._queue_git_branch_start(self._workspace_cwd())
@@ -2204,11 +2223,12 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
             # rather than waiting out a whole interval.
             cast("ChrysApp", self.app).start_catalog_sync(immediate=True)
 
-        def _on_login_dismiss(account: object | None) -> None:
+        def _on_login_dismiss(account: AccountInfo | None) -> None:
             if account is None:
                 return
             display_name = getattr(account, "display_name", "") or ""
             self.notify(render_str(self._language_localizer(), _LOGIN_SUCCEEDED.bind(name=display_name)))
+            self.refresh_login_indicator(account=account)
 
         self.app.push_screen(LoginDialog(on_login_success=_on_login_success), _on_login_dismiss)
 
@@ -2229,6 +2249,7 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         # thread has nothing left to do until the next login.
         cast("ChrysApp", self.app).stop_catalog_sync()
         self.notify(render_str(self._language_localizer(), _LOGIN_LOGGED_OUT.bind()))
+        self.refresh_login_indicator()
 
     # ------------------------------------------------------------------ #
     # Agent config (/agents with optional tab subcommands)

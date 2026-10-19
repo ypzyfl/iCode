@@ -149,13 +149,32 @@ Button.-style-flat.-error {
 #mode-badge:hover, #mode-badge:focus, #mode-badge.-active { background: $foreground; color: $background; }
 App:ansi #mode-badge:hover, App:ansi #mode-badge:focus, App:ansi #mode-badge.-active { color: $button-color-foreground; }
 
-#approval-badge {
+#header-badges {
     layer: overlay;
     dock: right;
     width: auto;
     height: 1;
+}
+
+#login-badge {
+    width: auto;
+    height: 1;
     text-style: bold;
+    margin-left: 1;
     margin-right: 1;
+    color: $success;
+    background: $success 15%;
+}
+
+#login-badge.-logged-out {
+    color: $text-muted;
+    background: $foreground 10%;
+}
+
+#approval-badge {
+    width: auto;
+    height: 1;
+    text-style: bold;
     pointer: pointer;
 }
 

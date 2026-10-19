@@ -116,3 +116,38 @@ async def test_app_header_approval_badge_click_consumes_event() -> None:
     assert event._no_default_action is True
     assert event._stop_propagation is True
     assert len(messages) == 1
+
+
+async def test_app_header_login_badge_states_and_visibility() -> None:
+    from chrys.app.tui.screens.main.login_indicator import LoginIndicatorState
+
+    async with AppHeaderApp().run_test() as pilot:
+        header = pilot.app.query_one(AppHeader)
+        badge = pilot.app.query_one("#login-badge", Static)
+
+        # Hidden until the screen pushes a state.
+        assert badge.display is False
+
+        header.set_login_indicator(
+            LoginIndicatorState(label="已登录", tooltip="已登录：alice", logged_in=True, managed=False)  # noqa: RUF001
+        )
+        await pilot.pause()
+        assert badge.display is True
+        assert badge.render().plain == "\u25cf 已登录"
+        assert not badge.has_class("-logged-out")
+
+        header.set_login_indicator(
+            LoginIndicatorState(label="未登录", tooltip="未登录 — 运行 /login 登录", logged_in=False, managed=False)
+        )
+        await pilot.pause()
+        assert badge.render().plain == "\u25cf 未登录"
+        assert badge.has_class("-logged-out")
+
+
+async def test_app_header_can_hide_login_badge() -> None:
+    class AppHeaderWithoutLoginApp(App):
+        def compose(self) -> ComposeResult:
+            yield AppHeader(show_login_badge=False)
+
+    async with AppHeaderWithoutLoginApp().run_test() as pilot:
+        assert list(pilot.app.query("#login-badge")) == []

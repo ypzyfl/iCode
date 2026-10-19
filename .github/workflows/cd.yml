@@ -1,18 +1,30 @@
 name: CD
-run-name: "CD — ${{ github.event_name == 'push' && github.ref_name || inputs.ref || 'main' }} (${{ inputs.platform || 'all' }})"
+run-name: "CD — ${{ inputs.ref || inputs.branch || github.ref_name }} (${{ inputs.platform || 'all' }})${{ inputs.version && format(' @ v{0}', inputs.version) || '' }}"
 
 on:
   push:
     tags:
       - 'v*'
+  # 每个工作日北京时间 20:00（UTC 12:00）。注意：schedule 只在仓库默认分支
+  # 的 workflow 文件上生效，当前构建分支须为默认分支。
+  schedule:
+    - cron: "0 12 * * 1-5"
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Branch or commit to build (default: main)'
+        description: '要构建的 Tag 或 Commit（留空 = 使用下方分支 / 当前 ref）'
         type: string
-        default: main
+        default: ''
+      branch:
+        description: '要构建的分支（仅在 ref 留空时生效）'
+        type: string
+        default: main_aixcoding_cli_0.28.0_final
+      version:
+        description: '指定版本号（如 0.28.0，优先级最高）。留空 = 使用默认版本 DEFAULT_PROJECT_VERSION (0.28.0)'
+        type: string
+        default: ''
       platform:
-        description: 'Platform to build'
+        description: '要构建的平台'
         type: choice
         default: all
         options:
@@ -22,8 +34,10 @@ on:
           - linux
 
 concurrency:
-  group: cd-${{ inputs.ref || github.ref }}-${{ github.workflow }}
-  cancel-in-progress: true
+  group: cd-${{ inputs.ref || inputs.branch || github.ref }}-${{ github.workflow }}
+  # 定时构建失败后由 retry-failed 重跑失败 job（同一次 run 的重跑会再次
+  # 进入本并发组），cancel-in-progress 会把重跑取消掉，因此定时触发时关闭。
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 permissions:
   contents: read
@@ -31,23 +45,76 @@ permissions:
 env:
   PYAPP_VERSION: "0.29.0"
   PYAPP_PYTHON_VERSION: "3.14"
+  # 默认版本号：schedule 触发时 inputs 均为空，输入默认值不生效，
+  # 因此默认版本放在这里；dispatch 时显式填写 version 输入可覆盖。
+  DEFAULT_PROJECT_VERSION: "0.28.0"
 
 jobs:
+  # ── Resolve build ref and version ───────────────────────────────────
+  # Priority: inputs.version (or DEFAULT_PROJECT_VERSION) > tag ref
+  # (push/dispatch) > latest tag reachable from the ref > pyproject
+  # version + -dev-{sha} fallback.
+  resolve-target:
+    name: Resolve ref and version
+    runs-on: ubuntu-latest
+    outputs:
+      build_ref: ${{ steps.resolve.outputs.build_ref }}
+      version: ${{ steps.resolve.outputs.version }}
+      is_dev: ${{ steps.resolve.outputs.is_dev }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref || inputs.branch || github.ref }}
+      - id: resolve
+        shell: bash
+        run: |
+          ref="${{ inputs.ref || inputs.branch || github.ref }}"
+          echo "build_ref=$ref" >> "$GITHUB_OUTPUT"
+
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            echo "Version: $version (from tag ref)"
+          elif [ -n "${{ inputs.version }}" ]; then
+            version="${{ inputs.version }}"
+            version="${version#v}"
+            echo "Version: $version (from input)"
+          else
+            version="${{ env.DEFAULT_PROJECT_VERSION }}"
+            if [ -n "$version" ]; then
+              echo "Version: $version (from DEFAULT_PROJECT_VERSION)"
+            else
+              tag=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)
+              if [[ "$tag" == v* ]]; then
+                version="${tag#v}"
+                echo "Version: $version (latest tag $tag reachable from $ref)"
+              else
+                base=$(grep -m1 '^version' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+                base="${base:-0.0.0}"
+                version="${base}-dev-$(echo $GITHUB_SHA | cut -c1-7)"
+                echo "is_dev=true" >> "$GITHUB_OUTPUT"
+                echo "Version: $version (dev fallback, no tag found)"
+              fi
+            fi
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
   # ── Run CI checks first ─────────────────────────────────────────────
   ci:
     uses: ./.github/workflows/ci.yml
+    needs: resolve-target
     with:
-      build_ref: ${{ inputs.ref || github.ref }}
+      build_ref: ${{ needs.resolve-target.outputs.build_ref }}
 
   # ── Build Python wheel ──────────────────────────────────────────────
   build-wheel:
     name: Build wheel
-    needs: ci
+    needs: [ci, resolve-target]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ needs.resolve-target.outputs.build_ref }}
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
@@ -99,7 +166,7 @@ jobs:
   # ── Build PyApp binaries (5 platforms × 1 flavor = 5 jobs) ──────────
   build-binaries:
     name: ${{ matrix.artifact }}-${{ matrix.installer }}
-    needs: compute-matrix
+    needs: [compute-matrix, resolve-target]
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.compute-matrix.outputs.matrix) }}
@@ -110,7 +177,7 @@ jobs:
       # workspace root below.
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ needs.resolve-target.outputs.build_ref }}
           path: repo
 
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
@@ -121,20 +188,7 @@ jobs:
       - name: Determine version
         shell: bash
         run: |
-          ref="${{ inputs.ref || '' }}"
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            echo "PROJECT_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
-          elif [[ "$ref" == v* ]]; then
-            echo "PROJECT_VERSION=${ref#v}" >> "$GITHUB_ENV"
-          else
-            # Dev build: derive base version from the wheel filename
-            # (e.g. chrys-0.6.6-py3-none-any.whl -> 0.6.6) so dev artifacts
-            # carry a meaningful version like v0.6.6-dev-abc1234. We use '-'
-            # instead of PEP 440's '+' so the version is URL/filename-safe.
-            base=$(ls wheel/*.whl | head -1 | sed -E 's|.*/chrys-([^-]+)-.*|\1|')
-            base="${base:-0.0.0}"
-            echo "PROJECT_VERSION=${base}-dev-$(echo $GITHUB_SHA | cut -c1-7)" >> "$GITHUB_ENV"
-          fi
+          echo "PROJECT_VERSION=${{ needs.resolve-target.outputs.version }}" >> "$GITHUB_ENV"
 
       - name: Install musl toolchain
         if: contains(matrix.target, 'musl') && !matrix.use-cross
@@ -374,12 +428,20 @@ jobs:
   # ── Create GitHub Release (tag pushes only) ─────────────────────────
   release:
     name: Publish release
-    if: startsWith(github.ref, 'refs/tags/v') || startsWith(inputs.ref, 'v')
-    needs: [build-wheel, build-binaries]
+    # Dev 兜底版本（无 tag 可达且未指定版本）不发布；解析出正式版本即发布，
+    # 因此定时构建也会发布最新 tag 对应的 Release。
+    if: needs.resolve-target.outputs.is_dev != 'true'
+    needs: [build-wheel, build-binaries, resolve-target]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          # 检出实际构建的 ref，用于在 release.txt 中记录构建溯源信息
+          fetch-depth: 0
+          ref: ${{ needs.resolve-target.outputs.build_ref }}
+
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           path: artifacts
@@ -387,6 +449,15 @@ jobs:
       - name: Collect release assets
         run: |
           mkdir release
+          {
+            echo "build_time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "build_ref=${{ needs.resolve-target.outputs.build_ref }}"
+            echo "commit=$(git rev-parse HEAD)"
+            echo "commit_short=$(git rev-parse --short HEAD)"
+            echo "commit_time=$(git log -1 --format=%cI)"
+            echo "commit_author=$(git log -1 --format=%an)"
+            echo "commit_message: $(git log -1 --format=%B)"
+          } > release/release.txt
           # Archive binaries: tar.gz for Linux/macOS, zip for Windows
           # Binary inside the archive is "aixcoding-cli" (or "aixcoding-cli.exe");
           # the archive filename carries the product/platform info.
@@ -405,6 +476,29 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
-          tag_name: ${{ inputs.ref || github.ref_name }}
+          tag_name: v${{ needs.resolve-target.outputs.version }}
+          # 同一 tag 每晚重复构建时覆盖既有 Release 与同名资产
+          allowUpdates: true
           generate_release_notes: true
           files: release/*
+
+  # ── Auto-retry failed jobs (up to 3 re-runs) ────────────────────────
+  # 任意前置 job 失败时，通过官方 API 重跑失败的 job（Re-run failed
+  # jobs，含被其跳过的下游）。github.run_attempt 每次重跑递增，
+  # < 4 即最多自动重试 3 次，之后不再重跑。
+  retry-failed:
+    name: Retry failed jobs
+    needs: [ci, build-wheel, build-binaries, release]
+    if: failure() && github.run_attempt < 4
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Re-run failed jobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh api -X POST \
+            "repos/${GH_REPO}/actions/runs/${{ github.run_id }}/rerun-failed-jobs"
+          echo "Re-run triggered (attempt ${{ github.run_attempt }}, max 4)."
