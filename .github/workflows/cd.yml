@@ -448,7 +448,7 @@ jobs:
 
       - name: Collect release assets
         run: |
-          mkdir release
+          mkdir -p release
           {
             echo "build_time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
             echo "build_ref=${{ needs.resolve-target.outputs.build_ref }}"
