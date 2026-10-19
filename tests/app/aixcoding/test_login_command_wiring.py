@@ -26,7 +26,7 @@ def _make_session(tmp_path, **delegation: object) -> LoginSession:
     )
 
 
-def _host(pushed: list, notifications: list) -> SimpleNamespace:
+def _host(pushed: list, notifications: list, refreshed: list | None = None) -> SimpleNamespace:
     return SimpleNamespace(
         app=SimpleNamespace(
             push_screen=lambda dialog, callback: pushed.append((dialog, callback)),
@@ -34,6 +34,7 @@ def _host(pushed: list, notifications: list) -> SimpleNamespace:
         ),
         notify=lambda message, **_kwargs: notifications.append(str(message)),
         _language_localizer=lambda: Localizer("en"),
+        refresh_login_indicator=lambda **account: refreshed.append(account),
     )
 
 
@@ -56,10 +57,12 @@ def test_main_screen_logout_clears_credential_and_toasts(monkeypatch, tmp_path) 
         StoredCredential.issued_now(environment_id="local", user_id="8769092", token="tok"),
     )
     notifications: list[str] = []
+    refreshed: list[dict] = []
 
-    MainScreen._perform_logout(_host([], notifications))
+    MainScreen._perform_logout(_host([], notifications, refreshed))
 
     assert notifications == ["Logged out"]
+    assert refreshed == [{}]
     assert session.stored_token is None
 
 
@@ -68,7 +71,8 @@ def test_main_screen_login_pushes_dialog_and_toasts_on_account(monkeypatch, tmp_
     monkeypatch.setattr(auth_session, "_default_session", session)
     pushed: list[tuple[object, object]] = []
     notifications: list[str] = []
-    host = _host(pushed, notifications)
+    refreshed: list[dict] = []
+    host = _host(pushed, notifications, refreshed)
 
     MainScreen._open_login_dialog(host)
 
@@ -78,6 +82,7 @@ def test_main_screen_login_pushes_dialog_and_toasts_on_account(monkeypatch, tmp_
 
     dismiss_callback(SimpleNamespace(display_name="大熊猫"))
     assert notifications == ["Logged in as 大熊猫"]
+    assert len(refreshed) == 1
 
     dismiss_callback(None)  # cancelled login: no toast
     assert notifications == ["Logged in as 大熊猫"]

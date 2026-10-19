@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from textual.containers import Horizontal
 from textual.content import Content
 from textual.events import Click
 from textual.message import Message
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
     from textual.app import ComposeResult
 
     from chrys.app.tui.i18n import LocaleController
+    from chrys.app.tui.screens.main.login_indicator import LoginIndicatorState
     from chrys.foundation.i18n import Localizer
 
 _APPROVAL_BADGE = msg(
@@ -82,27 +84,40 @@ class AppHeader(Widget):
         self,
         *,
         show_approval_badge: bool = True,
+        show_login_badge: bool = True,
         show_mode_badge: bool = False,
         locale_controller: LocaleController | None = None,
     ) -> None:
         super().__init__(id="app-header")
         self._show_approval_badge = show_approval_badge
+        self._show_login_badge = show_login_badge
         self._show_mode_badge = show_mode_badge
         self._workflow_mode = False
+        self._login_state: LoginIndicatorState | None = None
         self._locale_controller = locale_controller
 
     def compose(self) -> ComposeResult:
         yield Static(id="header-title")
         if self._show_mode_badge:
             yield _HeaderBadge(self._mode_content(), id="mode-badge")
-        if self._show_approval_badge:
-            yield _HeaderBadge(id="approval-badge")
+        if self._show_login_badge or self._show_approval_badge:
+            # One docked container holding both right-aligned badges: multiple
+            # sibling ``dock: right`` widgets in the overlay layer do not offset
+            # each other and would paint over the same edge cells.
+            with Horizontal(id="header-badges"):
+                if self._show_approval_badge:
+                    yield _HeaderBadge(id="approval-badge")
+                if self._show_login_badge:
+                    login_badge = _HeaderBadge(id="login-badge")
+                    login_badge.display = False  # hidden until a login state is pushed
+                    yield login_badge
 
     def on_mount(self) -> None:
         if self._locale_controller is not None:
             self._locale_controller.register_surface(self)
         self._refresh_title()
         self._refresh_mode()
+        self._refresh_login_badge()
         if self._show_approval_badge:
             self._refresh_approval_badge(self.approval_mode)
 
@@ -113,6 +128,7 @@ class AppHeader(Widget):
     def refresh_localization(self) -> None:
         """Retranslate the approval badge without rebuilding the header."""
         self._refresh_mode()
+        self._refresh_login_badge()
         if self.is_mounted and self._show_approval_badge:
             self._refresh_approval_badge(self.approval_mode)
 
@@ -148,6 +164,26 @@ class AppHeader(Widget):
         for cls in _APPROVAL_CLASSES.values():
             badge.remove_class(cls)
         badge.add_class(_APPROVAL_CLASSES[mode])
+
+    def set_login_indicator(self, state: LoginIndicatorState) -> None:
+        """Update the account badge (``None`` hides it) and repaint."""
+        self._login_state = state
+        self._refresh_login_badge()
+
+    def _refresh_login_badge(self) -> None:
+        """Repaint the account badge from the stored indicator state."""
+        if not self._show_login_badge or not self.is_mounted:
+            return
+        badge = self.query_one("#login-badge", Static)
+        state = self._login_state
+        if state is None:
+            badge.display = False
+            return
+        badge.display = True
+        badge.set_class(not state.logged_in, "-logged-out")
+        badge_text = f"\u25cf {state.label}"
+        badge.update(Content.from_text(badge_text, markup=False))
+        badge.tooltip = Content.from_text(state.tooltip, markup=False) if state.tooltip else None
 
     def _localizer(self) -> Localizer | None:
         controller = self._locale_controller
