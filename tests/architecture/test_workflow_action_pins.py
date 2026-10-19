@@ -50,7 +50,12 @@ _WORKFLOW_WRITE_GRANTS = frozenset(
         ("tag-release.yml", "contents"),
     }
 )
-_JOB_WRITE_GRANTS = frozenset({("cd.yml", "release", "contents")})
+_JOB_WRITE_GRANTS = frozenset(
+    {
+        ("cd.yml", "release", "contents"),
+        ("cd-retry.yml", "retry-failed", "actions"),
+    }
+)
 
 
 def workflow_files(directory: Path) -> list[Path]:
