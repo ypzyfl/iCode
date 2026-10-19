@@ -16,6 +16,7 @@ import logging
 import os
 import stat
 import tempfile
+import time
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -104,6 +105,38 @@ def _patch_target(patch: FilePatch) -> Path:
     return _locate_package_dir(patch.package) / patch.module_file
 
 
+_REPLACE_ATTEMPTS = 4
+"""How many times to try the final ``os.replace`` before conceding the race."""
+
+_REPLACE_RETRY_DELAY_SECONDS = 0.05
+"""Base backoff between replace attempts; scaled by the attempt index."""
+
+
+def _atomic_write_text_concurrent_safe(target: Path, payload: str, verify_fragments: tuple[str, ...]) -> bool:
+    """Write ``payload`` atomically, tolerating a concurrent patcher winning the race.
+
+    Two processes starting at the same moment (parallel pytest workers spawning
+    servers, a user launching two instances) can both pass the "already patched"
+    check and then race on the final ``os.replace``; on Windows the loser sees
+    ``PermissionError`` while the target is momentarily held open by the winner.
+    Retry briefly, then re-read the target: when it already carries every
+    fragment this process needed, the concurrent write did our work — return
+    False so the caller reports "skipped" instead of failing startup.  Returns
+    True when this call performed the write.
+    """
+    for attempt in range(_REPLACE_ATTEMPTS):
+        try:
+            _atomic_write_text(target, payload)
+            return True
+        except PermissionError:
+            if attempt + 1 < _REPLACE_ATTEMPTS:
+                time.sleep(_REPLACE_RETRY_DELAY_SECONDS * (attempt + 1))
+    final_source = target.read_text(encoding="utf-8")
+    if all(fragment in final_source for fragment in verify_fragments):
+        return False
+    raise
+
+
 def _missing_fragment_detail(patch: FilePatch, target: Path) -> str:
     return (
         f"Source file does not contain the expected original fragment.\n"
@@ -137,8 +170,9 @@ def apply_patch(patch: FilePatch) -> PatchResult:
         return PatchResult(patch, "error", _missing_fragment_detail(patch, target))
 
     patched = source.replace(patch.old_fragment, patch.new_fragment, 1)
-    _atomic_write_text(target, patched)
-    return PatchResult(patch, "applied", f"Patched {target}")
+    if _atomic_write_text_concurrent_safe(target, patched, (patch.new_fragment, *patch.equivalent_fragments)):
+        return PatchResult(patch, "applied", f"Patched {target}")
+    return PatchResult(patch, "skipped", "Already patched by a concurrent process.")
 
 
 def apply_patch_group(patches: list[FilePatch]) -> list[PatchResult]:
@@ -193,7 +227,21 @@ def apply_patch_group(patches: list[FilePatch]) -> list[PatchResult]:
         staged_results.append(PatchResult(patch, "applied", f"Patched {target}"))
 
     if staged_source != source:
-        _atomic_write_text(target, staged_source)
+        fragments = tuple(
+            fragment
+            for patch, result in zip(patches, staged_results, strict=True)
+            if result.status == "applied"
+            for fragment in (patch.new_fragment, *patch.equivalent_fragments)
+        )
+        if not _atomic_write_text_concurrent_safe(target, staged_source, fragments):
+            # A concurrent patcher wrote the same target first; everything this
+            # group needed is already in the file, so report skips, not errors.
+            return [
+                result
+                if result.status == "skipped"
+                else PatchResult(patch, "skipped", "Already patched by a concurrent process.")
+                for patch, result in zip(patches, staged_results, strict=True)
+            ]
     return staged_results
 
 
