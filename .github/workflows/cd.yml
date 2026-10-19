@@ -35,7 +35,7 @@ on:
 
 concurrency:
   group: cd-${{ inputs.ref || inputs.branch || github.ref }}-${{ github.workflow }}
-  # 定时构建失败后由 retry-failed 重跑失败 job（同一次 run 的重跑会再次
+  # 定时构建失败后由 cd-retry.yml 重跑失败 job（重跑沿用原 run，会再次
   # 进入本并发组），cancel-in-progress 会把重跑取消掉，因此定时触发时关闭。
   cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
@@ -482,23 +482,4 @@ jobs:
           generate_release_notes: true
           files: release/*
 
-  # ── Auto-retry failed jobs (up to 3 re-runs) ────────────────────────
-  # 任意前置 job 失败时，通过官方 API 重跑失败的 job（Re-run failed
-  # jobs，含被其跳过的下游）。github.run_attempt 每次重跑递增，
-  # < 4 即最多自动重试 3 次，之后不再重跑。
-  retry-failed:
-    name: Retry failed jobs
-    needs: [ci, build-wheel, build-binaries, release]
-    if: failure() && github.run_attempt < 4
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-    steps:
-      - name: Re-run failed jobs
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          gh api -X POST \
-            "repos/${GH_REPO}/actions/runs/${{ github.run_id }}/rerun-failed-jobs"
-          echo "Re-run triggered (attempt ${{ github.run_attempt }}, max 4)."
+
