@@ -181,6 +181,8 @@ ignore = [
 "src/chrys/service/workflows/worker_host.py" = ["UP", "B905", "RUF007"]
 # Tests — relax security checks, tolerate loop-append pattern
 "tests/**" = ["S", "PERF401"]
+# mock_server contract tests — same nature as tests/** (asserts + loopback HTTP stubs)
+"mock_server/**/test_*.py" = ["S", "PERF401"]
 # Golden workflow example: user-facing Chinese prose keeps its full-width punctuation
 "tests/service/workflows/fixtures/*" = ["RUF001"]
 # AIxCoding TUI: user-facing Chinese prose keeps its full-width punctuation

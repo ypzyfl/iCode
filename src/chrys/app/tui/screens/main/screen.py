@@ -146,6 +146,7 @@ if TYPE_CHECKING:
     from textual.app import ComposeResult
     from textual.theme import Theme
 
+    from chrys.aixcoding.update_detection import AppUpdate
     from chrys.app.tui.app import ChrysApp
     from chrys.app.tui.i18n import LocaleController
     from chrys.app.tui.notifications import NotificationService
@@ -195,6 +196,10 @@ _MODEL_UNCONFIGURED_MESSAGE = msg(
     fallback="Your message was not sent. Configure and select a model to get started.",
 )
 _MODEL_UNCONFIGURED_SETUP = msg("tui.model_guard.button.setup", fallback="Set up model")
+_UPDATE_OPEN_FAILED = msg(
+    "tui.update.open_failed",
+    fallback="Could not open the download page: {error}",
+)
 _LOGIN_SUCCEEDED = msg("tui.login.succeeded", fallback="Logged in as {name}")
 _LOGIN_LOGGED_OUT = msg("tui.login.logged_out", fallback="Logged out")
 _LOGIN_NOT_LOGGED_IN = msg("tui.login.not_logged_in", fallback="Not logged in yet")
@@ -248,6 +253,9 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
     has_messages_state: reactive[bool] = reactive(False, init=False, always_update=True)
     header_subtitle_parts: reactive[tuple[str, ...]] = reactive(())
     header_approval_mode: reactive[ApprovalMode] = reactive(ApprovalMode.MANUAL, always_update=True)
+    # Startup update-detection hit as (candidate version, download URL), or
+    # None; the header renders it as a clickable badge after the version info.
+    header_update_badge: reactive[tuple[str, str] | None] = reactive(None)
     chat_profile_name: reactive[str] = reactive("")
     chat_session_id: reactive[str] = reactive("")
     chat_session_title: reactive[str] = reactive("")
@@ -1165,6 +1173,32 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         """Startup-facing facade for setting agent loading state."""
         self._set_agent_loading(active)
 
+    def set_pending_update(self, update: AppUpdate) -> None:
+        """Background update-detection hit: show a clickable badge on the header.
+
+        Purely reactive state — the badge survives ``_update_subtitle`` resets
+        of ``header_subtitle_parts`` and re-renders whenever it changes.
+        """
+        self.header_update_badge = (update.version, update.download_url)
+
+    def action_open_download_url(self) -> None:
+        """Update-badge click: open the download page in the system browser.
+
+        On failure (no browser etc.) the badge stays so the click can be
+        retried; only a toast reports the problem.
+        """
+        badge = self.header_update_badge
+        if badge is None:
+            return
+        try:
+            self.app.open_url(badge[1])
+        except Exception as error:
+            self.notify(
+                render_str(self._language_localizer(), _UPDATE_OPEN_FAILED.bind(error=str(error))),
+                severity="warning",
+                markup=False,
+            )
+
     def is_startup_agent_loading(self) -> bool:
         """Return whether startup still considers the agent loading."""
         return self._agent_loading
@@ -1285,6 +1319,7 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         yield AppHeader(locale_controller=self._locale_controller, show_mode_badge=True).data_bind(
             subtitle_parts=MainScreen.header_subtitle_parts,
             approval_mode=MainScreen.header_approval_mode,
+            update_badge=MainScreen.header_update_badge,
         )
         with Horizontal():
             yield ChatPanel(

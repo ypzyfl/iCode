@@ -4421,6 +4421,12 @@ msgstr "绕过"
 msgid "tui.chrome.approval_mode.manual"
 msgstr "手动"
 
+#. English: New version v{version} ⇗
+#. chrys-meta={"fingerprint":"4458ee79e6252ece09de749960bf1f90fc39ea3dccf3e4ef89e4d3e507850357","multiline":false,"placeholders":["version"]}
+#: src/chrys/app/tui/widgets/chrome/app_header.py
+msgid "tui.chrome.update.badge"
+msgstr "有新版本 v{version} ⇗"
+
 #. English: Opacity
 #. chrys-meta={"fingerprint":"fbe9921562136650ecb20c434111c0f313739ce4d747ef35ac0fefbac089ae97","multiline":false,"placeholders":[]}
 #: src/chrys/app/tui/widgets/color_picker/__init__.py
@@ -12840,6 +12846,12 @@ msgstr "各轮时间分布 · 第 {first}-{last} 轮"
 #: src/chrys/app/tui/widgets/chat/context_fold.py
 msgid "tui.transcript.fold.compressed"
 msgstr "已压缩"
+
+#. English: Could not open the download page: {error}
+#. chrys-meta={"fingerprint":"44f1db7f32c2b6a593cf87ee5091f5dd16b53f7805dd2c5e2f852baea0a60901","multiline":false,"placeholders":["error"]}
+#: src/chrys/app/tui/screens/main/screen.py
+msgid "tui.update.open_failed"
+msgstr "无法打开下载页：{error}"
 
 #. English: OK
 #. chrys-meta={"fingerprint":"6df638960a5ede1f4a19b118e821e01478abe5fc851a4370ac9574784032e9f0","multiline":false,"placeholders":[]}
