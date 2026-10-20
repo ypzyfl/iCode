@@ -3,7 +3,9 @@
 
 - Start（审批后、执行前）→ ``save`` + ``update(PENDING=3)``；
 - Result → ``update(成功=1 / 失败=2 / 拒绝=4)``，写类工具附 difflib 行数；
-- 输入触发（skill 引用命中）→ 单条 ``save``（funcType=0，saveOnly，不更新）。
+- 输入触发（skill 引用命中）→ 单条 ``save``（funcType=0，saveOnly，不更新）；
+  模型 ``load_skill`` 同构补一条 funcType=0 save（工具本身按内置 funcType=3
+  上报，2026-10-20 定稿）。
 
 update 报文键名对齐 aixcoding-continue ``toolCallReporter.ts``（2026-10-09 真链路
 联调修正）：关联键 ``funcId`` 取 **provider 原始 call id**（csas 语义 = 模型生成
@@ -46,11 +48,15 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # -- 参数白名单（方案决策 #6：默认只放行"读了哪个 X"类短参数；全量模式可切） -------
-# 对齐 aixcoding ``toolUseReports.ts``，按 iCode 工具集调整后仅剩 load_skill →
-# skill_name（provider.py:604）。read_file 曾放行 value←path（2026-10-09 真链路
-# 修正字段名），2026-10-10 用户定稿改走 fileName——文件路径口径统一（_FILE_NAME_TOOLS）。
+# 对齐 aixcoding ``toolUseReports.ts``（read_skill→skillName 白名单）：三个技能
+# 工具按内置工具（funcType=3）上报，value=skill_name 区分操作了哪个技能
+# （2026-10-20 用户定稿：load_skill/read_skill_resource/run_skill_script 统一）。
+# read_file 曾放行 value←path（2026-10-09 真链路修正字段名），2026-10-10 用户
+# 定稿改走 fileName——文件路径口径统一（_FILE_NAME_TOOLS）。
 VALUE_ARG_FIELD_BY_TOOL: dict[str, str] = {
     "load_skill": "skill_name",
+    "read_skill_resource": "skill_name",
+    "run_skill_script": "skill_name",
 }
 
 _FILE_NAME_TOOLS = frozenset({"write_file", "edit_file", "read_file", "view_image"})
@@ -63,11 +69,14 @@ _FULL_VALUE_MAX_CHARS = 2000
 
 
 def func_type_for_kind(tool_kind: str) -> int:
-    """tool_kind → csas funcType（skill=0 / MCP=1 / 内置=3）。"""
-    from chrys.foundation.tool_kinds import KIND_MCP, KIND_SKILL
+    """tool_kind → csas funcType（MCP=1 / 其余=3 内置）。
 
-    if tool_kind == KIND_SKILL:
-        return FuncType.SKILL
+    技能工具（load_skill 及同族）按内置工具调用上报 funcType=3；funcType=0 的
+    技能使用记录由 ``_maybe_submit_skill_usage`` 随 load_skill 单独补发
+    （2026-10-20 用户定稿），kind→type 映射不再产生 SKILL。
+    """
+    from chrys.foundation.tool_kinds import KIND_MCP
+
     if tool_kind == KIND_MCP:
         return FuncType.MCP
     return FuncType.BUILTIN
@@ -183,6 +192,41 @@ class ToolDetailReporter:
                 "executionStartedAt": _iso(event.timestamp),
             },
         )
+        self._maybe_submit_skill_usage(event, request)
+
+    def _maybe_submit_skill_usage(self, event: InvocationToolCallStart, request: tuple[str, str] | None) -> None:
+        """模型 ``load_skill`` → 额外补一条 funcType=0 技能使用 ``save``（saveOnly）。
+
+        csas 语义：funcType=0 的 funcName 是技能名（Skill 下的技能名），与输入
+        触发 ``record_invocation`` 同构；工具维度记录（funcType=3 load_skill）已
+        另发 save+update，此处只补技能使用维度，不发 update（2026-10-20 定稿）。
+        不带 funcId：funcId 语义=工具调用 toolUseId，技能使用不是工具调用，复用
+        会与 funcType=3 记录撞 save/update 关联主键（2026-10-20 用户裁决）。
+        """
+        from chrys.foundation.tool_kinds import KIND_SKILL
+
+        if event.tool_kind != KIND_SKILL or event.tool_name != "load_skill":
+            return
+        skill_name = str(event.args.get("skill_name") or "").strip()
+        if not skill_name:
+            return
+        from chrys.aixcoding.telemetry.reporters import common_fields
+
+        usage: dict[str, Any] = {
+            "funcName": skill_name,
+            "funcType": FuncType.SKILL,
+            "sessionId": event.session_id,
+        }
+        if request is not None:
+            usage["requestId"] = request[0]
+            if request[1]:
+                usage["spanId"] = request[1]
+        from chrys.aixcoding.context import current_function_name
+
+        if agent_name := current_function_name():
+            usage["agentName"] = agent_name
+        usage.update(common_fields(event.workspace_cwd or None, tool_detail=True))
+        self._submit(TOOL_DETAIL_SAVE, usage)
 
     def on_result(self, event: InvocationToolCallResult) -> None:
         started = self._started_at.pop(event.call_id, None)

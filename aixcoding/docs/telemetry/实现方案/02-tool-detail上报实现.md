@@ -122,8 +122,8 @@ def on_start(self, event):
         "codeStatus": CodeStatus.PENDING, "executionStartedAt": _iso(event.timestamp)})
 ```
 
-- **funcType 映射**（`func_type_for_kind`）：`KIND_SKILL→0`、`KIND_MCP→1`、其余→内置 `3`。
-- **参数口径**（决策 #6，`pick_value`）：默认白名单——仅 `load_skill→skill_name` 放行（`read_file→path` 曾在白名单，2026-10-10 用户定稿移除：文件路径统一改走 `fileName`，见 §4.3）；`toolParamMode: full` 时输出 args 全量 JSON 截 2000 字符。
+- **funcType 映射**（`func_type_for_kind`）：`KIND_MCP→1`、其余→内置 `3`（技能三工具亦然，2026-10-20 定稿；funcType=0 技能使用记录由 `_maybe_submit_skill_usage` 随模型 `load_skill` 单独补发：saveOnly、`funcName=skill_name`、不带 funcId——工具调用 ID 不入技能使用记录，避免与 funcType=3 记录撞 save/update 关联主键）。
+- **参数口径**（决策 #6，`pick_value`）：默认白名单——技能三工具 `load_skill`/`read_skill_resource`/`run_skill_script` 放行 `skill_name`（2026-10-20 定稿；`read_file→path` 曾在白名单，2026-10-10 用户定稿移除：文件路径统一改走 `fileName`，见 §4.3）；`toolParamMode: full` 时输出 args 全量 JSON 截 2000 字符。
 
 ### 4.4 update 组装
 
