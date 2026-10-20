@@ -489,15 +489,15 @@ jobs:
             echo
             echo "## 最新提交"
             echo
-            '```'
+            echo '```'
             git log -1 --format="%h %s (%an, %ci)"
-            '```'
+            echo '```'
             echo
             echo "## 资产 SHA256"
             echo
-            '```'
+            echo '```'
             cat SHA256SUMS.txt
-            '```'
+            echo '```'
           } > BUILD_INFO.md
 
       - name: Create release
