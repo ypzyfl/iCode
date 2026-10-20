@@ -397,7 +397,9 @@ def test_pyapp_build_renames_runtime_python_on_process_name_sensitive_platforms(
     assert "source_pth_path" in cd_workflow
     assert "fs::hard_link" in cd_workflow
     assert "app::CHRYS_RUNTIME_EXE" in cd_workflow
-    assert "install_project\\(\\)\\?;.*ensure_runtime_aliases" in cd_workflow
+    assert cd_workflow.index("install_project()?;") < cd_workflow.index(
+        "if let Err(alias_error) = ensure_runtime_aliases()"
+    )
 
 
 def test_ci_and_build_paths_include_serve_dependencies() -> None:

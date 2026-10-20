@@ -4511,7 +4511,7 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await create_client(active_profile, on_intermediate_text_async=_publish_intermediate, on_intermediate_text_sync=on_intermediate_sync, session_id=session_id, session_dir=effective_session_dir, tool_result_ceiling_tokens=settings.tool_result_ceiling_tokens, workspace_cwd=runtime.cwd)",
+      "expression": "await create_client(active_profile, on_intermediate_text_async=_publish_intermediate, on_intermediate_text_sync=on_intermediate_sync, session_id=session_id, session_dir=effective_session_dir, tool_result_ceiling_tokens=settings.tool_result_ceiling_tokens, workspace_cwd=workspace.primary_cwd if workspace else None)",
       "identity": "chrys.orchestration.engine.build.builder:build_agent._acquire:4",
       "module": "chrys.orchestration.engine.build.builder",
       "ordinal": 4,
@@ -46058,7 +46058,7 @@
       "primitive": "awaitable",
       "qualname": "create_skills_provider",
       "source_column": 8,
-      "source_line": 391,
+      "source_line": 420,
       "wrapper_target": null
     },
     {
@@ -46078,7 +46078,7 @@
       "primitive": "thread_pool",
       "qualname": "create_skills_provider._load_all_skills",
       "source_column": 36,
-      "source_line": 354,
+      "source_line": 383,
       "wrapper_target": null
     },
     {
