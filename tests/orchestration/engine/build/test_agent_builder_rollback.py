@@ -138,7 +138,7 @@ def _build_agent_env(
     with (
         patch.object(runtime_factory_module, "Agent", return_value=agent_mock),
         patch.object(runtime_factory_module, "ContextManager", return_value=fake_ctx) as context_manager_cls,
-        patch.object(ab, "create_client", return_value=MagicMock()),
+        patch.object(ab, "create_client", return_value=MagicMock()) as create_client_mock,
         patch.object(
             ab,
             "resolve_selection_for_agent",
@@ -158,6 +158,7 @@ def _build_agent_env(
             "context": fake_ctx,
             "context_manager_cls": context_manager_cls,
             "reminder_cls": reminder_cls,
+            "create_client": create_client_mock,
         }
 
 
@@ -204,6 +205,14 @@ async def _invoke_build_agent(
         on_side_call_usage=on_side_call_usage,
         allow_user_interaction=allow_user_interaction,
     )
+
+
+async def test_build_agent_without_workspace_does_not_attribute_process_cwd_to_telemetry() -> None:
+    profile = AgentProfile(name="test")
+    with _build_agent_env(mcp_mock=None, agent_mock=_agent_mock()) as dependencies:
+        await _invoke_build_agent(profile)
+
+    assert dependencies["create_client"].call_args.kwargs["workspace_cwd"] is None
 
 
 async def test_build_agent_propagates_cancel_received_during_rollback() -> None:

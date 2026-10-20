@@ -111,9 +111,8 @@ def clear_call_registry() -> None:
 def build_telemetry_middleware(session_id: str | None, workspace_cwd: str | None = None) -> list[ChatMiddleware] | None:
     """组栈入口（``instrumented.py`` 调用）；装配异常只降级为不上报。
 
-    ``workspace_cwd``：会话工作区（``SessionEnvironment.cwd``，workspace 优先、
-    启动目录兜底）——projectName / git 五件套的取值基（2026-10-09 修正：
-    原用进程 cwd，TUI 启动目录 ≠ 工作区时 git/projectName 指向错误仓库）。
+    ``workspace_cwd``：明确的会话工作区，作为 projectName / Git 字段的取值基。
+    没有工作区时省略这些字段，避免把进程目录误当成项目。
     """
     try:
         return [AixTelemetryMiddleware(session_id=session_id, workspace_cwd=workspace_cwd)]
@@ -185,25 +184,26 @@ class AixTelemetryMiddleware(ChatMiddleware):
         if channel.channel_version:
             payload["channelVersion"] = channel.channel_version
         payload["pluginVersion"] = plugin_version()
-        cwd = Path(self._workspace_cwd) if self._workspace_cwd else Path.cwd()
-        payload["projectName"] = cwd.name or str(cwd)
-        from chrys.aixcoding.git_info import collect_git_info
+        if self._workspace_cwd:
+            cwd = Path(self._workspace_cwd)
+            payload["projectName"] = cwd.name or str(cwd)
+            from chrys.aixcoding.git_info import collect_git_info
 
-        git = collect_git_info(cwd)
-        if git is not None:
-            payload.update(
-                {
-                    key: value
-                    for key, value in (
-                        ("gitRemote", git.git_remote),
-                        ("gitBranch", git.git_branch),
-                        ("gitRevision", git.git_revision),
-                        ("gitOwner", git.git_owner),
-                        ("gitRepo", git.git_repo),
-                    )
-                    if value
-                }
-            )
+            git = collect_git_info(cwd)
+            if git is not None:
+                payload.update(
+                    {
+                        key: value
+                        for key, value in (
+                            ("gitRemote", git.git_remote),
+                            ("gitBranch", git.git_branch),
+                            ("gitRevision", git.git_revision),
+                            ("gitOwner", git.git_owner),
+                            ("gitRepo", git.git_repo),
+                        )
+                        if value
+                    }
+                )
         options = dict(context.options or {})
         extra_body = options.get("extra_body")
         merged = dict(extra_body) if isinstance(extra_body, Mapping) else {}
