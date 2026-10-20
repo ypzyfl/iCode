@@ -125,7 +125,7 @@ async def check_for_update() -> AppUpdate | None:
         async with asyncio.timeout(_TIMEOUT_SECONDS):
             async with httpx.AsyncClient(timeout=_TIMEOUT_SECONDS, trust_env=False) as client:
                 response = await client.get(url, params=params, headers=_request_headers())
-    except (httpx.TimeoutException, TimeoutError):
+    except httpx.TimeoutException, TimeoutError:
         # httpx 分阶段超时与 asyncio 总上界触发，对客户端是同一件事：超时。
         logger.debug("update check: timed out after %gs (GET %s)", _TIMEOUT_SECONDS, url)
         return None
