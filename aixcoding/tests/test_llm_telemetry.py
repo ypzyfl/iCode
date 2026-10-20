@@ -9,6 +9,7 @@ side call 不参与关联、总开关关闭零注入。网关查库/ACP 审批�
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -108,8 +109,8 @@ def test_root_span_id_is_deterministic_per_turn():
 # -- middleware：非流式 -------------------------------------------------------
 
 
-async def test_non_streaming_injects_payload_and_records_registry():
-    middleware = AixTelemetryMiddleware(session_id="sess-1")
+async def test_non_streaming_injects_payload_and_records_registry(tmp_path: Path):
+    middleware = AixTelemetryMiddleware(session_id="sess-1", workspace_cwd=str(tmp_path))
     context = await _run_middleware(middleware, _tool_call_response("pc-a"), model="m1", temperature=0.1)
 
     telemetry = context.options["extra_body"]["telemetry"]  # type: ignore[index]
@@ -119,7 +120,7 @@ async def test_non_streaming_injects_payload_and_records_registry():
     assert telemetry["eventSubType"] == "agent"
     assert telemetry["channelType"] == "cli"
     assert telemetry["pluginVersion"]
-    assert telemetry["projectName"]
+    assert telemetry["projectName"] == tmp_path.name
     assert "spanId" not in telemetry  # 无 trajectory 绑定时无 turn_id
     # 既有 options 键不被覆盖
     assert context.options["model"] == "m1"  # type: ignore[index]
