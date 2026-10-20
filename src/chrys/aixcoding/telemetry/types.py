@@ -22,6 +22,7 @@ class FuncType(IntEnum):
     SKILL = 0
     MCP = 1
     BUILTIN = 3
+    AGENT = 1001
 
 
 # -- codeStatus 五态（方案 §4.3；五态映射待产品/后端确认，见方案 §8-3） ----------

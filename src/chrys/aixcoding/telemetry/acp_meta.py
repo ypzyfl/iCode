@@ -21,6 +21,7 @@ from typing import Any
 IDE_NAME_META_KEY = "agent-studio.dev/ide-name"
 IDE_VERSION_META_KEY = "agent-studio.dev/ide-version"
 FUNCTION_NAME_META_KEY = "agent-studio.dev/function-name"
+SELECTED_AGENT_META_KEY = "agent-studio.dev/selected-agent"
 RESPONSE_ATTRIBUTION_META_KEY = "agent-studio.dev/response-attribution"
 FINAL_MODEL_IDENTITY_META_KEY = "agent-studio.dev/final-model-identity"
 TELEMETRY_META_KEY = "agent-studio.dev/telemetry"
@@ -55,6 +56,18 @@ def read_ide_channel_meta(kwargs: Mapping[str, Any]) -> None:
     if ide_name is not None:
         set_desktop_channel(ide_name, _envelope_string(kwargs, IDE_VERSION_META_KEY, "ideVersion"))
     set_current_function_name(_envelope_string(kwargs, FUNCTION_NAME_META_KEY, "functionName"))
+
+
+def desktop_agent_name(kwargs: Mapping[str, Any]) -> str | None:
+    """Return an explicitly selected desktop Agent, not the runner display name."""
+    if _envelope_string(kwargs, IDE_NAME_META_KEY, "ideName") is None:
+        return None
+    selection = kwargs.get(SELECTED_AGENT_META_KEY)
+    if not isinstance(selection, Mapping):
+        return None
+    if _envelope_string(kwargs, SELECTED_AGENT_META_KEY, "agentMarketSkillId") is None:
+        return None
+    return _envelope_string(kwargs, SELECTED_AGENT_META_KEY, "agentName")
 
 
 def read_response_attribution_span_id(kwargs: Mapping[str, Any]) -> str | None:

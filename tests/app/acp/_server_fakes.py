@@ -168,6 +168,7 @@ class _FakeHost:
 @dataclass
 class _FakeSession:
     host: _FakeHost
+    cwd: str = "/tmp/workspace"
     profile_name: str = "Code"
     session_id: str = "s1"
     prompt_lock: asyncio.Lock = field(default_factory=asyncio.Lock)

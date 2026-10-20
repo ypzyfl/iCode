@@ -120,6 +120,22 @@ def record_skill_invocation(skill_name: str, session_id: str | None) -> None:
         logger.warning("AIxCoding telemetry skill invocation report failed", exc_info=True)
 
 
+def record_desktop_agent_usage(
+    agent_name: str,
+    session_id: str,
+    request: tuple[str, str],
+    workspace_cwd: str,
+) -> None:
+    """Report a selected desktop Agent without affecting the prompt outcome."""
+    try:
+        from chrys.aixcoding.config import load_settings
+
+        if load_settings().telemetry_enabled:
+            default_reporter().record_agent_usage(agent_name, session_id, request, workspace_cwd)
+    except Exception:
+        logger.warning("AIxCoding telemetry agent usage report failed", exc_info=True)
+
+
 def default_reporter():
     """进程级共享的 ToolDetailReporter（串行队列单例，save→update 天然保序）。"""
     global _reporter

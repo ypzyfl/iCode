@@ -448,6 +448,21 @@ def test_reporter_payload_includes_agent_name():
     set_current_function_name(None)
 
 
+def test_desktop_agent_usage_is_single_save_with_model_link(tmp_path: Path):
+    submitter = _CaptureSubmitter()
+    ToolDetailReporter(submitter).record_agent_usage("Reviewer", "sess-1", ("req-1", "span-1"), str(tmp_path))
+
+    assert submitter.endpoints() == [TOOL_DETAIL_SAVE]
+    payload = submitter.calls[0][1]
+    assert payload["funcType"] == FuncType.AGENT
+    assert payload["funcName"] == payload["agentName"] == "Reviewer"
+    assert payload["sessionId"] == "sess-1"
+    assert payload["requestId"] == "req-1"
+    assert payload["spanId"] == "span-1"
+    assert payload["projectName"] == tmp_path.name
+    assert isinstance(payload["funcId"], str) and payload["funcId"]
+
+
 def test_telemetry_response_meta_roundtrip():
     from chrys.aixcoding.telemetry.acp_meta import telemetry_response_meta
 
@@ -455,6 +470,27 @@ def test_telemetry_response_meta_roundtrip():
     meta = telemetry_response_meta("sess-1")
     assert meta == {"agent-studio.dev/telemetry": {"schemaVersion": 1, "requestId": "req-r", "spanId": "span-r"}}
     assert telemetry_response_meta("unknown-session") is None
+
+
+def test_desktop_agent_name_requires_explicit_selection():
+    from chrys.aixcoding.telemetry.acp_meta import desktop_agent_name
+
+    ide = {"agent-studio.dev/ide-name": {"schemaVersion": 1, "ideName": "desktop"}}
+    function = {"agent-studio.dev/function-name": {"schemaVersion": 1, "functionName": "iCode"}}
+    selected = {
+        "agent-studio.dev/selected-agent": {
+            "schemaVersion": 1,
+            "agentMarketSkillId": "market-reviewer",
+            "agentName": "Reviewer",
+        }
+    }
+    assert desktop_agent_name({**ide, **function}) is None
+    assert desktop_agent_name({**ide, **selected}) == "Reviewer"
+    assert desktop_agent_name(selected) is None
+    assert (
+        desktop_agent_name({**ide, "agent-studio.dev/selected-agent": {"schemaVersion": 1, "agentName": "Reviewer"}})
+        is None
+    )
 
 
 def test_telemetry_response_meta_final_model_identity():

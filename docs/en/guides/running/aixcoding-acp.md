@@ -52,6 +52,8 @@ Sessions used through an ACP client also appear in the TUI's "Chat Sessions" win
 
 AIxCoding sends agent replies and tool call status to the client. When the client cancels a task, AIxCoding interrupts the current task.
 
+When a desktop client supplies its identity and an explicit selected Agent (`agent-studio.dev/selected-agent` with `schemaVersion: 1`, `agentMarketSkillId`, and `agentName`) in ACP prompt metadata, AIxCoding reports one Agent-use telemetry record when that prompt produces a model request. The record uses `funcType=1001` and includes the model request and session IDs so it can be joined with other telemetry from that prompt. No Agent-use record is sent for a prompt without a model request or an explicit selection.
+
 If the client supports session management, a closed session can still be restored in the same working directory. Deleting a session removes the session record saved by AIxCoding, and the session can no longer be restored in AIxCoding.
 
 To use the question feature through an ACP client, the client must support AIxCoding's `_chrys/request_input` extension request (shown as `chrys/request_input` in ACP SDKs that add the underscore prefix automatically). AIxCoding uses this request to send the agent's questions to the client and receive the user's answers; a client that does not support it cannot complete tasks that require user answers. Use `--ask-user-timeout` to limit how long AIxCoding waits for an answer.

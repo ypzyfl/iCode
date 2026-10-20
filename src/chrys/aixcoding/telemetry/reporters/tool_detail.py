@@ -24,6 +24,7 @@ from __future__ import annotations
 import difflib
 import json
 import logging
+import uuid
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
@@ -225,6 +226,29 @@ class ToolDetailReporter:
         if agent_name := current_function_name():
             payload["agentName"] = agent_name
         payload.update(common_fields(tool_detail=True))
+        self._submit(TOOL_DETAIL_SAVE, payload)
+
+    def record_agent_usage(
+        self,
+        agent_name: str,
+        session_id: str,
+        request: tuple[str, str],
+        workspace_cwd: str,
+    ) -> None:
+        """Report one desktop Agent use after its model request is identified."""
+        from chrys.aixcoding.telemetry.reporters import common_fields
+
+        payload: dict[str, Any] = {
+            "funcId": str(uuid.uuid4()),
+            "funcName": agent_name,
+            "funcType": FuncType.AGENT,
+            "agentName": agent_name,
+            "sessionId": session_id,
+            "requestId": request[0],
+        }
+        if request[1]:
+            payload["spanId"] = request[1]
+        payload.update(common_fields(workspace_cwd, tool_detail=True))
         self._submit(TOOL_DETAIL_SAVE, payload)
 
 

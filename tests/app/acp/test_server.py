@@ -114,6 +114,66 @@ async def test_prompt_returns_cancelled_stop_reason() -> None:
 
 
 @pytest.mark.anyio
+async def test_desktop_agent_usage_requires_new_model_request(monkeypatch: pytest.MonkeyPatch) -> None:
+    from chrys.aixcoding.telemetry.llm_telemetry import clear_call_registry, record_session_latest
+
+    clear_call_registry()
+    reports: list[tuple[str, str, tuple[str, str], str]] = []
+    monkeypatch.setattr(
+        "chrys.aixcoding.telemetry.subscriber.record_desktop_agent_usage",
+        lambda *args: reports.append(args),
+    )
+
+    class _ModelHost(_FakeHost):
+        record_model_request = True
+
+        async def iter_turn_events(self, message: Any):
+            async for event in super().iter_turn_events(message):
+                yield event
+            if self.record_model_request:
+                record_session_latest("new-request", "new-span", "s1")
+
+    host = _ModelHost(event_bus=EventBus(), outcome=EndTurn())
+    manager = _FakeManager(host)
+    server = ChrysAcpServer(manager, initial_vision=False)  # type: ignore[arg-type]
+    server.on_connect(_FakeClient())
+    meta = {
+        "agent-studio.dev/ide-name": {"schemaVersion": 1, "ideName": "desktop"},
+        "agent-studio.dev/function-name": {"schemaVersion": 1, "functionName": "iCode"},
+        "agent-studio.dev/selected-agent": {
+            "schemaVersion": 1,
+            "agentMarketSkillId": "market-reviewer",
+            "agentName": "Reviewer",
+        },
+    }
+    try:
+        record_session_latest("old-request", "old-span", "s1")
+        await server.prompt([text_block("run")], session_id="s1", **meta)
+        assert reports == [("Reviewer", "s1", ("new-request", "new-span"), manager._session.cwd)]
+
+        reports.clear()
+        host.record_model_request = False
+        await server.prompt([text_block("run")], session_id="s1", **meta)
+        assert reports == []
+
+        host.record_model_request = True
+        record_session_latest("old-request", "old-span", "s1")
+        await server.prompt(
+            [text_block("run")],
+            session_id="s1",
+            **{key: value for key, value in meta.items() if key != "agent-studio.dev/selected-agent"},
+        )
+        assert reports == []
+
+        host.outcome = Cancelled()
+        record_session_latest("old-request", "old-span", "s1")
+        await server.prompt([text_block("run")], session_id="s1", **meta)
+        assert reports == [("Reviewer", "s1", ("new-request", "new-span"), manager._session.cwd)]
+    finally:
+        clear_call_registry()
+
+
+@pytest.mark.anyio
 async def test_prompt_snapshots_cumulative_usage_in_finally_while_holding_prompt_lock() -> None:
     usage = UsageUpdate(
         total_session_input_tokens=70,

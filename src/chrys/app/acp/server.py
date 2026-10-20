@@ -333,12 +333,16 @@ class ChrysAcpServer:
         # AIxCoding telemetry: desktop channel from the prompt _meta envelope,
         # plus telemetry ids returned to the client on the response.
         from chrys.aixcoding.telemetry.acp_meta import (
+            desktop_agent_name,
             read_ide_channel_meta,
             read_response_attribution_span_id,
             telemetry_response_meta,
         )
+        from chrys.aixcoding.telemetry.llm_telemetry import resolve_call
+        from chrys.aixcoding.telemetry.subscriber import record_desktop_agent_usage
 
         read_ide_channel_meta(kwargs)
+        agent_name = desktop_agent_name(kwargs)
         attribution_span_id = read_response_attribution_span_id(kwargs)
         if self._client is None:
             raise RequestError.internal_error({"details": "ACP client connection is not ready."})
@@ -358,9 +362,13 @@ class ChrysAcpServer:
                         raise AcpSessionError(f"ACP session is not active: {session_id}")
                     converted = convert_prompt_blocks(prompt, vision_enabled=session.host.vision_enabled)
                     execution_started = True
+                    previous_request = resolve_call("", session_id)
                     async for event in session.host.iter_turn_events(converted.message):
                         await self._handle_event(session_id, event, bridge, pending_approvals)
                     outcome = session.host.last_turn_outcome
+                    request = resolve_call("", session_id)
+                    if agent_name is not None and request is not None and request != previous_request:
+                        record_desktop_agent_usage(agent_name, session_id, request, session.cwd)
                 finally:
                     # This snapshot stays under prompt_lock: a queued turn must
                     # not mutate cumulative session usage before this response
