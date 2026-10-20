@@ -180,7 +180,7 @@ class AixTelemetryMiddleware(ChatMiddleware):
 
         channel = current_channel()
         payload["channelType"] = channel.channel_type
-        payload["channelName"] = channel.channel_name
+        payload["channelName"] = "icode"
         if channel.channel_version:
             payload["channelVersion"] = channel.channel_version
         payload["pluginVersion"] = plugin_version()
