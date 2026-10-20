@@ -58,13 +58,14 @@ def _start(
     call_id: str = "c1",
     provider_call_id: str = "",
     tool_name: str = "read_file",
+    tool_kind: str = "",
     args: dict | None = None,
     workspace_cwd: str = "",
 ) -> InvocationToolCallStart:
     return InvocationToolCallStart(
         origin=_origin(),
         tool_name=tool_name,
-        tool_kind="",
+        tool_kind=tool_kind,
         args=dict(args or {}),
         call_id=call_id,
         provider_call_id=provider_call_id,
@@ -139,16 +140,27 @@ def test_classify_structured_failure():
 
 
 def test_func_type_mapping():
-    assert func_type_for_kind(KIND_SKILL) == FuncType.SKILL
+    # 技能工具按内置（funcType=3）上报（2026-10-20 定稿）；funcType=0 由 load_skill
+    # 的额外技能使用 save 单独发，kind→type 映射不再产生 SKILL
+    assert func_type_for_kind(KIND_SKILL) == FuncType.BUILTIN
     assert func_type_for_kind(KIND_MCP) == FuncType.MCP
     assert func_type_for_kind("") == FuncType.BUILTIN
     assert func_type_for_kind("shell") == FuncType.BUILTIN
 
 
 def test_pick_value_whitelist():
-    # read_file 路径 2026-10-10 改走 fileName（路径类工具统一口径），白名单仅剩 load_skill
+    # read_file 路径 2026-10-10 改走 fileName（路径类工具统一口径）；技能三工具
+    # value=skill_name（2026-10-20 定稿，按内置工具上报，对齐 aixcoding read_skill）
     assert pick_value("read_file", {"path": "src/a.py", "extra": "x"}, full_mode=False) is None
     assert pick_value("load_skill", {"skill_name": "code_review"}, full_mode=False) == "code_review"
+    assert (
+        pick_value("read_skill_resource", {"skill_name": "code_review", "resource_name": "r.md"}, full_mode=False)
+        == "code_review"
+    )
+    assert (
+        pick_value("run_skill_script", {"skill_name": "code_review", "script_name": "s.py"}, full_mode=False)
+        == "code_review"
+    )
     assert pick_value("write_file", {"filepath": "src/a.py"}, full_mode=False) is None
     assert pick_value("read_file", {"path": 123}, full_mode=False) is None
     assert pick_value("read_file", {}, full_mode=False) is None
@@ -252,6 +264,66 @@ def test_reporter_write_file_save_includes_file_name():
     assert final["originalLines"] == 0  # 创建：original=0、added=新文件行数
     assert final["addedLines"] == 1
     assert final["deletedLines"] == 0
+
+
+def test_reporter_load_skill_reports_builtin_and_skill_usage():
+    # 2026-10-20 定稿：load_skill 工具调用按内置（funcType=3、value=skill_name）
+    # 上报 save+update，随后同构补一条 funcType=0 技能使用 save（funcName=技能名）
+    submitter = _CaptureSubmitter()
+    reporter = ToolDetailReporter(submitter)
+    record_call("pc-s", "req-s", "span-s", "sess-1")
+
+    reporter.on_start(
+        _start(
+            provider_call_id="pc-s", tool_name="load_skill", tool_kind=KIND_SKILL, args={"skill_name": "code_review"}
+        )
+    )
+
+    assert submitter.endpoints() == [TOOL_DETAIL_SAVE, TOOL_DETAIL_UPDATE, TOOL_DETAIL_SAVE]
+    save = submitter.calls[0][1]
+    assert save["funcType"] == FuncType.BUILTIN
+    assert save["funcName"] == "load_skill"
+    assert save["value"] == "code_review"
+    assert save["requestId"] == "req-s"
+    assert save["spanId"] == "span-s"
+
+    usage = submitter.calls[2][1]
+    assert usage["funcType"] == FuncType.SKILL
+    assert usage["funcName"] == "code_review"
+    assert "value" not in usage
+    assert "funcId" not in usage  # funcId=工具调用 ID，技能使用记录不带（不与 funcType=3 撞主键）
+    assert usage["requestId"] == "req-s"
+    assert usage["spanId"] == "span-s"
+    assert usage["sessionId"] == "sess-1"
+
+
+def test_reporter_load_skill_blank_or_none_skill_name_skips_usage_save():
+    # skill_name 空白/None（or "" 兜底为空串，不上报 "None"）：仅工具调用记录，不补技能使用 save
+    submitter = _CaptureSubmitter()
+    reporter = ToolDetailReporter(submitter)
+    reporter.on_start(_start(tool_name="load_skill", tool_kind=KIND_SKILL, args={"skill_name": "  "}))
+    reporter.on_start(_start(call_id="c3", tool_name="load_skill", tool_kind=KIND_SKILL, args={"skill_name": None}))
+    assert submitter.endpoints() == [TOOL_DETAIL_SAVE, TOOL_DETAIL_UPDATE] * 2
+    assert all(payload["funcType"] == FuncType.BUILTIN for _, payload in submitter.calls if "funcType" in payload)
+
+
+def test_reporter_other_skill_tools_report_builtin_only():
+    # read_skill_resource/run_skill_script 只报内置工具调用，不补技能使用 save
+    submitter = _CaptureSubmitter()
+    reporter = ToolDetailReporter(submitter)
+    reporter.on_start(
+        _start(
+            call_id="c9",
+            tool_name="run_skill_script",
+            tool_kind=KIND_SKILL,
+            args={"skill_name": "code_review", "script_name": "s.py"},
+        )
+    )
+    assert submitter.endpoints() == [TOOL_DETAIL_SAVE, TOOL_DETAIL_UPDATE]
+    save = submitter.calls[0][1]
+    assert save["funcType"] == FuncType.BUILTIN
+    assert save["funcName"] == "run_skill_script"
+    assert save["value"] == "code_review"
 
 
 def test_relative_file_name(tmp_path):
