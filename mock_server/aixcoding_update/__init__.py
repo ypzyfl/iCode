@@ -2,7 +2,7 @@
 
 """AIxCoding TUI update-detection mock server (local debug tool, never shipped).
 
-Simulates ``GET /csas/api/v1/releases/check`` — the release-check contract the
+Simulates ``GET /csas/api/v2/releases/check`` — the release-check contract the
 TUI update-detection feature will call at startup. The real backend does not
 exist yet; this mock freezes the wire contract so client work and manual runs
 can proceed: strict query validation

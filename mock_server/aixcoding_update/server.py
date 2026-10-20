@@ -2,7 +2,7 @@
 
 """Loopback mock of the AIxCoding TUI update-detection service.
 
-Simulates ``GET /csas/api/v1/releases/check`` — the release-check contract the
+Simulates ``GET /csas/api/v2/releases/check`` — the release-check contract the
 TUI update-detection feature will call at startup. The real backend does not
 exist yet; this mock freezes the wire contract so client implementation, manual
 runs, and integration tests can proceed against it:
@@ -72,7 +72,7 @@ from urllib.parse import parse_qs, urlsplit
 
 _LOGGER = logging.getLogger("chrys.mock_update")
 
-API_PREFIX = "/csas/api/v1"
+API_PREFIX = "/csas/api/v2"
 RELEASE_ROUTE = f"{API_PREFIX}/releases/check"
 HEALTH_ROUTE = "/health"
 DEBUG_CONFIG_ROUTE = "/debug/config"
@@ -457,7 +457,7 @@ def create_server(
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="mock_update_server",
-        description="Loopback mock of the AIxCoding TUI update-detection service (/csas/api/v1/releases/check).",
+        description="Loopback mock of the AIxCoding TUI update-detection service (/csas/api/v2/releases/check).",
     )
     parser.add_argument("--host", default=DEFAULT_HOST, help=f"bind address (default {DEFAULT_HOST})")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"bind port (default {DEFAULT_PORT})")
