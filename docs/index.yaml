@@ -26,6 +26,8 @@ topics:
         path: guides/daily-use/sessions.md
       - id: workspaces
         path: guides/daily-use/workspaces.md
+      - id: build_info
+        path: guides/daily-use/build-info.md
   - id: running
     labels:
       zh-Hans: 运行 AIxCoding-CLI

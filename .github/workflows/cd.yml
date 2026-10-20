@@ -251,12 +251,18 @@ jobs:
             # On Windows, macOS, and Linux, process-name cleanup tools can
             # still match that interpreter name, so run Chrys through a
             # sibling alias.
+            #
+            # The aliases are best-effort: if creation fails (permissions,
+            # antivirus), run_project falls back to the default interpreter
+            # instead of aborting the launch.  A truncated installation is
+            # repaired by wiping the versioned install dir and re-running
+            # the install step once.
             perl -0pi -e '
               s/pub fn pythonw_path\(\) -> PathBuf \{\n    install_dir\(\)\.join\(installation_pythonw_path\(\)\)\n\}/pub fn pythonw_path() -> PathBuf {\n    install_dir().join(installation_pythonw_path())\n}\n\n#[cfg(windows)]\npub const CHRYS_RUNTIME_EXE: \&str = "chrys-runtime.exe";\n\n#[cfg(any(target_os = "macos", target_os = "linux"))]\npub const CHRYS_RUNTIME_EXE: \&str = "chrys-runtime";\n\n#[cfg(windows)]\npub const CHRYS_RUNTIMEW_EXE: \&str = "chrys-runtimew.exe";\n\n#[cfg(any(windows, target_os = "macos", target_os = "linux"))]\nfn renamed_python_path(original: PathBuf, alias: \&str) -> PathBuf {\n    if let Some(path) = original.parent().map(|parent| parent.join(alias)) {\n        if path.is_file() {\n            return path;\n        }\n        if cfg!(debug_assertions) {\n            eprintln!(\n                "Chrys runtime alias {} is missing; falling back to {}",\n                path.display(),\n                original.display()\n            );\n        }\n    }\n    original\n}\n\n#[cfg(any(windows, target_os = "macos", target_os = "linux"))]\npub fn runtime_python_path() -> PathBuf {\n    renamed_python_path(python_path(), CHRYS_RUNTIME_EXE)\n}\n\n#[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]\npub fn runtime_python_path() -> PathBuf {\n    python_path()\n}\n\n#[cfg(windows)]\npub fn runtime_pythonw_path() -> PathBuf {\n    renamed_python_path(pythonw_path(), CHRYS_RUNTIMEW_EXE)\n}/;
             ' src/app.rs
             perl -0pi -e '
               s/\npub fn run_project\(\) -> Result<\(\)> \{\n    let mut command = python_command\(\&app::python_path\(\)\);\n\n    #\[cfg\(windows\)\]\n    \{\n        if app::is_gui\(\) \{\n            command = python_command\(\&app::pythonw_path\(\)\);\n        \}\n    \}/\n#[cfg(any(windows, target_os = "macos", target_os = "linux"))]\nfn link_or_copy_file(source: \&Path, target: \&Path) -> Result<()> {\n    if target.is_file() {\n        return Ok(());\n    }\n    fs::hard_link(source, target)\n        .or_else(|_| fs::copy(source, target).map(|_| ()))\n        .with_context(|| {\n            format!(\n                "unable to create Chrys runtime alias {} from {}",\n                \&target.display(),\n                \&source.display()\n            )\n        })\n}\n\n#[cfg(windows)]\nfn source_pth_path(source: \&Path) -> Option<std::path::PathBuf> {\n    let executable_pth = source.with_extension("_pth");\n    if executable_pth.is_file() {\n        return Some(executable_pth);\n    }\n\n    let python_pth = source.parent()?.join("python._pth");\n    python_pth.is_file().then_some(python_pth)\n}\n\n#[cfg(any(windows, target_os = "macos", target_os = "linux"))]\nfn ensure_runtime_alias(source: \&Path, alias_name: \&str) -> Result<()> {\n    if source.file_name() == Some(OsStr::new(alias_name)) {\n        return Ok(());\n    }\n    let alias = source\n        .parent()\n        .with_context(|| format!("Chrys runtime alias source has no parent: {}", source.display()))?\n        .join(alias_name);\n    link_or_copy_file(source, \&alias)?;\n\n    #[cfg(windows)]\n    {\n        if let Some(source_pth) = source_pth_path(source) {\n            link_or_copy_file(\&source_pth, \&alias.with_extension("_pth"))?;\n        }\n    }\n\n    Ok(())\n}\n\n#[cfg(any(windows, target_os = "macos", target_os = "linux"))]\nfn ensure_runtime_aliases() -> Result<()> {\n    ensure_runtime_alias(\&app::python_path(), app::CHRYS_RUNTIME_EXE)?;\n    #[cfg(windows)]\n    {\n        let pythonw_path = app::pythonw_path();\n        if pythonw_path.is_file() {\n            ensure_runtime_alias(\&pythonw_path, app::CHRYS_RUNTIMEW_EXE)?;\n        }\n    }\n    Ok(())\n}\n\npub fn run_project() -> Result<()> {\n    let mut command = python_command(\&app::runtime_python_path());\n\n    #[cfg(windows)]\n    {\n        if app::is_gui() {\n            command = python_command(\&app::runtime_pythonw_path());\n        }\n    }/;
-              s/\n    FileExt::unlock\(\&lock_file\)/\n    #[cfg(any(windows, target_os = "macos", target_os = "linux"))]\n    ensure_runtime_aliases()?;\n\n    FileExt::unlock(\&lock_file)/;
+              s/\n    FileExt::unlock\(\&lock_file\)/\n    #[cfg(any(windows, target_os = "macos", target_os = "linux"))]\n    if !app::python_path().is_file() {\n        eprintln!(\n            "Chrys runtime interpreter {} is missing; repairing the installation",\n            app::python_path().display()\n        );\n        let _ = std::fs::remove_dir_all(install_dir());\n        install_project()?;\n    }\n\n    #[cfg(any(windows, target_os = "macos", target_os = "linux"))]\n    if let Err(alias_error) = ensure_runtime_aliases() {\n        eprintln!(\n            "warning: unable to create Chrys runtime aliases; falling back to the default interpreter: {}",\n            alias_error\n        );\n    }\n\n    FileExt::unlock(\&lock_file)/;
             ' src/distribution.rs
             if ! grep -E 'CHRYS_RUNTIME_EXE|CHRYS_RUNTIMEW_EXE' src/app.rs >/dev/null \
               || ! grep -E 'target_os = "macos"' src/app.rs >/dev/null \
@@ -265,8 +271,9 @@ jobs:
               || ! grep -E 'runtime_python_path' src/distribution.rs >/dev/null \
               || ! grep -E 'source_pth_path' src/distribution.rs >/dev/null \
               || ! grep -E 'fs::hard_link' src/distribution.rs >/dev/null \
-              || ! perl -0ne 'exit(/install_project\(\)\?;.*ensure_runtime_aliases\(\)\?;/s ? 0 : 1)' src/distribution.rs \
-              || ! perl -0ne 'exit(/ensure_runtime_aliases\(\)\?;.*FileExt::unlock\(\&lock_file\)/s ? 0 : 1)' src/distribution.rs; then
+              || ! grep -E 'remove_dir_all' src/distribution.rs >/dev/null \
+              || ! perl -0ne 'exit(/install_project\(\)\?;\n    \}.*if let Err\(alias_error\) = ensure_runtime_aliases\(\)/s ? 0 : 1)' src/distribution.rs \
+              || ! perl -0ne 'exit(/ensure_runtime_aliases\(\) \{.*FileExt::unlock\(\&lock_file\)/s ? 0 : 1)' src/distribution.rs; then
               echo "::error::failed to patch PyApp runtime aliases"
               exit 1
             fi
@@ -472,6 +479,33 @@ jobs:
           done
           cp artifacts/wheel/*.whl release/
           cd release && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+          # 人类可读的构建信息页（随 Release 发布，指南中引用它作为溯源入口）
+          {
+            echo "# 构建信息（自动生成，请勿手动编辑）"
+            echo
+            echo "| 项目 | 值 |"
+            echo "|---|---|"
+            echo "| 构建时间 (UTC) | $(date -u +'%Y-%m-%d %H:%M:%SZ') |"
+            echo "| 构建分支/Tag | ${{ needs.resolve-target.outputs.build_ref }} |"
+            echo "| Commit | $(git rev-parse HEAD) |"
+            echo "| 短 Commit | $(git rev-parse --short HEAD) |"
+            echo "| 提交时间 | $(git log -1 --format=%cI) |"
+            echo "| 提交作者 | $(git log -1 --format=%an) |"
+            echo "| 触发方式 | ${{ github.event_name }} |"
+            echo "| Run ID | [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
+            echo
+            echo "## 最新提交"
+            echo
+            echo '```'
+            git log -1 --format="%h %s (%an, %ci)"
+            echo '```'
+            echo
+            echo "## 资产 SHA256"
+            echo
+            echo '```'
+            cat SHA256SUMS.txt
+            echo '```'
+          } > BUILD_INFO.md
 
       - name: Create release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
