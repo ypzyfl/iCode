@@ -68,8 +68,10 @@ def mock_update_server():
 
 
 class TestBuildQueryParams:
-    def test_darwin_arm64_maps_directly(self, fake_platform) -> None:
+    def test_darwin_arm64_maps_directly(self, fake_platform, monkeypatch) -> None:
         fake_platform(arch="arm64", os_name="macos")
+        # platform 取自 sys.platform 原值, 与 get_platform mock 无关, 须一并钉住。
+        monkeypatch.setattr(sys, "platform", "darwin")
         assert build_query_params() == {
             "clientType": "cli",
             "platform": "darwin",
@@ -186,6 +188,8 @@ class TestCheckForUpdateE2E:
 
         def _install(base_url: str) -> None:
             fake_platform(arch="arm64", os_name="macos")
+            # E2E 全程假定 darwin/arm64 探针: platform 参数来自 sys.platform, 须钉住。
+            monkeypatch.setattr(sys, "platform", "darwin")
             monkeypatch.setattr(update_detection, "load_settings", lambda: SimpleNamespace(base_url=base_url))
 
         return _install
