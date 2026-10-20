@@ -5,10 +5,10 @@ on:
   push:
     tags:
       - 'v*'
-  # 每个工作日北京时间 20:00（UTC 12:00）。注意：schedule 只在仓库默认分支
-  # 的 workflow 文件上生效，当前构建分支须为默认分支。
+  # 每个工作日北京时间 17:33（UTC 09:33），错开整点高峰以减少调度延迟。
+  # 注意：schedule 只在仓库默认分支的 workflow 文件上生效，当前构建分支须为默认分支。
   schedule:
-    - cron: "0 12 * * 1-5"
+    - cron: "33 9 * * 1-5"
   workflow_dispatch:
     inputs:
       ref:
