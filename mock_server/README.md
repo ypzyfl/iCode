@@ -9,7 +9,7 @@
 | 子包 | 模拟目标 | 端点前缀 |
 |---|---|---|
 | `aixcoding_auth/` | AIxCoding 设备码登录认证服务 | `/api/v1/auth/...`、`/api/v1/user/info` |
-| `aixcoding_update/` | AIxCoding TUI 版本更新检测服务 | `/csas/api/v1/releases/check` |
+| `aixcoding_update/` | AIxCoding TUI 版本更新检测服务 | `/csas/api/v2/releases/check` |
 | `chrys_model_catalog/` | 服务端下发的模型目录 | `/model-catalog`、`/llm/api/v1/continue-config/dispatch` |
 
 未来新增（命名遵循下面的约定）：`oauth/`、`llm/` 等。

@@ -1,7 +1,7 @@
 # ruff: noqa: RUF002, RUF003
 """TUI 版本更新检测：启动后台单发 GET，全吞错、不阻塞主流程。
 
-检测端点 ``GET {base_url}/api/v1/releases/check``：四个必填查询参数（严格模式，
+检测端点 ``GET {base_url}/api/v2/releases/check``：四个必填查询参数（严格模式，
 未知参数 400）。客户端只做两件事——映射参数、解析 200 响应中的 ``version`` 与
 ``artifact.url``；版本比较完全在服务端闭环
 （200=有适用新版本 / 204=无 / 304=ETag 兜底 / 其他=检测失败）。manifest v2
@@ -31,7 +31,7 @@ from chrys.foundation.platform import get_platform
 
 logger = logging.getLogger(__name__)
 
-RELEASE_CHECK_URL_PATH = "api/v1/releases/check"
+RELEASE_CHECK_URL_PATH = "api/v2/releases/check"
 _TIMEOUT_SECONDS = 15.0
 
 # clientType：TUI 属 CLI 形态，固定上送 cli（桌面端另有 desktop）。

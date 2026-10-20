@@ -1,7 +1,7 @@
 # AIxCoding Update-Detection Mock Server
 
 `mock_server/aixcoding_update/` —— AIxCoding TUI 版本更新检测服务
-（`GET /csas/api/v1/releases/check`）的本地模拟。**不随产品分发**，仅用于开发与
+（`GET /csas/api/v2/releases/check`）的本地模拟。**不随产品分发**，仅用于开发与
 验证 TUI 更新检测功能。
 真实后端尚未就绪，本 mock 冻结 wire 契约（四个必填查询参数严格校验、v2
 manifest、`ETag`/`304`/`204` 语义），让客户端实现、手工联调、集成测试可以先行。
@@ -43,7 +43,7 @@ server = create_server(MockUpdateConfig(mode="no_update"), host="127.0.0.1", por
 
 | Method | Path | 用途 |
 |---|---|---|
-| GET | `/csas/api/v1/releases/check` | 版本检测（严格模式：参数未知/缺失/非法 → `400 {"error":"invalid_app_release_query"}`；有效请求按 mode 回答） |
+| GET | `/csas/api/v2/releases/check` | 版本检测（严格模式：参数未知/缺失/非法 → `400 {"error":"invalid_app_release_query"}`；有效请求按 mode 回答） |
 | GET | `/health` | 存活检查 |
 | GET | `/debug/requests` | 检测请求记录（时间、参数、状态码、当时模式） |
 | POST | `/debug/config` | 运行期切换配置（`mode` / `version` / `download_url` / `slow_ms` / `force_update` / `force_upgrade`），返回快照 |
