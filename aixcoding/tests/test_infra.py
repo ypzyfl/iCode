@@ -66,7 +66,7 @@ def test_config_defaults_no_file_no_env() -> None:
     assert settings.profile == "PROD"
     assert settings.base_url == "http://22.189.54.139/csas"
     assert settings.report_base_url == "http://22.189.54.139/csas/telemetry/api/v1"
-    assert settings.tool_param_mode == "whitelist"
+    assert settings.tool_param_mode == "full"
     assert settings.telemetry_enabled is True
     assert settings.token is None
 
@@ -94,7 +94,7 @@ def test_config_yaml_overrides_and_host_level_custom_url(monkeypatch: pytest.Mon
         "customServerUrl: http://127.0.0.1:5555\n"
         "token: yaml-token\n"
         "userId: '60001'\n"
-        "toolParamMode: full\n"
+        "toolParamMode: whitelist\n"
         "telemetryEnabled: false\n",
         encoding="utf-8",
     )
@@ -103,7 +103,7 @@ def test_config_yaml_overrides_and_host_level_custom_url(monkeypatch: pytest.Mon
     assert settings.base_url == "http://127.0.0.1:5555/csas"
     assert settings.token == "yaml-token"
     assert settings.user_id == "60001"
-    assert settings.tool_param_mode == "full"
+    assert settings.tool_param_mode == "whitelist"
     assert settings.telemetry_enabled is False
 
 

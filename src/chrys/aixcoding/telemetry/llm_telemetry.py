@@ -5,7 +5,7 @@
 （wire 客户端把 ``extra_body`` merge 进请求 body 顶层，由模型网关解析落库，
 iCode 侧不感知回执）。payload 字段对齐 aixcoding ``getTelemetryData``。
 
-per-call registry：``provider_call_id → (requestId, 根spanId)``。id 双体系
+per-call registry：``provider_call_id → (requestId, 根spanId, LLM调用spanId)``。id 双体系
 （方案 §4.2 缺口②）：registry 键是 provider 原始 call id（模型响应
 ``FunctionCallContent.call_id``，即 ``loop.py`` 写入 ``metadata["call_id"]``
 的同一个值），与工具事件 ``call_id``（Chrys 短 id）不同源——工具事件须补
@@ -52,8 +52,8 @@ _REGISTRY_MAX_ENTRIES = 4096
 # ---------------------------------------------------------------------------
 
 _registry_lock = threading.Lock()
-_registry: OrderedDict[str, tuple[str, str]] = OrderedDict()
-_session_latest: dict[str, tuple[str, str]] = {}
+_registry: OrderedDict[str, tuple[str, str, str]] = OrderedDict()
+_session_latest: dict[str, tuple[str, str, str]] = {}
 
 
 def root_span_id(session_id: str, turn_id: str) -> str:
@@ -61,19 +61,26 @@ def root_span_id(session_id: str, turn_id: str) -> str:
     return str(uuid.uuid5(_ROOT_SPAN_NAMESPACE, f"{session_id}:{turn_id}"))
 
 
-def record_call(provider_call_id: str, request_id: str, span_id: str, session_id: str | None) -> None:
+def record_call(
+    provider_call_id: str,
+    request_id: str,
+    span_id: str,
+    session_id: str | None,
+    *,
+    llm_span_id: str = "",
+) -> None:
     """登记一次主对话 LLM 调用的关联元组（供工具事件按 provider_call_id 反查）。"""
     if not provider_call_id:
         return
     with _registry_lock:
-        _registry[provider_call_id] = (request_id, span_id)
+        _registry[provider_call_id] = (request_id, span_id, llm_span_id)
         while len(_registry) > _REGISTRY_MAX_ENTRIES:
             _registry.popitem(last=False)
         if session_id:
-            _session_latest[session_id] = (request_id, span_id)
+            _session_latest[session_id] = (request_id, span_id, llm_span_id)
 
 
-def record_session_latest(request_id: str, span_id: str, session_id: str | None) -> None:
+def record_session_latest(request_id: str, span_id: str, session_id: str | None, *, llm_span_id: str = "") -> None:
     """登记 session 级最新主对话调用（ACP ``_meta`` 回传的取值源）。
 
     主对话每次 LLM 调用（无论该次响应是否含 function_call）都要刷新；
@@ -83,11 +90,17 @@ def record_session_latest(request_id: str, span_id: str, session_id: str | None)
     if not session_id:
         return
     with _registry_lock:
-        _session_latest[session_id] = (request_id, span_id)
+        _session_latest[session_id] = (request_id, span_id, llm_span_id)
 
 
 def resolve_call(provider_call_id: str, session_id: str | None = None) -> tuple[str, str] | None:
     """反查 ``(requestId, 根spanId)``：per-call 命中优先，退化为 session 级最新值。"""
+    entry = resolve_tool_call(provider_call_id, session_id)
+    return entry[:2] if entry is not None else None
+
+
+def resolve_tool_call(provider_call_id: str, session_id: str | None = None) -> tuple[str, str, str] | None:
+    """反查请求、轮次根 span 和发起工具调用的 LLM span。"""
     with _registry_lock:
         if provider_call_id and provider_call_id in _registry:
             return _registry[provider_call_id]
@@ -133,6 +146,7 @@ class AixTelemetryMiddleware(ChatMiddleware):
             await call_next()
             return
         request_id = str(uuid.uuid4())
+        llm_span_id = str(uuid.uuid4())
         span_id = ""
         trajectory = current_trajectory()
         turn_id = trajectory.turn_id if trajectory is not None else None
@@ -148,11 +162,11 @@ class AixTelemetryMiddleware(ChatMiddleware):
             return
         result = context.result
         if isinstance(result, ChatResponse):
-            self._record_response(result, request_id, span_id)
+            self._record_response(result, request_id, span_id, llm_span_id)
         elif isinstance(result, ResponseStream):
 
             def _record_on_final(response: ChatResponse) -> ChatResponse:
-                self._record_response(response, request_id, span_id)
+                self._record_response(response, request_id, span_id, llm_span_id)
                 return response
 
             result.with_result_hook(_record_on_final)
@@ -211,13 +225,13 @@ class AixTelemetryMiddleware(ChatMiddleware):
         options["extra_body"] = merged
         context.options = options
 
-    def _record_response(self, response: ChatResponse, request_id: str, span_id: str) -> None:
+    def _record_response(self, response: ChatResponse, request_id: str, span_id: str, llm_span_id: str) -> None:
         try:
-            record_session_latest(request_id, span_id, self._session_id)
+            record_session_latest(request_id, span_id, self._session_id, llm_span_id=llm_span_id)
             for message in response.messages:
                 for content in message.contents:
                     call_id = getattr(content, "call_id", None)
                     if content.type == "function_call" and call_id:
-                        record_call(call_id, request_id, span_id, self._session_id)
+                        record_call(call_id, request_id, span_id, self._session_id, llm_span_id=llm_span_id)
         except Exception:
             logger.warning("AIxCoding telemetry function-call extraction failed", exc_info=True)

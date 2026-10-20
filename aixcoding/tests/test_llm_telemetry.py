@@ -22,6 +22,7 @@ from chrys.aixcoding.telemetry.llm_telemetry import (
     clear_call_registry,
     record_call,
     resolve_call,
+    resolve_tool_call,
     root_span_id,
 )
 from chrys.foundation.trajectory.context import TrajectoryContext, main_actor, trajectory_scope
@@ -78,8 +79,8 @@ async def _run_middleware(middleware: AixTelemetryMiddleware, result: Any, **opt
 
 
 def test_registry_exact_hit_then_session_fallback():
-    record_call("pc-1", "req-1", "span-1", "sess-1")
-    record_call("pc-2", "req-2", "span-2", "sess-1")
+    record_call("pc-1", "req-1", "span-1", "sess-1", llm_span_id="llm-1")
+    record_call("pc-2", "req-2", "span-2", "sess-1", llm_span_id="llm-2")
 
     assert resolve_call("pc-1", "sess-1") == ("req-1", "span-1")
     assert resolve_call("pc-2", "sess-1") == ("req-2", "span-2")
@@ -87,6 +88,8 @@ def test_registry_exact_hit_then_session_fallback():
     assert resolve_call("unknown", "sess-1") == ("req-2", "span-2")
     assert resolve_call("unknown") is None
     assert resolve_call("unknown", "other-session") is None
+    assert resolve_tool_call("pc-1", "sess-1") == ("req-1", "span-1", "llm-1")
+    assert resolve_tool_call("unknown", "sess-1") == ("req-2", "span-2", "llm-2")
 
 
 def test_registry_bounded_drops_oldest():
@@ -171,6 +174,20 @@ async def test_span_id_from_bound_trajectory_turn():
 
     telemetry = context.options["extra_body"]["telemetry"]  # type: ignore[index]
     assert telemetry["spanId"] == root_span_id("sess-1", "turn-9")
+
+
+async def test_each_llm_call_records_distinct_tool_parent_span():
+    trajectory = TrajectoryContext(sink=_NullSink(), session_id="sess-1", actor=main_actor("sess-1"), turn_id="turn-9")
+    middleware = AixTelemetryMiddleware(session_id="sess-1")
+    with trajectory_scope(trajectory):
+        await _run_middleware(middleware, _tool_call_response("pc-first"))
+        await _run_middleware(middleware, _tool_call_response("pc-second"))
+
+    first = resolve_tool_call("pc-first", "sess-1")
+    second = resolve_tool_call("pc-second", "sess-1")
+    assert first is not None and second is not None
+    assert first[1] == second[1] == root_span_id("sess-1", "turn-9")
+    assert first[2] and second[2] and first[2] != second[2]
 
 
 async def test_side_call_payload_system_without_registry():

@@ -166,10 +166,18 @@ def test_pick_value_whitelist():
     assert pick_value("read_file", {}, full_mode=False) is None
 
 
-def test_pick_value_full_mode_truncates():
+def test_pick_value_full_mode_keeps_complete_json_like_pi():
     args = {"blob": "x" * 5000}
     value = pick_value("any_tool", args, full_mode=True)
-    assert value is not None and len(value) == 2000
+    assert value == '{"blob": "' + "x" * 5000 + '"}'
+
+
+def test_pick_value_full_mode_keeps_original_call_arguments():
+    args = {"command": "pwd", "parent_span_id": "parent-1", "status": "running"}
+    assert pick_value("shell", args, full_mode=True) == (
+        '{"command": "pwd", "parent_span_id": "parent-1", "status": "running"}'
+    )
+    assert args == {"command": "pwd", "parent_span_id": "parent-1", "status": "running"}
 
 
 def test_line_counts_diff():
@@ -205,7 +213,7 @@ def test_reporter_start_then_result_ordering_and_fields():
 
     submitter = _CaptureSubmitter()
     reporter = ToolDetailReporter(submitter)
-    record_call("pc-1", "req-9", "span-9", "sess-1")
+    record_call("pc-1", "req-9", "span-9", "sess-1", llm_span_id="llm-9")
     set_desktop_channel("AgentStudio", "1.2.3")
 
     reporter.on_start(_start(provider_call_id="pc-1", args={"path": "src/a.py"}))
@@ -220,10 +228,10 @@ def test_reporter_start_then_result_ordering_and_fields():
     assert save["funcType"] == FuncType.BUILTIN
     assert save["sessionId"] == "sess-1"
     assert save["spanId"] == "span-9"
+    assert save["parentSpanId"] == "llm-9"
     assert save["requestId"] == "req-9"
-    assert "parentSpanId" not in save
-    # read_file 路径改走 fileName（2026-10-10）；workspace 缺失时原样保留
-    assert "value" not in save
+    # 路径继续单独填入 fileName；value 同时保留完整调用参数
+    assert save["value"] == '{"path": "src/a.py"}'
     assert save["fileName"] == "src/a.py"
     assert save["pluginVersion"]
     assert save["channelType"] == "desktop"
@@ -235,10 +243,12 @@ def test_reporter_start_then_result_ordering_and_fields():
     assert pending["funcId"] == "pc-1"
     assert pending["funcName"] == "read_file"
     assert pending["codeStatus"] == CodeStatus.PENDING
+    assert "status" not in pending
 
     final = submitter.calls[2][1]
     assert final["funcId"] == "pc-1"  # update 关联键与 save 同源（provider id）
     assert final["codeStatus"] == CodeStatus.SUCCESS
+    assert final["status"] == 1
     assert final["executionDurationMs"] == 120
     assert final["originalLines"] == 2
     assert final["addedLines"] == 2
@@ -353,9 +363,24 @@ def test_reporter_read_and_view_image_save_includes_file_name():
     reporter.on_start(_start(tool_name="read_file", args={"path": "src/a.py"}))
     reporter.on_start(_start(call_id="c2", tool_name="view_image", args={"path": "img/logo.png"}))
     save_read = submitter.calls[0][1]
-    assert save_read["fileName"] == "src/a.py"  # 非编辑类工具路径同口径（2026-10-10）
-    assert "value" not in save_read
+    assert save_read["fileName"] == "src/a.py"  # 非编辑类工具仍单独上报路径
+    assert save_read["value"] == '{"path": "src/a.py"}'
     assert submitter.calls[2][1]["fileName"] == "img/logo.png"
+
+
+def test_reporter_save_includes_non_whitelisted_tool_arguments():
+    submitter = _CaptureSubmitter()
+    reporter = ToolDetailReporter(submitter)
+    reporter.on_start(
+        _start(
+            tool_name="shell",
+            args={"command": "pwd", "options": {"timeout": 10}, "parent_span_id": "parent-1", "status": "running"},
+        )
+    )
+
+    assert submitter.calls[0][1]["value"] == (
+        '{"command": "pwd", "options": {"timeout": 10}, "parent_span_id": "parent-1", "status": "running"}'
+    )
 
 
 def test_reporter_file_name_resolves_against_workspace(tmp_path):
@@ -382,6 +407,7 @@ def test_reporter_result_without_registry_still_reports():
     final = submitter.calls[2][1]
     assert final["funcId"] == "c1"
     assert final["codeStatus"] == CodeStatus.FAILED
+    assert final["status"] == 0
     assert final["failureType"] == "error"
     assert final["funcErrorMessage"] == "done"
 
@@ -392,6 +418,7 @@ def test_reporter_rejected_marks_user_rejected():
     reporter.on_start(_start())
     reporter.on_result(_result(metadata={"approval": "user_rejected"}))
     assert submitter.calls[2][1]["codeStatus"] == CodeStatus.USER_REJECTED
+    assert submitter.calls[2][1]["status"] == 0
 
 
 def test_tool_detail_tui_channel_fields(monkeypatch: pytest.MonkeyPatch):

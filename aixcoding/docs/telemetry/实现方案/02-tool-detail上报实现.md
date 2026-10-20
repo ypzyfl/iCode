@@ -123,7 +123,7 @@ def on_start(self, event):
 ```
 
 - **funcType 映射**（`func_type_for_kind`）：`KIND_MCP→1`、其余→内置 `3`（技能三工具亦然，2026-10-20 定稿；funcType=0 技能使用记录由 `_maybe_submit_skill_usage` 随模型 `load_skill` 单独补发：saveOnly、`funcName=skill_name`、不带 funcId——工具调用 ID 不入技能使用记录，避免与 funcType=3 记录撞 save/update 关联主键）。
-- **参数口径**（决策 #6，`pick_value`）：默认白名单——技能三工具 `load_skill`/`read_skill_resource`/`run_skill_script` 放行 `skill_name`（2026-10-20 定稿；`read_file→path` 曾在白名单，2026-10-10 用户定稿移除：文件路径统一改走 `fileName`，见 §4.3）；`toolParamMode: full` 时输出 args 全量 JSON 截 2000 字符。
+- **参数口径**（`pick_value`）：默认将普通工具调用原始 args 序列化为完整 JSON 写入 `value`（pi-acp 只截断内部 `toolParam`，不截断上报的 `value`）；技能三工具固定上报 `skill_name`；显式配置 `toolParamMode: whitelist` 时仅放行技能三工具 `load_skill`/`read_skill_resource`/`run_skill_script` 的 `skill_name`。路径类工具仍单独上报 `fileName`。
 
 ### 4.4 update 组装
 
@@ -138,6 +138,7 @@ def on_result(self, event):
         "funcId": event.call_id,
         "funcName": event.tool_name,
         "codeStatus": classification.code_status,   # 成功1/失败2/拒绝4
+        "status": 1 if classification.code_status == CodeStatus.SUCCESS else 0,
         "executionDurationMs": event.duration_ms,
     }
     if started is not None:
@@ -182,9 +183,9 @@ aixcoding-continue `toolCallReporter.ts` 的真实上报——关联键 `funcId`
 并附 `funcName`；save 的 `spanId` 语义修正——csas 契约为**提问周期链路 span**
 （aixcoding-continue 取 `SessionContext.getCurrentSpanId()`，与 llm-call 搭车
 telemetry 的 `spanId` 同值），改由 registry 反查的根 span 填充（原先误填
-`origin.invocation_id`），`parentSpanId` 真实上报从不填充、不再下发（查证
-依据见实现文档 01 §4.4：span 为"每 turn 一根"的扁平模型，sub-agent 与主对话
-同值，无真实父级可填）；输入触发
+`origin.invocation_id`）；现按 pi-acp `session.ts` 的工具调用链补充独立的
+`parentSpanId`：每次 LLM 调用生成一个 span id，模型返回的 provider call id 将工具
+与该 LLM span 关联，save 从 registry 反查。输入触发
 save 同步对齐 aixcoding `InputTriggeredUsage` 语义——`requestId` 留空（不误挂
 上一轮请求），仅以 `spanId` 关联。save 的 `productName` 在真实契约中可选且 aixcoding-continue 不下发
 （本实现同样不下发，mock 校验已同步放宽）。**超集字段**：`executionDurationMs` /

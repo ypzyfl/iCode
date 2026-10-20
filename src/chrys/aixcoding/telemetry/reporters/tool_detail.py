@@ -11,8 +11,8 @@ update 报文键名对齐 aixcoding-continue ``toolCallReporter.ts``（2026-10-0
 联调修正）：关联键 ``funcId`` 取 **provider 原始 call id**（csas 语义 = 模型生成
 的 toolUseId，与 session.json/网关记录同 id 可直接核对；空值 fallback Chrys 短
 id）、错误信息 ``funcErrorMessage``、附 ``funcName``。save 的 ``spanId`` 为提问周期链路 span（registry 反查的根 span，
-与 llm-call 搭车 telemetry 的 ``spanId`` 同值；``parentSpanId`` 真实上报从不填充，
-不下发）。``executionDurationMs`` / ``executionStartedAt`` /
+与 llm-call 搭车 telemetry 的 ``spanId`` 同值）；``parentSpanId`` 是发起工具的
+LLM 调用 span。终态 update 的 ``status`` 为成功 1 / 失败 0。``executionDurationMs`` / ``executionStartedAt`` /
 ``executionFinishedAt`` / ``failureType`` 为 iCode 超集字段（aixcoding-continue
 不下发）——暂保留供观测，后端容忍度待方案 §8-6 确认。
 
@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# -- 参数白名单（方案决策 #6：默认只放行"读了哪个 X"类短参数；全量模式可切） -------
+# -- 参数白名单（可用 toolParamMode: whitelist 显式启用） ----------------------
 # 对齐 aixcoding ``toolUseReports.ts``（read_skill→skillName 白名单）：三个技能
 # 工具按内置工具（funcType=3）上报，value=skill_name 区分操作了哪个技能
 # （2026-10-20 用户定稿：load_skill/read_skill_resource/run_skill_script 统一）。
@@ -65,7 +65,7 @@ _FILE_NAME_TOOLS = frozenset({"write_file", "edit_file", "read_file", "view_imag
 fileName（工程内相对/工程外绝对，``relative_file_name``），不再进 value 白名单。"""
 
 _FULL_VALUE_MAX_CHARS = 2000
-"""全量模式（``toolParamMode: full``）value 截断上限，对齐 pi-acp toolParam。"""
+"""白名单短参数与错误文本的长度上限；pi-acp 的完整 value 不截断。"""
 
 
 def func_type_for_kind(tool_kind: str) -> int:
@@ -83,20 +83,20 @@ def func_type_for_kind(tool_kind: str) -> int:
 
 
 def pick_value(tool_name: str, args: Mapping[str, Any], *, full_mode: bool) -> str | None:
-    """按白名单挑选调用参数 ``value``；全量模式输出截断后的 args JSON。"""
+    """技能工具保留 skill_name 口径；其他工具按模式上报参数。"""
+    field = VALUE_ARG_FIELD_BY_TOOL.get(tool_name)
+    if field is not None:
+        value = args.get(field)
+        if isinstance(value, bool) or not isinstance(value, (str, int, float)):
+            return None
+        return str(value).strip()[:_FULL_VALUE_MAX_CHARS] or None
     if full_mode:
         try:
             text = json.dumps(args, ensure_ascii=False, default=str)
         except TypeError, ValueError:
             return None
-        return text[:_FULL_VALUE_MAX_CHARS] or None
-    field = VALUE_ARG_FIELD_BY_TOOL.get(tool_name)
-    if field is None:
-        return None
-    value = args.get(field)
-    if isinstance(value, bool) or not isinstance(value, (str, int, float)):
-        return None
-    return str(value).strip()[:_FULL_VALUE_MAX_CHARS] or None
+        return text or None
+    return None
 
 
 def line_counts(result_metadata: Mapping[str, Any]) -> dict[str, int]:
@@ -146,11 +146,11 @@ class ToolDetailReporter:
 
     def on_start(self, event: InvocationToolCallStart) -> None:
         from chrys.aixcoding.config import load_settings
-        from chrys.aixcoding.telemetry.llm_telemetry import resolve_call
+        from chrys.aixcoding.telemetry.llm_telemetry import resolve_tool_call
         from chrys.aixcoding.telemetry.reporters import common_fields
 
         remember_bounded(self._started_at, event.call_id, event.timestamp)
-        request = resolve_call(event.provider_call_id, event.session_id)
+        request = resolve_tool_call(event.provider_call_id, event.session_id)
         payload: dict[str, Any] = {
             # csas funcId = 模型生成的 toolUseId（provider call id，对齐 aixcoding
             # "模型调用工具时生成"语义，与 session/网关记录可直接核对）；
@@ -165,8 +165,10 @@ class ToolDetailReporter:
             if request[1]:
                 # csas spanId = 提问周期链路 span（aixcoding-continue 取
                 # SessionContext.getCurrentSpanId，与 llm-call 搭车 telemetry 的
-                # spanId 同值；parentSpanId 真实上报从不填充）。2026-10-09 修正。
+                # spanId 同值）。
                 payload["spanId"] = request[1]
+            if request[2]:
+                payload["parentSpanId"] = request[2]
         value = pick_value(event.tool_name, event.args, full_mode=load_settings().tool_param_mode == "full")
         if value is not None:
             payload["value"] = value
@@ -194,7 +196,7 @@ class ToolDetailReporter:
         )
         self._maybe_submit_skill_usage(event, request)
 
-    def _maybe_submit_skill_usage(self, event: InvocationToolCallStart, request: tuple[str, str] | None) -> None:
+    def _maybe_submit_skill_usage(self, event: InvocationToolCallStart, request: tuple[str, str, str] | None) -> None:
         """模型 ``load_skill`` → 额外补一条 funcType=0 技能使用 ``save``（saveOnly）。
 
         csas 语义：funcType=0 的 funcName 是技能名（Skill 下的技能名），与输入
@@ -235,6 +237,7 @@ class ToolDetailReporter:
             "funcId": event.provider_call_id or event.call_id,  # 同 save：provider id 优先
             "funcName": event.tool_name,
             "codeStatus": classification.code_status,
+            "status": 1 if classification.code_status == CodeStatus.SUCCESS else 0,
             "executionDurationMs": event.duration_ms,
         }
         if started is not None:
