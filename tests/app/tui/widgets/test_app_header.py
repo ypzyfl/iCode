@@ -151,3 +151,18 @@ async def test_app_header_can_hide_login_badge() -> None:
 
     async with AppHeaderWithoutLoginApp().run_test() as pilot:
         assert list(pilot.app.query("#login-badge")) == []
+
+
+async def test_app_header_update_badge_renders_chip_in_title() -> None:
+    async with AppHeaderApp().run_test() as pilot:
+        header = pilot.app.query_one(AppHeader)
+
+        header.update_badge = ("0.29.0", "https://example.com/download")
+        await pilot.pause()
+        title = pilot.app.query_one("#header-title", Static)
+        assert title.render().plain.endswith(" \u2502  New version v0.29.0 \u21d7 ")
+
+        header.update_badge = None
+        await pilot.pause()
+        title = pilot.app.query_one("#header-title", Static)
+        assert "New version" not in title.render().plain

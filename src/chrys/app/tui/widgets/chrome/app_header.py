@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from rich.markup import escape
 from textual.containers import Horizontal
 from textual.content import Content
 from textual.events import Click
@@ -36,6 +37,8 @@ _APPROVAL_BADGE = msg(
 _APPROVAL_MODE_MANUAL = msg("tui.chrome.approval_mode.manual", fallback="MANUAL")
 _APPROVAL_MODE_AUTO = msg("tui.chrome.approval_mode.auto", fallback="AUTO")
 _APPROVAL_MODE_BYPASS = msg("tui.chrome.approval_mode.bypass", fallback="BYPASS")
+
+_UPDATE_BADGE = msg("tui.chrome.update.badge", fallback="New version v{version} \u21d7")
 
 _APPROVAL_CLASSES = {
     ApprovalMode.MANUAL: "approval-manual",
@@ -79,6 +82,10 @@ class AppHeader(Widget):
 
     subtitle_parts: reactive[tuple[str, ...]] = reactive(())
     approval_mode: reactive[ApprovalMode] = reactive(ApprovalMode.MANUAL)
+    # Startup update-detection hit as (candidate version, download URL), or
+    # None. Only the version is rendered here; the download URL is resolved
+    # by the screen-side action when the badge is clicked.
+    update_badge: reactive[tuple[str, str] | None] = reactive(None)
 
     def __init__(
         self,
@@ -136,6 +143,10 @@ class AppHeader(Widget):
         if self.is_mounted:
             self._refresh_title()
 
+    def watch_update_badge(self, _badge: tuple[str, str] | None) -> None:
+        if self.is_mounted:
+            self._refresh_title()
+
     def watch_approval_mode(self, mode: ApprovalMode) -> None:
         if self.is_mounted:
             self._refresh_approval_badge(mode)
@@ -145,12 +156,32 @@ class AppHeader(Widget):
         from chrys import __version__
 
         title = Content(format_app_version_title(__version__))
+        content = title
         if self.subtitle_parts:
             sub_text = " \u2502 ".join(self.subtitle_parts)
-            content = Content.assemble(title, (" \u2014 ", "dim"), Content(sub_text).stylize("dim"))
-        else:
-            content = title
+            content = Content.assemble(content, (" \u2014 ", "dim"), Content(sub_text).stylize("dim"))
+        badge = self._update_badge_content()
+        if badge is not None:
+            content = Content.assemble(content, (" \u2502 ", "dim"), badge)
         self.query_one("#header-title", Static).update(content)
+
+    def _update_badge_content(self) -> Content | None:
+        """The clickable "new version" badge, or None when nothing was detected.
+
+        Rendered as a solid reverse-color chip ($button-color-foreground on
+        $success): both colors are explicit, so the contrast stays locked
+        regardless of the terminal palette. The label must be markup-escaped
+        before embedding: the candidate version is server-supplied data, and
+        a todo-style "[@click=...]" payload has to stay inert (same contract
+        as the todo renderer).
+        """
+        badge = self.update_badge
+        if badge is None:
+            return None
+        label = escape(self._render_message(_UPDATE_BADGE.bind(version=badge[0])))
+        return Content.from_markup(
+            f"[$button-color-foreground on $success][@click=screen.open_download_url] {label} [/]"
+        )
 
     def _refresh_approval_badge(self, mode: ApprovalMode) -> None:
         """Refresh the approval mode badge from the current reactive value."""

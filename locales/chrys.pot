@@ -4374,6 +4374,12 @@ msgstr ""
 msgid "tui.chrome.approval_mode.manual"
 msgstr ""
 
+#. English: New version v{version} ⇗
+#. chrys-meta={"fingerprint":"4458ee79e6252ece09de749960bf1f90fc39ea3dccf3e4ef89e4d3e507850357","multiline":false,"placeholders":["version"]}
+#: src/chrys/app/tui/widgets/chrome/app_header.py
+msgid "tui.chrome.update.badge"
+msgstr ""
+
 #. English: Opacity
 #. chrys-meta={"fingerprint":"fbe9921562136650ecb20c434111c0f313739ce4d747ef35ac0fefbac089ae97","multiline":false,"placeholders":[]}
 #: src/chrys/app/tui/widgets/color_picker/__init__.py
@@ -12674,6 +12680,12 @@ msgstr ""
 #. chrys-meta={"fingerprint":"bc006f980ad45002214982b17d9c68070fd6837d7982f1173320db7ecb3ae566","multiline":false,"placeholders":[]}
 #: src/chrys/app/tui/widgets/chat/context_fold.py
 msgid "tui.transcript.fold.compressed"
+msgstr ""
+
+#. English: Could not open the download page: {error}
+#. chrys-meta={"fingerprint":"44f1db7f32c2b6a593cf87ee5091f5dd16b53f7805dd2c5e2f852baea0a60901","multiline":false,"placeholders":["error"]}
+#: src/chrys/app/tui/screens/main/screen.py
+msgid "tui.update.open_failed"
 msgstr ""
 
 #. English: OK

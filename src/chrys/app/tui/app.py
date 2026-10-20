@@ -328,6 +328,9 @@ class ChrysApp(TuiVariableDefaultsMixin, App):
         self._crash_log_initialized = False
         self._startup_task: asyncio.Task[None] | None = None
         self._login_silent_check_task: asyncio.Task[None] | None = None
+        # The startup update-detection task (see ``_check_app_update``): it
+        # lives for the event loop's lifetime and is never awaited on shutdown.
+        self._update_check_task: asyncio.Task[None] | None = None
         # The catalog poll's handle, or None when it is not running: it starts
         # only with a credential, which a mid-session login supplies.
         self._catalog_sync: CatalogSyncHandle | None = None
@@ -957,6 +960,11 @@ class ChrysApp(TuiVariableDefaultsMixin, App):
         # AIxCoding credential; never blocks or disturbs the session start.
         self._login_silent_check_task = asyncio.create_task(self._silent_login_check())
 
+        # Startup update detection: a one-shot background GET (timeout 5s,
+        # all failures swallowed) that, on a hit, appends a clickable
+        # "new version" badge to the main screen's header. Never awaited.
+        self._update_check_task = asyncio.create_task(self._check_app_update())
+
     async def _flush_deferred_settings_warnings(self) -> None:
         for w in self._deferred_settings_warnings:
             await self._bus.publish(w)
@@ -1029,6 +1037,23 @@ class ChrysApp(TuiVariableDefaultsMixin, App):
             screen = self._main_screen
             if screen is not None:
                 screen.refresh_login_indicator(account=account)
+
+    async def _check_app_update(self) -> None:
+        """Startup version update detection, silently.
+
+        A hit writes a clickable update badge onto the main screen's header
+        (the header is reactive-driven, so the badge also shows when the user
+        has since switched to another screen and comes back); every failure —
+        network, unexpected status, unparseable manifest — ends silently, and
+        detection never blocks or disturbs the session start.
+        """
+        from chrys.aixcoding.update_detection import check_for_update
+
+        with contextlib.suppress(Exception):
+            update = await check_for_update()
+            screen = self._main_screen
+            if update is not None and screen is not None:
+                screen.set_pending_update(update)
 
     async def _start_engine(self, profile: AgentProfile, screen: MainScreen) -> None:
         """Start the backend without holding Textual's mount path."""

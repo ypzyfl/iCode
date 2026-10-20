@@ -16,6 +16,8 @@ Current subpackages:
 
 - :mod:`mock_server.aixcoding_auth` — AIxCoding device-code auth service
   (``/api/v1/auth/...``, ``/api/v1/user/info``)
+- :mod:`mock_server.aixcoding_update` — AIxCoding TUI update-detection service
+  (``/csas/api/v1/releases/check``)
 - :mod:`mock_server.chrys_model_catalog` — server-published model catalog
   (``/model-catalog``, ``/llm/api/v1/continue-config/dispatch``)
 

@@ -9,9 +9,10 @@
 | 子包 | 模拟目标 | 端点前缀 |
 |---|---|---|
 | `aixcoding_auth/` | AIxCoding 设备码登录认证服务 | `/api/v1/auth/...`、`/api/v1/user/info` |
+| `aixcoding_update/` | AIxCoding TUI 版本更新检测服务 | `/csas/api/v1/releases/check` |
 | `chrys_model_catalog/` | 服务端下发的模型目录 | `/model-catalog`、`/llm/api/v1/continue-config/dispatch` |
 
-未来新增（命名遵循下面的约定）：`oauth/`、`llm/`、`update_server/` 等。
+未来新增（命名遵循下面的约定）：`oauth/`、`llm/` 等。
 
 ## 目录结构
 
@@ -23,6 +24,11 @@ mock_server/
 │   ├── __init__.py
 │   ├── server.py           # HTTP server、授权状态机、本地验证页
 │   └── README.md           # 具体端点 / 模式 / CLI 用法（测试在 tests/app/aixcoding/）
+├── aixcoding_update/       # AIxCoding 版本更新检测 mock
+│   ├── __init__.py
+│   ├── server.py           # HTTP server、严格校验、四种模式、debug 端点
+│   ├── test_server.py      # 契约测试（stdlib urllib 直连）
+│   └── README.md           # 端点 / 模式 / CLI 用法
 ├── chrys_model_catalog/    # 服务端模型目录 mock
 │   ├── __init__.py
 │   ├── server.py           # HTTP 装配、路由、start()/CLI
