@@ -472,6 +472,33 @@ jobs:
           done
           cp artifacts/wheel/*.whl release/
           cd release && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+          # 人类可读的构建信息页（随 Release 发布，指南中引用它作为溯源入口）
+          {
+            echo "# 构建信息（自动生成，请勿手动编辑）"
+            echo
+            echo "| 项目 | 值 |"
+            echo "|---|---|"
+            echo "| 构建时间 (UTC) | $(date -u +'%Y-%m-%d %H:%M:%SZ') |"
+            echo "| 构建分支/Tag | ${{ needs.resolve-target.outputs.build_ref }} |"
+            echo "| Commit | $(git rev-parse HEAD) |"
+            echo "| 短 Commit | $(git rev-parse --short HEAD) |"
+            echo "| 提交时间 | $(git log -1 --format=%cI) |"
+            echo "| 提交作者 | $(git log -1 --format=%an) |"
+            echo "| 触发方式 | ${{ github.event_name }} |"
+            echo "| Run ID | [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
+            echo
+            echo "## 最新提交"
+            echo
+            '```'
+            git log -1 --format="%h %s (%an, %ci)"
+            '```'
+            echo
+            echo "## 资产 SHA256"
+            echo
+            '```'
+            cat SHA256SUMS.txt
+            '```'
+          } > BUILD_INFO.md
 
       - name: Create release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
