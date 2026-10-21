@@ -23,15 +23,13 @@ on:
         description: '指定版本号（如 0.28.0，优先级最高）。留空 = 使用默认版本 DEFAULT_PROJECT_VERSION (0.28.0)'
         type: string
         default: ''
+      # GitHub Actions 的 choice 输入不支持多选，因此用逗号分隔的字符串表达
+      # 多平台组合，如 "linux,windows"、"windows"、"all"。解析见
+      # compute-matrix 步骤，非法值会直接失败并打印可选值。
       platform:
-        description: '要构建的平台'
-        type: choice
+        description: '要构建的平台：all | linux | macos | windows，可逗号组合（如 linux,windows）'
+        type: string
         default: all
-        options:
-          - all
-          - windows
-          - macos
-          - linux
 
 concurrency:
   group: cd-${{ inputs.ref || inputs.branch || github.ref }}-${{ github.workflow }}
@@ -138,8 +136,11 @@ jobs:
     steps:
       - id: filter
         shell: bash
+        env:
+          # 通过 env 传入而不是直接插值：输入值里出现引号/反引号时不会被
+          # 拼进 shell 语法，避免注入。schedule 触发的 inputs 为空，回落到 all。
+          PLATFORM_INPUT: ${{ inputs.platform || 'all' }}
         run: |
-          platform="${{ inputs.platform || 'all' }}"
           # The macOS x86_64 leg runs on a native Intel runner rather than
           # cross-compiling from arm64: the offline flavor has to pip-install
           # (and occasionally compile) x86_64 wheels for the bundled interpreter.
@@ -150,11 +151,26 @@ jobs:
             {"target":"x86_64-apple-darwin","os":"macos-15-intel","artifact":"aixcoding-cli-macos-x86_64","platform":"macos"},
             {"target":"x86_64-pc-windows-msvc","os":"windows-latest","artifact":"aixcoding-cli-windows-x86_64.exe","platform":"windows"}
           ]'
-          if [ "$platform" = "all" ]; then
-            filtered="$all_targets"
-          else
-            filtered=$(echo "$all_targets" | jq -c "[.[] | select(.platform == \"$platform\")]")
+          # 平台输入支持单值、逗号组合（linux,windows）或 all。
+          # 归一化成 JSON 数组后交给 jq，只保留合法平台名并去重。
+          requested=$(echo "$PLATFORM_INPUT" | tr ',' '\n' | tr -d ' \t' | tr 'A-Z' 'a-z' \
+            | grep -v '^$' | sort -u | jq -R . | jq -sc .)
+          # 留空回落到 all：dispatch 时清空该输入框也会走这里。
+          if [ "$requested" = '[]' ]; then
+            requested='["all"]'
           fi
+          if [ "$requested" = '["all"]' ]; then
+            requested='["linux","macos","windows"]'
+          fi
+          known='["linux","macos","windows"]'
+          unknown=$(jq -cn --argjson want "$requested" --argjson known "$known" \
+            '$want - $known | .[]')
+          if [ -n "$unknown" ]; then
+            echo "::error::unknown platform in input '$PLATFORM_INPUT'. Valid values: all, linux, macos, windows (comma separated)."
+            exit 1
+          fi
+          filtered=$(jq -c --argjson want "$requested" \
+            '[.[] | select(.platform as $p | $want | index($p))]' <<<"$all_targets")
           targets=$(echo "$filtered" | jq -c '[.[].target]')
           # "offline" bundles every dependency into the binary. The "pip" and
           # "uv" flavors install from PyPI on first run; add them here to build
@@ -162,6 +178,7 @@ jobs:
           matrix=$(jq -nc --argjson targets "$targets" --argjson include "$filtered" \
             '{"installer":["offline"],"target":$targets,"include":$include}')
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "Platforms: $(jq -r '[.[].platform] | unique | join(",")' <<<"$filtered")"
 
   # ── Build PyApp binaries (5 platforms × 1 flavor = 5 jobs) ──────────
   build-binaries:
