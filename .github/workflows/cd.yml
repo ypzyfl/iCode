@@ -498,7 +498,9 @@ jobs:
             fi
           done
           cp artifacts/wheel/*.whl release/
-          cd release && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+          # 不用 `cd release`：step 内后续命令与下一个 step 都按仓库根目录解析相对路径，
+          # 隐式切目录会让人误以为生成物在仓库根目录。显式写 release/ 前缀。
+          (cd release && sha256sum ./* > SHA256SUMS.txt && cat SHA256SUMS.txt)
           # 人类可读的构建信息页（随 Release 发布，指南中引用它作为溯源入口）
           {
             echo "# 构建信息（自动生成，请勿手动编辑）"
@@ -523,9 +525,9 @@ jobs:
             echo "## 资产 SHA256"
             echo
             echo '```'
-            cat SHA256SUMS.txt
+            cat release/SHA256SUMS.txt
             echo '```'
-          } > BUILD_INFO.md
+          } > release/BUILD_INFO.md
 
       # 正文分两步写入：先建（或更新）tag 与 Release，再整体覆盖正文。
       # 不能用 softprops/action-gh-release 的 generate_release_notes：
@@ -552,10 +554,16 @@ jobs:
 
       - name: Compose release notes
         run: |
+          # 上一步把构建信息写进 release/（作为发布资产），这里必须读同一路径。
+          build_info=release/BUILD_INFO.md
+          if [ ! -f "$build_info" ]; then
+            echo "::error::$build_info not found; Collect release assets did not produce it"
+            exit 1
+          fi
           {
             echo "## 构建信息"
             echo
-            sed -e '1d' -e '/^$/N;/^\n$/D' BUILD_INFO.md
+            sed -e '1d' -e '/^$/N;/^\n$/D' "$build_info"
           } > notes.md
           # 本次运行新增的提交（上一次同一 tag 的 Release 正文里记录过）。
           # awk 逐行匹配而不是 grep：grep 一旦读到匹配行就会提前关管道，
