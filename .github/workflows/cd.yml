@@ -617,7 +617,7 @@ jobs:
           fi
           {
             echo "### Release $TAG_NAME"
-            echo
+            echo 
             echo "- 构建 ref: \`${{ needs.resolve-target.outputs.build_ref }}\`"
             echo "- 触发方式: \`${{ github.event_name }}\` / run ${GITHUB_RUN_ID}"
             echo "- 本次新增提交: ${added}"
