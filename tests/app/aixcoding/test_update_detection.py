@@ -10,6 +10,7 @@ does not exist yet, so the mock freezes the wire contract.
 
 from __future__ import annotations
 
+import logging
 import sys
 import threading
 from http.server import HTTPServer
@@ -242,3 +243,54 @@ class TestCheckForUpdateE2E:
         monkeypatch.setattr(update_detection, "get_platform", lambda: _platform(arch="riscv"))
         assert await check_for_update() is None
         assert server.mock_state.requests() == []
+
+    # --- request/response observability (debug logs) -------------------------- #
+
+    async def test_complete_request_is_logged(self, client_against, mock_update_server, caplog) -> None:
+        """发送前 debug 日志必须携带完整请求: 方法 + 全部查询参数 + 请求头。"""
+        base_url, _ = mock_update_server
+        client_against(base_url)
+        with caplog.at_level(logging.DEBUG, logger=update_detection.logger.name):
+            assert await check_for_update() is not None
+        sending = [r for r in caplog.records if "sending" in r.getMessage()]
+        assert sending, "complete-request log line missing"
+        message = sending[-1].getMessage()
+        assert "GET" in message
+        assert "clientType=cli" in message
+        assert "platform=darwin" in message
+        assert "architecture=arm64" in message
+        assert "currentVersion=0.28.0" in message
+        assert "headers:" in message
+
+    async def test_response_receipt_is_logged(self, client_against, mock_update_server, caplog) -> None:
+        base_url, _ = mock_update_server
+        client_against(base_url)
+        with caplog.at_level(logging.DEBUG, logger=update_detection.logger.name):
+            assert await check_for_update() is not None
+        receipts = [r for r in caplog.records if "got response" in r.getMessage()]
+        assert receipts, "response receipt log line missing"
+        message = receipts[-1].getMessage()
+        assert "status: 200" in message
+        assert "body:" in message
+
+    async def test_error_mode_logs_status_and_body(self, client_against, mock_update_server, caplog) -> None:
+        base_url, server = mock_update_server
+        client_against(base_url)
+        server.mock_config.mode = "error"
+        with caplog.at_level(logging.DEBUG, logger=update_detection.logger.name):
+            assert await check_for_update() is None
+        failures = [r for r in caplog.records if "unexpected status" in r.getMessage()]
+        assert failures, "unexpected-status log line missing"
+        message = failures[-1].getMessage()
+        assert "unexpected status 500" in message
+        assert "internal_error" in message
+
+    async def test_connection_failure_logs_full_url(self, client_against, caplog) -> None:
+        client_against("http://127.0.0.1:1/csas")  # nothing listens on port 1
+        with caplog.at_level(logging.DEBUG, logger=update_detection.logger.name):
+            assert await check_for_update() is None
+        failures = [r for r in caplog.records if "request failed" in r.getMessage()]
+        assert failures, "request-failure log line missing"
+        message = failures[-1].getMessage()
+        for fragment in ("clientType=cli", "platform=darwin", "architecture=arm64", "currentVersion=0.28.0"):
+            assert fragment in message
