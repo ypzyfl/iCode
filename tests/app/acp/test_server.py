@@ -118,7 +118,7 @@ async def test_desktop_agent_usage_requires_new_model_request(monkeypatch: pytes
     from chrys.aixcoding.telemetry.llm_telemetry import clear_call_registry, record_session_latest
 
     clear_call_registry()
-    reports: list[tuple[str, str, tuple[str, str], str]] = []
+    reports: list[tuple[str, str | None, str, tuple[str, str], str]] = []
     monkeypatch.setattr(
         "chrys.aixcoding.telemetry.subscriber.record_desktop_agent_usage",
         lambda *args: reports.append(args),
@@ -149,7 +149,7 @@ async def test_desktop_agent_usage_requires_new_model_request(monkeypatch: pytes
     try:
         record_session_latest("old-request", "old-span", "s1")
         await server.prompt([text_block("run")], session_id="s1", **meta)
-        assert reports == [("Reviewer", "s1", ("new-request", "new-span"), manager._session.cwd)]
+        assert reports == [("Reviewer", "iCode", "s1", ("new-request", "new-span"), manager._session.cwd)]
 
         reports.clear()
         host.record_model_request = False
@@ -168,7 +168,7 @@ async def test_desktop_agent_usage_requires_new_model_request(monkeypatch: pytes
         host.outcome = Cancelled()
         record_session_latest("old-request", "old-span", "s1")
         await server.prompt([text_block("run")], session_id="s1", **meta)
-        assert reports == [("Reviewer", "s1", ("new-request", "new-span"), manager._session.cwd)]
+        assert reports == [("Reviewer", "iCode", "s1", ("new-request", "new-span"), manager._session.cwd)]
     finally:
         clear_call_registry()
 

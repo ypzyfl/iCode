@@ -70,6 +70,11 @@ def desktop_agent_name(kwargs: Mapping[str, Any]) -> str | None:
     return _envelope_string(kwargs, SELECTED_AGENT_META_KEY, "agentName")
 
 
+def desktop_runner_name(kwargs: Mapping[str, Any]) -> str | None:
+    """Return the prompt's kernel source, as used by tool-call telemetry."""
+    return _envelope_string(kwargs, FUNCTION_NAME_META_KEY, "functionName")
+
+
 def read_response_attribution_span_id(kwargs: Mapping[str, Any]) -> str | None:
     """从 prompt ``kwargs`` 读桌面端下发的归因 spanId（``response-attribution`` envelope）。
 

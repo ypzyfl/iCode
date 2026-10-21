@@ -278,6 +278,7 @@ class ToolDetailReporter:
     def record_agent_usage(
         self,
         agent_name: str,
+        runner_name: str | None,
         session_id: str,
         request: tuple[str, str],
         workspace_cwd: str,
@@ -289,10 +290,11 @@ class ToolDetailReporter:
             "funcId": str(uuid.uuid4()),
             "funcName": agent_name,
             "funcType": FuncType.AGENT,
-            "agentName": agent_name,
             "sessionId": session_id,
             "requestId": request[0],
         }
+        if runner_name is not None:
+            payload["agentName"] = runner_name
         if request[1]:
             payload["spanId"] = request[1]
         payload.update(common_fields(workspace_cwd, tool_detail=True))

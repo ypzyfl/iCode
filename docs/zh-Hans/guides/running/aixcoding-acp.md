@@ -52,7 +52,7 @@ AIxCoding 会在启动时检查 `--workdir`。即使客户端随后会提供工�
 
 AIxCoding 会将智能体回复和工具调用状态发送给客户端。客户端取消任务时，AIxCoding 会中断当前任务。
 
-桌面端在 ACP prompt 元数据中提供客户端身份，并通过 `agent-studio.dev/selected-agent`（`schemaVersion: 1`、`agentMarketSkillId`、`agentName`）明确传入所选智能体时，AIxCoding 会在该消息产生模型请求后上报一条智能体使用记录。该记录使用 `funcType=1001`，并携带模型请求 ID 和会话 ID，以便与本轮其他埋点关联。未产生模型请求或未明确选择智能体的消息不会上报智能体使用记录。
+桌面端在 ACP prompt 元数据中提供客户端身份，并通过 `agent-studio.dev/selected-agent`（`schemaVersion: 1`、`agentMarketSkillId`、`agentName`）明确传入所选智能体时，AIxCoding 会在该消息产生模型请求后上报一条智能体使用记录。该记录使用 `funcType=1001`，`funcName` 为所选智能体名称，`agentName` 为 `agent-studio.dev/function-name` 传入的桌面端内核来源，与工具调用记录（`funcType=3`）一致。记录携带模型请求 ID 和会话 ID，以便与本轮其他埋点关联。未产生模型请求或未明确选择智能体的消息不会上报智能体使用记录。
 
 如果客户端支持管理会话，关闭会话后仍可以在同一工作目录中恢复；删除会话会移除 AIxCoding 保存的会话记录，之后无法在 AIxCoding 中恢复。
 

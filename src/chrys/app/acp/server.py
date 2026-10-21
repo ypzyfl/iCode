@@ -334,6 +334,7 @@ class ChrysAcpServer:
         # plus telemetry ids returned to the client on the response.
         from chrys.aixcoding.telemetry.acp_meta import (
             desktop_agent_name,
+            desktop_runner_name,
             read_ide_channel_meta,
             read_response_attribution_span_id,
             telemetry_response_meta,
@@ -343,6 +344,7 @@ class ChrysAcpServer:
 
         read_ide_channel_meta(kwargs)
         agent_name = desktop_agent_name(kwargs)
+        runner_name = desktop_runner_name(kwargs)
         attribution_span_id = read_response_attribution_span_id(kwargs)
         if self._client is None:
             raise RequestError.internal_error({"details": "ACP client connection is not ready."})
@@ -368,7 +370,7 @@ class ChrysAcpServer:
                     outcome = session.host.last_turn_outcome
                     request = resolve_call("", session_id)
                     if agent_name is not None and request is not None and request != previous_request:
-                        record_desktop_agent_usage(agent_name, session_id, request, session.cwd)
+                        record_desktop_agent_usage(agent_name, runner_name, session_id, request, session.cwd)
                 finally:
                     # This snapshot stays under prompt_lock: a queued turn must
                     # not mutate cumulative session usage before this response

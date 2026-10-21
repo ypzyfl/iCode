@@ -122,6 +122,7 @@ def record_skill_invocation(skill_name: str, session_id: str | None) -> None:
 
 def record_desktop_agent_usage(
     agent_name: str,
+    runner_name: str | None,
     session_id: str,
     request: tuple[str, str],
     workspace_cwd: str,
@@ -131,7 +132,7 @@ def record_desktop_agent_usage(
         from chrys.aixcoding.config import load_settings
 
         if load_settings().telemetry_enabled:
-            default_reporter().record_agent_usage(agent_name, session_id, request, workspace_cwd)
+            default_reporter().record_agent_usage(agent_name, runner_name, session_id, request, workspace_cwd)
     except Exception:
         logger.warning("AIxCoding telemetry agent usage report failed", exc_info=True)
 

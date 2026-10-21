@@ -548,18 +548,32 @@ def test_reporter_payload_includes_agent_name():
 
 
 def test_desktop_agent_usage_is_single_save_with_model_link(tmp_path: Path):
-    submitter = _CaptureSubmitter()
-    ToolDetailReporter(submitter).record_agent_usage("Reviewer", "sess-1", ("req-1", "span-1"), str(tmp_path))
+    from chrys.aixcoding.context import set_current_function_name
 
-    assert submitter.endpoints() == [TOOL_DETAIL_SAVE]
-    payload = submitter.calls[0][1]
+    submitter = _CaptureSubmitter()
+    reporter = ToolDetailReporter(submitter)
+    set_current_function_name("iCode")
+    reporter.on_start(_start(tool_name="read_file", workspace_cwd=str(tmp_path)))
+    reporter.record_agent_usage("Reviewer", "iCode", "sess-1", ("req-1", "span-1"), str(tmp_path))
+
+    assert submitter.endpoints() == [TOOL_DETAIL_SAVE, TOOL_DETAIL_UPDATE, TOOL_DETAIL_SAVE]
+    payload = submitter.calls[2][1]
+    assert submitter.calls[0][1]["funcType"] == 3
     assert payload["funcType"] == FuncType.AGENT
-    assert payload["funcName"] == payload["agentName"] == "Reviewer"
+    assert payload["funcName"] == "Reviewer"
+    assert payload["agentName"] == submitter.calls[0][1]["agentName"] == "iCode"
     assert payload["sessionId"] == "sess-1"
     assert payload["requestId"] == "req-1"
     assert payload["spanId"] == "span-1"
     assert payload["projectName"] == tmp_path.name
     assert isinstance(payload["funcId"], str) and payload["funcId"]
+
+
+def test_desktop_agent_usage_omits_unknown_runner_name(tmp_path: Path):
+    submitter = _CaptureSubmitter()
+    ToolDetailReporter(submitter).record_agent_usage("Reviewer", None, "sess-1", ("req-1", ""), str(tmp_path))
+
+    assert "agentName" not in submitter.calls[0][1]
 
 
 def test_telemetry_response_meta_roundtrip():
@@ -572,7 +586,7 @@ def test_telemetry_response_meta_roundtrip():
 
 
 def test_desktop_agent_name_requires_explicit_selection():
-    from chrys.aixcoding.telemetry.acp_meta import desktop_agent_name
+    from chrys.aixcoding.telemetry.acp_meta import desktop_agent_name, desktop_runner_name
 
     ide = {"agent-studio.dev/ide-name": {"schemaVersion": 1, "ideName": "desktop"}}
     function = {"agent-studio.dev/function-name": {"schemaVersion": 1, "functionName": "iCode"}}
@@ -585,6 +599,7 @@ def test_desktop_agent_name_requires_explicit_selection():
     }
     assert desktop_agent_name({**ide, **function}) is None
     assert desktop_agent_name({**ide, **selected}) == "Reviewer"
+    assert desktop_runner_name({**ide, **function, **selected}) == "iCode"
     assert desktop_agent_name(selected) is None
     assert (
         desktop_agent_name({**ide, "agent-studio.dev/selected-agent": {"schemaVersion": 1, "agentName": "Reviewer"}})
