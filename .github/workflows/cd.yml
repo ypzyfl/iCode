@@ -23,15 +23,13 @@ on:
         description: '指定版本号（如 0.28.0，优先级最高）。留空 = 使用默认版本 DEFAULT_PROJECT_VERSION (0.28.0)'
         type: string
         default: ''
+      # GitHub Actions 的 choice 输入不支持多选，因此用逗号分隔的字符串表达
+      # 多平台组合，如 "linux,windows"、"windows"、"all"。解析见
+      # compute-matrix 步骤，非法值会直接失败并打印可选值。
       platform:
-        description: '要构建的平台'
-        type: choice
+        description: '要构建的平台：all | linux | macos | windows，可逗号组合（如 linux,windows）'
+        type: string
         default: all
-        options:
-          - all
-          - windows
-          - macos
-          - linux
 
 concurrency:
   group: cd-${{ inputs.ref || inputs.branch || github.ref }}-${{ github.workflow }}
@@ -138,8 +136,11 @@ jobs:
     steps:
       - id: filter
         shell: bash
+        env:
+          # 通过 env 传入而不是直接插值：输入值里出现引号/反引号时不会被
+          # 拼进 shell 语法，避免注入。schedule 触发的 inputs 为空，回落到 all。
+          PLATFORM_INPUT: ${{ inputs.platform || 'all' }}
         run: |
-          platform="${{ inputs.platform || 'all' }}"
           # The macOS x86_64 leg runs on a native Intel runner rather than
           # cross-compiling from arm64: the offline flavor has to pip-install
           # (and occasionally compile) x86_64 wheels for the bundled interpreter.
@@ -150,11 +151,26 @@ jobs:
             {"target":"x86_64-apple-darwin","os":"macos-15-intel","artifact":"aixcoding-cli-macos-x86_64","platform":"macos"},
             {"target":"x86_64-pc-windows-msvc","os":"windows-latest","artifact":"aixcoding-cli-windows-x86_64.exe","platform":"windows"}
           ]'
-          if [ "$platform" = "all" ]; then
-            filtered="$all_targets"
-          else
-            filtered=$(echo "$all_targets" | jq -c "[.[] | select(.platform == \"$platform\")]")
+          # 平台输入支持单值、逗号组合（linux,windows）或 all。
+          # 归一化成 JSON 数组后交给 jq，只保留合法平台名并去重。
+          requested=$(echo "$PLATFORM_INPUT" | tr ',' '\n' | tr -d ' \t' | tr 'A-Z' 'a-z' \
+            | grep -v '^$' | sort -u | jq -R . | jq -sc .)
+          # 留空回落到 all：dispatch 时清空该输入框也会走这里。
+          if [ "$requested" = '[]' ]; then
+            requested='["all"]'
           fi
+          if [ "$requested" = '["all"]' ]; then
+            requested='["linux","macos","windows"]'
+          fi
+          known='["linux","macos","windows"]'
+          unknown=$(jq -cn --argjson want "$requested" --argjson known "$known" \
+            '$want - $known | .[]')
+          if [ -n "$unknown" ]; then
+            echo "::error::unknown platform in input '$PLATFORM_INPUT'. Valid values: all, linux, macos, windows (comma separated)."
+            exit 1
+          fi
+          filtered=$(jq -c --argjson want "$requested" \
+            '[.[] | select(.platform as $p | $want | index($p))]' <<<"$all_targets")
           targets=$(echo "$filtered" | jq -c '[.[].target]')
           # "offline" bundles every dependency into the binary. The "pip" and
           # "uv" flavors install from PyPI on first run; add them here to build
@@ -162,6 +178,7 @@ jobs:
           matrix=$(jq -nc --argjson targets "$targets" --argjson include "$filtered" \
             '{"installer":["offline"],"target":$targets,"include":$include}')
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "Platforms: $(jq -r '[.[].platform] | unique | join(",")' <<<"$filtered")"
 
   # ── Build PyApp binaries (5 platforms × 1 flavor = 5 jobs) ──────────
   build-binaries:
@@ -442,6 +459,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG_NAME: v${{ needs.resolve-target.outputs.version }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -507,13 +527,95 @@ jobs:
             echo '```'
           } > BUILD_INFO.md
 
+      # 正文分两步写入：先建（或更新）tag 与 Release，再整体覆盖正文。
+      # 不能用 softprops/action-gh-release 的 generate_release_notes：
+      # 它每次运行都把 GitHub 自动生成的分组追加到 body 末尾，
+      # 同一 tag 重复触发（定时构建 / tag push / dispatch）会累积出
+      # 多份 What's Changed，所以这里只建空正文的 Release，正文由下方
+      # 幂等步骤写入。
       - name: Create release
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
-        with:
-          tag_name: v${{ needs.resolve-target.outputs.version }}
-          # 同一 tag 每晚重复构建时覆盖既有 Release 与同名资产
-          allowUpdates: true
-          generate_release_notes: true
-          files: release/*
+        # 显式指定仓库，避免 rerun / fork 场景落到别处
+        env:
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            echo "Release $TAG_NAME already exists; it will be updated in place"
+            exit 0
+          fi
+          # --verify-tag：tag 必须已存在于远端。本 job 由 tag push 或
+          # tag-release.yml 触发，tag 一定存在；万一不存在就失败，
+          # 不要凭空在 HEAD 上造出一个 tag。
+          gh release create "$TAG_NAME" \
+            --verify-tag \
+            --title "$TAG_NAME" \
+            --notes "Build in progress: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
+      - name: Compose release notes
+        run: |
+          {
+            echo "## 构建信息"
+            echo
+            sed -e '1d' -e '/^$/N;/^\n$/D' BUILD_INFO.md
+          } > notes.md
+          # 本次运行新增的提交（上一次同一 tag 的 Release 正文里记录过）。
+          # awk 逐行匹配而不是 grep：grep 一旦读到匹配行就会提前关管道，
+          # 向 gh 写入时会触发 SIGPIPE。
+          previous_commit=$(gh release view "$TAG_NAME" --json body --jq .body 2>/dev/null \
+            | awk -F'|' '/^\| Commit / { gsub(/ /, "", $3); print $3; exit }' || true)
+          head_commit=$(git rev-parse HEAD)
+          if [ -n "$previous_commit" ] && [ "$previous_commit" != "$head_commit" ] \
+            && git cat-file -e "${previous_commit}^{commit}" 2>/dev/null; then
+            {
+              echo
+              echo "## 本次构建新增提交"
+              echo
+              git log --no-merges --format='- %h %s' "$previous_commit..HEAD"
+            } >> notes.md
+          fi
+          # 保留 GitHub 自动生成的其它分类（如 New Contributors），
+          # 但不带 "What's Changed"：它的内容是整段滚动区间，同一 tag
+          # 反复构建会重复，且本次新增提交已由上一段给出。
+          previous_tag=$(git describe --tags --abbrev=0 --match 'v*' "${TAG_NAME}^" 2>/dev/null || true)
+          args=(-f tag_name="$TAG_NAME")
+          [ -n "$previous_tag" ] && args+=(-f previous_tag_name="$previous_tag")
+          gh api -X POST "repos/${GH_REPO}/releases/generate-notes" "${args[@]}" \
+            | jq -r '.body // ""' \
+            | awk 'BEGIN { RS = ""; ORS = "\n\n" } !/^## What.s Changed/' \
+            >> notes.md || true
+          echo "--- release notes ---"
+          cat notes.md
+          # 把本次可比对的基线带到后续步骤（汇总用）。空值表示新 Release。
+          echo "PREV_COMMIT=${previous_commit}" >> "$GITHUB_ENV"
+
+      # 正文整体覆盖（不是追加），因此同一 tag 反复构建不会堆叠重复段落。
+      - name: Publish release
+        env:
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release edit "$TAG_NAME" --title "$TAG_NAME" --notes-file notes.md
+          # --clobber：同一 tag 重复构建时覆盖同名资产
+          gh release upload "$TAG_NAME" release/* --clobber
+
+      - name: Report release summary
+        if: always()
+        env:
+          GH_REPO: ${{ github.repository }}
+        run: |
+          url=$(gh release view "$TAG_NAME" --json url --jq .url 2>/dev/null || true)
+          # 取不到基线（新 Release / 首次构建）时显示 n/a，避免汇总步骤因空值报错。
+          added="n/a"
+          if [ -n "${PREV_COMMIT:-}" ] && [ "$PREV_COMMIT" != "$(git rev-parse HEAD)" ]; then
+            added=$(git rev-list --count "$PREV_COMMIT..HEAD" 2>/dev/null || echo "n/a")
+          fi
+          {
+            echo "### Release $TAG_NAME"
+            echo
+            echo "- 构建 ref: \`${{ needs.resolve-target.outputs.build_ref }}\`"
+            echo "- 触发方式: \`${{ github.event_name }}\` / run ${GITHUB_RUN_ID}"
+            echo "- 本次新增提交: ${added}"
+            echo "- Release: ${url:-未创建}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+
 
 
