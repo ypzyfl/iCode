@@ -145,18 +145,14 @@ async def check_for_update() -> AppUpdate | None:
                 # 完整请求观测：方法 + 含查询串的最终 wire URL + 实际上线请求头
                 # （含 httpx 注入的默认头），逐字段多行展示，可对账。
                 logger.debug(
-                    "update check: sending request\n"
-                    "  method: %s\n"
-                    "  url: %s\n"
-                    "  headers: %s\n"
-                    "  timeout: %gs",
+                    "update check: sending request\n  method: %s\n  url: %s\n  headers: %s\n  timeout: %gs",
                     request.method,
                     request.url,
                     dict(request.headers),
                     _TIMEOUT_SECONDS,
                 )
                 response = await client.send(request)
-    except (httpx.TimeoutException, TimeoutError):
+    except httpx.TimeoutException, TimeoutError:
         # httpx 分阶段超时与 asyncio 总上界触发，对客户端是同一件事：超时。
         logger.debug("update check: timed out after %gs (GET %s?%s)", _TIMEOUT_SECONDS, url, urlencode(params))
         return None
@@ -173,10 +169,7 @@ async def check_for_update() -> AppUpdate | None:
         )
         return None
     logger.debug(
-        "update check: got response\n"
-        "  status: %s\n"
-        "  elapsed: %gs\n"
-        "  body: %s",
+        "update check: got response\n  status: %s\n  elapsed: %gs\n  body: %s",
         response.status_code,
         response.elapsed.total_seconds(),
         _body_preview(response),
