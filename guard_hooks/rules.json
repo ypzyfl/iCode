@@ -204,7 +204,15 @@
       "终端保密",
       "dlp",
       "天桥科技",
-      "防病毒"
+      "防病毒",
+      { "name": "ssh_dir", "regex": true, "value": "(?:^|[/\\\\])\\.ssh[/\\\\]" },
+      { "name": "private_key", "regex": true, "value": "(?:^|[/\\\\])id_(?:rsa|dsa|ecdsa|ed25519)(?:\\.pub)?$" },
+      { "name": "authorized_keys", "regex": true, "value": "(?:^|[/\\\\])authorized_keys$" },
+      { "name": "aws_dir", "regex": true, "value": "(?:^|[/\\\\])\\.aws[/\\\\]" },
+      { "name": "kube_dir", "regex": true, "value": "(?:^|[/\\\\])\\.kube[/\\\\]" },
+      { "name": "git_credentials", "regex": true, "value": "\\.git-credentials$" },
+      { "name": "npmrc", "regex": true, "value": "\\.npmrc$" },
+      { "name": "pypirc", "regex": true, "value": "\\.pypirc$" }
     ],
     "blocked_extensions": [
       ".dll",

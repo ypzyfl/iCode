@@ -1,6 +1,6 @@
 # iCode 安全拦截 Hook · 使用与运维手册
 
-面向使用者与运维。规则实现见 [README.md](README.md)（安装与规则设计），本文是**日常怎么用、出问题怎么看、升级后怎么迁**。
+面向使用者与运维。规则实现见 [README.md](README.md)（安装与规则设计），本文是**日常怎么用、出问题怎么看、升级后怎么迁**。逐条手工测试用例见 [MANUAL_TESTS.md](MANUAL_TESTS.md)（65 条，预期结果均为实测）。换一份新 iCode 源码重新部署见 [PORTING.md](PORTING.md)。
 
 - 拦截点：`user_prompt_submit`（用户提示词）、`before_tool_call`（工具调用前）
 - 拦截后给用户的提示固定为一句：**操作不合规，请修改后重试。**
@@ -93,7 +93,7 @@ export PATH=/tmp:$PATH        > C:\Windows\System32\drivers\etc\hosts
 | 规则 | 适用工具 | 触发 | 例 |
 | --- | --- | --- | --- |
 | `T-FS-01` 写入白名单 | `filesystem.write` | 写工作区以外路径 | 写到 `C:\Users\tangs\test.txt` |
-| `T-FS-02` 路径黑名单 | `filesystem.read` / `write` / `search` | 路径含 sentinelone、crowdstrike、falcon、tanium、symantec、`\ass\`、`dlp`、`防病毒`、`终端审计` … | 读 `C:\work\crowdstrike\a.py` |
+| `T-FS-02` 路径黑名单 | `filesystem.read` / `write` / `search` | 路径含 sentinelone、crowdstrike、falcon、tanium、symantec、`\ass\`、`dlp`、`防病毒`、`终端审计` …；凭据目录 `.ssh/` `.aws/` `.kube/`、`authorized_keys`、`id_rsa\|dsa\|ecdsa\|ed25519`、`.git-credentials`、`.npmrc`、`.pypirc` | 读 `C:\work\crowdstrike\a.py`；读 `C:\Users\tangs\.ssh\id_rsa` |
 | `T-FS-03` 扩展名黑名单 | `filesystem.read` | `.dll .exe .sys .so .dylib .jar .war .apk .ipa .msi .cab .img .pyc` 等 22 种 | 读 `libfoo.so` |
 
 **网络**
@@ -115,6 +115,7 @@ sha256 制品签名校验**未实现** —— Hook 拿不到 MCP 服务端的制
 ls -la        git status       uv run pytest tests/service/hooks -x
 读 src/chrys/service/hooks/manager.py        在项目里新建 test_demo.py
 访问 http://127.0.0.1:8000                    写工作区内的文件
+读 C:\proj\ssh-tool\main.py（项目名带 ssh）  读 C:\proj\my.sshconfig
 ```
 
 ### 2.4 高频误报清单（出厂配置的已知问题）
@@ -125,7 +126,7 @@ ls -la        git status       uv run pytest tests/service/hooks -x
 | `T-SHELL-03-1` 命令链接 | 几乎所有复合命令（`cd x && pytest`） | `"enabled": false` |
 | `T-NET-02` 网络默认 | 所有公网访问 | `"enabled": false` 或往 `settings.network.allowed_hosts` 加白名单 |
 | `T-FS-01` 写入白名单 | 写工作区外任何路径（含家目录） | `settings.write_scope.allow_outside_workspace: true` |
-| `T-FS-02` 路径黑名单 | `dlp`/`falcon` 等词若出现在项目目录名里 | 删对应词条 |
+| `T-FS-02` 路径黑名单 | `dlp`/`falcon` 等词若出现在项目目录名里 | 删对应词条；新增路径词条一律写成带分隔符锚定的 `regex`（见 [MANUAL_TESTS.md 10.4](MANUAL_TESTS.md)），避免退化成子串匹配 |
 | `T-PY-02` 字节码自省 | `dis.dis` / `__code__` 在正常 Python 调试里会出现 | 收窄词典 |
 | `T-SHELL-04` Shell 内建 | `source`/`exec` 在构建脚本里偶尔合法 | `"enabled": false` |
 
@@ -222,6 +223,8 @@ uv run python guard_hooks\_install_merge.py
 ```
 
 条目可以是纯字符串，或 `{"name": ..., "value": ..., "regex": true}`。正则里要匹配**字面反斜杠**时写成 `\\\\`（JSON 转义）。
+
+> **路径类词典（`blocked_path_fragments`）一律用锚定正则**。默认的纯字符串是子串 + 不区分大小写匹配，直接写 `ssh` 会把 `ssh-tool`、`sshdemo` 这类项目名全部误伤。写成 `(?:^|[/\\\\])\\.ssh[/\\\\]` 这种带分隔符锚定的形式，只认真路径。
 
 ### 4.4 改完必须跑自检
 

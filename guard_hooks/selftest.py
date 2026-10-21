@@ -160,9 +160,28 @@ class FilesystemGuardTests(GuardTestCase):
         hit = self.tool_ids("filesystem.read", "read_file", {"path": "lib/native.dll"})
         self.assertIn("T-FS-03", hit)
 
+    def test_tfs02_credential_paths(self) -> None:
+        # 凭据目录/文件用带分隔符锚定的正则条目，只认真路径。
+        for path in (
+            "C:/Users/me/.ssh/id_rsa",
+            "C:/Users/me/.ssh/config",
+            "/home/me/.ssh/id_ed25519",
+            "C:/Users/me/.aws/credentials",
+            "/home/me/.kube/config",
+            "C:/repo/.git-credentials",
+            "C:/repo/.npmrc",
+            "C:/repo/.pypirc",
+        ):
+            self.assertIn("T-FS-02", self.tool_ids("filesystem.read", "read_file", {"path": path}), msg=path)
+
     def test_benign_filesystem_passes(self) -> None:
         for args in ({"path": "src/chrys/app/cli/app.py"}, {"path": "README.md"}, {"path": "docs/index.yaml"}):
             self.assertEqual([], self.tool_ids("filesystem.read", "read_file", dict(args)), msg=str(args))
+
+    def test_ssh_like_project_names_pass(self) -> None:
+        # 凭据词条不能退化成子串匹配：项目名里带 ssh 不等于读密钥。
+        for path in ("C:/proj/ssh-tool/main.py", "C:/proj/sshdemo/a.py", "C:/proj/my.sshconfig", "src/ssh_client.py"):
+            self.assertEqual([], self.tool_ids("filesystem.read", "read_file", {"path": path}), msg=path)
 
 
 class NetworkGuardTests(GuardTestCase):

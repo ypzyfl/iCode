@@ -20,6 +20,9 @@
 | `_guard_core.py` | 共享引擎：加载规则、匹配、留痕、写决策 |
 | `rules.json` | **唯一需要维护的文件**：词典 + 规则 + 全局设置 |
 | `selftest.py` | 标准库自检（每条规则一个正例，含若干"日常开发不应被拦"的负例） |
+| [OPERATIONS.md](OPERATIONS.md) | 使用与运维手册：拦截清单、配置、排查、**版本升级迁移** |
+| [PORTING.md](PORTING.md) | **新拉一份 iCode 源码怎么复现拦截**：文件放哪、hook 配什么、怎么生效 |
+| [MANUAL_TESTS.md](MANUAL_TESTS.md) | 65 条手工测试用例与预期结果（预期均为实测） |
 
 > 日常使用、排查与版本升级迁移见 [OPERATIONS.md](OPERATIONS.md)。
 
@@ -42,12 +45,26 @@ uv run icode hook list                             # 期望看到两个 security
 uv run python guard_hooks/_install_merge.py --check
 ```
 
+项目级安装（hook 只在该工作区生效，需在设置里打开 `project.hooks_enabled`）：
+
+```bash
+uv run python guard_hooks/_install_merge.py --project            # 安装到当前目录
+uv run python guard_hooks/_install_merge.py --project <工作区路径>
+```
+
+跨平台说明：安装器与主程序 `foundation/platform` 使用同一套目录推断——
+Windows 为 `%APPDATA%\chrys\hooks\`（缺 `APPDATA` 环境变量时退
+`%USERPROFILE%\AppData\Roaming\chrys\hooks\`），macOS/Linux 为
+`~/.chrys/hooks/`。`.py` 脚本的解释器由 iCode 按扩展名推断（PATH 上的
+`uv` / `python3` / `python`，兜底运行时 Python），三个平台都无需 shebang，
+脚本也只依赖标准库、兼容 Python 3.9+。
+
 手动安装（仅适用于 `hooks.yaml` 里没有其他 hook 的情况）：把
 `_prompt_guard.py`、`_tool_guard.py`、`_guard_core.py`、`rules.json` 放到
 `<config_dir>/hooks/`，并把 `hooks.yaml` 的 `hooks` 列表追加到配置里。全局目录是
 `~/.chrys/hooks/`（Windows 为 `%APPDATA%\chrys\hooks\`）。
 
-项目级安装：把同样 4 个文件放到 `<workspace>/.chrys/hooks/`，并在设置里打开
+项目级手动安装：把同样 4 个文件放到 `<workspace>/.chrys/hooks/`，并在设置里打开
 `project.hooks_enabled`（项目文件默认不加载）。
 
 装完后需要**重启 iCode 或切换会话**才会重新加载钩子配置（只改脚本不需要）。

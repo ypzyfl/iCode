@@ -125,11 +125,12 @@ class GuardConfig:
 
 
 def config_home() -> Path:
-    """推断 ``<config_dir>``（通常是 ``~/.chrys``）。
+    """推断 ``<config_dir>``。
 
     运行期环境变量里没有现成的值，但 payload 文件一定落在
     ``<config_dir>/hooks/tmp/`` 下，据此回溯三层即可；推断失败时退回
-    ``~/.chrys``。
+    主程序 ``foundation/platform`` 的默认值（Windows 是
+    ``%APPDATA%/chrys``，macOS/Linux 是 ``~/.chrys``）。
     """
     payload = os.environ.get("CHRYS_HOOK_PAYLOAD_FILE")
     if payload:
@@ -139,6 +140,9 @@ def config_home() -> Path:
                 return resolved.parent.parent.parent
         except OSError:
             pass
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming"
+        return Path(appdata) / "chrys"
     return Path.home() / ".chrys"
 
 
