@@ -19,14 +19,19 @@ The manifest is built per request from the query — ``kind`` mirrors
 ``platform``) / architecture reflect the caller — around a configurable
 version and download URL, so any caller gets a coherent answer.
 
-Four modes (CLI ``--mode`` or runtime ``POST /debug/config``):
+There are no CLI arguments: the process starts with defaults (update mode,
+candidate ``999.0.0``, loopback :7778) and every response-shaping knob is
+steered at runtime via ``POST /debug/config``; ``POST /debug/reset`` restores
+all defaults and drops the request log in one call.
+
+Four modes (runtime ``POST /debug/config``):
 
 ``update`` (default)
     Answer like the real service would: the manifest (200, or 304 on a
     matching ``If-None-Match``) only when the candidate version is strictly
     newer than the request's ``currentVersion`` under SemVer 2.0.0
-    precedence; ``204`` otherwise. ``--force`` skips the comparison so a
-    smaller candidate can be served deliberately (dirty-data drills).
+    precedence; ``204`` otherwise. ``force_update`` skips the comparison so
+    a smaller candidate can be served deliberately (dirty-data drills).
 
 ``no_update``
     Valid queries get ``204`` — the "already latest" path.
@@ -40,14 +45,19 @@ Four modes (CLI ``--mode`` or runtime ``POST /debug/config``):
 
 Invalid queries answer the contract's ``400`` in every mode.
 
+Malformed-response drills (a ``/debug/config`` parameter group of their own,
+both scoped to the 200 answer): ``raw_body`` replaces the manifest with any
+literal body (e.g. a truncated answer) and ``drop_fields`` omits manifest
+fields (dotted paths such as ``artifact.url`` allowed) — covering the
+client's parse-failure and structure-mismatch silent paths respectively.
+
 Run it from the repository root::
 
-    uv run python mock_server/aixcoding_update/server.py                     # update mode, :7778
-    uv run python mock_server/aixcoding_update/server.py --mode=no_update    # always 204
-    uv run python mock_server/aixcoding_update/server.py --version 0.29.0
+    uv run python mock_server/aixcoding_update/server.py    # loopback :7778, update mode
 
-Then point the TUI at it::
+Then steer it at runtime and point the TUI at it::
 
+    curl -X POST http://127.0.0.1:7778/debug/config -d '{"mode": "no_update"}'
     AIXCODING_EXTENSION_BASE_URL=http://127.0.0.1:7778/csas uv run aixcoding-cli
 
 Importable for tests: ``MockUpdateConfig`` / ``MockUpdateState`` /
@@ -56,7 +66,6 @@ Importable for tests: ``MockUpdateConfig`` / ``MockUpdateState`` /
 
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
 import logging
@@ -65,7 +74,7 @@ import sys
 import threading
 import time
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field, fields as dataclass_fields
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
@@ -74,10 +83,9 @@ _LOGGER = logging.getLogger("chrys.mock_update")
 
 API_PREFIX = "/csas/api/v2"
 RELEASE_ROUTE = f"{API_PREFIX}/releases/check"
-HEALTH_ROUTE = "/health"
 DEBUG_CONFIG_ROUTE = "/debug/config"
 DEBUG_REQUESTS_ROUTE = "/debug/requests"
-DEBUG_CLEAR_ROUTE = "/debug/clear"
+DEBUG_RESET_ROUTE = "/debug/reset"
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7778
@@ -110,7 +118,7 @@ _FRIENDLY_PLATFORM = {"win32": "windows", "darwin": "macos", "linux": "linux"}
 
 @dataclass
 class MockUpdateConfig:
-    """Knobs a mock instance honours (CLI flags map 1:1)."""
+    """Knobs a mock instance honours; every field is runtime-writable via ``POST /debug/config``."""
 
     mode: str = "update"  # update | no_update | error | garbage
     # Candidate version advertised in the manifest. Default 999.0.0 so the
@@ -121,6 +129,11 @@ class MockUpdateConfig:
     slow_ms: int = 0  # artificial delay before answering, to exercise timeouts
     force_update: bool = False  # serve 200 without the newer-version comparison
     force_upgrade: bool = False  # forceUpgrade flag advertised in the manifest
+    # Malformed-response drills, scoped to the 200 answer (see module docstring):
+    # raw_body replaces the manifest with any literal body; drop_fields omits
+    # manifest fields (dotted paths allowed) to break the structure instead.
+    raw_body: str = ""
+    drop_fields: list[str] = field(default_factory=list)
     base_url: str = ""  # filled in by create_server after binding
 
     def artifact_url(self) -> str:
@@ -160,14 +173,29 @@ class MockUpdateState:
         with self._lock:
             return list(self._requests)
 
-    def clear_requests(self) -> None:
-        """Drop every logged request."""
+    def reset(self) -> dict[str, Any]:
+        """Restore every config knob to its default and drop the request log.
+
+        The ``base_url`` filled in by ``create_server`` after binding is kept —
+        it identifies the instance, it is not a behaviour knob. Returns the
+        post-reset snapshot so the caller sees the restored state.
+        """
+        defaults = MockUpdateConfig()
         with self._lock:
+            for spec in dataclass_fields(MockUpdateConfig):
+                if spec.name == "base_url":
+                    continue
+                value = getattr(defaults, spec.name)
+                setattr(self._config, spec.name, list(value) if isinstance(value, list) else value)
             self._requests.clear()
+            return self.snapshot()
 
     def apply(self, changes: dict[str, Any]) -> dict[str, Any]:
         """Update config knobs at runtime (``POST /debug/config``) and return the new snapshot."""
-        unknown = sorted(set(changes) - {"mode", "version", "download_url", "slow_ms", "force_update", "force_upgrade"})
+        unknown = sorted(
+            set(changes)
+            - {"mode", "version", "download_url", "slow_ms", "force_update", "force_upgrade", "raw_body", "drop_fields"}
+        )
         if unknown:
             raise ValueError(f"unknown config key(s): {', '.join(unknown)}")
         mode = changes.get("mode")
@@ -177,6 +205,12 @@ class MockUpdateState:
             version_problem = _semver_problem(str(changes["version"]))
             if version_problem is not None:
                 raise ValueError(f"invalid version: {version_problem}")
+        if "raw_body" in changes and not isinstance(changes["raw_body"], str):
+            raise ValueError("invalid raw_body: expected a string")
+        if "drop_fields" in changes:
+            drop_problem = _drop_fields_problem(changes["drop_fields"])
+            if drop_problem is not None:
+                raise ValueError(f"invalid drop_fields: {drop_problem}")
         with self._lock:
             for key, value in changes.items():
                 setattr(self._config, key, value)
@@ -192,6 +226,8 @@ class MockUpdateState:
                 "slow_ms": self._config.slow_ms,
                 "force_update": self._config.force_update,
                 "force_upgrade": self._config.force_upgrade,
+                "raw_body": self._config.raw_body,
+                "drop_fields": list(self._config.drop_fields),
                 "requests": len(self._requests),
             }
 
@@ -207,6 +243,29 @@ def _semver_problem(version: str) -> str | None:
     if _SEMVER_RE.fullmatch(version) is None:
         return "not strict SemVer (MAJOR.MINOR.PATCH[-PRERELEASE])"
     return None
+
+
+def _drop_fields_problem(fields: Any) -> str | None:
+    """Rejection reason for a ``drop_fields`` list, or ``None`` when usable."""
+    if not isinstance(fields, list) or not all(isinstance(item, str) and item.strip() for item in fields):
+        return "expected a list of non-empty manifest field paths"
+    return None
+
+
+def _drop_fields(manifest: dict[str, Any], fields: list[str]) -> dict[str, Any]:
+    """Remove dotted-path fields (``version``, ``artifact.url``, ...) from the manifest.
+
+    Unknown paths are no-ops, so a drill can name fields that may vanish from
+    the manifest as the v2 shape evolves.
+    """
+    for path in fields:
+        parent, _, leaf = path.rpartition(".")
+        node: Any = manifest
+        for part in parent.split(".") if parent else ():
+            node = node.get(part) if isinstance(node, dict) else None
+        if isinstance(node, dict):
+            node.pop(leaf, None)
+    return manifest
 
 
 def _prerelease_key(prerelease: str) -> list[tuple[int, int, str]]:
@@ -267,22 +326,25 @@ def _build_manifest(config: MockUpdateConfig, query: dict[str, str]) -> dict[str
     """Assemble the v2 release manifest, mirroring the caller's clientType/platform."""
     kind = query["clientType"]
     artifact_platform = _FRIENDLY_PLATFORM[query["platform"]]
-    return {
-        "schemaVersion": 2,
-        "kind": kind,
-        "environmentId": "production",
-        "channelId": "stable",  # channel param dropped from the contract; fixed default
-        "releaseId": f"{kind}-{config.version}-{artifact_platform}-{query['architecture']}",
-        "version": config.version,
-        "publishedAt": "2026-09-28T10:00:00.000Z",
-        "releaseNotes": "## 新增\n- mock 更新说明\n## 修复\n- ...",
-        "forceUpgrade": config.force_upgrade,
-        "artifact": {
-            "platform": artifact_platform,
-            "architecture": query["architecture"],
-            "url": config.artifact_url(),
+    return _drop_fields(
+        {
+            "schemaVersion": 2,
+            "kind": kind,
+            "environmentId": "production",
+            "channelId": "stable",  # channel param dropped from the contract; fixed default
+            "releaseId": f"{kind}-{config.version}-{artifact_platform}-{query['architecture']}",
+            "version": config.version,
+            "publishedAt": "2026-09-28T10:00:00.000Z",
+            "releaseNotes": "## 新增\n- mock 更新说明\n## 修复\n- ...",
+            "forceUpgrade": config.force_upgrade,
+            "artifact": {
+                "platform": artifact_platform,
+                "architecture": query["architecture"],
+                "url": config.artifact_url(),
+            },
         },
-    }
+        config.drop_fields,
+    )
 
 
 def _etag_of(body: bytes) -> str:
@@ -304,7 +366,7 @@ def build_handler_class(state: MockUpdateState) -> type[BaseHTTPRequestHandler]:
     """Return a request handler class bound to ``state``."""
 
     class MockUpdateHandler(BaseHTTPRequestHandler):
-        """Routes the release-check endpoint plus the health/debug helpers."""
+        """Routes the release-check endpoint plus the runtime-control debug helpers."""
 
         server_version = "ChrysMockUpdate/1.0"
 
@@ -344,7 +406,7 @@ def build_handler_class(state: MockUpdateState) -> type[BaseHTTPRequestHandler]:
             raw = self.rfile.read(length)
             try:
                 parsed = json.loads(raw.decode("utf-8"))
-            except UnicodeDecodeError, json.JSONDecodeError:
+            except (UnicodeDecodeError, json.JSONDecodeError):
                 raise ValueError("body is not valid JSON") from None
             return parsed if isinstance(parsed, dict) else {}
 
@@ -353,8 +415,6 @@ def build_handler_class(state: MockUpdateState) -> type[BaseHTTPRequestHandler]:
             split = urlsplit(self.path)
             if split.path == RELEASE_ROUTE:
                 self._handle_release(split.query)
-            elif split.path == HEALTH_ROUTE:
-                self._send_json(200, {"service": "chrys-mock-update", "status": "ok"})
             elif split.path == DEBUG_REQUESTS_ROUTE:
                 self._send_json(200, {"requests": state.requests()})
             else:
@@ -365,9 +425,8 @@ def build_handler_class(state: MockUpdateState) -> type[BaseHTTPRequestHandler]:
             split = urlsplit(self.path)
             if split.path == DEBUG_CONFIG_ROUTE:
                 self._handle_debug_config()
-            elif split.path == DEBUG_CLEAR_ROUTE:
-                state.clear_requests()
-                self._send_json(200, {"cleared": True})
+            elif split.path == DEBUG_RESET_ROUTE:
+                self._send_json(200, state.reset())
             else:
                 self._send_json(404, {"error": "not_found"})
 
@@ -398,9 +457,14 @@ def build_handler_class(state: MockUpdateState) -> type[BaseHTTPRequestHandler]:
                 self._send(204, b"", "application/json")
                 return
             body = json.dumps(_build_manifest(config, query), ensure_ascii=False).encode("utf-8")
-            if config.mode == "garbage":
+            if config.mode == "garbage" or config.raw_body:
+                # Malformed-response drills on the 200 answer: garbage serves a
+                # fixed unparseable body, raw_body serves any literal (e.g. a
+                # truncated answer). drop_fields has no effect here by design —
+                # it breaks the structure, not the JSON parseability.
                 state.record(query, 200)
-                self._send(200, b'{"releaseId": <unparseable>', "application/json; charset=utf-8")
+                raw = config.raw_body.encode("utf-8") if config.raw_body else b'{"releaseId": <unparseable>'
+                self._send(200, raw, "application/json; charset=utf-8")
                 return
             etag = _etag_of(body)
             match_header = self.headers.get("If-None-Match")
@@ -442,11 +506,16 @@ def create_server(
     version_problem = _semver_problem(config.version)
     if version_problem is not None:
         raise ValueError(f"invalid candidate version: {version_problem}")
+    if not isinstance(config.raw_body, str):
+        raise ValueError("invalid raw_body: expected a string")
+    drop_problem = _drop_fields_problem(config.drop_fields)
+    if drop_problem is not None:
+        raise ValueError(f"invalid drop_fields: {drop_problem}")
     state = MockUpdateState(config)
     server = ThreadingHTTPServer((host, port), build_handler_class(state))
     server.daemon_threads = True
-    # Resolve after binding so ``--port 0`` (ephemeral, used by tests) still
-    # hands out a download URL that points back at this instance.
+    # Resolve after binding so the ephemeral port (``port=0``, used by tests)
+    # still hands out a download URL that points back at this instance.
     display_host = f"[{host}]" if ":" in host else host
     config.base_url = f"http://{display_host}:{server.server_address[1]}"
     server.mock_state = state  # type: ignore[attr-defined]
@@ -454,69 +523,28 @@ def create_server(
     return server
 
 
-def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        prog="mock_update_server",
-        description="Loopback mock of the AIxCoding TUI update-detection service (/csas/api/v2/releases/check).",
-    )
-    parser.add_argument("--host", default=DEFAULT_HOST, help=f"bind address (default {DEFAULT_HOST})")
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"bind port (default {DEFAULT_PORT})")
-    parser.add_argument("--mode", choices=MODES, default="update", help="response mode (default update)")
-    parser.add_argument(
-        "--version",
-        default="999.0.0",
-        help="candidate version in the manifest; 200 only when strictly newer than currentVersion (default 999.0.0)",
-    )
-    parser.add_argument(
-        "--force",
-        action="store_true",
-        help="serve the manifest without the newer-version comparison (dirty-data drills)",
-    )
-    parser.add_argument(
-        "--force-upgrade",
-        action="store_true",
-        help="advertise forceUpgrade=true in the manifest (forced-upgrade drills)",
-    )
-    parser.add_argument("--download-url", default="", help="artifact.url override (default: derived from base_url)")
-    parser.add_argument(
-        "--slow-ms", type=int, default=0, metavar="MS", help="delay before answering, to exercise client timeouts"
-    )
-    parser.add_argument("--quiet", action="store_true", help="log warnings and errors only")
-    return parser.parse_args(argv)
+def main() -> int:
+    """Run the mock server with defaults (loopback :7778, update mode) until interrupted.
 
-
-def main(argv: list[str] | None = None) -> int:
-    """Run the mock server until interrupted. Returns a process exit code."""
-    args = _parse_args(argv)
+    There are no CLI flags: steer every knob — mode, candidate version, delay,
+    dirty-data flags, malformed-response drills — at runtime via
+    ``POST /debug/config``. Returns a process exit code.
+    """
     logging.basicConfig(
-        level=logging.WARNING if args.quiet else logging.INFO,
+        level=logging.INFO,
         format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
     )
-    config = MockUpdateConfig(
-        mode=args.mode,
-        version=args.version,
-        download_url=args.download_url,
-        slow_ms=args.slow_ms,
-        force_update=args.force,
-        force_upgrade=args.force_upgrade,
-    )
     try:
-        server = create_server(config, host=args.host, port=args.port)
+        server = create_server()
     except (OSError, ValueError) as exc:
         _LOGGER.error("cannot start mock server: %s", exc)
         return 1
 
-    base = config.base_url
-    _LOGGER.info(
-        "mock update-detection server on %s (mode=%s, version=%s, force=%s)",
-        base,
-        config.mode,
-        config.version,
-        config.force_update,
-    )
+    base = server.mock_config.base_url  # type: ignore[attr-defined]
+    _LOGGER.info("mock update-detection server on %s (update mode, candidate 999.0.0)", base)
     _LOGGER.info("  GET  %s%s", base, RELEASE_ROUTE)
     _LOGGER.info("  GET  %s%s", base, DEBUG_REQUESTS_ROUTE)
-    _LOGGER.info("  POST %s%s", base, DEBUG_CONFIG_ROUTE)
+    _LOGGER.info("  POST %s%s  # steer every knob at runtime", base, DEBUG_CONFIG_ROUTE)
     try:
         server.serve_forever(poll_interval=0.2)
     except KeyboardInterrupt:

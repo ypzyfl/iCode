@@ -78,13 +78,6 @@ def _post(url: str, payload: dict[str, Any]) -> tuple[int, Any, bytes]:
         return error.code, error.headers, error.read()
 
 
-def test_health(mock_factory: Callable[..., Any]) -> None:
-    server = mock_factory()
-    status, _, body = _request(f"{_base(server)}{update_server.HEALTH_ROUTE}")
-    assert status == 200
-    assert json.loads(body)["service"] == "chrys-mock-update"
-
-
 def test_valid_query_returns_manifest(mock_factory: Callable[..., Any]) -> None:
     server = mock_factory()
     status, headers, body = _request(_release(server))
@@ -192,6 +185,55 @@ def test_garbage_mode_returns_unparseable_body(mock_factory: Callable[..., Any])
         json.loads(body)
 
 
+def test_drop_fields_omit_manifest_fields(mock_factory: Callable[..., Any]) -> None:
+    """The structure-mismatch drill: the 200 body parses but misses consumed fields."""
+    server = mock_factory(drop_fields=["version"])
+    status, _, body = _request(_release(server))
+    assert status == 200
+    assert "version" not in json.loads(body)
+
+
+def test_drop_fields_dotted_path_removes_artifact_url(mock_factory: Callable[..., Any]) -> None:
+    server = mock_factory(drop_fields=["artifact.url"])
+    _, _, body = _request(_release(server))
+    manifest = json.loads(body)
+    assert manifest["artifact"] == {"platform": "macos", "architecture": "arm64"}
+
+
+def test_drop_fields_ignore_unknown_paths(mock_factory: Callable[..., Any]) -> None:
+    server = mock_factory(drop_fields=["nope", "artifact.nope"])
+    _, _, body = _request(_release(server))
+    manifest = json.loads(body)
+    assert manifest["version"] == "999.0.0"
+    assert manifest["artifact"]["url"].startswith("http://127.0.0.1")
+
+
+def test_debug_config_switches_malformed_response_drills(mock_factory: Callable[..., Any]) -> None:
+    server = mock_factory()
+    control = f"{_base(server)}{update_server.DEBUG_CONFIG_ROUTE}"
+    assert "version" in json.loads(_request(_release(server))[2])
+    status, _, body = _post(control, {"drop_fields": ["version", "artifact.url"]})
+    assert status == 200
+    assert json.loads(body)["drop_fields"] == ["version", "artifact.url"]
+    manifest = json.loads(_request(_release(server))[2])
+    assert "version" not in manifest
+    assert "url" not in manifest["artifact"]
+    # raw_body replaces the manifest wholesale — the truncated-answer drill.
+    status, _, _ = _post(control, {"drop_fields": [], "raw_body": '{"version": "0.29.'})
+    assert status == 200
+    _, _, body = _request(_release(server))
+    assert body == '{"version": "0.29.'.encode("utf-8")
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(body)
+
+
+def test_debug_config_rejects_invalid_drop_fields(mock_factory: Callable[..., Any]) -> None:
+    server = mock_factory()
+    status, _, body = _post(f"{_base(server)}{update_server.DEBUG_CONFIG_ROUTE}", {"drop_fields": "version"})
+    assert status == 400
+    assert "drop_fields" in json.loads(body)["error"]
+
+
 def test_equal_candidate_version_answers_204(mock_factory: Callable[..., Any]) -> None:
     """update mode mirrors the real service: an equal currentVersion is "already latest"."""
     server = mock_factory(version="0.28.0")
@@ -216,7 +258,7 @@ def test_prerelease_current_version_still_gets_the_release(mock_factory: Callabl
 
 
 def test_force_update_serves_manifest_without_comparison(mock_factory: Callable[..., Any]) -> None:
-    """``--force`` keeps the dirty-data drill available: 200 with a candidate older than the client."""
+    """``force_update`` keeps the dirty-data drill available: 200 with a candidate older than the client."""
     server = mock_factory(version="0.1.1", force_update=True)
     status, _, body = _request(_release(server))
     assert status == 200
@@ -323,18 +365,37 @@ def test_request_log_records_status_and_query(mock_factory: Callable[..., Any]) 
     assert entries[1]["query"] == {}
 
 
-def test_post_clear_empties_log(mock_factory: Callable[..., Any]) -> None:
-    server = mock_factory()
-    _request(_release(server))
-    status, _, _ = _post(f"{_base(server)}{update_server.DEBUG_CLEAR_ROUTE}", {})
+def test_post_reset_restores_defaults_and_empties_log(mock_factory: Callable[..., Any]) -> None:
+    """``/debug/reset`` undoes every knob (even ones set at build time) and clears the log."""
+    server = mock_factory(
+        mode="error",
+        version="0.1.1",
+        slow_ms=25,
+        force_update=True,
+        force_upgrade=True,
+        raw_body='{"broken',
+        drop_fields=["version"],
+    )
+    assert _request(_release(server))[0] == 500
+    status, _, body = _post(f"{_base(server)}{update_server.DEBUG_RESET_ROUTE}", {})
     assert status == 200
-    _, _, body = _request(f"{_base(server)}{update_server.DEBUG_REQUESTS_ROUTE}")
-    assert json.loads(body)["requests"] == []
+    snapshot = json.loads(body)
+    assert snapshot["mode"] == "update"
+    assert snapshot["version"] == "999.0.0"
+    assert snapshot["slow_ms"] == 0
+    assert snapshot["force_update"] is False
+    assert snapshot["force_upgrade"] is False
+    assert snapshot["raw_body"] == ""
+    assert snapshot["drop_fields"] == []
+    assert snapshot["requests"] == 0  # the log was dropped too
+    # back to out-of-the-box behaviour: 999.0.0 > 0.28.0 → a fresh manifest
+    assert _request(_release(server))[0] == 200
 
 
 def test_unknown_route_is_404(mock_factory: Callable[..., Any]) -> None:
     server = mock_factory()
     assert _request(f"{_base(server)}/nope")[0] == 404
+    assert _request(f"{_base(server)}/health")[0] == 404  # /health was removed
 
 
 def test_rejects_non_loopback_bind() -> None:
@@ -350,3 +411,8 @@ def test_rejects_invalid_startup_mode() -> None:
 def test_rejects_invalid_startup_version() -> None:
     with pytest.raises(ValueError, match="version"):
         update_server.create_server(MockUpdateConfig(version="latest"))
+
+
+def test_rejects_invalid_startup_drop_fields() -> None:
+    with pytest.raises(ValueError, match="drop_fields"):
+        update_server.create_server(MockUpdateConfig(drop_fields="version"))  # type: ignore[arg-type]
