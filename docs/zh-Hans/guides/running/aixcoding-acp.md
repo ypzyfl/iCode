@@ -54,6 +54,8 @@ AIxCoding 会将智能体回复和工具调用状态发送给客户端。客户�
 
 桌面端在 ACP prompt 元数据中提供客户端身份，并通过 `agent-studio.dev/selected-agent`（`schemaVersion: 1`、`agentMarketSkillId`、`agentName`）明确传入所选智能体时，AIxCoding 会在准备该消息的首个模型请求时、后续工具调用上报前，发送一条智能体使用记录。该记录使用 `funcType=1001`，`funcName` 为所选智能体名称，`agentName` 为 `agent-studio.dev/function-name` 传入的桌面端内核来源，与工具调用记录（`funcType=3`）一致。记录携带模型请求 ID 和会话 ID，以便与本轮其他埋点关联。未产生模型请求或未明确选择智能体的消息不会上报智能体使用记录。
 
+代码生成（`ai-code`）和文件工具埋点中，位于会话工作目录内的文件路径按该目录的相对路径上报；目录外的路径保持绝对路径。所有系统上报的路径分隔符统一为 `/`。
+
 如果客户端支持管理会话，关闭会话后仍可以在同一工作目录中恢复；删除会话会移除 AIxCoding 保存的会话记录，之后无法在 AIxCoding 中恢复。
 
 如果要在 ACP 客户端中使用提问功能，客户端需要支持 AIxCoding 的 `_chrys/request_input` 扩展请求（在会自动添加下划线前缀的 ACP SDK 中显示为 `chrys/request_input`）。AIxCoding 通过此请求向客户端发送智能体的问题，并接收用户回答；不支持该请求的客户端无法完成需要用户回答的任务。等待回答的时间可以通过 `--ask-user-timeout` 限制。

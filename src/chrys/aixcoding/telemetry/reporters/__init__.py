@@ -8,6 +8,8 @@ pluginVersion、projectName）由本层自动附加，端点 reporter 不重复�
 
 from __future__ import annotations
 
+import ntpath
+import posixpath
 from pathlib import Path
 from typing import Any
 
@@ -27,21 +29,37 @@ def relative_file_name(raw: str, workspace_cwd: str | None = None) -> str:
 
     会话工作区（``workspace_cwd``）内的文件取**相对路径**（含文件名，POSIX 分隔符）；
     工作区外的文件取**绝对路径**（含文件名）。``workspace_cwd`` 缺失时**不做
-    相对化**、入参原样返回——进程 cwd 是 iCode 启动目录而非真实工程根
+    相对化**——进程 cwd 是 iCode 启动目录而非真实工程根
     （2026-10-09 真链路踩坑：projectName/git/fileName 全指向 iCode 仓库），
-    宁可不下结论也不误判。
+    宁可不下结论也不误判。路径分隔符统一为 ``/``。
     """
+    normalized_raw = raw.replace("\\", "/")
     if not workspace_cwd:
-        return raw
+        return normalized_raw
     try:
-        base = Path(workspace_cwd).resolve()
-        path = Path(raw)
-        resolved = path.resolve() if path.is_absolute() else (base / path).resolve()
-        if resolved.is_relative_to(base):
-            return resolved.relative_to(base).as_posix()
-        return raw if path.is_absolute() else str(resolved)
+        windows_path = bool(ntpath.splitdrive(raw)[0] or ntpath.splitdrive(workspace_cwd)[0])
+        path_module = ntpath if windows_path else posixpath
+        base = path_module.abspath(workspace_cwd.replace("\\", "/"))
+        path = path_module.normpath(normalized_raw)
+        absolute = path_module.isabs(path)
+        if not absolute:
+            path = path_module.normpath(path_module.join(base, path))
+        try:
+            relative = path_module.relpath(path, base)
+            if relative != ".." and not relative.startswith(".." + path_module.sep):
+                return relative.replace("\\", "/")
+        except ValueError:
+            pass  # Different Windows drives cannot be made relative.
+        if not windows_path and absolute:
+            # A workspace can itself be a symlink; compare physical paths only
+            # after the lexical path has failed the workspace containment test.
+            physical_base = Path(base).resolve()
+            physical_path = Path(path).resolve()
+            if physical_path.is_relative_to(physical_base):
+                return physical_path.relative_to(physical_base).as_posix()
+        return path.replace("\\", "/")
     except OSError, ValueError:
-        return raw
+        return normalized_raw
 
 
 def common_fields(workspace_cwd: str | None = None, *, tool_detail: bool = False) -> dict[str, Any]:

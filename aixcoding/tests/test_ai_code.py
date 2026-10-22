@@ -46,7 +46,7 @@ def _origin() -> InvocationOrigin:
 
 
 def _write_start(
-    call_id: str = "c1", *, tool_name: str = "write_file", args: dict | None = None
+    call_id: str = "c1", *, tool_name: str = "write_file", args: dict | None = None, workspace_cwd: str = ""
 ) -> InvocationToolCallStart:
     return InvocationToolCallStart(
         origin=_origin(),
@@ -55,6 +55,7 @@ def _write_start(
         args=dict(args if args is not None else {"path": "src/a.py", "content": "new"}),
         call_id=call_id,
         session_id="sess-1",
+        workspace_cwd=workspace_cwd,
     )
 
 
@@ -65,6 +66,7 @@ def _write_result(
     before: str | None = None,
     after: str = "hello\nworld",
     errored: bool = False,
+    workspace_cwd: str = "",
 ) -> InvocationToolCallResult:
     # 真链路 file_snapshot 是 tuple(before, after)（pipeline.py:89）。
     snapshot = (before if before is not None else "", after)
@@ -79,6 +81,7 @@ def _write_result(
         duration_ms=50,
         session_id="sess-1",
         metadata=metadata,
+        workspace_cwd=workspace_cwd,
     )
 
 
@@ -236,6 +239,38 @@ def test_reporter_write_success_emits_payload():
     assert payload["reportId"]
     assert payload["pluginVersion"]
     assert payload["projectName"]
+
+
+def test_reporter_absolute_workspace_path_is_relative_even_through_symlink(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "linked").symlink_to(outside, target_is_directory=True)
+    path = workspace / "linked" / "found.py"
+    add = _CaptureAdd()
+    reporter = AiCodeReporter(add)
+    reporter.on_start(_write_start(args={"path": str(path)}, workspace_cwd=str(workspace)))
+    reporter.on_result(_write_result(workspace_cwd=str(workspace)), code_status=1, errored=False)
+    assert add.payloads[0]["filepath"] == "linked/found.py"
+
+
+def test_reporter_windows_workspace_path_uses_forward_slashes():
+    add = _CaptureAdd()
+    reporter = AiCodeReporter(add)
+    reporter.on_start(_write_start(args={"path": r"C:\work\project\src\found.py"}, workspace_cwd=r"C:\work\project"))
+    reporter.on_result(_write_result(workspace_cwd=r"C:\work\project"), code_status=1, errored=False)
+    assert add.payloads[0]["filepath"] == "src/found.py"
+
+
+def test_reporter_uses_start_workspace_when_result_omits_it(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    add = _CaptureAdd()
+    reporter = AiCodeReporter(add)
+    reporter.on_start(_write_start(args={"path": str(workspace / "found.py")}, workspace_cwd=str(workspace)))
+    reporter.on_result(_write_result(), code_status=1, errored=False)
+    assert add.payloads[0]["filepath"] == "found.py"
 
 
 def test_reporter_edit_uses_tool_arguments_for_block_range():

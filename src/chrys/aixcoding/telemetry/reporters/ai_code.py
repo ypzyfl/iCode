@@ -199,11 +199,11 @@ class AiCodeReporter:
 
     def __init__(self, add: Callable[[Mapping[str, object]], None]) -> None:
         self._add = add
-        self._args_by_call: dict[str, dict[str, Any]] = {}
+        self._args_by_call: dict[str, tuple[dict[str, Any], str]] = {}
 
     def on_start(self, event: InvocationToolCallStart) -> None:
         if event.tool_name in FILE_WRITE_TOOLS:
-            remember_bounded(self._args_by_call, event.call_id, dict(event.args or {}))
+            remember_bounded(self._args_by_call, event.call_id, (dict(event.args or {}), event.workspace_cwd))
 
     def on_result(
         self,
@@ -212,9 +212,10 @@ class AiCodeReporter:
         code_status: int,
         errored: bool,
     ) -> None:
-        args = self._args_by_call.pop(event.call_id, None)
-        if args is None or event.tool_name not in FILE_WRITE_TOOLS or errored:
+        started = self._args_by_call.pop(event.call_id, None)
+        if started is None or event.tool_name not in FILE_WRITE_TOOLS or errored:
             return
+        args, started_workspace = started
         snapshot = event.metadata.get("file_snapshot")
         # file_snapshot 是 tuple(before, after) (pipeline.py:89) — 同 tool_detail 修正.
         before_text = snapshot[0] if isinstance(snapshot, tuple) and len(snapshot) == 2 else None
@@ -235,7 +236,7 @@ class AiCodeReporter:
         from chrys.aixcoding.telemetry.llm_telemetry import resolve_call
         from chrys.aixcoding.telemetry.reporters import common_fields
 
-        workspace = event.workspace_cwd or None
+        workspace = event.workspace_cwd or started_workspace or None
         payload: dict[str, Any] = {
             "reportId": str(uuid.uuid4()),
             "filepath": relative_file_name(path, workspace),

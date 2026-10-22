@@ -357,6 +357,15 @@ def test_relative_file_name(tmp_path):
     assert relative_file_name("docs/new.md") == "docs/new.md"
 
 
+def test_relative_file_name_normalizes_windows_paths():
+    workspace = r"C:\Work\Project"
+    assert relative_file_name(r"c:\work\project\src\new.py", workspace) == "src/new.py"
+    assert relative_file_name(r"C:\Work\Other\new.py", workspace) == "C:/Work/Other/new.py"
+    assert relative_file_name(r"src\new.py", workspace) == "src/new.py"
+    assert relative_file_name(r"..\Other\new.py", workspace) == "C:/Work/Other/new.py"
+    assert relative_file_name(r"C:\Work\Project\new.py") == "C:/Work/Project/new.py"
+
+
 def test_reporter_read_and_view_image_save_includes_file_name():
     submitter = _CaptureSubmitter()
     reporter = ToolDetailReporter(submitter)
