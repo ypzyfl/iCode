@@ -126,6 +126,8 @@ iCode 的 hook 能力是**自带的**，不是这个规则包发明的。规则�
 ```
 
 > 路径是 `guard/xxx.py`，不是 `xxx.py` —— 相对路径以 **`hooks.yaml` 所在目录**为基准。
+>
+> 用 `_install_merge.py` 装的话，这两段会被改写成 `type: command` + 绝对路径的解释器，见 [3.7](#37-脚本用哪个-python-跑以及系统里没装-python这个问题)。
 
 ### 3.2 每个字段为什么这么填
 
@@ -133,7 +135,7 @@ iCode 的 hook 能力是**自带的**，不是这个规则包发明的。规则�
 | --- | --- | --- |
 | `id` | `security-prompt-guard` / `security-tool-guard` | 日志和留痕里的标识，唯一即可。安装脚本拿 `security-prompt-guard` 判断是否已装 |
 | `event` | `user_prompt_submit` / `before_tool_call` | 挂在哪个生命周期点 |
-| `run.type` | `script` | 按扩展名推断解释器，`.py` → **跑 iCode 的那个解释器** |
+| `run.type` | `script` | 按扩展名推断解释器，`.py` → 从 PATH 现选（**有坑，见 3.7**）；安装脚本会改成 `command` |
 | `run.path` | `guard/*.py` | 相对 `hooks.yaml` 目录；也可写绝对路径 |
 | `execution.mode` | `blocking` | **同步等它返回**。这是拦截的前提，`async` / `fire_and_forget` 拦不住 |
 | `timeout_seconds` | `5` | 规则匹配是纯字符串/正则运算，毫秒级足够 |
@@ -201,6 +203,131 @@ Hook 子进程的 **stdin 是 `DEVNULL`** —— 这是 iCode 的设计，不是
 
 规则表里的 `confirm` 档位只能落成两种：全局开关 `settings.confirm_disposition` 决定是 `block`（默认）还是 `notify`。
 
+### 3.7 脚本用哪个 Python 跑（以及“系统里没装 Python”这个问题）
+
+`run.type: script` + `.py` 扩展名时，iCode 按这个顺序找解释器（`src/chrys/service/skills/runner.py::_find_python_runner`）：
+
+| 顺序 | 选什么 |
+| --- | --- |
+| 1 | PATH 上的 `uv` → `uv run <脚本>` |
+| 2 | PATH 上的 `python3` / `python` |
+| 3 | 同上，但允许用 iCode 自带的那个 |
+| 4 | **`sys.executable`（跑 iCode 的那个解释器）** |
+
+看着像是“优先用环境里的”，但**实测下来源码运行时两条路径都落到 iCode 自己身上**：
+
+| 场景 | 实际解释器 | 是 iCode 自带的吗 |
+| --- | --- | --- |
+| hook 的 cwd = iCode 源码根（走优先级 1，`uv run` 命中本项目） | `.venv\Scripts\python.exe`（3.14.8） | ✅ |
+| PATH 上没有 uv（走优先级 2） | `.venv\Scripts\python.exe`（3.14.8） | ✅ |
+| hook 的 cwd = 非项目目录 | uv 托管的 `cpython-3.14` | ❌ 版本一致 |
+| hook 的 cwd = 另一个 uv 项目 | uv 托管的 `cpython-3.14` | ❌ 版本一致 |
+| 上面全都没有（走优先级 4） | `sys.executable` | ✅ |
+
+两个关键原因：
+
+1. **iCode 把自己的 Scripts 目录放在 PATH 首位。** `uv run icode` 会把 `.venv\Scripts` 插到 PATH 最前面，而 hook 子进程继承的是`os.environ.copy()`（`runner.py:318`），所以优先级 2 第一个找到的就是 iCode 自己的 python。
+2. **hook 的 cwd 默认就是工作区**（`runner.py:315`，`run.cwd` 没写时回落到 `workspace_cwd`）。在 iCode 源码目录里启动时，`uv run` 会命中本项目的 `pyproject.toml`，用的就是项目 venv。
+
+只有在「打包安装 + 工作区恰好是个别的Python 项目」时才会偏离，而那时用的是 uv 托管的 3.14，**行为完全一致**（见下面的跨版本实测）。
+
+**“万一环境里没 Python 呢？”** —— 不会挂。优先级 4 的 `sys.executable` 就是正在运行 iCode 的那个解释器，它必然存在：
+
+| iCode 怎么装的 | 兜底用什么跑 hook |
+| --- | --- |
+| 源码 `uv run icode` | 项目的 `.venv\Scripts\python.exe` |
+| PyApp 打包安装 | 应用**内置**的 Python |
+
+Windows 用户从官网下安装包，压根不需要系统装 Python。
+
+**兼容余量（实测）** —— 脚本故意写成不挑版本：
+
+| 检查项 | 结果 |
+| --- | --- |
+| 语法下限（`ast.parse(feature_version=…)`） | 3.7 可解析 |
+| 标准库 | 没用任何 3.9+ 的API（无 `removeprefix` / `functools.cache` / `zip(strict=)` …） |
+| 第三方依赖 | 零（`_guard_core.py` 只 import `json` `re` `ipaddress` `pathlib` `urllib.parse` …） |
+| 跨版本实跑 | 3.10 / 3.12 / 3.14 行为完全一致 |
+
+即使某台机器PATH 上是个 Python 3.7，hook 照样能跑。上面那个「偏离」场景用的是 uv 托管的 3.14，也已实测行为一致。
+
+**启动耗时**（`timeout_seconds: 5` 的余量）：
+
+| 方式 | 耗时 |
+| --- | --- |
+| `uv run`（第 1 优先级） | ~207 ms |
+| 直接解释器 | ~153 ms |
+
+余量充足。
+
+#### 真正该担心的失效模式：hook 根本起不来
+
+不是“系统没 Python”，而是 **hook 起不来** —— 因为 `on_error: block`，这时会
+**fail-closed：把每一次请求都拦下来**，表现是“什么都干不了”。
+
+**Windows 上有一个专门的坑，且已实测复现**：系统自带一个 0 字节的 **App Execution Alias**
+（`%LOCALAPPDATA%\Microsoft\WindowsApps\python.exe`），即使你没装 Python 它也在。
+**iCode 不过滤这个存根**，选到它就会得到：
+
+```
+✗ 错误
+hook 'security-prompt-guard' failed (exit_code=9009): Python was not found but can be
+installed from the Microsoft Store: https://go.microsoft.com/fwlink?linkID=2082640
+```
+
+`shutil.which` 认为 0 字节的存根是合法解释器，所以 `icode hook validate` 也不会报任何异常。
+复现（把 PATH 剥到只剩存根）：
+
+```powershell
+$env:PATH = "$env:LOCALAPPDATA\Microsoft\WindowsApps;C:\Windows\System32"
+python "$env:APPDATA\chrys\hooks\guard\_prompt_guard.py"; $LASTEXITCODE   # 9009
+```
+
+#### 所以安装脚本默认就把解释器钉死
+
+`_install_merge.py` 装的时候会把 3.1 那两段改写成 `type: command` + **绝对路径**：
+
+```yaml
+run:
+  type: command
+  argv:
+    - 'C:\ProgramData\miniforge3\python.exe'
+    - 'C:\Users\<你>\AppData\Roaming\chrys\hooks\guard\_prompt_guard.py'
+```
+
+两条要点：
+
+* 钉的是**那台机器自己**探测出来的解释器，路径只写进**那台机器**的配置目录；仓库里的
+  `hooks.yaml` 保持可移植。**换台机器重跑一次安装脚本就行**；配置被整个拷到另一台时，
+  `--check` 会报「钉死的解释器已不可用」，重跑脚本自动换成本机的。
+* `argv` 不做模板展开（`${chrys_home}` 只在 `run.cwd` / `run.env` 里生效），且 hook 的 `cwd`
+  是**工作目录**而不是配置目录 —— 所以两个路径都必须是绝对路径。
+
+想自己挑（探测结果不理想、或想钉项目 `.venv`）：
+
+```powershell
+uv run python guard_hooks\_install_merge.py --python C:\path\to\python.exe
+```
+
+确认当前钉的是什么：
+
+```powershell
+uv run python guard_hooks\_install_merge.py --check   # 期望 exit 0
+```
+
+排查顺序：
+
+```powershell
+# 1. 手动跑一次，看 stderr
+& "C:\ProgramData\miniforge3\python.exe" "$env:APPDATA\chrys\hooks\guard\_prompt_guard.py"
+# 2. 看日志
+Get-Content "$env:APPDATA\chrys\logs\debug.log" -Tail 30
+```
+
+> 纯手动安装（4.4）没有“钉解释器”这一步，等于回到上表第一行；这时要么用安装脚本重跑一遍，
+> 要么去 **设置 → 应用 → 高级应用设置 → 应用执行别名** 把 `python.exe` / `python3.exe` 关掉，
+> 让存根不再出现在 PATH 上。
+
 ---
 
 ## 4. 怎么让它生效
@@ -231,19 +358,23 @@ uv sync
 uv run python guard_hooks\_install_merge.py
 ```
 
-这个脚本做三件事：
+这个脚本做四件事：
 
 1. 复制 4 个文件到 `<配置目录>/hooks/guard/`
-2. 把两条 hook 配置**追加**到 `hooks.yaml` 的 `hooks:` 列表末尾
-3. 写前自动备份为 `hooks.yaml.pre-guard`，并保留原文件的换行风格和 BOM
+2. 探测一个**真实**的 Python 解释器（跳过 Windows 应用商店的 0 字节存根），把两条 hook 的
+   `run` 从 `type: script` 改写成 `type: command` + 绝对路径
+3. 把两条 hook 配置**追加**到 `hooks.yaml` 的 `hooks:` 列表末尾
+4. 写前自动备份（首次追加存 `hooks.yaml.pre-guard`，只改解释器存 `hooks.yaml.pre-pin`），
+   并保留原文件的换行风格和 BOM
 
 **为什么是"合并"不是"覆盖"**：`<配置目录>/hooks/hooks.yaml` 通常已经有你自己的 hook（遥测、审计之类），直接覆盖会把它们全弄丢。
 
-幂等：已存在 `security-prompt-guard` 时不动文件，可以反复跑。
+幂等：已存在 `security-prompt-guard` 时不重复追加，只在解释器还没钉死、或钉死的那个已经
+不在了的时候补一次改写，可以反复跑。
 
 配置文件不存在时会自动新建一个最小骨架；写成 `hooks: []` 这种流式写法也会先归一（否则追加的条目会变成非法 YAML）。
 
-只检查不改动：
+只检查不改动（exit 0 = 健康）：
 
 ```powershell
 uv run python guard_hooks\_install_merge.py --check
@@ -266,6 +397,10 @@ Copy-Item guard_hooks\_prompt_guard.py, guard_hooks\_tool_guard.py, `
 ```
 
 macOS / Linux 把 `$env:APPDATA` 换成 `~/.chrys/hooks`。
+
+> ⚠️ 纯手动安装没有“钉解释器”这一步，两条 hook 会保持 `type: script`，由 iCode 从 PATH 现选。
+> Windows 上请先看 [3.7](#37-脚本用哪个-python-跑以及系统里没装-python这个问题) 的存根坑——
+> 不想踩的话，直接改用 `_install_merge.py`，或者自己把 `run` 改成 `type: command` + 绝对路径。
 
 若 `hooks.yaml` **不存在**，新建一个再追加：
 
@@ -339,7 +474,7 @@ hook 'security-tool-guard' blocked: 操作不合规，请修改后重试。
 uv run python guard_hooks\selftest.py
 ```
 
-41 个断言，改完 `rules.json` 必跑。详见 OPERATIONS.md 第 4 节。
+60 个用例，改完 `rules.json` 必跑。详见 OPERATIONS.md 第 4 节。
 
 ---
 
@@ -353,6 +488,7 @@ uv run python guard_hooks\selftest.py
 | 工具拦了，提示词不拦 | 同上 | 同上 |
 | 配置改了没反应 | 改的是 `hooks.yaml` | 需重启；改 `rules.json` 则不用 |
 | 日志里有 `[guard]` 开头 | 脚本自己报的错 | 脚本把详情写 stderr 了，看日志 |
+| 每句话都被拦，报 `hook ... failed (exit_code=9009)` | iCode 选中了 Microsoft Store 的 0 字节 python 存根 | 重跑安装脚本钉死解释器，见 3.7 |
 | 什么都没拦但也没报错 | `rules.json` 里 `settings.enabled: false` | 检查这个开关 |
 | 某条规则误伤 | 单条规则太宽 | 在 `rules.json` 里给它加 `"enabled": false` |
 

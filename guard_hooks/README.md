@@ -13,7 +13,7 @@
 
 | 文件 | 作用 |
 | --- | --- |
-| `_install_merge.py` | 安装：把 4 个文件复制到 `hooks/guard/` 并把两个 hook **合并**进已有的 `hooks.yaml` |
+| `_install_merge.py` | 安装：把 4 个文件复制到 `hooks/guard/`，把两个 hook **合并**进已有的 `hooks.yaml`，并把解释器**钉死**成绝对路径（`--check` 只报告，`--python` 指定解释器） |
 | `hooks.yaml` | Hook 配置片段（安装脚本从这里取 `hooks` 列表） |
 | `_prompt_guard.py` | `user_prompt_submit` 入口（规则 IN-01 ~ IN-09） |
 | `_tool_guard.py` | `before_tool_call` 入口（规则 T-*） |
@@ -22,7 +22,7 @@
 | `selftest.py` | 标准库自检（每条规则一个正例，含若干"日常开发不应被拦"的负例） |
 | [OPERATIONS.md](OPERATIONS.md) | 使用与运维手册：拦截清单、配置、排查、**版本升级迁移** |
 | [PORTING.md](PORTING.md) | **新拉一份 iCode 源码怎么复现拦截**：文件放哪、hook 配什么、怎么生效 |
-| [MANUAL_TESTS.md](MANUAL_TESTS.md) | 65 条手工测试用例与预期结果（预期均为实测） |
+| [MANUAL_TESTS.md](MANUAL_TESTS.md) | 90 条手工测试用例与预期结果（预期均为实测） |
 
 > 日常使用、排查与版本升级迁移见 [OPERATIONS.md](OPERATIONS.md)。
 
@@ -45,32 +45,45 @@ uv run icode hook list                             # 期望看到两个 security
 uv run python guard_hooks/_install_merge.py --check
 ```
 
-项目级安装（hook 只在该工作区生效，需在设置里打开 `project.hooks_enabled`）：
+### 解释器会被钉死
 
-```bash
-uv run python guard_hooks/_install_merge.py --project            # 安装到当前目录
-uv run python guard_hooks/_install_merge.py --project <工作区路径>
+iCode 选 hook 解释器的顺序是 `uv` → `python3`/`python` → 自身运行时，它**不过滤**
+Windows 应用商店的 0 字节转发存根（`…\Microsoft\WindowsApps\python.exe`）。选中那个存根，
+hook 就起不来（`exit_code=9009`），而 `on_error: block` 会把那一轮直接拦下——表现就是**每一句
+话都被自己的安全策略拦掉**。
+
+所以安装脚本会先探测一个**真实**的解释器（跳过存根），再把两个 hook 的 `run` 从
+`type: script` 改写成 `type: command` + 绝对路径：
+
+```yaml
+run:
+  type: command
+  argv:
+    - 'C:\ProgramData\miniforge3\python.exe'
+    - 'C:\Users\<你>\AppData\Roaming\chrys\hooks\guard\_prompt_guard.py'
 ```
 
-跨平台说明：安装器与主程序 `foundation/platform` 使用同一套目录推断——
-Windows 为 `%APPDATA%\chrys\hooks\`（缺 `APPDATA` 环境变量时退
-`%USERPROFILE%\AppData\Roaming\chrys\hooks\`），macOS/Linux 为
-`~/.chrys/hooks/`。`.py` 脚本的解释器由 iCode 按扩展名推断（PATH 上的
-`uv` / `python3` / `python`，兜底运行时 Python），三个平台都无需 shebang，
-脚本也只依赖标准库、兼容 Python 3.9+。
+钉的是**那台机器自己**的解释器，路径只写进**那台机器的** `%APPDATA%\chrys\hooks\hooks.yaml`，
+仓库里的 `hooks.yaml` 保持可移植。**换台机器重跑一次安装脚本就行**；万一配置被整个拷到了另一台
+机器上，`--check` 会报「钉死的解释器已不可用」，重跑脚本自动换成本机的。
+想自己挑一个：
+
+```bash
+uv run python guard_hooks/_install_merge.py --python C:\path\to\python.exe
+```
 
 手动安装（仅适用于 `hooks.yaml` 里没有其他 hook 的情况）：把
 `_prompt_guard.py`、`_tool_guard.py`、`_guard_core.py`、`rules.json` 放到
 `<config_dir>/hooks/`，并把 `hooks.yaml` 的 `hooks` 列表追加到配置里。全局目录是
-`~/.chrys/hooks/`（Windows 为 `%APPDATA%\chrys\hooks\`）。
+`~/.chrys/hooks/`（Windows 为 `%APPDATA%\chrys\hooks\`）。手动安装没有「钉解释器」这一步，
+PATH 上只有商店存根时会踩 [OPERATIONS.md 5.3](OPERATIONS.md) 的坑。
 
-项目级手动安装：把同样 4 个文件放到 `<workspace>/.chrys/hooks/`，并在设置里打开
+项目级安装：把同样 4 个文件放到 `<workspace>/.chrys/hooks/`，并在设置里打开
 `project.hooks_enabled`（项目文件默认不加载）。
 
 装完后需要**重启 iCode 或切换会话**才会重新加载钩子配置（只改脚本不需要）。
 
-要求：Hook 子进程需要一个可用的 Python 解释器（iCode 会从 `PATH` 找 `python3` /
-`python`，找不到时退回自身运行时）。脚本本身兼容 Python 3.9+。
+要求：脚本只依赖标准库，兼容 Python 3.9+；解释器由安装脚本钉死（见上）。
 
 ## 自检
 
@@ -78,10 +91,9 @@ Windows 为 `%APPDATA%\chrys\hooks\`（缺 `APPDATA` 环境变量时退
 uv run python guard_hooks/selftest.py -v
 ```
 
-39 个用例：每条规则各一个正例，外加 `ls -la` / `git status` /
-`uv run pytest ...` / 读写工作区内 `.py`、访问 `127.0.0.1` 等**必须放行**的负例，
+60 个用例：每条规则各一个正例，外加 `ls -la` / `git status` / `uv run pytest ...` / 读写工作区内 `.py`、访问 `127.0.0.1` 等**必须放行**的负例，
 最后 4 个用例按 iCode 的真实子进程协议（`CHRYS_HOOK_PAYLOAD_FILE` /
-`CHRYS_HOOK_RESULT`）跑一遍两个入口脚本。
+`CHRYS_HOOK_RESULT`）跑一遍两个入口脚本，另有一组用例盯安装脚本的解释器探测与钉死。
 
 改完 `rules.json` 先跑一遍自检，确认没有把正常会话打死。
 

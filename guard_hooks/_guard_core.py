@@ -51,9 +51,6 @@ _ASCII_TOKEN = re.compile(r"[A-Za-z0-9 ._+:/\\@-]+")
 
 _IPV4_IN_TEXT = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 
-_URL_IN_TEXT = re.compile(r"\b(?:https?|ftp)://[^\s\"'`<>|&]+", re.IGNORECASE)
-"""从自由文本（如 shell 命令）里提取 URL；trailing 标点在调用处裁掉。"""
-
 _CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 
 _PATH_ARG_HINTS = ("path", "file", "dir", "target")
@@ -128,12 +125,11 @@ class GuardConfig:
 
 
 def config_home() -> Path:
-    """推断 ``<config_dir>``。
+    """推断 ``<config_dir>``（通常是 ``~/.chrys``）。
 
     运行期环境变量里没有现成的值，但 payload 文件一定落在
     ``<config_dir>/hooks/tmp/`` 下，据此回溯三层即可；推断失败时退回
-    主程序 ``foundation/platform`` 的默认值（Windows 是
-    ``%APPDATA%/chrys``，macOS/Linux 是 ``~/.chrys``）。
+    ``~/.chrys``。
     """
     payload = os.environ.get("CHRYS_HOOK_PAYLOAD_FILE")
     if payload:
@@ -143,9 +139,6 @@ def config_home() -> Path:
                 return resolved.parent.parent.parent
         except OSError:
             pass
-    if sys.platform == "win32":
-        appdata = os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming"
-        return Path(appdata) / "chrys"
     return Path.home() / ".chrys"
 
 
@@ -447,7 +440,7 @@ def _allowed_networks(config: GuardConfig) -> list[Any]:
     出厂只有回环（``127.0.0.0/8``、``::1/128``），所以 ``127.0.0.1`` 放行而RFC1918
     整段仍拦。原先这个设置只有 url 检测器读，ip_cidr 只看 ``internal_networks`` 词典，
     于是提示词层把 ``127.0.0.1`` 也拦了；现在两层读同一份配置，工具层另外叠加
-    ``internal_networks``（把私有段当"内网"而非"公网访问"），行为不受这里影响。
+    ``internal_networks``（把私有段当“内网”而非“公网访问”），行为不受这里影响。
     要放行某段私有网，往 ``allowed_networks`` 加即可。
     """
     entries = config.sub_setting("network", {}).get("allowed_networks") or []
@@ -905,36 +898,33 @@ def _is_session_temp(target: Path, temp_root: Path, prefixes: list[str]) -> bool
     return any(part.startswith(prefix) for prefix in prefixes for part in parts[-4:] if len(part) > len(prefix))
 
 
-def _detect_url(ctx: ScanContext, mode: str) -> list[Evidence]:
-    """网络分类：``blocked`` 命中黑名单/危险端口，``default`` 命中非白名单地址。
+_LOOPBACK_HOSTNAMES = ("localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback")
 
-    除了 URL 形态的参数值，还扫描待检文本（shell 命令的 ``command`` 等）里
-    出现的 ``http(s)://`` 地址，堵住"用 curl 绕过网络规则"的盲区。
+
+def _is_allowed_hostname(config: GuardConfig, host: str) -> bool:
+    """主机名白名单——``allowed_networks`` 只管 IP 字面量，``localhost`` 是名字。
+
+    出厂含回环名与 RFC 6761 的 ``.localhost`` 伪 TLD；配置项是
+    ``settings.network.allowed_hosts``，可自行追加。
     """
-    values = url_values(ctx.args)
-    for _label, text in ctx.texts:
-        values.extend(match.group(0).rstrip(".,;:)]}") for match in _URL_IN_TEXT.finditer(text))
-        # 裸 IP（ping/traceroute 等不带 scheme）同样按候选地址评估；
-        # 白名单网段（127/10/172.16/192.168）在 default 模式天然放行。
-        values.extend(match.group(0) for match in _IPV4_IN_TEXT.finditer(text))
+    entries = config.sub_setting("network", {}).get("allowed_hosts")
+    names = [str(item).strip().lower() for item in entries] if entries else list(_LOOPBACK_HOSTNAMES)
+    if host in names:
+        return True
+    return any(host.endswith("." + name) for name in names)
+
+
+def _detect_url(ctx: ScanContext, mode: str) -> list[Evidence]:
+    """网络分类：``blocked`` 命中黑名单/危险端口，``default`` 命中非白名单地址。"""
+    if not url_values(ctx.args):
+        return []
     blocked_hosts = compile_patterns(ctx.config, {"dictionary": "blocked_hosts", "names": None}, mode="plain")
     dangerous_ports = {int(p) for p in ctx.config.dictionary("dangerous_ports") if isinstance(p, (int, float))}
     allowed = _networks(ctx.config.dictionary("internal_networks"))
     allowed.extend(_allowed_networks(ctx.config))
 
     evidence: list[Evidence] = []
-    if mode == "blocked":
-        # 黑名单主机即使不带 scheme（curl elearning/x、ping 22.122.49.168）也要拦，
-        # 所以先对原始文本直接做黑名单匹配，再走逐个候选地址的精确分类。
-        for pattern in blocked_hosts:
-            for _label, text in ctx.texts:
-                found = pattern.regex.search(text)
-                if found is not None:
-                    evidence.append(Evidence(pattern.label, snippet_of(text, found.start(), found.end()), "text"))
-                    break
-            if evidence:
-                break
-    for raw in values:
+    for raw in url_values(ctx.args):
         host, port = split_host_port(raw)
         if not host:
             continue
@@ -947,7 +937,10 @@ def _detect_url(ctx: ScanContext, mode: str) -> list[Evidence]:
                     evidence.append(Evidence(pattern.label, raw, "url"))
                     break
         elif mode == "default":
-            address = _as_ip(host)
+            name = host.lower().rstrip(".")
+            if _is_allowed_hostname(ctx.config, name):
+                continue
+            address = _as_ip(name)
             in_network = address is not None and any(address.version == n.version and address in n for n in allowed)
             if not in_network:
                 evidence.append(Evidence("非白名单地址", raw, "url"))

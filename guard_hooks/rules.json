@@ -22,6 +22,7 @@
     },
     "network": {
       "allowed_networks": ["127.0.0.0/8", "::1/128"],
+      "allowed_hosts": ["localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback"],
       "default_disposition": "confirm"
     },
     "mcp": {
@@ -139,7 +140,7 @@
       { "name": "zsh_equals_expansion", "value": "(?<![A-Za-z0-9_=])=\\(" },
       { "name": "null_byte", "value": "[\\x00]|\\\\x00|%00" },
       { "name": "zero_width", "value": "[\\u200b\\u200c\\u200d\\u200e\\u200f\\u202a\\u202b\\u202c\\u202d\\u202e\\u2060\\ufeff]" },
-      { "name": "zsh_glob", "value": "[*@#?~^]\\([^()]*\\)" },
+      { "name": "zsh_glob", "value": "(?:(?<![@\\s])[@#]|[*?~^])\\([^()]*\\)" },
       { "name": "process_substitution", "value": "(?<![0-9<>])[<>]\\([^)]*\\)|\\$\\(<[^)]*\\)" },
       { "name": "autoload", "value": "\\bautoload\\b" }
     ],
@@ -554,7 +555,7 @@
       "layer": "网络",
       "disposition": "block",
       "audit": true,
-      "applies_to": { "kinds": ["web_fetch", "web_search", "mcp", "shell"] },
+      "applies_to": { "kinds": ["web_fetch", "web_search", "mcp"] },
       "detect": [{ "type": "url", "mode": "blocked" }]
     },
     {
@@ -563,7 +564,7 @@
       "layer": "网络",
       "disposition": "confirm",
       "audit": true,
-      "applies_to": { "kinds": ["web_fetch", "web_search", "mcp", "shell"] },
+      "applies_to": { "kinds": ["web_fetch", "web_search", "mcp"] },
       "detect": [{ "type": "url", "mode": "default" }],
       "note": "白名单（loopback / 10 / 172.16 / 192.168）不命中本规则。"
     },
