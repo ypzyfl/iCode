@@ -460,7 +460,9 @@ jobs:
     name: Publish release
     # Dev 兜底版本（无 tag 可达且未指定版本）不发布；解析出正式版本即发布，
     # 因此定时构建也会发布最新 tag 对应的 Release。
-    if: needs.resolve-target.outputs.is_dev != 'true' && inputs.publish != 'false'
+    # inputs.publish 是 boolean：必须与 boolean 字面量比较。若写成 != 'false'，
+    # GitHub 表达式会把 false→0、'false'→NaN，NaN 比较恒为不等，条件恒真，开关失效。
+    if: needs.resolve-target.outputs.is_dev != 'true' && inputs.publish != false
     needs: [build-wheel, build-binaries, resolve-target]
     runs-on: ubuntu-latest
     permissions:
