@@ -19,6 +19,11 @@ import sys
 import unittest
 from pathlib import Path
 
+# CI Windows 的控制台可能是 cp1252/cp936：失败信息里有中文，先固定 UTF-8。
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import _guard_core as guard

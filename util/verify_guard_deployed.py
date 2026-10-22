@@ -14,6 +14,12 @@ import sys
 import tempfile
 from pathlib import Path
 
+# CI Windows 的控制台可能是 cp1252/cp936：不固定 UTF-8 的话，打印中文总结
+# 直接 UnicodeEncodeError，用例全过也会被判失败。
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
 if sys.platform == "win32":
     _config_dir = Path(os.environ["APPDATA"]) / "chrys"
 else:
