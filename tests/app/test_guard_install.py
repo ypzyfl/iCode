@@ -106,7 +106,7 @@ def test_stale_guard_entries_are_replaced_not_duplicated(tmp_path: Path) -> None
     document = yaml.safe_load((hooks_dir / "hooks.yaml").read_text(encoding="utf-8"))
     paths = {entry["id"]: entry["run"].get("path", "") for entry in document["hooks"]}
     assert list(paths) == ["telemetry", *MANAGED_HOOK_IDS]
-    assert paths["security-prompt-guard"] == "guard/prompt_guard.py"
+    assert paths["security-prompt-guard"] == "guard/_prompt_guard.py"
 
 
 def test_unparsable_configuration_is_backed_up_and_replaced(tmp_path: Path) -> None:

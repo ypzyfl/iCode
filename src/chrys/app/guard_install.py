@@ -39,7 +39,28 @@ import yaml
 from chrys.foundation.platform import get_platform
 
 GUARD_ASSET_DIR = Path(__file__).resolve().parent / "guard_hooks"
-"""Directory holding the shipped rule pack."""
+"""Directory holding the shipped rule pack inside a wheel / installed build."""
+
+_SOURCE_ASSET_DIR = Path(__file__).resolve().parents[3] / "guard_hooks"
+"""Repo-root rule pack; the wheel force-includes from here (see pyproject.toml).
+
+Source checkouts have no ``chrys/app/guard_hooks/`` — :func:`resolve_asset_dir`
+falls back to this directory so running from the repo installs the same rules
+a released build would.
+"""
+
+
+def resolve_asset_dir() -> Path:
+    """Return the rule-pack directory present in this tree.
+
+    Prefers the packaged ``chrys/app/guard_hooks/``; falls back to the repo-root
+    ``guard_hooks/`` when running from a source checkout (the force-include has
+    not materialized a packaged copy there).
+    """
+    if (GUARD_ASSET_DIR / GUARD_TEMPLATE_NAME).is_file():
+        return GUARD_ASSET_DIR
+    return _SOURCE_ASSET_DIR
+
 
 GUARD_CONFIG_NAME = "hooks.yaml"
 """Name of the hooks configuration this installer owns entries in."""
@@ -50,8 +71,17 @@ GUARD_TEMPLATE_NAME = "hooks.yaml"
 GUARD_SUBDIR = "guard"
 """Scripts and the rule dictionary go here, beside ``hooks.yaml``."""
 
-GUARD_PAYLOAD_FILES = ("prompt_guard.py", "tool_guard.py", "guard_core.py", "rules.json")
-"""Files a hook subprocess needs at run time."""
+GUARD_PAYLOAD_FILES = ("_prompt_guard.py", "_tool_guard.py", "_guard_core.py", "rules.json")
+"""Files a hook subprocess needs at run time.
+
+These names match ``guard_hooks/`` at the repo root — the single source of
+truth the wheel force-includes into ``chrys/app/guard_hooks/`` (see
+``pyproject.toml``). Legacy installs (before 0.31.0) shipped the same scripts
+without the leading underscore; :func:`_copy_payload` removes those leftovers.
+"""
+
+LEGACY_PAYLOAD_FILES = ("prompt_guard.py", "tool_guard.py", "guard_core.py")
+"""Pre-0.31.0 payload names; removed from installs so stale scripts never linger."""
 
 MANAGED_HOOK_IDS = ("security-prompt-guard", "security-tool-guard")
 """Hook ids this installer owns; re-installing replaces exactly these."""
@@ -96,7 +126,7 @@ def install_guard_hooks(*, hooks_dir: Path | None = None, asset_dir: Path | None
     written, so the configuration never points at scripts that are not there.
     Idempotent: re-running on an up-to-date install rewrites the same content.
     """
-    source_dir = GUARD_ASSET_DIR if asset_dir is None else asset_dir
+    source_dir = resolve_asset_dir() if asset_dir is None else asset_dir
     missing = missing_guard_assets(source_dir)
     if missing:
         raise FileNotFoundError(f"Guard hooks assets are missing from this build: {', '.join(map(str, missing))}")
@@ -269,7 +299,7 @@ def _hook_id(block: str) -> str:
 
 def missing_guard_assets(asset_dir: Path | None = None) -> list[Path]:
     """Return shipped files absent from this build."""
-    root = GUARD_ASSET_DIR if asset_dir is None else asset_dir
+    root = resolve_asset_dir() if asset_dir is None else asset_dir
     expected = (root / GUARD_TEMPLATE_NAME, *(root / name for name in GUARD_PAYLOAD_FILES))
     return [path for path in expected if not path.is_file()]
 
@@ -280,6 +310,9 @@ def _copy_payload(source_dir: Path, target_dir: Path) -> None:
     guard_dir.mkdir(parents=True, exist_ok=True)
     for name in GUARD_PAYLOAD_FILES:
         _copy_file_atomic(source_dir / name, guard_dir / name)
+    for name in LEGACY_PAYLOAD_FILES:
+        with contextlib.suppress(OSError):
+            (guard_dir / name).unlink(missing_ok=True)
 
 
 def _copy_file_atomic(source: Path, destination: Path) -> None:

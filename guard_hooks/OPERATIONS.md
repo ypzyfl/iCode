@@ -471,7 +471,8 @@ fc <hooks目录>\guard\_guard_core.py <repo>\guard_hooks\_guard_core.py
 
 **打包/发版时防复发**：
 
-- [ ] 发版前确认 `guard_hooks/` 源码自身通过 `selftest.py`（60 tests OK）；
-- [ ] 发版说明里写明：**升级包不会更新已安装的 hook 副本，必须重跑安装脚本**；
+- [ ] **规则包的唯一事实源是仓库根目录 `guard_hooks/`**——wheel 通过 `pyproject.toml` 的 `force-include` 在构建时直接从这里打包进 `chrys/app/guard_hooks/`，引擎每次启动由 `chrys.app.guard_install` 从包内重装到用户 hooks 目录。**不要再手抄一份到 `src/` 下**（0.31.0 之前正是因为存在第二份拷贝且无同步机制，导致 v0.31 前的包带旧规则、`127.0.0.1` 误拦；`tests/architecture/test_guard_hooks_packaging.py` 会守住这一点）；
+- [ ] 改规则只改 `guard_hooks/`，跑 `guard_hooks\selftest.py`（60 tests OK）；
+- [ ] 发版说明里写明：**升级包不会更新已安装的 hook 副本，必须重跑安装脚本**（引擎启动自动重装只覆盖全局 hooks 目录，项目级 `.chrys/hooks/` 不在内）；
 - [ ] 给客户/测试环境升级后，跑一遍 `_install_merge.py --check`（期望 exit 0、解释器已钉死）；
 - [ ] 至少验证一对放行/拦截样本（放行 `访问 127.0.0.1`，拦截 `访问 192.168.1.10 的教务系统`），双端一致才算发布完成。

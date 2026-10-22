@@ -90,6 +90,15 @@ packages = ["src/chrys", "aixcoding"]
 # The /help user guide reads docs/ at runtime; installed builds carry it here
 # (src/chrys/app/tui/screens/guides/index.py::resolve_docs_root).
 "docs" = "chrys/app/tui/screens/guides/_docs"
+# Bundled security-guard rule pack: guard_hooks/ at the repo root is the single
+# source of truth; the wheel maps it into chrys/app/guard_hooks/ (read at every
+# startup by chrys.app.guard_install, which reinstalls from it). A second
+# checked-in copy drifted once and shipped stale rules — do not reintroduce one.
+"guard_hooks/_guard_core.py" = "chrys/app/guard_hooks/_guard_core.py"
+"guard_hooks/_prompt_guard.py" = "chrys/app/guard_hooks/_prompt_guard.py"
+"guard_hooks/_tool_guard.py" = "chrys/app/guard_hooks/_tool_guard.py"
+"guard_hooks/rules.json" = "chrys/app/guard_hooks/rules.json"
+"guard_hooks/hooks.yaml" = "chrys/app/guard_hooks/hooks.yaml"
 
 [tool.hatch.build]
 # Include vendored assets that are gitignored (downloaded at build time)
@@ -132,7 +141,7 @@ fix = true
 "src/chrys/service/workflows/worker_host.py" = "py39"
 # Bundled security-guard hook scripts: the hooks runner prefers a PATH python3,
 # which may predate 3.14, so keep them off PEP 758 paren-less except clauses
-"src/chrys/app/guard_hooks/*" = "py39"
+"guard_hooks/*" = "py39"
 
 [tool.ruff.lint]
 select = [
@@ -192,7 +201,7 @@ ignore = [
 "aixcoding/tui/*" = ["RUF001"]
 # Bundled security-guard rule pack: standalone stdlib-only hook scripts whose
 # comments and docstrings are Chinese prose with full-width punctuation
-"src/chrys/app/guard_hooks/*" = ["RUF001", "RUF002", "RUF003"]
+"guard_hooks/*" = ["RUF001", "RUF002", "RUF003"]
 [tool.ruff.lint.isort]
 known-first-party = ["chrys"]
 

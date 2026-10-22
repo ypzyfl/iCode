@@ -11,9 +11,9 @@
 # 等于每句话都被拦下。详见 README「解释器会被钉死」。
 #
 # 手動：把 _prompt_guard.py / _tool_guard.py / _guard_core.py / rules.json 复制到
-#   <config_dir>/hooks/（默认 ~/.chrys/hooks/），再把本文件的 hooks 列表追加到
-#   那里的 hooks.yaml 末尾。项目级则复制到 <workspace>/.chrys/hooks/，并在设置里
-#   打开 project.hooks_enabled。
+#   <config_dir>/hooks/guard/（默认 ~/.chrys/hooks/guard/），再把本文件的 hooks
+#   列表追加到那里的 hooks.yaml 末尾。项目级则复制到 <workspace>/.chrys/hooks/，
+#   并在设置里打开 project.hooks_enabled。
 #
 # 校验：icode hook validate   查看：icode hook list
 version: 1
@@ -31,7 +31,7 @@ hooks:
     description: 提示词层安全拦截（反编译/攻击工具、注入 payload、内网资产、合规类，命中即打断并提示）
     run:
       type: script
-      path: _prompt_guard.py
+      path: guard/_prompt_guard.py
     execution:
       mode: blocking
       timeout_seconds: 5
@@ -43,7 +43,7 @@ hooks:
     description: 工具调用前安全拦截（Shell/PowerShell/Python、文件系统、网络、MCP、敏感信息）
     run:
       type: script
-      path: _tool_guard.py
+      path: guard/_tool_guard.py
     execution:
       mode: blocking
       timeout_seconds: 5
