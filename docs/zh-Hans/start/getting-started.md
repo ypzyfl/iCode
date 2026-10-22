@@ -30,10 +30,10 @@ chmod +x ./aixcoding-cli
 
 Linux x86-64 安装包要求 glibc 2.17 或更高版本，ARM64 安装包要求 glibc 2.18 或更高版本。Alpine Linux 等只提供 musl 的发行版不在预构建包的支持范围内。
 
-HTTP 下载根地址为 `http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding`，对应服务器目录 `/homepage/aixcoding/`。根目录放 `install.sh` 和 `install.ps1`；`channels/cli/prod.txt`、`channels/cli/test.txt` 各存一行完整版本号，安装包放在 `releases/cli/<完整版本号>/`。无需 FTP 凭据。Linux 与 macOS 用户可执行同一条命令；脚本会自动识别平台，并创建 `aixcoding` 启动命令：
+HTTP 下载根地址为 `http://82.187.34.98/aixcoding/file/aixcoding`，对应服务器目录 `/homepage/aixcoding/`。根目录放 `install.sh` 和 `install.ps1`；`channels/cli/prod.txt`、`channels/cli/test.txt` 各存一行完整版本号，安装包放在 `releases/cli/<完整版本号>/`。无需 FTP 凭据。Linux 与 macOS 用户可执行同一条命令；脚本会自动识别平台，并创建 `aixcoding` 启动命令：
 
 ```bash
-curl -fsSL -o install.sh 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh' && bash install.sh
+curl -fsSL -o install.sh 'http://82.187.34.98/aixcoding/file/aixcoding/install.sh' && bash install.sh
 ```
 
 默认安装生产包；安装测试包时运行 `bash install.sh --channel test`。CD 流水线分别上传各平台二进制 Artifact，不打包安装脚本。手动把两个安装脚本放在 HTTP 根目录、对应平台的 Artifact ZIP 放在 `releases/cli/<完整版本号>/`，再将完整版本号写入对应频道文件；构建用 wheel 无需上传到 HTTP 镜像。只构建 Linux 时产物中只有 Linux 二进制包。五种平台包名见 [README 安装表](../../../README.zh.md#从内网镜像安装)。
@@ -44,7 +44,7 @@ curl -fsSL -o install.sh 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/i
 在 PowerShell 中执行以下命令，安装生产频道当前版本的 Windows x86-64 包：
 
 ```powershell
-irm 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.ps1' | iex
+irm 'http://82.187.34.98/aixcoding/file/aixcoding/install.ps1' | iex
 ```
 
 安装测试包时，先执行 `$env:ICODE_CHANNEL='test'`，再运行上述命令。安装器会尝试将 AIxCoding-CLI 加入当前用户的 `PATH`。安装完成后，请打开一个新终端。

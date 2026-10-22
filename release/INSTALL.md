@@ -38,7 +38,7 @@ CD 流水线分别上传各平台二进制 Artifact，不生成包含安装脚�
 HTTP 下载地址可直接访问，无需配置 FTP 凭据。
 
 ```bash
-curl -fsSL -o install.sh 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh' && bash install.sh
+curl -fsSL -o install.sh 'http://82.187.34.98/aixcoding/file/aixcoding/install.sh' && bash install.sh
 ```
 
 默认读取 `channels/cli/prod.txt`。安装测试包时运行 `bash install.sh --channel test`；在线安装会根据完整版本号和平台从 `releases/cli/` 目录下载安装包。
@@ -46,7 +46,7 @@ curl -fsSL -o install.sh 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/i
 Windows x86-64 在 PowerShell 中使用另一条单行命令（需要先上传 `install.ps1` 和 Windows ZIP 包）：
 
 ```powershell
-irm 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.ps1' | iex
+irm 'http://82.187.34.98/aixcoding/file/aixcoding/install.ps1' | iex
 ```
 
 默认读取生产频道；测试频道可先运行 `$env:ICODE_CHANNEL='test'`，再执行上述命令。安装后新开 PowerShell，运行 `aixcoding-cli --version` 验证。
@@ -54,7 +54,7 @@ irm 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.ps1' | iex
 安装指定版本：
 
 ```bash
-curl -fsSL -o install.sh 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh' && bash install.sh --version v0.28.0-dev-9011ff5
+curl -fsSL -o install.sh 'http://82.187.34.98/aixcoding/file/aixcoding/install.sh' && bash install.sh --version v0.28.0-dev-9011ff5
 ```
 
 ### 方式二：离线安装（拿不到镜像时，如安全摆渡场景）

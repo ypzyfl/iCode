@@ -198,7 +198,7 @@ src/chrys/aixcoding/              # iCode 二开定制顶层包（将来登录�
 | 项 | 设计 |
 |---|---|
 | profile 判定 | `~/.chrys/aixcoding.yaml` 的 `profile` → `AIXCODING_EXTENSION_PROFILE` 环境变量 → 默认 `PROD` |
-| URL 映射 | LOCAL `http://localhost:7777` / DEV `http://81.89.182.150/csas` / PROD `http://aicoding.s.bocsys.cn/csas`；环境变量可覆盖；`customServerUrl` host 级覆盖 |
+| URL 映射 | LOCAL `http://localhost:7777` / DEV `http://81.89.182.150/csas` / PROD `http://82.187.34.98/csas`；环境变量可覆盖；`customServerUrl` host 级覆盖 |
 | 认证 | `token` 请求头（非 Bearer）；登录前配置文件读，登录后切 control-plane accessToken（provider 接口） |
 | userId | 当前 `~/.chrys/aixcoding.yaml` 指定（如工号），登录上线后换 `account.id` |
 | 上报开关 | 总开关（默认开，可环境变量关闭；未配置 URL 时零开销——对齐 pi-acp） |
