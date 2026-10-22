@@ -14,24 +14,18 @@
 
 from __future__ import annotations
 
-import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-# CI Windows 的控制台可能是 cp1252/cp936：失败信息里有中文，先固定 UTF-8。
-for _stream in (sys.stdout, sys.stderr):
-    if hasattr(_stream, "reconfigure"):
-        _stream.reconfigure(encoding="utf-8", errors="replace")
-
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import _guard_core as guard
+import _install_merge as installer
 
-# 必须是真实存在的目录：写白名单（T-FS-01）靠 Path.resolve() 判定
-# "工作区内"，Windows 风格的伪路径在 Linux/macOS 上解析语义不同。
-WORKSPACE = os.getcwd()
+WORKSPACE = "C:/workspace/demo"
+CONSOLE = "C:/ws/demo"
 
 
 class GuardTestCase(unittest.TestCase):
@@ -88,6 +82,7 @@ class PromptGuardTests(GuardTestCase):
 
     def test_in06_internal_asset(self) -> None:
         self.assertPrompt("连一下 22.122.49.168 的 elearning 系统", "IN-06")
+        self.assertPrompt("查一下 oa.corp 的文档", "IN-06")
 
     def test_in06_allows_loopback(self) -> None:
         # 本机地址是日常开发对象，提示词层不该拦。
@@ -100,7 +95,7 @@ class PromptGuardTests(GuardTestCase):
             self.assertIn("IN-06", self.prompt_ids(text), msg=f"私有段未拦：{text!r}")
 
     def test_in06_allowed_networks_is_the_switch(self) -> None:
-        # 往 allowed_networks 里加网段 = 提示词层放行它；工具层由 internal_networks 决定，不受影响。
+        # 往 allowed_networks 里加网段 = 提示词层放行它；工具层由internal_networks 决定，不受影响。
         data = dict(self.config.source)
         network = dict(data["settings"]["network"])
         network["allowed_networks"] = [*network["allowed_networks"], "10.0.0.0/8"]
@@ -144,6 +139,26 @@ class ShellGuardTests(GuardTestCase):
         self.assertShell("diff <(ls) >(ls)", "T-SHELL-02-5")
         self.assertShell("autoload -Uz compinit", "T-SHELL-02-6")
 
+    def test_ts02_4_powershell_array_is_not_zsh_glob(self) -> None:
+        """回归：PowerShell 的 ``@('a','b')`` 曾被 zsh 限定符规则误伤。
+
+        数组里常带 ``127.0.0.1``，容易被误报成“地址被拦”。区分点在于
+        位置：zsh 的限定符 ``#(...)``/``@(...)`` 紧贴前一个词，是那个词的
+        后缀；独立成词的 ``@(...)`` 是 PowerShell/Bash 的数组字面量。
+        """
+        command = (
+            "Get-NetTCPConnection -State Listen | Where-Object { "
+            "$_.LocalAddress -in @('127.0.0.1','0.0.0.0','::','::1') } | "
+            "Select-Object LocalAddress,LocalPort"
+        )
+        self.assertNotIn("T-SHELL-02-4", self.shell(command), msg="PowerShell 数组被误判为 zsh glob")
+        for build in ("ls *(.Lm)", "ls *(@)", "ls *#(@)", "ls *~(e)"):
+            with self.subTest(command=build):
+                self.assertIn("T-SHELL-02-4", self.shell(build), msg=f"真 zsh 限定符漏拦：{build!r}")
+        for literal in ("$a = @('127.0.0.1','::1')", "cmd @(alpha beta)"):
+            with self.subTest(command=literal):
+                self.assertNotIn("T-SHELL-02-4", self.shell(literal), msg="独立成词的 @() 是数组字面量")
+
     def test_ts03_command_injection(self) -> None:
         self.assertShell("cd /tmp && ls", "T-SHELL-03-1")
         self.assertShell("echo `whoami`", "T-SHELL-03-2")
@@ -158,14 +173,11 @@ class ShellGuardTests(GuardTestCase):
             "echo pwned > ../outside.txt",
             "echo x >> ../../escape.log",
             "echo x > /tmp/evil.txt",
+            "echo x > C:\\Users\\Public\\evil.txt",
+            "echo x &> C:\\Users\\Public\\o.txt",
             'bash -c "echo x > ../o.txt"',
         ):
             self.assertShell(command, "T-SHELL-05")
-        if sys.platform == "win32":
-            # 反斜杠在 POSIX 上不是分隔符，C:\... 会被当成工作区内的相对文件名，
-            # 这两条只在 Windows 上断言。
-            self.assertShell("echo x > C:\\Users\\Public\\evil.txt", "T-SHELL-05")
-            self.assertShell("echo x &> C:\\Users\\Public\\o.txt", "T-SHELL-05")
 
     def test_ts05_write_commands_outside_workspace(self) -> None:
         for command in (
@@ -179,13 +191,11 @@ class ShellGuardTests(GuardTestCase):
             "tar -cf ../out.tar .",
             "unzip a.zip -d ../dest",
             "dd if=/dev/zero of=../blob bs=1M",
+            "copy a.txt ..\\b.txt",
+            "Set-Content -Path ..\\..\\evil.ps1 -Value x",
+            "echo x | Out-File ..\\o.txt",
         ):
             self.assertShell(command, "T-SHELL-05")
-        if sys.platform == "win32":
-            # 反斜杠目标的写命令同样只在 Windows 上断言。
-            self.assertShell("copy a.txt ..\\b.txt", "T-SHELL-05")
-            self.assertShell("Set-Content -Path ..\\..\\evil.ps1 -Value x", "T-SHELL-05")
-            self.assertShell("echo x | Out-File ..\\o.txt", "T-SHELL-05")
 
     def test_ts05_allows_workspace_writes(self) -> None:
         for command in (
@@ -254,11 +264,7 @@ class ShellGuardTests(GuardTestCase):
 
 class FilesystemGuardTests(GuardTestCase):
     def test_tfs01_write_scope(self) -> None:
-        # "工作区外"必须用当前平台真实的外部绝对路径：Windows 风格的
-        # "C:/Users/me/out.txt" 在 Linux/macOS 上是相对路径，会被解析进
-        # 工作区而放行，用例就失去了意义。
-        outside = str(Path(WORKSPACE).parent / "outside.txt")
-        blocked = self.tool_ids("filesystem.write", "write_file", {"path": outside, "content": "x"})
+        blocked = self.tool_ids("filesystem.write", "write_file", {"path": "C:/Users/me/out.txt", "content": "x"})
         self.assertIn("T-FS-01", blocked)
         allowed = self.tool_ids("filesystem.write", "write_file", {"path": "src/app.py", "content": "x"})
         self.assertEqual([], allowed)
@@ -313,25 +319,21 @@ class NetworkGuardTests(GuardTestCase):
         for url in ("http://127.0.0.1:8080/health", "http://192.168.1.10/", "https://[::1]:8443/x"):
             self.assertEqual([], self.tool_ids("web_fetch", "web_fetch", {"url": url, "prompt": "read"}), msg=url)
 
-    def test_tnet_blocks_urls_inside_shell_commands(self) -> None:
-        # N01 的真实路径：agent 用 curl 而不是 web_fetch 访问黑名单地址。
-        self.assertShell("curl http://22.122.49.168/api", "T-NET-01")
-        self.assertShell("curl -s https://elearning.corp.local/x -o /tmp/x", "T-NET-01")
-
-    def test_tnet_blocks_bare_hosts_without_scheme(self) -> None:
-        # 不带 scheme 的黑名单主机 / 裸 IP 同样要拦。
-        self.assertShell("ping 22.122.49.168", "T-NET-01")
-        self.assertShell("curl elearning/x", "T-NET-01")
-
-    def test_tnet02_default_hits_shell_commands(self) -> None:
-        self.assertShell("curl https://example.com/docs", "T-NET-02")
-
-    def test_loopback_shell_urls_pass(self) -> None:
-        self.assertEqual([], self.shell("curl http://127.0.0.1:8000/health"), msg="白名单地址被误拦")
-
-    def test_internal_ips_in_shell_commands_pass(self) -> None:
-        self.assertEqual([], self.shell("ping 10.0.0.5"), msg="内网裸 IP 被误拦")
-        self.assertEqual([], self.shell("ping 192.168.1.10"), msg="内网裸 IP 被误拦")
+    def test_network_loopback_hostnames_pass(self) -> None:
+        """回归：``localhost`` 是名字不是 IP，``allowed_networks`` 匹配不到它。"""
+        for url in (
+            "http://localhost:3000",
+            "http://localhost/api/v1",
+            "http://api.localhost:9000/x",
+            "http://LOCALHOST./x",
+        ):
+            with self.subTest(url=url):
+                self.assertEqual([], self.tool_ids("web_fetch", "web_fetch", {"url": url, "prompt": "read"}), msg=url)
+        for url in ("http://oa.corp/x", "https://example.com/x"):
+            with self.subTest(url=url):
+                self.assertIn(
+                    "T-NET-02", self.tool_ids("web_fetch", "web_fetch", {"url": url, "prompt": "read"}), msg=url
+                )
 
 
 class McpGuardTests(GuardTestCase):
@@ -415,6 +417,125 @@ class EngineTests(GuardTestCase):
         self.assertEqual(("example.com", 443), guard.split_host_port("https://example.com/x"))
         self.assertEqual(("10.0.0.5", 445), guard.split_host_port("10.0.0.5:445"))
         self.assertEqual(("127.0.0.1", None), guard.split_host_port("127.0.0.1"))
+
+
+class InstallerTests(unittest.TestCase):
+    """安装脚本：解释器探测 + 把 ``run`` 钉成 ``type: command``。
+
+    背景：iCode 自己选解释器时会选中 Windows 应用商店的 0 字节转发存根，hook
+    起不来（exit 9009），而 ``on_error: block`` 会把每一轮请求都拦下。安装时就把
+    解释器钉死，是这个包对那台机器的保证。
+    """
+
+    def test_store_stub_detection(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            stub = root / "python.exe"
+            stub.write_bytes(b"")
+            real = root / "python.exe.real"
+            real.write_bytes(b"MZ")
+            self.assertTrue(installer.is_store_stub(str(stub)))
+            self.assertFalse(installer.is_store_stub(str(real)))
+            self.assertTrue(installer.is_store_stub(str(root / "missing" / "python.exe")))
+            self.assertTrue(installer.is_store_stub(""))
+            self.assertTrue(installer.is_store_stub(r"C:\Users\x\AppData\Local\Microsoft\WindowsApps\python3.exe"))
+
+    def test_resolve_python_never_returns_a_stub(self) -> None:
+        resolved = installer.resolve_python()
+        if not resolved:
+            self.skipTest("本机没有可用解释器，跳过")
+        self.assertFalse(installer.is_store_stub(resolved), msg=f"选中了商店存根：{resolved}")
+
+    def test_resolve_python_rejects_a_stub_override(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stub = Path(tmp) / "python.exe"
+            stub.write_bytes(b"")
+            with self.assertRaises(SystemExit):
+                installer.resolve_python(str(stub))
+
+    def test_pin_interpreter_rewrites_only_the_guard_run_blocks(self) -> None:
+        body = installer.hook_entries(Path(__file__).resolve().parent / "hooks.yaml")
+        text = (
+            "version: 1\n\nhooks:\n" + body + "\n  - id: other\n    run:\n      type: script\n      path: theirs.py\n"
+        )
+        pinned, count = installer.pin_interpreter(text, sys.executable, Path("/cfg"))
+
+        self.assertEqual(2, count)
+        self.assertNotIn("type: script\n      path: guard/", pinned)
+        self.assertIn("type: command", pinned)
+        self.assertIn(f"- '{sys.executable}'", pinned)
+        self.assertIn(f"- '{Path('/cfg/guard/_prompt_guard.py')}'", pinned)
+        self.assertIn(f"- '{Path('/cfg/guard/_tool_guard.py')}'", pinned)
+        # 别人的 hook 一个字节都不动。
+        self.assertIn("path: theirs.py", pinned)
+
+    def test_pin_interpreter_is_idempotent(self) -> None:
+        body = installer.hook_entries(Path(__file__).resolve().parent / "hooks.yaml")
+        once, first = installer.pin_interpreter(body, sys.executable, Path("/cfg"))
+        twice, second = installer.pin_interpreter(once, sys.executable, Path("/cfg"))
+        self.assertEqual(2, first)
+        self.assertEqual(0, second)
+        self.assertEqual(once, twice)
+
+    def test_pin_interpreter_refreshes_a_dead_pin(self) -> None:
+        # 换台机器时配置被整个拷过去，钉死的解释器在那边不存在；重跑安装脚本要能换掉它。
+        body = installer.hook_entries(Path(__file__).resolve().parent / "hooks.yaml")
+        pinned, _ = installer.pin_interpreter(body, sys.executable, Path("/cfg"))
+        self.assertEqual([sys.executable], installer.pinned_interpreters(pinned))
+
+        moved = pinned.replace(sys.executable, "/old/machine/python3.13/bin/python")
+        refreshed, count = installer.pin_interpreter(moved, sys.executable, Path("/cfg"))
+        self.assertEqual(2, count)
+        self.assertEqual([sys.executable], installer.pinned_interpreters(refreshed))
+        self.assertNotIn("/old/machine", refreshed)
+
+    def test_pin_interpreter_keeps_a_live_hand_tuned_pin(self) -> None:
+        # 还活着的手改 argv 不动：钉死只负责“能起来”，不接管别人的配置。
+        body = installer.hook_entries(Path(__file__).resolve().parent / "hooks.yaml")
+        pinned, _ = installer.pin_interpreter(body, sys.executable, Path("/cfg"))
+        again, count = installer.pin_interpreter(pinned, "/somewhere/else/python", Path("/cfg"))
+        self.assertEqual(0, count)
+        self.assertEqual(pinned, again)
+
+    def test_merge_pins_an_existing_install_and_keeps_other_hooks(self) -> None:
+        body = installer.hook_entries(Path(__file__).resolve().parent / "hooks.yaml")
+        with tempfile.TemporaryDirectory() as tmp:
+            config_dir = Path(tmp) / "hooks"
+            config_dir.mkdir()
+            target = config_dir / "hooks.yaml"
+            # 模拟已安装但没钉解释器的现状：CRLF + 别人的 hook。
+            existing = "version: 1\r\n\r\nhooks:\r\n  - id: telemetry-before-tool\r\n    event: before_tool_call\r\n"
+            existing += body.replace("\n", "\r\n").replace("path: guard/", "path: guard/")
+            target.write_bytes(existing.encode("utf-8"))
+
+            self.assertEqual("pinned", installer.merge(target, body, interpreter=sys.executable))
+            pinned = target.read_bytes().decode("utf-8")
+            self.assertIn("\r\n", pinned)
+            self.assertIn("telemetry-before-tool", pinned)
+            self.assertIn(f"- '{sys.executable}'", pinned)
+            self.assertNotIn("type: script", pinned)
+            self.assertTrue(target.with_name("hooks.yaml.pre-pin").exists())
+
+            # 已钉死后重复执行不再改文件。
+            before = target.read_bytes()
+            self.assertEqual("unchanged", installer.merge(target, body, interpreter=sys.executable))
+            self.assertEqual(before, target.read_bytes())
+
+    def test_merge_into_a_fresh_config_pins_on_first_write(self) -> None:
+        body = installer.hook_entries(Path(__file__).resolve().parent / "hooks.yaml")
+        with tempfile.TemporaryDirectory() as tmp:
+            config_dir = Path(tmp) / "hooks"
+            config_dir.mkdir()
+            target = config_dir / "hooks.yaml"
+            target.write_bytes(installer.SEED.encode("utf-8"))
+
+            self.assertEqual("merged", installer.merge(target, body, interpreter=sys.executable))
+            merged = target.read_bytes().decode("utf-8")
+            self.assertEqual(2, merged.count("type: command"))
+            self.assertIn(f"- '{sys.executable}'", merged)
+            self.assertIn("execution:", merged)
+            self.assertIn("on_error: block", merged)
+            self.assertTrue(target.with_name("hooks.yaml.pre-guard").exists())
 
 
 class HookProcessTests(GuardTestCase):

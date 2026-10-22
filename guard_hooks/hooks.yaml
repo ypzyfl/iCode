@@ -5,6 +5,11 @@
 # 安裝（推薦合併腳本，不會覆蓋已有的 hooks.yaml）：
 #   uv run python guard_hooks/_install_merge.py
 #
+# 這個片段里的 run 用的是 type: script（解释器由 iCode 从 PATH 现选，可移植）。
+# 安装脚本会把它们改写成 type: command + 绝对路径的解释器——iCode 不过滤 Windows
+# 应用商店的 0 字节存根，选中它 hook 就起不来（exit 9009），配合 on_error: block
+# 等于每句话都被拦下。详见 README「解释器会被钉死」。
+#
 # 手動：把 _prompt_guard.py / _tool_guard.py / _guard_core.py / rules.json 复制到
 #   <config_dir>/hooks/（默认 ~/.chrys/hooks/），再把本文件的 hooks 列表追加到
 #   那里的 hooks.yaml 末尾。项目级则复制到 <workspace>/.chrys/hooks/，并在设置里
