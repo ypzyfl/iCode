@@ -22,6 +22,7 @@ from __future__ import annotations
 import ipaddress
 import json
 import os
+import posixpath
 import re
 import sys
 import tempfile
@@ -655,7 +656,7 @@ def _write_scope_evidence(config: GuardConfig, cwd: str, raws: list[str], *, sou
     if scope.get("allow_outside_workspace", False):
         return []
     workspace = _resolve_workspace(cwd)
-    temp_root = Path(tempfile.gettempdir()).resolve()
+    temp_root = _posix_abs(tempfile.gettempdir()) or ""
     temp_prefixes = [str(p) for p in scope.get("temp_prefixes") or ["icode-session-"]]
     readonly_globs = [str(g) for g in scope.get("readonly_globs") or []]
 
@@ -665,8 +666,7 @@ def _write_scope_evidence(config: GuardConfig, cwd: str, raws: list[str], *, sou
         if target is None:
             evidence.append(Evidence("无法解析的写入目标", raw, source))
             continue
-        posix = target.as_posix()
-        if any(fnmatch(posix, glob) for glob in readonly_globs):
+        if any(fnmatch(target, glob) for glob in readonly_globs):
             evidence.append(Evidence("只读帮助文档", raw, source))
             continue
         if workspace is not None and _is_within(target, workspace):
@@ -870,32 +870,56 @@ def _command_write_targets(command: str) -> list[str]:
     return [t for t in targets if t and not _is_null_target(t)]
 
 
-def _resolve_workspace(cwd: str, raw: str | None = None) -> Path | None:
+_WIN_DRIVE = re.compile(r"^[A-Za-z]:(?:/|$)")
+
+
+def _posix_abs(text: str) -> str | None:
+    """把一段路径文本归一成**OS 无关**的 posix 绝对路径字符串。
+
+    写入范围判定不能依赖宿主机的 ``pathlib`` 语义：同一条命令在 Windows 用户
+    机器上执行，Hook 自检却跑在 Linux/macOS CI 上。这里统一处理 ``\\`` → ``/``、
+    盘符 ``C:/``（映射成 ``/C:/``）与 UNC 前缀，凡是形如绝对路径的一律认出；
+    相对路径返回 ``None``，由调用方决定挂到哪个工作区下。
+    """
+    text = text.replace("\\", "/")
+    if text.startswith("~"):
+        return posixpath.normpath(posixpath.expanduser(text))
+    if _WIN_DRIVE.match(text):
+        text = text[0].upper() + text[1:]
+        return posixpath.normpath("/" + text)
+    if text.startswith("//"):
+        return posixpath.normpath(text)
+    if text.startswith("/"):
+        return posixpath.normpath(text)
+    return None
+
+
+def _resolve_workspace(cwd: str, raw: str | None = None) -> str | None:
+    """解析出用于范围判定的 posix 绝对路径（详见 :func:`_posix_abs`）。"""
     if raw is None:
-        base = Path(cwd) if cwd else Path.cwd()
-    else:
-        base = Path(raw).expanduser()
-        if not base.is_absolute():
-            base = Path(cwd or Path.cwd()) / base
-    try:
-        return base.resolve()
-    except (OSError, RuntimeError, ValueError):
+        base = _posix_abs(cwd) if cwd else None
+        if base is None:
+            base = _posix_abs(str(Path.cwd()))
+        return base
+    absolute = _posix_abs(raw)
+    if absolute is not None:
+        return absolute
+    base = _posix_abs(cwd) if cwd else _posix_abs(str(Path.cwd()))
+    if base is None:
         return None
+    return posixpath.normpath(posixpath.join(base, raw.replace("\\", "/")))
 
 
-def _is_within(target: Path, root: Path) -> bool:
-    try:
-        target.relative_to(root)
-    except ValueError:
+def _is_within(target: str, root: str) -> bool:
+    return target == root or target.startswith(root + "/")
+
+
+def _is_session_temp(target: str, temp_root: str, prefixes: list[str]) -> bool:
+    if not temp_root or not _is_within(target, temp_root):
         return False
-    return True
-
-
-def _is_session_temp(target: Path, temp_root: Path, prefixes: list[str]) -> bool:
-    if not _is_within(target, temp_root):
-        return False
-    parts = target.parts
-    return any(part.startswith(prefix) for prefix in prefixes for part in parts[-4:] if len(part) > len(prefix))
+    return any(
+        part.startswith(prefix) for prefix in prefixes for part in target.split("/")[-4:] if len(part) > len(prefix)
+    )
 
 
 _LOOPBACK_HOSTNAMES = ("localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback")
