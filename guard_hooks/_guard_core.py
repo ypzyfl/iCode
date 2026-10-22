@@ -441,6 +441,19 @@ def _networks(entries: list[Any]) -> list[Any]:
     return [net for net in nets if net is not None]
 
 
+def _allowed_networks(config: GuardConfig) -> list[Any]:
+    """``settings.network.allowed_networks``——提示词层 ip_cidr 检测器的白名单。
+
+    出厂只有回环（``127.0.0.0/8``、``::1/128``），所以 ``127.0.0.1`` 放行而RFC1918
+    整段仍拦。原先这个设置只有 url 检测器读，ip_cidr 只看 ``internal_networks`` 词典，
+    于是提示词层把 ``127.0.0.1`` 也拦了；现在两层读同一份配置，工具层另外叠加
+    ``internal_networks``（把私有段当"内网"而非"公网访问"），行为不受这里影响。
+    要放行某段私有网，往 ``allowed_networks`` 加即可。
+    """
+    entries = config.sub_setting("network", {}).get("allowed_networks") or []
+    return _networks([str(entry) for entry in entries])
+
+
 # ---------------------------------------------------------------------------
 # 检测器
 # ---------------------------------------------------------------------------
@@ -467,11 +480,14 @@ def _detect_ip_cidr(config: GuardConfig, detector: dict[str, Any], ctx: ScanCont
     networks = _networks(config.dictionary(str(detector.get("dictionary") or "")))
     if not networks:
         return []
+    allowed = _allowed_networks(config)
     evidence: list[Evidence] = []
     for label, text in ctx.texts:
         for raw in _IPV4_IN_TEXT.findall(text):
             address = _as_ip(raw)
             if address is None:
+                continue
+            if any(address.version == net.version and address in net for net in allowed):
                 continue
             for network in networks:
                 if address.version == network.version and address in network:
@@ -506,30 +522,359 @@ def _detect_extension(config: GuardConfig, detector: dict[str, Any], ctx: ScanCo
     return evidence
 
 
-def _detect_write_scope(ctx: ScanContext) -> list[Evidence]:
-    """T-FS-01：只允许写工作区与 ``$TEMP/icode-session-**``，帮助文档只读。"""
-    scope = ctx.config.sub_setting("write_scope", {})
+_WRITE_FLAG_WITH_VALUE = frozenset({"-f", "-d", "-o", "-O"})
+_COMMAND_WRAPPERS = frozenset({"sudo", "doas", "nohup", "time", "command", "nice", "ionice"})
+_REDIRECT_WRITE = re.compile(r"^(?:\d*>>?|&>>?)\|?$")
+_REDIRECT_SKIP = re.compile(r"^(?:\d*<<|<<<|\d*>&|\d*<&|<<)$")
+_ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+_COMMAND_SEPARATORS = frozenset({"|", "||", "&&", ";", "&"})
+
+# 会创建/修改文件、且目标参数位置固定的命令。all=全部位置参数，last=最后一个，
+# of= /after:f / after:d = 指定参数形式，inplace=原地编辑的末位操作数。
+_SHELL_WRITE_COMMANDS: dict[str, str] = {
+    "touch": "all",
+    "mkdir": "all",
+    "rmdir": "all",
+    "tee": "all",
+    "cp": "last",
+    "mv": "last",
+    "install": "last",
+    "ln": "last",
+    "scp": "last",
+    "rsync": "last",
+    "zip": "last",
+    "dd": "of=",
+    "sed": "inplace",
+    "tar": "after:f",
+    "unzip": "after:d",
+    "copy": "last",
+    "move": "last",
+    "ren": "last",
+    "rename": "last",
+}
+
+_PS_WRITE_COMMANDS = frozenset(
+    {
+        "set-content",
+        "add-content",
+        "out-file",
+        "new-item",
+        "copy-item",
+        "move-item",
+        "rename-item",
+        "tee-object",
+        "export-csv",
+        "export-clixml",
+        "remove-item",
+    }
+)
+_PS_PATH_FLAGS = frozenset({"-path", "-literalpath", "-destinationpath"})
+
+# 这些命令的参数是脚本路径 / 包名 / 构建目标，不是“直接写文件”的操作数。
+# 静态分析跟不进去它们内部写了什么（停机问题），所以只拦它们外面的重定向。
+_SCRIPT_RUNNERS = frozenset(
+    {
+        "python",
+        "python2",
+        "python3",
+        "py",
+        "pypy",
+        "ipython",
+        "node",
+        "nodejs",
+        "deno",
+        "bun",
+        "tsx",
+        "ts-node",
+        "npx",
+        "ruby",
+        "perl",
+        "php",
+        "lua",
+        "npm",
+        "yarn",
+        "pnpm",
+        "uv",
+        "pip",
+        "pipenv",
+        "poetry",
+        "conda",
+        "make",
+        "cmake",
+        "ninja",
+        "just",
+        "task",
+        "tox",
+        "nox",
+        "pytest",
+        "cargo",
+        "go",
+        "java",
+        "javac",
+        "mvn",
+        "gradle",
+        "dotnet",
+        "swift",
+        "git",
+        "docker",
+        "podman",
+        "kubectl",
+        "terraform",
+        "ansible",
+        "eslint",
+        "prettier",
+        "tsc",
+        "jest",
+        "vitest",
+        "ruff",
+        "mypy",
+        "black",
+        "bash",
+        "sh",
+        "zsh",
+        "dash",
+        "ksh",
+        "fish",
+        "cmd",
+        "cmd.exe",
+        "powershell",
+        "pwsh",
+        "source",
+        ".",
+        "godot",
+        "unity",
+        "flutter",
+    }
+)
+# ``bash -c "..."`` 是内联命令而不是脚本文件，对引号里的命令递归一次。
+_INLINE_SHELLS = frozenset({"bash", "sh", "zsh", "dash", "ksh"})
+
+_NULL_TARGETS = frozenset({"nul", ".\\nul", "devnull", "/dev/null", "/dev/stdout", "/dev/stderr"})
+
+
+def _write_scope_evidence(config: GuardConfig, cwd: str, raws: list[str], *, source: str) -> list[Evidence]:
+    """写入范围判定：只允许工作区内与 ``$TEMP/icode-session-**``，帮助文档只读。
+
+    T-FS-01（文件系统工具的 path 参数）与 T-SHELL-05（shell 命令里解析出的写
+    目标）共用这一套判定，两类入口的处置口径保持一致。
+    """
+    scope = config.sub_setting("write_scope", {})
     if scope.get("allow_outside_workspace", False):
         return []
-    workspace = _resolve_workspace(ctx.cwd)
+    workspace = _resolve_workspace(cwd)
     temp_root = Path(tempfile.gettempdir()).resolve()
     temp_prefixes = [str(p) for p in scope.get("temp_prefixes") or ["icode-session-"]]
     readonly_globs = [str(g) for g in scope.get("readonly_globs") or []]
 
     evidence: list[Evidence] = []
-    for raw in path_values(ctx.args):
-        target = _resolve_workspace(ctx.cwd, raw)
+    for raw in raws:
+        target = _resolve_workspace(cwd, raw)
+        if target is None:
+            evidence.append(Evidence("无法解析的写入目标", raw, source))
+            continue
         posix = target.as_posix()
-        for glob in readonly_globs:
-            if fnmatch(posix, glob):
-                evidence.append(Evidence("只读帮助文档", raw, "path"))
-                break
+        if any(fnmatch(posix, glob) for glob in readonly_globs):
+            evidence.append(Evidence("只读帮助文档", raw, source))
+            continue
         if workspace is not None and _is_within(target, workspace):
             continue
         if _is_session_temp(target, temp_root, temp_prefixes):
             continue
-        evidence.append(Evidence("工作区外写入", raw, "path"))
+        evidence.append(Evidence("工作区外写入", raw, source))
     return evidence
+
+
+def _detect_write_scope(ctx: ScanContext) -> list[Evidence]:
+    """T-FS-01：文件系统工具写入白名单。"""
+    return _write_scope_evidence(ctx.config, ctx.cwd, path_values(ctx.args), source="path")
+
+
+def _detect_shell_write_scope(ctx: ScanContext) -> list[Evidence]:
+    """T-SHELL-05：shell 命令写到工作目录外。
+
+    命令文本经 ``arg_keys`` 收进 ``ctx.texts``，所以与 T-SHELL-01 读的是同一份
+    入参，只是这里要把重定向与写文件命令的目标参数解析出来再判范围。
+    """
+    targets: list[str] = []
+    for _label, text in ctx.texts:
+        targets.extend(_command_write_targets(text))
+    return _write_scope_evidence(ctx.config, ctx.cwd, targets, source="command")
+
+
+def _shell_tokens(command: str) -> list[str]:
+    """按 shell / PowerShell 的词法切分：引号内不切分，引号本身从 token 里剥掉。
+
+    只做切分不做展开——``$VAR``、反引号、glob 都原样保留，交给范围判定决定。
+    """
+    tokens: list[str] = []
+    current: list[str] = []
+    quote = ""
+    for char in command:
+        if quote:
+            if char == quote:
+                quote = ""
+            else:
+                current.append(char)
+            continue
+        if char in "\"'":
+            quote = char
+            continue
+        if char.isspace():
+            if current:
+                tokens.append("".join(current))
+                current = []
+            continue
+        current.append(char)
+    if current:
+        tokens.append("".join(current))
+    return tokens
+
+
+def _is_null_target(value: str) -> bool:
+    """``/dev/null``、Windows ``nul``、``$null`` 都不是磁盘写入。"""
+    lowered = value.strip().strip("\"'").replace("/", "\\").lower().lstrip("\\")
+    return lowered in _NULL_TARGETS or lowered in {"dev\\null", "$null", "-", "null"}
+
+
+def _redirect_targets(tokens: list[str]) -> list[str]:
+    """抽出 ``>`` / ``>>`` / ``&>`` 后面的重定向目标，跳过 fd 复制与 here-doc。"""
+    targets: list[str] = []
+    for index, token in enumerate(tokens):
+        if _REDIRECT_SKIP.match(token) or not _REDIRECT_WRITE.match(token):
+            continue
+        if index + 1 >= len(tokens):
+            continue
+        candidate = tokens[index + 1]
+        if candidate.startswith("&"):
+            continue
+        targets.append(candidate)
+    return targets
+
+
+def _positional_args(args: list[str]) -> list[str]:
+    """位置参数：跳过布尔选项，吃掉 ``-f FILE`` 这类带值选项。"""
+    values: list[str] = []
+    skip = False
+    for argument in args:
+        if skip:
+            skip = False
+            continue
+        if argument in _WRITE_FLAG_WITH_VALUE:
+            skip = True
+            continue
+        if argument.startswith("-") and argument != "-":
+            continue
+        values.append(argument)
+    return values
+
+
+def _flag_value(args: list[str], letter: str) -> list[str]:
+    """取短选项 ``-f FILE`` 的取值，同时认 ``-cf FILE`` 这种合并写法。"""
+    values: list[str] = []
+    for index, token in enumerate(args):
+        if not token.startswith("-") or token.startswith("--") or len(token) < 2:
+            continue
+        cluster = token[1:]
+        position = cluster.find(letter)
+        if position < 0:
+            continue
+        rest = cluster[position + 1 :]
+        if rest:
+            values.append(rest)
+        elif index + 1 < len(args):
+            values.append(args[index + 1])
+    return values
+
+
+def _powershell_targets(args: list[str]) -> list[str]:
+    """PowerShell 写 cmdlet 的目标：优先 ``-Path``，没有就取第一个位置参数。"""
+    targets: list[str] = []
+    for index, token in enumerate(args[:-1]):
+        if token.lower() in _PS_PATH_FLAGS:
+            targets.extend(args[index + 1].split(","))
+    if targets:
+        return targets
+    return _positional_args(args)[:1]
+
+
+def _writer_targets(name: str, args: list[str]) -> list[str]:
+    lowered = name.lower()
+    if lowered in _PS_WRITE_COMMANDS:
+        return _powershell_targets(args)
+    mode = _SHELL_WRITE_COMMANDS.get(lowered)
+    if mode is None:
+        return []
+    if mode == "all":
+        return _positional_args(args)
+    if mode == "last":
+        positional = _positional_args(args)
+        return positional[-1:]
+    if mode == "of=":
+        return [a.split("=", 1)[1] for a in args if a.lower().startswith("of=")]
+    if mode == "after:f":
+        return _flag_value(args, "f")
+    if mode == "after:d":
+        return _flag_value(args, "d")
+    # inplace：只有带 -i / -I 才算写，否则只是输出到标准输出。
+    if not any(token in ("-i", "-I", "--in-place") for token in args):
+        return []
+    positional = _positional_args(args)
+    return positional[-1:]
+
+
+def _split_segments(tokens: list[str]) -> list[list[str]]:
+    """按管道与命令连接符切成一个个独立命令段。"""
+    segments: list[list[str]] = []
+    current: list[str] = []
+    for token in tokens:
+        if token in _COMMAND_SEPARATORS:
+            if current:
+                segments.append(current)
+            current = []
+            continue
+        current.append(token)
+    if current:
+        segments.append(current)
+    return segments
+
+
+def _segment_write_targets(segment: list[str]) -> list[str]:
+    """单个命令段里，写文件命令的目标参数。"""
+    index = 0
+    while index < len(segment):
+        token = segment[index].lstrip("&")
+        if token.lower() in _COMMAND_WRAPPERS or _ENV_ASSIGNMENT.match(token):
+            index += 1
+            continue
+        break
+    body = segment[index:]
+    if not body:
+        return []
+    head = body[0].lstrip("&")
+    lowered = head.lower()
+    args = body[1:]
+    if lowered in _INLINE_SHELLS and "-c" in args:
+        position = args.index("-c")
+        if position + 1 < len(args):
+            return _command_write_targets(args[position + 1])
+        return []
+    if lowered in _SCRIPT_RUNNERS:
+        return []
+    return _writer_targets(head, args)
+
+
+def _command_write_targets(command: str) -> list[str]:
+    """从一条命令里抽出所有写入目标（重定向 + 写文件命令的目标参数）。
+
+    分两层：**重定向是 shell 自己做的**，命令头是什么都算，所以对整条命令扫一遍；
+    **写文件命令的目标参数**只在命令头本身是写文件工具时才算——``python build.py
+    ../x`` 里的 ``../x`` 是脚本的参数而不是 shell 的写入，放行。
+    """
+    tokens = _shell_tokens(command)
+    targets = _redirect_targets(tokens)
+    for segment in _split_segments(tokens):
+        targets.extend(_segment_write_targets(segment))
+    return [t for t in targets if t and not _is_null_target(t)]
 
 
 def _resolve_workspace(cwd: str, raw: str | None = None) -> Path | None:
@@ -575,7 +920,7 @@ def _detect_url(ctx: ScanContext, mode: str) -> list[Evidence]:
     blocked_hosts = compile_patterns(ctx.config, {"dictionary": "blocked_hosts", "names": None}, mode="plain")
     dangerous_ports = {int(p) for p in ctx.config.dictionary("dangerous_ports") if isinstance(p, (int, float))}
     allowed = _networks(ctx.config.dictionary("internal_networks"))
-    allowed.extend(_networks([str(n) for n in ctx.config.sub_setting("network", {}).get("allowed_networks") or []]))
+    allowed.extend(_allowed_networks(ctx.config))
 
     evidence: list[Evidence] = []
     if mode == "blocked":
@@ -692,6 +1037,8 @@ def _run_detectors(detectors: list[Any], ctx: ScanContext, depth: int = 0) -> li
             found = _detect_extension(ctx.config, detector, ctx)
         elif kind == "write_scope":
             found = _detect_write_scope(ctx)
+        elif kind == "shell_write_target":
+            found = _detect_shell_write_scope(ctx)
         elif kind == "url":
             found = _detect_url(ctx, str(detector.get("mode") or "blocked"))
         elif kind == "mcp_server":

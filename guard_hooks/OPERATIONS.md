@@ -1,6 +1,6 @@
 # iCode 安全拦截 Hook · 使用与运维手册
 
-面向使用者与运维。规则实现见 [README.md](README.md)（安装与规则设计），本文是**日常怎么用、出问题怎么看、升级后怎么迁**。逐条手工测试用例见 [MANUAL_TESTS.md](MANUAL_TESTS.md)（65 条，预期结果均为实测）。换一份新 iCode 源码重新部署见 [PORTING.md](PORTING.md)。
+面向使用者与运维。规则实现见 [README.md](README.md)（安装与规则设计），本文是**日常怎么用、出问题怎么看、升级后怎么迁**。逐条手工测试用例见 [MANUAL_TESTS.md](MANUAL_TESTS.md)（81 条，预期结果均为实测）。换一份新 iCode 源码重新部署见 [PORTING.md](PORTING.md)。
 
 - 拦截点：`user_prompt_submit`（用户提示词）、`before_tool_call`（工具调用前）
 - 拦截后给用户的提示固定为一句：**操作不合规，请修改后重试。**
@@ -39,7 +39,7 @@ uv run icode
 | `IN-03` SQL 注入 payload | `union select`、`' or '1'='1`、`information_schema`、`sleep(`、`load_file(`、`xp_cmdshell` … | `判断 `' or '1'='1 能不能注入` |
 | `IN-04` XSS payload | `<script>`、`javascript:`、`onerror=`、`onload=` … | `<script>alert(1)</script> 是什么意思` |
 | `IN-05` 路径穿越 / LFI | `../`、URL 编码、`/etc/passwd`、`/proc/self/environ`、`C:\Windows\System32`、`boot.ini`、`.ssh/id_rsa` | `看看 ../../../../etc/passwd` |
-| `IN-06` 内网资产 | 业务系统名（elearning / edip / ccrc / OA系统 / 考试系统 …）、`*.local|corp|intra|intranet|lan|internal|home`、内网网段 | `查一下 22.122.49.168 这个资产` |
+| `IN-06` 内网资产 | 业务系统名（elearning / edip / ccrc / OA系统 / 考试系统 …）、`*.local|corp|intra|intranet|lan|internal|home`、RFC1918 整段（`10/8`、`172.16/12`、`192.168/16`）——**只有回环放行**，放行网段由 `settings.network.allowed_networks` 控制 | `查一下 10.1.2.3 这个机器` |
 | `IN-07` 同义语义簇 | 封禁 / 禁用 / 拒绝 / 拦截 / 阻断 / 封堵 | ⚠️ 见 2.4 |
 | `IN-08` 合规类 | 反编译+保密、越权+考试、绕过+审计、卸载+EDR、删除+日志、导出+答卷 | `怎么绕过审计日志` |
 
@@ -71,6 +71,7 @@ export PATH=/tmp:$PATH        > C:\Windows\System32\drivers\etc\hosts
 | `T-SHELL-03-4` | here-doc `<<` | `cat <<EOF` |
 | `T-SHELL-03-5` | `base64 -d` | `echo aGk= \| base64 -d` |
 | `T-SHELL-04` | `eval` / `source` / `exec` / `trap` | `eval "ls"` |
+| `T-SHELL-05` | Shell 写到工作目录外 | `echo x > ../out.txt`；`cp a ../b` |
 
 **PowerShell**
 
@@ -129,6 +130,7 @@ ls -la        git status       uv run pytest tests/service/hooks -x
 | `T-FS-02` 路径黑名单 | `dlp`/`falcon` 等词若出现在项目目录名里 | 删对应词条；新增路径词条一律写成带分隔符锚定的 `regex`（见 [MANUAL_TESTS.md 10.4](MANUAL_TESTS.md)），避免退化成子串匹配 |
 | `T-PY-02` 字节码自省 | `dis.dis` / `__code__` 在正常 Python 调试里会出现 | 收窄词典 |
 | `T-SHELL-04` Shell 内建 | `source`/`exec` 在构建脚本里偶尔合法 | `"enabled": false` |
+| `T-SHELL-05` Shell 写目标 | 构建脚本经 shell 重定向写到工作区外的合法场景 | `"enabled": false`，或临时 `settings.write_scope.allow_outside_workspace: true` |
 
 ---
 
@@ -142,6 +144,7 @@ ls -la        git status       uv run pytest tests/service/hooks -x
 | `T-SHELL-02-1` ~ `-6` | zsh / 空字节 / 零宽 | confirm、block | shell |
 | `T-SHELL-03-1` ~ `-5` | 命令链接 / 反引号 / 嵌套 / here-doc / base64 | confirm | shell |
 | `T-SHELL-04` | Shell 内建 | confirm | shell |
+| `T-SHELL-05` | Shell 写到工作目录外 | block | shell |
 | `T-PS-01` ~ `-03` | USB 取证 / 逆向 / 反调试 | block、block、confirm | shell |
 | `T-PY-01` ~ `-03` | 逆向库 / 字节码 / 反编译器 | block | shell |
 | `T-FS-01` ~ `-03` | 写入白名单 / 路径黑名单 / 扩展名 | block | filesystem.*、search |

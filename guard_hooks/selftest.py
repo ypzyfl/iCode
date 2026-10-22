@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -88,6 +89,28 @@ class PromptGuardTests(GuardTestCase):
     def test_in06_internal_asset(self) -> None:
         self.assertPrompt("连一下 22.122.49.168 的 elearning 系统", "IN-06")
 
+    def test_in06_allows_loopback(self) -> None:
+        # 本机地址是日常开发对象，提示词层不该拦。
+        for text in ("访问 http://127.0.0.1:8000", "启动本地服务 127.0.0.1:8080", "curl 127.0.0.1"):
+            self.assertNotIn("IN-06", self.prompt_ids(text), msg=f"本机地址被误拦：{text!r}")
+
+    def test_in06_blocks_private_ranges(self) -> None:
+        # 只有回环放行；RFC1918 整段仍拦。
+        for text in ("查一下 10.1.2.3 这个机器", "看 http://192.168.1.10/ 的接口", "连 172.16.0.5 交换机"):
+            self.assertIn("IN-06", self.prompt_ids(text), msg=f"私有段未拦：{text!r}")
+
+    def test_in06_allowed_networks_is_the_switch(self) -> None:
+        # 往 allowed_networks 里加网段 = 提示词层放行它；工具层由 internal_networks 决定，不受影响。
+        data = dict(self.config.source)
+        network = dict(data["settings"]["network"])
+        network["allowed_networks"] = [*network["allowed_networks"], "10.0.0.0/8"]
+        data["settings"] = {**data["settings"], "network": network}
+        widened = guard.GuardConfig(data, path=self.config.path)
+
+        self.assertEqual([], [h.rule_id for h in guard.evaluate_prompt(widened, "查一下 10.1.2.3 这个机器")])
+        # 未列入的网段不受影响。
+        self.assertIn("IN-06", [h.rule_id for h in guard.evaluate_prompt(widened, "看 http://192.168.1.10/")])
+
     def test_in07_synonym_cluster(self) -> None:
         self.assertPrompt("把这个账号封禁掉", "IN-07")
 
@@ -129,6 +152,78 @@ class ShellGuardTests(GuardTestCase):
 
     def test_ts04_shell_builtins(self) -> None:
         self.assertShell('eval "$CMD"', "T-SHELL-04")
+
+    def test_ts05_redirect_outside_workspace(self) -> None:
+        for command in (
+            "echo pwned > ../outside.txt",
+            "echo x >> ../../escape.log",
+            "echo x > /tmp/evil.txt",
+            "echo x > C:\\Users\\Public\\evil.txt",
+            "echo x &> C:\\Users\\Public\\o.txt",
+            'bash -c "echo x > ../o.txt"',
+        ):
+            self.assertShell(command, "T-SHELL-05")
+
+    def test_ts05_write_commands_outside_workspace(self) -> None:
+        for command in (
+            "cp README.md ../stolen.txt",
+            "cat foo | tee ../x",
+            "touch ../../x",
+            "mkdir -p ../newdir",
+            "sed -i 's/a/b/' ../../config.yaml",
+            "mv a.txt /opt/b.txt",
+            "ln -s /etc/passwd ../link",
+            "tar -cf ../out.tar .",
+            "unzip a.zip -d ../dest",
+            "dd if=/dev/zero of=../blob bs=1M",
+            "copy a.txt ..\\b.txt",
+            "Set-Content -Path ..\\..\\evil.ps1 -Value x",
+            "echo x | Out-File ..\\o.txt",
+        ):
+            self.assertShell(command, "T-SHELL-05")
+
+    def test_ts05_allows_workspace_writes(self) -> None:
+        for command in (
+            "echo x > out.txt",
+            "echo x > ./sub/out.txt",
+            "cp a.txt b.txt",
+            "mkdir -p src/lib",
+            "tee log.txt",
+            f"echo x > {tempfile.gettempdir()}/icode-session-abc/x",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual([], self.shell(command), msg=f"误拦：{command!r}")
+
+    def test_ts05_allows_script_execution(self) -> None:
+        """脚本内部写了什么静态分析跟不进去，只拦 shell 层的直接写入。
+
+        这里只断言新规则不命中：同一条命令可能命中别的规则（如
+        ``python -c "import capstone"`` 属于 T-PY-01），那是那些规则的事。
+        """
+        for command in (
+            "python ../build.py",
+            "python build.py --out ../artifact",
+            "node scripts/gen.js ../out",
+            "npm install --prefix ../elsewhere",
+            "bash deploy.sh",
+            "make install DESTDIR=../stage",
+            'python -c "import capstone"',
+        ):
+            with self.subTest(command=command):
+                ids = self.shell(command)
+                self.assertNotIn("T-SHELL-05", ids, msg=f"误拦脚本执行：{command!r}")
+
+    def test_ts05_ignores_null_and_fd_copy(self) -> None:
+        for command in (
+            "echo x > /dev/null",
+            "echo x > nul",
+            "ls 2>&1",
+            "foo > /dev/null 2>&1",
+            "foo 1>&2",
+            "cat ../other/file.txt",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual([], self.shell(command), msg=f"误拦：{command!r}")
 
     def test_tps_usb_audit(self) -> None:
         self.assertShell("Get-WmiObject Win32_USBController", "T-PS-01")
