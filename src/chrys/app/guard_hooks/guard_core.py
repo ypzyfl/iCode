@@ -51,6 +51,9 @@ _ASCII_TOKEN = re.compile(r"[A-Za-z0-9 ._+:/\\@-]+")
 
 _IPV4_IN_TEXT = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 
+_URL_IN_TEXT = re.compile(r"\b(?:https?|ftp)://[^\s\"'`<>|&]+", re.IGNORECASE)
+"""从自由文本（如 shell 命令）里提取 URL；trailing 标点在调用处裁掉。"""
+
 _CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 
 _PATH_ARG_HINTS = ("path", "file", "dir", "target")
@@ -560,16 +563,35 @@ def _is_session_temp(target: Path, temp_root: Path, prefixes: list[str]) -> bool
 
 
 def _detect_url(ctx: ScanContext, mode: str) -> list[Evidence]:
-    """网络分类：``blocked`` 命中黑名单/危险端口，``default`` 命中非白名单地址。"""
-    if not url_values(ctx.args):
-        return []
+    """网络分类：``blocked`` 命中黑名单/危险端口，``default`` 命中非白名单地址。
+
+    除了 URL 形态的参数值，还扫描待检文本（shell 命令的 ``command`` 等）里
+    出现的 ``http(s)://`` 地址，堵住"用 curl 绕过网络规则"的盲区。
+    """
+    values = url_values(ctx.args)
+    for _label, text in ctx.texts:
+        values.extend(match.group(0).rstrip(".,;:)]}") for match in _URL_IN_TEXT.finditer(text))
+        # 裸 IP（ping/traceroute 等不带 scheme）同样按候选地址评估；
+        # 白名单网段（127/10/172.16/192.168）在 default 模式天然放行。
+        values.extend(match.group(0) for match in _IPV4_IN_TEXT.finditer(text))
     blocked_hosts = compile_patterns(ctx.config, {"dictionary": "blocked_hosts", "names": None}, mode="plain")
     dangerous_ports = {int(p) for p in ctx.config.dictionary("dangerous_ports") if isinstance(p, (int, float))}
     allowed = _networks(ctx.config.dictionary("internal_networks"))
     allowed.extend(_networks([str(n) for n in ctx.config.sub_setting("network", {}).get("allowed_networks") or []]))
 
     evidence: list[Evidence] = []
-    for raw in url_values(ctx.args):
+    if mode == "blocked":
+        # 黑名单主机即使不带 scheme（curl elearning/x、ping 22.122.49.168）也要拦，
+        # 所以先对原始文本直接做黑名单匹配，再走逐个候选地址的精确分类。
+        for pattern in blocked_hosts:
+            for _label, text in ctx.texts:
+                found = pattern.regex.search(text)
+                if found is not None:
+                    evidence.append(Evidence(pattern.label, snippet_of(text, found.start(), found.end()), "text"))
+                    break
+            if evidence:
+                break
+    for raw in values:
         host, port = split_host_port(raw)
         if not host:
             continue

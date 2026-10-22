@@ -545,7 +545,7 @@
       "layer": "网络",
       "disposition": "block",
       "audit": true,
-      "applies_to": { "kinds": ["web_fetch", "web_search", "mcp"] },
+      "applies_to": { "kinds": ["web_fetch", "web_search", "mcp", "shell"] },
       "detect": [{ "type": "url", "mode": "blocked" }]
     },
     {
@@ -554,7 +554,7 @@
       "layer": "网络",
       "disposition": "confirm",
       "audit": true,
-      "applies_to": { "kinds": ["web_fetch", "web_search", "mcp"] },
+      "applies_to": { "kinds": ["web_fetch", "web_search", "mcp", "shell"] },
       "detect": [{ "type": "url", "mode": "default" }],
       "note": "白名单（loopback / 10 / 172.16 / 192.168）不命中本规则。"
     },

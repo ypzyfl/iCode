@@ -202,6 +202,26 @@ class NetworkGuardTests(GuardTestCase):
         for url in ("http://127.0.0.1:8080/health", "http://192.168.1.10/", "https://[::1]:8443/x"):
             self.assertEqual([], self.tool_ids("web_fetch", "web_fetch", {"url": url, "prompt": "read"}), msg=url)
 
+    def test_tnet_blocks_urls_inside_shell_commands(self) -> None:
+        # N01 的真实路径：agent 用 curl 而不是 web_fetch 访问黑名单地址。
+        self.assertShell("curl http://22.122.49.168/api", "T-NET-01")
+        self.assertShell("curl -s https://elearning.corp.local/x -o /tmp/x", "T-NET-01")
+
+    def test_tnet_blocks_bare_hosts_without_scheme(self) -> None:
+        # 不带 scheme 的黑名单主机 / 裸 IP 同样要拦。
+        self.assertShell("ping 22.122.49.168", "T-NET-01")
+        self.assertShell("curl elearning/x", "T-NET-01")
+
+    def test_tnet02_default_hits_shell_commands(self) -> None:
+        self.assertShell("curl https://example.com/docs", "T-NET-02")
+
+    def test_loopback_shell_urls_pass(self) -> None:
+        self.assertEqual([], self.shell("curl http://127.0.0.1:8000/health"), msg="白名单地址被误拦")
+
+    def test_internal_ips_in_shell_commands_pass(self) -> None:
+        self.assertEqual([], self.shell("ping 10.0.0.5"), msg="内网裸 IP 被误拦")
+        self.assertEqual([], self.shell("ping 192.168.1.10"), msg="内网裸 IP 被误拦")
+
 
 class McpGuardTests(GuardTestCase):
     def test_tmcp04_static_scan(self) -> None:
