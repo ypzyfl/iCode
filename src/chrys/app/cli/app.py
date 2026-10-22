@@ -14,19 +14,19 @@ _TUI_SUBPROCESS_COMMAND = "__tui_subprocess__"
 
 
 def _ensure_guard_hooks() -> None:
-    """Install the bundled security guard hooks on first run (fail-open).
+    """Install the bundled security guard hooks (fail-open).
 
     The rule pack ships inside the build (``chrys/app/guard_hooks/``); the
-    runtime only ever reads hooks from the platform config directory, so a
-    fresh machine needs one merge-install before interception is active.
-    Never raises: a broken installer must not take the whole CLI down.
+    runtime only ever reads hooks from the platform config directory.
+    Re-installs unconditionally on every start: the installer is idempotent
+    and overwrites atomically, so a machine upgraded from an older build can
+    never keep running stale hook scripts (a version check alone would leave
+    an old-but-complete install untouched forever).  Never raises: a broken
+    installer must not take the whole CLI down.
     """
     try:
-        from chrys.app.guard_install import install_guard_hooks, installed_guard_hooks
+        from chrys.app.guard_install import install_guard_hooks
 
-        listed, missing = installed_guard_hooks()
-        if listed and not missing:
-            return
         install_guard_hooks()
     except Exception as exc:
         sys.stderr.write(f"warning: security guard hooks not installed: {exc}\n")

@@ -21,6 +21,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -39,6 +40,8 @@ jobs:
   test_linux:
     name: Unix shard (${{ matrix.label }})
     runs-on: ubuntu-latest
+    # 步骤级 timeout 杀不掉不响应 kill 的子进程时，job 级是最后的硬上限。
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -112,6 +115,8 @@ jobs:
   test_macos:
     name: Unix shard (${{ matrix.label }})
     runs-on: macos-latest
+    # 步骤级 timeout 杀不掉不响应 kill 的子进程时，job 级是最后的硬上限。
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -170,6 +175,8 @@ jobs:
   test_windows:
     name: Windows shard (${{ matrix.label }})
     runs-on: windows-latest
+    # 步骤级 timeout 杀不掉不响应 kill 的子进程时，job 级是最后的硬上限。
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -281,6 +288,7 @@ jobs:
   architecture:
     name: Architecture
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -308,6 +316,7 @@ jobs:
     if: always()
     needs: [test_linux, architecture]
     runs-on: ubuntu-slim
+    timeout-minutes: 10
     steps:
       - name: Verify linux shards and architecture tests
         env:
@@ -322,6 +331,7 @@ jobs:
     if: always()
     needs: [test_macos, architecture]
     runs-on: ubuntu-slim
+    timeout-minutes: 10
     steps:
       - name: Verify macos shards and architecture tests
         env:
@@ -336,6 +346,7 @@ jobs:
     if: always()
     needs: [test_windows, architecture]
     runs-on: ubuntu-slim
+    timeout-minutes: 10
     steps:
       - name: Verify Windows shards and architecture tests
         env:
@@ -348,6 +359,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
