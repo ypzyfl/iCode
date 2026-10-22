@@ -27,7 +27,10 @@ import logging
 import threading
 import uuid
 from collections import OrderedDict
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -54,6 +57,32 @@ _REGISTRY_MAX_ENTRIES = 4096
 _registry_lock = threading.Lock()
 _registry: OrderedDict[str, tuple[str, str, str]] = OrderedDict()
 _session_latest: dict[str, tuple[str, str, str]] = {}
+
+
+@dataclass
+class _DesktopAgentUsage:
+    # Child model-call tasks inherit the same object; the flag deduplicates the prompt.
+    session_id: str
+    agent_name: str
+    runner_name: str | None
+    workspace_cwd: str
+    reported: bool = False
+
+
+_desktop_agent_usage: ContextVar[_DesktopAgentUsage | None] = ContextVar("desktop_agent_usage", default=None)
+
+
+@contextmanager
+def desktop_agent_usage_scope(
+    session_id: str, agent_name: str | None, runner_name: str | None, workspace_cwd: str
+) -> Iterator[None]:
+    """Bind one selected Agent to this ACP prompt and its model-call tasks."""
+    usage = _DesktopAgentUsage(session_id, agent_name, runner_name, workspace_cwd) if agent_name else None
+    token = _desktop_agent_usage.set(usage)
+    try:
+        yield
+    finally:
+        _desktop_agent_usage.reset(token)
 
 
 def root_span_id(session_id: str, turn_id: str) -> str:
@@ -152,11 +181,14 @@ class AixTelemetryMiddleware(ChatMiddleware):
         turn_id = trajectory.turn_id if trajectory is not None else None
         if turn_id:
             span_id = root_span_id(self._session_id or "", turn_id)
+        side_call = in_internal_side_call()
         try:
             self._inject_telemetry(context, request_id, span_id)
         except Exception:
             logger.warning("AIxCoding telemetry payload inject failed", exc_info=True)
-        side_call = in_internal_side_call()
+        else:
+            if not side_call:
+                self._report_desktop_agent_usage(request_id, span_id)
         await call_next()
         if side_call:
             return
@@ -170,6 +202,20 @@ class AixTelemetryMiddleware(ChatMiddleware):
                 return response
 
             result.with_result_hook(_record_on_final)
+
+    def _report_desktop_agent_usage(self, request_id: str, span_id: str) -> None:
+        usage = _desktop_agent_usage.get()
+        if usage is None or usage.session_id != self._session_id or usage.reported:
+            return
+        usage.reported = True
+        try:
+            from chrys.aixcoding.telemetry.subscriber import record_desktop_agent_usage
+
+            record_desktop_agent_usage(
+                usage.agent_name, usage.runner_name, usage.session_id, (request_id, span_id), usage.workspace_cwd
+            )
+        except Exception:
+            logger.warning("AIxCoding telemetry agent usage report failed", exc_info=True)
 
     def _enabled(self) -> bool:
         if not self._session_id:

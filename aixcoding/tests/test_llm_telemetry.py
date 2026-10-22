@@ -9,6 +9,7 @@ side call 不参与关联、总开关关闭零注入。网关查库/ACP 审批�
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,7 @@ import pytest
 
 from chrys.aixcoding.config import clear_settings_cache
 from chrys.aixcoding.telemetry import llm_telemetry as lt
+from chrys.aixcoding.telemetry import subscriber
 from chrys.aixcoding.telemetry.llm_telemetry import (
     AixTelemetryMiddleware,
     build_telemetry_middleware,
@@ -25,6 +27,11 @@ from chrys.aixcoding.telemetry.llm_telemetry import (
     resolve_tool_call,
     root_span_id,
 )
+from chrys.aixcoding.telemetry.reporters.tool_detail import ToolDetailReporter
+from chrys.aixcoding.telemetry.types import TOOL_DETAIL_SAVE
+from chrys.foundation.events.types import InvocationToolCallStart
+from chrys.foundation.models.invocations import InvocationOrigin
+from chrys.foundation.tool_kinds import KIND_SKILL
 from chrys.foundation.trajectory.context import TrajectoryContext, main_actor, trajectory_scope
 from chrys.kernel import ChatResponse, Content, Message, ResponseStream, internal_side_call_scope
 from chrys.kernel.middleware import ChatContext, ChatMiddlewareLayer
@@ -151,6 +158,100 @@ async def test_text_only_response_still_records_session_latest():
     entry = resolve_call("", "sess-1")
     assert entry is not None
     assert entry[0] == telemetry["requestId"]
+
+
+async def test_selected_agent_usage_is_enqueued_before_tool_and_skill(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    saves: list[dict[str, Any]] = []
+    reporter = ToolDetailReporter(
+        lambda endpoint, payload: saves.append(dict(payload)) if endpoint == TOOL_DETAIL_SAVE else None
+    )
+    monkeypatch.setattr(subscriber, "default_reporter", lambda: reporter)
+    middleware = AixTelemetryMiddleware(session_id="sess-1", workspace_cwd=str(tmp_path))
+
+    with lt.desktop_agent_usage_scope("sess-1", "Reviewer", "iCode", str(tmp_path)):
+        with internal_side_call_scope():
+            await _run_middleware(middleware, _tool_call_response("pc-side"))
+        assert saves == []
+        context = await asyncio.create_task(_run_middleware(middleware, _tool_call_response("pc-agent")))
+        reporter.on_start(
+            InvocationToolCallStart(
+                origin=InvocationOrigin(kind="turn", session_id="sess-1", invocation_id="inv-1", parent=None),
+                tool_name="load_skill",
+                tool_kind=KIND_SKILL,
+                args={"skill_name": "review"},
+                call_id="call-1",
+                provider_call_id="pc-agent",
+                session_id="sess-1",
+                workspace_cwd=str(tmp_path),
+            )
+        )
+        await _run_middleware(middleware, _tool_call_response("pc-second"))
+    await _run_middleware(middleware, _tool_call_response("pc-after-scope"))
+
+    assert [save["funcType"] for save in saves] == [1001, 3, 0]
+    assert saves[0]["funcName"] == "Reviewer"
+    assert saves[0]["agentName"] == "iCode"
+    assert saves[0]["requestId"] == context.options["extra_body"]["telemetry"]["requestId"]  # type: ignore[index]
+
+
+async def test_selected_agent_usage_precedes_stream_result(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    saves: list[dict[str, Any]] = []
+    reporter = ToolDetailReporter(
+        lambda endpoint, payload: saves.append(dict(payload)) if endpoint == TOOL_DETAIL_SAVE else None
+    )
+    monkeypatch.setattr(subscriber, "default_reporter", lambda: reporter)
+
+    async def updates():
+        return
+        yield
+
+    stream = ResponseStream(updates(), finalizer=lambda updates: _tool_call_response("pc-stream-agent"))
+    context = _make_context(stream=True)
+
+    async def call_next() -> None:
+        context.result = stream
+
+    with lt.desktop_agent_usage_scope("sess-1", "Reviewer", "iCode", str(tmp_path)):
+        await AixTelemetryMiddleware(session_id="sess-1").process(context, call_next)
+        assert [save["funcType"] for save in saves] == [1001]
+        assert resolve_call("pc-stream-agent", "sess-1") is None
+        async for _ in stream:
+            pass
+
+    assert [save["funcType"] for save in saves] == [1001]
+    assert saves[0]["requestId"] == context.options["extra_body"]["telemetry"]["requestId"]  # type: ignore[index]
+
+
+async def test_selected_agent_usage_is_enqueued_before_model_wait(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    saves: list[dict[str, Any]] = []
+    reporter = ToolDetailReporter(
+        lambda endpoint, payload: saves.append(dict(payload)) if endpoint == TOOL_DETAIL_SAVE else None
+    )
+    monkeypatch.setattr(subscriber, "default_reporter", lambda: reporter)
+    context = _make_context()
+
+    async def call_next() -> None:
+        assert [save["funcType"] for save in saves] == [1001]
+        context.result = _tool_call_response("pc-agent")
+
+    with lt.desktop_agent_usage_scope("sess-1", "Reviewer", "iCode", str(tmp_path)):
+        await AixTelemetryMiddleware(session_id="sess-1").process(context, call_next)
+
+    assert [save["funcType"] for save in saves] == [1001]
+    assert saves[0]["requestId"] == context.options["extra_body"]["telemetry"]["requestId"]  # type: ignore[index]
+
+
+async def test_selected_agent_report_failure_does_not_block_model(monkeypatch: pytest.MonkeyPatch):
+    def fail_report(*args: Any) -> None:
+        raise RuntimeError("telemetry unavailable")
+
+    monkeypatch.setattr(subscriber, "record_desktop_agent_usage", fail_report)
+    middleware = AixTelemetryMiddleware(session_id="sess-1")
+    with lt.desktop_agent_usage_scope("sess-1", "Reviewer", "iCode", "/workspace"):
+        context = await _run_middleware(middleware, _tool_call_response("pc-agent"))
+
+    assert context.result is not None
+    assert resolve_call("pc-agent", "sess-1") is not None
 
 
 async def test_payload_keeps_existing_extra_body():

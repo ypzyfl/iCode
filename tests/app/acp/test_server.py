@@ -115,7 +115,13 @@ async def test_prompt_returns_cancelled_stop_reason() -> None:
 
 @pytest.mark.anyio
 async def test_desktop_agent_usage_requires_new_model_request(monkeypatch: pytest.MonkeyPatch) -> None:
-    from chrys.aixcoding.telemetry.llm_telemetry import clear_call_registry, record_session_latest
+    from chrys.aixcoding.telemetry.llm_telemetry import (
+        AixTelemetryMiddleware,
+        clear_call_registry,
+        record_session_latest,
+    )
+    from chrys.kernel import ChatResponse, Content, Message
+    from chrys.kernel.middleware import ChatContext
 
     clear_call_registry()
     reports: list[tuple[str, str | None, str, tuple[str, str], str]] = []
@@ -128,10 +134,19 @@ async def test_desktop_agent_usage_requires_new_model_request(monkeypatch: pytes
         record_model_request = True
 
         async def iter_turn_events(self, message: Any):
+            if self.record_model_request:
+                context = ChatContext(client=object(), messages=[], options=None, stream=False)
+
+                async def call_next() -> None:
+                    context.result = ChatResponse(
+                        messages=[Message("assistant", [Content.from_text("done")])],
+                        finish_reason="stop",
+                        model="test-model",
+                    )
+
+                await AixTelemetryMiddleware(session_id="s1").process(context, call_next)
             async for event in super().iter_turn_events(message):
                 yield event
-            if self.record_model_request:
-                record_session_latest("new-request", "new-span", "s1")
 
     host = _ModelHost(event_bus=EventBus(), outcome=EndTurn())
     manager = _FakeManager(host)
@@ -149,7 +164,10 @@ async def test_desktop_agent_usage_requires_new_model_request(monkeypatch: pytes
     try:
         record_session_latest("old-request", "old-span", "s1")
         await server.prompt([text_block("run")], session_id="s1", **meta)
-        assert reports == [("Reviewer", "iCode", "s1", ("new-request", "new-span"), manager._session.cwd)]
+        assert len(reports) == 1
+        assert reports[0][:3] == ("Reviewer", "iCode", "s1")
+        assert reports[0][3][0] != "old-request"
+        assert reports[0][4] == manager._session.cwd
 
         reports.clear()
         host.record_model_request = False
@@ -168,7 +186,9 @@ async def test_desktop_agent_usage_requires_new_model_request(monkeypatch: pytes
         host.outcome = Cancelled()
         record_session_latest("old-request", "old-span", "s1")
         await server.prompt([text_block("run")], session_id="s1", **meta)
-        assert reports == [("Reviewer", "iCode", "s1", ("new-request", "new-span"), manager._session.cwd)]
+        assert len(reports) == 1
+        assert reports[0][:3] == ("Reviewer", "iCode", "s1")
+        assert reports[0][3][0] != "old-request"
     finally:
         clear_call_registry()
 
