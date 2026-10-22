@@ -3,7 +3,7 @@
 # AIxCoding-CLI TUI 安装器（内网友好）
 #
 # 在线安装（先下载脚本，下载失败时不会启动安装）:
-#   curl -fsSL -o install.sh http://22.189.54.139/aixcoding/file/aixcoding/install.sh && bash install.sh
+#   curl -fsSL -o install.sh http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh && bash install.sh
 #
 # 在线模式从制品镜像（ICODE_BASE_URL）下载；离线模式（--from）直接安装本地包。
 # 安装动作复用包内可执行文件的 `install` 命令，再创建 aixcoding 启动命令。
@@ -18,7 +18,7 @@
 set -Eeuo pipefail
 
 # ===== 配置区（也可用环境变量覆盖） =====
-ICODE_BASE_URL="${ICODE_BASE_URL:-http://22.189.54.139/aixcoding/file/aixcoding}"
+ICODE_BASE_URL="${ICODE_BASE_URL:-http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding}"
 CHANNEL="${ICODE_CHANNEL:-prod}"
 
 # ======================================================================

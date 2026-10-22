@@ -98,7 +98,7 @@ iCode ships no model profiles, so press **F4** on first launch to add one.
 
 ## Install from an internal mirror
 
-The HTTP download root is `http://22.189.54.139/aixcoding/file/aixcoding`. Put `install.sh` and `install.ps1` at that root. `channels/cli/prod.txt` and `channels/cli/test.txt` each hold
+The HTTP download root is `http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding`. Put `install.sh` and `install.ps1` at that root. `channels/cli/prod.txt` and `channels/cli/test.txt` each hold
 one full version, and archives go in `releases/cli/<full-version>/`. The CD
 workflow uploads each platform binary as a separate artifact; it does not bundle
 the installer scripts. Place `install.sh` and `install.ps1` in the HTTP root
@@ -114,16 +114,16 @@ The HTTP download endpoint requires no FTP credentials. The public URL path
 
 | Machine | Package in the mirror | Install command |
 | --- | --- | --- |
-| Linux ARM64 | `aixcoding-cli-linux-aarch64-v<version>-offline.tar.gz` | `curl -fsSL 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' \| bash` |
-| Linux x86-64 | `aixcoding-cli-linux-x86_64-v<version>-offline.tar.gz` | `curl -fsSL 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' \| bash` |
-| macOS Apple silicon | `aixcoding-cli-macos-aarch64-v<version>-offline.tar.gz` | `curl -fsSL 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' \| bash` |
-| macOS Intel | `aixcoding-cli-macos-x86_64-v<version>-offline.tar.gz` | `curl -fsSL 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' \| bash` |
-| Windows x86-64 | `aixcoding-cli-windows-x86_64-v<version>-offline.zip` | `irm 'http://22.189.54.139/aixcoding/file/aixcoding/install.ps1' \| iex` (PowerShell) |
+| Linux ARM64 | `aixcoding-cli-linux-aarch64-v<version>-offline.tar.gz` | `curl -fsSL 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh' \| bash` |
+| Linux x86-64 | `aixcoding-cli-linux-x86_64-v<version>-offline.tar.gz` | `curl -fsSL 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh' \| bash` |
+| macOS Apple silicon | `aixcoding-cli-macos-aarch64-v<version>-offline.tar.gz` | `curl -fsSL 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh' \| bash` |
+| macOS Intel | `aixcoding-cli-macos-x86_64-v<version>-offline.tar.gz` | `curl -fsSL 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh' \| bash` |
+| Windows x86-64 | `aixcoding-cli-windows-x86_64-v<version>-offline.zip` | `irm 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.ps1' \| iex` (PowerShell) |
 
 On Linux and macOS, the script reads `channels/cli/prod.txt` by default. For test packages,
 download the script and run `bash install.sh --channel test`. To ensure a failed
 script download stops the command, use
-`curl -fsSL -o install.sh 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' && bash install.sh`.
+`curl -fsSL -o install.sh 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh' && bash install.sh`.
 The script selects the matching package and installs the `aixcoding` command.
 Open a new terminal and run
 `aixcoding --version` to verify it. Linux x86-64 requires glibc 2.17 or later;
@@ -131,11 +131,11 @@ Linux ARM64 requires glibc 2.18 or later.
 
 On Windows, run the one-line command in the table in PowerShell. It installs the
 current production version. For the test channel, run
-`$env:ICODE_CHANNEL='test'; irm 'http://22.189.54.139/aixcoding/file/aixcoding/install.ps1' | iex`.
+`$env:ICODE_CHANNEL='test'; irm 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.ps1' | iex`.
 To inspect the script first or install a specific version, download it and run it locally:
 
 ```powershell
-Invoke-WebRequest 'http://22.189.54.139/aixcoding/file/aixcoding/install.ps1' -OutFile install.ps1
+Invoke-WebRequest 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.ps1' -OutFile install.ps1
 .\install.ps1 -Version 0.28.0-dev-9011ff5
 ```
 
