@@ -5,7 +5,7 @@ param(
     [ValidateSet('prod', 'test')]
     [string]$Channel = $(if ($env:ICODE_CHANNEL) { $env:ICODE_CHANNEL } else { 'prod' }),
     [string]$Version = '',
-    [string]$BaseUrl = $(if ($env:ICODE_BASE_URL) { $env:ICODE_BASE_URL } else { 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding' })
+    [string]$BaseUrl = $(if ($env:ICODE_BASE_URL) { $env:ICODE_BASE_URL } else { 'http://82.187.34.98/aixcoding/file/aixcoding' })
 )
 
 $ErrorActionPreference = 'Stop'

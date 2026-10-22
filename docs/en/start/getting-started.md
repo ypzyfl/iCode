@@ -30,10 +30,10 @@ chmod +x ./aixcoding-cli
 
 The Linux x86-64 package requires glibc 2.17 or later, and the ARM64 package requires glibc 2.18 or later. Distributions that provide only musl, such as Alpine Linux, are not supported by the prebuilt packages.
 
-The HTTP download root is `http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding`, mapped from `/homepage/aixcoding/` on the server. Put `install.sh` and `install.ps1` at the root, channel pointers in `channels/cli/prod.txt` and `channels/cli/test.txt`, and each package under `releases/cli/<full-version>/`. No FTP credentials are needed. Linux and macOS users can install with one command. The script detects the platform and creates an `aixcoding` launch command:
+The HTTP download root is `http://82.187.34.98/aixcoding/file/aixcoding`, mapped from `/homepage/aixcoding/` on the server. Put `install.sh` and `install.ps1` at the root, channel pointers in `channels/cli/prod.txt` and `channels/cli/test.txt`, and each package under `releases/cli/<full-version>/`. No FTP credentials are needed. Linux and macOS users can install with one command. The script detects the platform and creates an `aixcoding` launch command:
 
 ```bash
-curl -fsSL -o install.sh 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh' && bash install.sh
+curl -fsSL -o install.sh 'http://82.187.34.98/aixcoding/file/aixcoding/install.sh' && bash install.sh
 ```
 
 Production is the default; run `bash install.sh --channel test` for test packages. The CD workflow uploads each platform binary separately and does not bundle installer scripts. Place both installer scripts in the HTTP root manually, upload the needed platform artifact ZIPs to `releases/cli/<full-version>/`, and write the full version to the relevant channel file. The wheel artifact is used for building and is not needed in the HTTP mirror. A build limited to Linux contains only Linux binaries. See the [README installation table](../../../README.md#install-from-an-internal-mirror) for all five platform package names.
@@ -44,7 +44,7 @@ For Linux/macOS, `install.sh` also accepts previously uploaded archives named `i
 Run this in PowerShell to install the production channel's current Windows x86-64 release:
 
 ```powershell
-irm 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.ps1' | iex
+irm 'http://82.187.34.98/aixcoding/file/aixcoding/install.ps1' | iex
 ```
 
 For the test channel, set `$env:ICODE_CHANNEL='test'` before running the command. The installer attempts to add AIxCoding-CLI to the current user's `PATH`. Open a new terminal after installation.

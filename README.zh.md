@@ -89,7 +89,7 @@ iCode 不附带任何模型配置，因此首次启动时请按 **F4** 添加一
 
 ## 从内网镜像安装
 
-HTTP 下载根地址为 `http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding`。根目录放 `install.sh` 和 `install.ps1`；`channels/cli/prod.txt`、`channels/cli/test.txt` 各存一行完整版本号，安装包放在
+HTTP 下载根地址为 `http://82.187.34.98/aixcoding/file/aixcoding`。根目录放 `install.sh` 和 `install.ps1`；`channels/cli/prod.txt`、`channels/cli/test.txt` 各存一行完整版本号，安装包放在
 `releases/cli/<完整版本号>/`。CD 分别上传各平台的二进制 Artifact，不打包安装脚本。
 手动将两个安装脚本放在 HTTP 根目录、对应平台的 Artifact ZIP 放入版本目录；确认上传完成后，手动把完整版本号写入本次要更新的频道文件。
 构建用 wheel 无需上传到 HTTP 镜像。只选择 Linux 的 CD 运行不会产出 macOS 和 Windows 包。
@@ -99,24 +99,24 @@ HTTP 下载地址无需 FTP 凭据。公开 URL 的 `/aixcoding/file/aixcoding/`
 
 | 目标环境 | 镜像中对应的包 | 安装命令 |
 | --- | --- | --- |
-| Linux ARM64 | `aixcoding-cli-linux-aarch64-v<版本>-offline.tar.gz` | `curl -fsSL 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh' \| bash` |
-| Linux x86-64 | `aixcoding-cli-linux-x86_64-v<版本>-offline.tar.gz` | `curl -fsSL 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh' \| bash` |
-| macOS Apple 芯片 | `aixcoding-cli-macos-aarch64-v<版本>-offline.tar.gz` | `curl -fsSL 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh' \| bash` |
-| macOS Intel | `aixcoding-cli-macos-x86_64-v<版本>-offline.tar.gz` | `curl -fsSL 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh' \| bash` |
-| Windows x86-64 | `aixcoding-cli-windows-x86_64-v<版本>-offline.zip` | `irm 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.ps1' \| iex`（PowerShell） |
+| Linux ARM64 | `aixcoding-cli-linux-aarch64-v<版本>-offline.tar.gz` | `curl -fsSL 'http://82.187.34.98/aixcoding/file/aixcoding/install.sh' \| bash` |
+| Linux x86-64 | `aixcoding-cli-linux-x86_64-v<版本>-offline.tar.gz` | `curl -fsSL 'http://82.187.34.98/aixcoding/file/aixcoding/install.sh' \| bash` |
+| macOS Apple 芯片 | `aixcoding-cli-macos-aarch64-v<版本>-offline.tar.gz` | `curl -fsSL 'http://82.187.34.98/aixcoding/file/aixcoding/install.sh' \| bash` |
+| macOS Intel | `aixcoding-cli-macos-x86_64-v<版本>-offline.tar.gz` | `curl -fsSL 'http://82.187.34.98/aixcoding/file/aixcoding/install.sh' \| bash` |
+| Windows x86-64 | `aixcoding-cli-windows-x86_64-v<版本>-offline.zip` | `irm 'http://82.187.34.98/aixcoding/file/aixcoding/install.ps1' \| iex`（PowerShell） |
 
 Linux 和 macOS 默认安装 `生产包`。安装 `测试包` 时先下载脚本，再运行 `bash install.sh --channel test`。
 为确保脚本下载失败时安装立即停止，可使用
-`curl -fsSL -o install.sh 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh' && bash install.sh`。
+`curl -fsSL -o install.sh 'http://82.187.34.98/aixcoding/file/aixcoding/install.sh' && bash install.sh`。
 脚本会读取对应频道的版本指针，自动识别系统和架构。安装后打开新终端，运行
 `aixcoding --version` 验证。Linux x86-64 要求 glibc ≥ 2.17，Linux ARM64 要求 glibc ≥ 2.18。
 
 Windows 在 PowerShell 中执行表格中的单行命令，默认安装生产包。测试包可执行
-`$env:ICODE_CHANNEL='test'; irm 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.ps1' | iex`。
+`$env:ICODE_CHANNEL='test'; irm 'http://82.187.34.98/aixcoding/file/aixcoding/install.ps1' | iex`。
 如需先查看脚本或安装指定版本，可以下载后运行：
 
 ```powershell
-Invoke-WebRequest 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.ps1' -OutFile install.ps1
+Invoke-WebRequest 'http://82.187.34.98/aixcoding/file/aixcoding/install.ps1' -OutFile install.ps1
 .\install.ps1 -Version 0.28.0-dev-9011ff5
 ```
 
