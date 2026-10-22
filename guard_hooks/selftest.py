@@ -149,7 +149,11 @@ class ShellGuardTests(GuardTestCase):
 
 class FilesystemGuardTests(GuardTestCase):
     def test_tfs01_write_scope(self) -> None:
-        blocked = self.tool_ids("filesystem.write", "write_file", {"path": "C:/Users/me/out.txt", "content": "x"})
+        # "工作区外"必须用当前平台真实的外部绝对路径：Windows 风格的
+        # "C:/Users/me/out.txt" 在 Linux/macOS 上是相对路径，会被解析进
+        # 工作区而放行，用例就失去了意义。
+        outside = str(Path(WORKSPACE).parent / "outside.txt")
+        blocked = self.tool_ids("filesystem.write", "write_file", {"path": outside, "content": "x"})
         self.assertIn("T-FS-01", blocked)
         allowed = self.tool_ids("filesystem.write", "write_file", {"path": "src/app.py", "content": "x"})
         self.assertEqual([], allowed)

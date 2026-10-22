@@ -18,7 +18,8 @@ if sys.platform == "win32":
     _config_dir = Path(os.environ["APPDATA"]) / "chrys"
 else:
     _config_dir = Path.home() / ".chrys"
-HOOKS_DIR = _config_dir / "hooks"
+# 允许用环境变量指向另一份已部署规则包（容器 / 多套策略验证用）。
+HOOKS_DIR = Path(os.environ.get("ICODE_GUARD_HOOKS_DIR", str(_config_dir / "hooks")))
 GUARD_DIR = HOOKS_DIR / "guard"
 # 必须是真实存在的目录：写白名单（T-FS-01）靠 Path.resolve() 判定"工作区内"。
 WORKSPACE = os.getcwd()
@@ -78,7 +79,15 @@ TOOL_CASES = [
     ("S27", "shell", "bash", {"command": "python -c \"import marshal; marshal.loads(b'')\"", "reason": ""}, True),
     ("S28", "shell", "bash", {"command": "python -m pycdc x.pyc", "reason": ""}, True),
     # 六、文件系统
-    ("F01", "filesystem.write", "write_file", {"path": "C:/Users/lhc/test_out.txt", "content": "x"}, True),
+    # F01 的"工作区外"必须是当前平台真实的外部绝对路径：Windows 风格的
+    # "C:/Users/..." 在 Linux/macOS 上是相对路径，会被解析进工作区而放行。
+    (
+        "F01",
+        "filesystem.write",
+        "write_file",
+        {"path": str(Path(os.getcwd()).parent / "test_out.txt"), "content": "x"},
+        True,
+    ),
     ("F02", "filesystem.read", "read_file", {"path": "C:/work/crowdstrike/a.py"}, True),
     ("F03", "filesystem.read", "read_file", {"path": "C:/Users/lhc/.ssh/id_rsa"}, True),
     ("F04", "filesystem.read", "read_file", {"path": "C:/Users/lhc/.aws/credentials"}, True),
