@@ -158,11 +158,14 @@ class ShellGuardTests(GuardTestCase):
             "echo pwned > ../outside.txt",
             "echo x >> ../../escape.log",
             "echo x > /tmp/evil.txt",
-            "echo x > C:\\Users\\Public\\evil.txt",
-            "echo x &> C:\\Users\\Public\\o.txt",
             'bash -c "echo x > ../o.txt"',
         ):
             self.assertShell(command, "T-SHELL-05")
+        if sys.platform == "win32":
+            # 反斜杠在 POSIX 上不是分隔符，C:\... 会被当成工作区内的相对文件名，
+            # 这两条只在 Windows 上断言。
+            self.assertShell("echo x > C:\\Users\\Public\\evil.txt", "T-SHELL-05")
+            self.assertShell("echo x &> C:\\Users\\Public\\o.txt", "T-SHELL-05")
 
     def test_ts05_write_commands_outside_workspace(self) -> None:
         for command in (
@@ -176,11 +179,13 @@ class ShellGuardTests(GuardTestCase):
             "tar -cf ../out.tar .",
             "unzip a.zip -d ../dest",
             "dd if=/dev/zero of=../blob bs=1M",
-            "copy a.txt ..\\b.txt",
-            "Set-Content -Path ..\\..\\evil.ps1 -Value x",
-            "echo x | Out-File ..\\o.txt",
         ):
             self.assertShell(command, "T-SHELL-05")
+        if sys.platform == "win32":
+            # 反斜杠目标的写命令同样只在 Windows 上断言。
+            self.assertShell("copy a.txt ..\\b.txt", "T-SHELL-05")
+            self.assertShell("Set-Content -Path ..\\..\\evil.ps1 -Value x", "T-SHELL-05")
+            self.assertShell("echo x | Out-File ..\\o.txt", "T-SHELL-05")
 
     def test_ts05_allows_workspace_writes(self) -> None:
         for command in (
