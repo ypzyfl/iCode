@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -22,8 +23,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import _guard_core as guard
 
-WORKSPACE = "C:/workspace/demo"
-CONSOLE = "C:/ws/demo"
+# 必须是真实存在的目录：写白名单（T-FS-01）靠 Path.resolve() 判定
+# "工作区内"，Windows 风格的伪路径在 Linux/macOS 上解析语义不同。
+WORKSPACE = os.getcwd()
 
 
 class GuardTestCase(unittest.TestCase):
