@@ -30,7 +30,7 @@ PROFILES = ("LOCAL", "DEV", "PROD")
 PROFILE_BASE_URLS: dict[str, str] = {
     "LOCAL": "http://127.0.0.1:4321/csas",
     "DEV": "http://81.89.182.150/csas",
-    "PROD": "http://22.189.54.139/csas",
+    "PROD": "http://aicoding.s.bocsys.cn/csas",
 }
 REPORT_URL_PATH = "telemetry/api/v1"
 

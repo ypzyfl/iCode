@@ -64,8 +64,8 @@ def _port(instance) -> int:
 def test_config_defaults_no_file_no_env() -> None:
     settings = config.load_settings(force=True)
     assert settings.profile == "PROD"
-    assert settings.base_url == "http://22.189.54.139/csas"
-    assert settings.report_base_url == "http://22.189.54.139/csas/telemetry/api/v1"
+    assert settings.base_url == "http://aicoding.s.bocsys.cn/csas"
+    assert settings.report_base_url == "http://aicoding.s.bocsys.cn/csas/telemetry/api/v1"
     assert settings.tool_param_mode == "full"
     assert settings.telemetry_enabled is True
     assert settings.token is None
