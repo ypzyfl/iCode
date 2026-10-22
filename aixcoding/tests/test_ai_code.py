@@ -246,7 +246,10 @@ def test_reporter_absolute_workspace_path_is_relative_even_through_symlink(tmp_p
     outside.mkdir()
     workspace = tmp_path / "workspace"
     workspace.mkdir()
-    (workspace / "linked").symlink_to(outside, target_is_directory=True)
+    try:
+        (workspace / "linked").symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip("directory symlinks are unavailable")
     path = workspace / "linked" / "found.py"
     add = _CaptureAdd()
     reporter = AiCodeReporter(add)
