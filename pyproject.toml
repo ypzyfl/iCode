@@ -234,3 +234,12 @@ include = ["src/chrys/app/tui/support/gc_freeze.py"]
 
 [tool.ty.overrides.rules]
 unresolved-attribute = "ignore"
+
+# Bundled security-guard hook scripts run as standalone subprocesses beside
+# hooks.yaml; they import guard_core from their own directory via sys.path,
+# which ty's module resolution cannot see.
+[[tool.ty.overrides]]
+include = ["src/chrys/app/guard_hooks/prompt_guard.py", "src/chrys/app/guard_hooks/tool_guard.py"]
+
+[tool.ty.overrides.rules]
+unresolved-import = "ignore"

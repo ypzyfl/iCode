@@ -263,7 +263,9 @@ class ScanContext:
         args: dict[str, Any],
         payload: dict[str, Any],
     ) -> None:
-        tool = payload.get("tool") if isinstance(payload.get("tool"), dict) else {}
+        tool = payload.get("tool")
+        if not isinstance(tool, dict):
+            tool = {}
         self.config = config
         self.texts = texts
         self.args = args
@@ -512,6 +514,10 @@ def _detect_write_scope(ctx: ScanContext) -> list[Evidence]:
     evidence: list[Evidence] = []
     for raw in path_values(ctx.args):
         target = _resolve_workspace(ctx.cwd, raw)
+        if target is None:
+            # 解析失败的路径按违规处理（fail-closed）。
+            evidence.append(Evidence("工作区外写入", raw, "path"))
+            continue
         posix = target.as_posix()
         for glob in readonly_globs:
             if fnmatch(posix, glob):
@@ -748,8 +754,12 @@ def evaluate_prompt(config: GuardConfig, text: str, *, deadline: float | None = 
 
 def evaluate_tool_call(config: GuardConfig, payload: dict[str, Any], *, deadline: float | None = None) -> list[Hit]:
     """工具调用层：拿工具入参跑 ``tool_rules``。"""
-    tool = payload.get("tool") if isinstance(payload.get("tool"), dict) else {}
-    raw_args = tool.get("args") if isinstance(tool.get("args"), dict) else {}
+    tool = payload.get("tool")
+    if not isinstance(tool, dict):
+        tool = {}
+    raw_args = tool.get("args")
+    if not isinstance(raw_args, dict):
+        raw_args = {}
     ctx = ScanContext(config=config, texts=[], args=dict(raw_args), payload=payload)
     hits: list[Hit] = []
     for rule in config.tool_rules:
@@ -792,7 +802,9 @@ def audit_path(config: GuardConfig) -> Path:
 
 def audit_records(layer: str, hits: list[Hit], payload: dict[str, Any], *, action: str) -> list[dict[str, Any]]:
     """构造留痕记录。"""
-    tool = payload.get("tool") if isinstance(payload.get("tool"), dict) else {}
+    tool = payload.get("tool")
+    if not isinstance(tool, dict):
+        tool = {}
     stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     return [
         {
