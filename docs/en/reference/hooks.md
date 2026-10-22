@@ -600,3 +600,40 @@ Duplicate `id` values within one configuration file cause that file to fail to l
 `settings` in project and global configurations are merged field by field: explicitly set project values take precedence, followed by global values, with defaults used when neither file sets a field.
 
 If either configuration file is invalid, AIxCoding displays a warning and disables all hooks defined in that file; a valid configuration file in the other location still takes effect. No warning is issued when a configuration file is not found.
+
+## Preset security guard rule pack
+
+The source repository ships a ready-to-enable security guard pack in `guard_hooks/`, which turns common security policies into two blocking hooks: `user_prompt_submit`, before a prompt is submitted, and `before_tool_call`, before a tool runs. It is not part of the iCode distribution; install it into one of the folders listed under [Configuration file locations](#configuration-file-locations) first.
+
+| File | Role |
+| --- | --- |
+| `_install_merge.py` | Installer: copies the files and merges the two hooks into the existing configuration |
+| `hooks.yaml` | Hook configuration snippet |
+| `_prompt_guard.py`, `_tool_guard.py` | Entry scripts for the two events |
+| `_guard_core.py` | Shared engine: loads rules, matches, writes the audit record and the result file |
+| `rules.json` | Dictionaries and the rule table |
+| `selftest.py` | Self-check that uses only the standard library |
+
+The pack uses only the Python standard library, imports no iCode module and changes no part of the application. Its dictionaries, rules and switches all live in `rules.json`; an edit takes effect the next time a hook runs, with no code change and no restart.
+
+Installation:
+
+```shell
+uv run python guard_hooks/_install_merge.py       # copies the files and appends the two hooks to the existing hooks.yaml
+uv run icode hook validate                        # expect PASS
+uv run icode hook list                             # expect two security-* entries
+```
+
+The installer does not overwrite the existing hook configuration, which usually holds telemetry and audit hooks of its own. It copies the files into a `hooks/guard/` subfolder, appends the two entries to the end of the `hooks` list, and backs the file up as `hooks.yaml.pre-guard` before writing; running it again changes nothing. To undo, copy that backup back over `hooks.yaml`.
+
+Restart iCode or switch sessions after installing, so the hook configuration is loaded again; editing only the scripts needs no restart.
+
+Both hooks use a 5 second limit and `on_error: block`: when the policy engine itself fails or times out, the operation is rejected instead of being silently allowed. The message a hit shows the user is the result file's [`reason`](#result-file) field, and every hit also appends one line to the JSON Lines file named by `settings.audit_log` in `rules.json`; a failed audit write only goes to stderr and never changes the decision.
+
+Entries the rule table marks as needing confirmation are handled the same way here — reject with a message — because a hook's standard input is not available, so it cannot show a confirmation prompt. Set `settings.confirm_disposition` from `block` to `notify` to switch to recording only: the prompt hook injects a system reminder into the turn, and the tool hook lets the call through.
+
+The pack checks prompt text and tool arguments. Checking what the model produces while it streams is out of its scope, because a hook does not see the streamed output.
+
+`guard_hooks/README.md` documents the rule set, the shipped rules and how to tune them; after editing `rules.json`, run `uv run python guard_hooks/selftest.py`.
+
+

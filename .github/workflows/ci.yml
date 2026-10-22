@@ -21,6 +21,10 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Windows 运行器默认控制台编码（cp1252/cp936）打印中文会崩溃。
+      PYTHONUTF8: "1"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -39,6 +43,8 @@ jobs:
   test_linux:
     name: Unix shard (${{ matrix.label }})
     runs-on: ubuntu-latest
+    # 步骤级 timeout 杀不掉不响应 kill 的子进程时，job 级是最后的硬上限。
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -112,6 +118,8 @@ jobs:
   test_macos:
     name: Unix shard (${{ matrix.label }})
     runs-on: macos-latest
+    # 步骤级 timeout 杀不掉不响应 kill 的子进程时，job 级是最后的硬上限。
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -170,6 +178,8 @@ jobs:
   test_windows:
     name: Windows shard (${{ matrix.label }})
     runs-on: windows-latest
+    # 步骤级 timeout 杀不掉不响应 kill 的子进程时，job 级是最后的硬上限。
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -281,6 +291,10 @@ jobs:
   architecture:
     name: Architecture
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Windows 运行器默认控制台编码（cp1252/cp936）打印中文会崩溃。
+      PYTHONUTF8: "1"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -303,11 +317,44 @@ jobs:
           name: test-results-architecture
           path: test-results-architecture.xml
 
+  # 安全护栏引擎自检 + MANUAL_TESTS 全量用例（64 条），三个平台都跑：
+  # guard 引擎是纯标准库，平台差异只可能出在路径解析与配置目录上，
+  # 因此跨平台跑一遍是唯一的真验证（详见 guard_hooks/selftest.py 与
+  # util/verify_guard_deployed.py）。
+  guard_selftest:
+    name: Guard selftest (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    timeout-minutes: 20
+    env:
+      # Windows 运行器默认控制台编码（cp1252/cp936）打印中文会崩溃。
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ inputs.build_ref || github.sha }}
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.14"
+          allow-prereleases: true
+      - run: uv sync --extra all
+      - name: Install guard hooks (platform config dir)
+        run: uv run python -c "from chrys.app.guard_install import install_guard_hooks; install_guard_hooks()"
+      - name: Engine selftest (46 assertions)
+        run: uv run python guard_hooks/selftest.py
+      - name: MANUAL_TESTS full cases (64) against deployed pack
+        run: uv run python util/verify_guard_deployed.py
+
   test_linux_gate:
     name: Test (linux)
     if: always()
     needs: [test_linux, architecture]
     runs-on: ubuntu-slim
+    timeout-minutes: 10
     steps:
       - name: Verify linux shards and architecture tests
         env:
@@ -322,6 +369,7 @@ jobs:
     if: always()
     needs: [test_macos, architecture]
     runs-on: ubuntu-slim
+    timeout-minutes: 10
     steps:
       - name: Verify macos shards and architecture tests
         env:
@@ -336,6 +384,7 @@ jobs:
     if: always()
     needs: [test_windows, architecture]
     runs-on: ubuntu-slim
+    timeout-minutes: 10
     steps:
       - name: Verify Windows shards and architecture tests
         env:
@@ -348,6 +397,10 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Windows 运行器默认控制台编码（cp1252/cp936）打印中文会崩溃。
+      PYTHONUTF8: "1"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:

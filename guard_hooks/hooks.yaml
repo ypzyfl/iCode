@@ -1,0 +1,49 @@
+# Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+#
+# iCode 安全拦截 Hook 配置。
+#
+# 安裝（推薦合併腳本，不會覆蓋已有的 hooks.yaml）：
+#   uv run python guard_hooks/_install_merge.py
+#
+# 手動：把 _prompt_guard.py / _tool_guard.py / _guard_core.py / rules.json 复制到
+#   <config_dir>/hooks/（默认 ~/.chrys/hooks/），再把本文件的 hooks 列表追加到
+#   那里的 hooks.yaml 末尾。项目级则复制到 <workspace>/.chrys/hooks/，并在设置里
+#   打开 project.hooks_enabled。
+#
+# 校验：icode hook validate   查看：icode hook list
+version: 1
+
+settings:
+  shutdown_grace_seconds: 5
+  max_parallel_hooks: 4
+
+hooks:
+  # 提示词层拦截：IN-01 ~ IN-09。
+  # on_error: block + timeout_seconds: 5 即规则表的"失败兜底"：子进程超时、
+  # 崩溃或引擎异常时本轮请求直接被拦下，而不是静默放行。
+  - id: security-prompt-guard
+    event: user_prompt_submit
+    description: 提示词层安全拦截（反编译/攻击工具、注入 payload、内网资产、合规类，命中即打断并提示）
+    run:
+      type: script
+      path: _prompt_guard.py
+    execution:
+      mode: blocking
+      timeout_seconds: 5
+      on_error: block
+
+  # 工具调用前拦截：T-* 全量规则。
+  - id: security-tool-guard
+    event: before_tool_call
+    description: 工具调用前安全拦截（Shell/PowerShell/Python、文件系统、网络、MCP、敏感信息）
+    run:
+      type: script
+      path: _tool_guard.py
+    execution:
+      mode: blocking
+      timeout_seconds: 5
+      on_error: block
+
+# 流式输出层（STREAM_CHUNK · _stream_guard.py）按需求本次不实现。
+# 当前 Hook 子进程标准输入为 DEVNULL，脚本无法改写流式输出，也无法与用户
+# 实时交互；该层需要 iCode 侧提供可改写/可中断的输出通道后再落地。

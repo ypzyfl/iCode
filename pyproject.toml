@@ -130,6 +130,9 @@ fix = true
 # Workflow SDK and worker host run inside any Python >= 3.9 interpreter (see per-file-ignores below)
 "src/chrys/service/workflows/sdk/*" = "py39"
 "src/chrys/service/workflows/worker_host.py" = "py39"
+# Bundled security-guard hook scripts: the hooks runner prefers a PATH python3,
+# which may predate 3.14, so keep them off PEP 758 paren-less except clauses
+"src/chrys/app/guard_hooks/*" = "py39"
 
 [tool.ruff.lint]
 select = [
@@ -187,6 +190,9 @@ ignore = [
 "tests/service/workflows/fixtures/*" = ["RUF001"]
 # AIxCoding TUI: user-facing Chinese prose keeps its full-width punctuation
 "aixcoding/tui/*" = ["RUF001"]
+# Bundled security-guard rule pack: standalone stdlib-only hook scripts whose
+# comments and docstrings are Chinese prose with full-width punctuation
+"src/chrys/app/guard_hooks/*" = ["RUF001", "RUF002", "RUF003"]
 [tool.ruff.lint.isort]
 known-first-party = ["chrys"]
 
@@ -231,3 +237,12 @@ include = ["src/chrys/app/tui/support/gc_freeze.py"]
 
 [tool.ty.overrides.rules]
 unresolved-attribute = "ignore"
+
+# Bundled security-guard hook scripts run as standalone subprocesses beside
+# hooks.yaml; they import guard_core from their own directory via sys.path,
+# which ty's module resolution cannot see.
+[[tool.ty.overrides]]
+include = ["src/chrys/app/guard_hooks/prompt_guard.py", "src/chrys/app/guard_hooks/tool_guard.py"]
+
+[tool.ty.overrides.rules]
+unresolved-import = "ignore"

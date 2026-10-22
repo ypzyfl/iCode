@@ -600,3 +600,38 @@ execution:
 项目配置和全局配置中的 `settings` 按字段合并：项目配置中明确设置的值优先，其次使用全局配置中的值；两处都没有设置时使用默认值。
 
 任一配置文件无效时，AIxCoding 会显示警告，并停用该文件定义的所有钩子；另一处有效配置文件仍然生效。未找到配置文件不会产生警告。
+
+## 预置安全拦截规则包
+
+源码仓库中的 `guard_hooks/` 是一个可直接启用的安全拦截规则包，把常见安全策略落成两个阻塞式钩子：提交提示词前的 `user_prompt_submit` 和执行工具前的 `before_tool_call`。它不随 iCode 发布，需要先安装到[配置文件位置](#配置文件位置)列出的目录才会生效。
+
+| 文件 | 作用 |
+| --- | --- |
+| `_install_merge.py` | 安装脚本：复制文件并把两个 hook 合并进已有的配置 |
+| `hooks.yaml` | Hook 配置片段 |
+| `_prompt_guard.py`、`_tool_guard.py` | 两个事件的入口脚本 |
+| `_guard_core.py` | 共享引擎：加载规则、匹配、留痕、写结果文件 |
+| `rules.json` | 词典与规则表 |
+| `selftest.py` | 只用标准库的自检脚本 |
+
+规则包只用 Python 标准库，不导入任何 iCode 模块，也不改动主程序代码。词典、规则和开关都放在 `rules.json` 中，改完后下一次钩子触发即生效，无需改代码或重启。
+
+安装：
+
+```shell
+uv run python guard_hooks/_install_merge.py       # 复制文件，并把两个 hook 追加到已有的 hooks.yaml
+uv run icode hook validate                        # 期望 PASS
+uv run icode hook list                             # 期望看到两个 security-* 条目
+```
+
+安装脚本不会覆盖已有的钩子配置——那里面通常还有遥测、审计等其它钩子。它把文件复制到 `hooks/guard/` 子目录，把两个条目追加到 `hooks` 列表末尾，写入前自动备份为 `hooks.yaml.pre-guard`；重复执行是幂等的。回退时把该备份拷回 `hooks.yaml` 即可。
+
+装完后需要重启 iCode 或切换会话才会重新加载钩子配置；只改脚本则不需要。
+
+两个钩子的运行时限是 5 秒，`on_error` 为 `block`：策略引擎自身异常或超时时，本次操作按拒绝处理，而不是静默放行。命中时给用户看的提示就是结果文件的 [`reason`](#结果文件) 字段；每次命中还会向 `rules.json` 中 `settings.audit_log` 指向的 JSON Lines 文件追加一行留痕，写留痕失败只输出到 stderr，不影响拦截结果。
+
+规则表里标注为需要确认的条目，在规则包中同样按"打断 + 提示"处理：钩子的标准输入不可用，无法在钩子内弹出确认框。把 `settings.confirm_disposition` 从 `block` 改成 `notify` 可以换成只留痕的方式——提示词提交时给模型注入一条系统提醒，工具调用静默放行。
+
+规则包检查的是提示词文本和工具入参。模型输出过程中的内容检查不在其范围内，因为钩子看不到流式输出。
+
+规则清单、词典字段和调优方式见 `guard_hooks/README.md`；改完 `rules.json` 可先运行 `uv run python guard_hooks/selftest.py`。

@@ -13,6 +13,25 @@ from chrys.foundation.branding import APP_COMMAND, APP_DISPLAY_NAME
 _TUI_SUBPROCESS_COMMAND = "__tui_subprocess__"
 
 
+def _ensure_guard_hooks() -> None:
+    """Install the bundled security guard hooks (fail-open).
+
+    The rule pack ships inside the build (``chrys/app/guard_hooks/``); the
+    runtime only ever reads hooks from the platform config directory.
+    Re-installs unconditionally on every start: the installer is idempotent
+    and overwrites atomically, so a machine upgraded from an older build can
+    never keep running stale hook scripts (a version check alone would leave
+    an old-but-complete install untouched forever).  Never raises: a broken
+    installer must not take the whole CLI down.
+    """
+    try:
+        from chrys.app.guard_install import install_guard_hooks
+
+        install_guard_hooks()
+    except Exception as exc:
+        sys.stderr.write(f"warning: security guard hooks not installed: {exc}\n")
+
+
 def _run_tui(argv: list[str]) -> int:
     """Run the TUI with *argv* as its argument list."""
     from chrys.app.tui.app import main as tui_main
@@ -122,6 +141,7 @@ def main() -> int:
     if argv in (["--help"], ["-h"]):
         build_parser().print_help()
         return 0
+    _ensure_guard_hooks()
     if argv and argv[0] == "run":
         from chrys.app.cli.run import main as run_main
 

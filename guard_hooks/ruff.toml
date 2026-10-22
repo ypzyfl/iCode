@@ -1,0 +1,19 @@
+# Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+
+# 拦截规则包自带的 lint 配置。
+#
+# 这个目录不参与仓库根 pyproject.toml 的 ruff/ty 门禁（那里的检查路径只覆盖
+# src/、tests/ 和 scripts/），因此自带一份配置，既不污染主配置，也不依赖主配置。
+# 校验方式：uv run ruff check guard_hooks/
+
+line-length = 120
+target-version = "py39"
+
+[lint]
+extend-select = ["I", "UP", "B", "SIM", "PERF", "S", "C4", "RUF"]
+# RUF001/002/003 会把中文文案里的全角标点（：、（）、——）报成 "ambiguous unicode"。
+# 用户提示与注释就是中文，这些标点是正确写法。
+ignore = ["RUF001", "RUF002", "RUF003", "S603", "S101"]
+
+[lint.per-file-ignores]
+"selftest.py" = ["S", "T201", "N802"]
