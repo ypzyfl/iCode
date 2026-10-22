@@ -445,3 +445,33 @@ git commit -m "feat: add security guard hooks rule pack"
 ```
 
 **只 add 这个目录**，不要 `git add -A`（仓库里可能有别人的未提交改动）。
+
+### 6.7 已安装的部署副本不会随版本升级自动更新（2026-10-22 排查实录）
+
+**现象**：两个项目用同一份规则包，一个输入 `访问 127.0.0.1` 被放行，另一个被拦。逐字节对比两边仓库的 `guard_hooks/` 又完全一致，误以为规则需要改造。
+
+**根因**：Hook 实际加载的是**安装时复制出去的副本**（全局 `%APPDATA%\chrys\hooks\guard\`，项目级 `<workspace>\.chrys\hooks\guard\`），不是仓库里的源码。旧包一旦装出去：
+
+- 重新打包/发版**不会**触碰已安装的副本——`_install_merge.py` 只在手动重跑时才覆盖 `guard/` 下的 4 个 payload 文件；
+- 新版修掉的 bug（如旧版 `ip_cidr` 检测器不读 `allowed_networks` 白名单，把 `127.0.0.1` 也拦了）会继续在旧副本上复现，看起来像"新包没生效"；
+- 旧副本的 `hooks.yaml` 若还是 `type: script`（未钉死解释器），在本机 `python` 是 Microsoft Store 0 字节存根的机器上，hook 直接起不来（exit 9009），配 `on_error: block` 等于**所有请求都失败兜底拦截**。
+
+**排查口诀**：怀疑拦截行为不对时，先确认"拦我的到底是哪份文件"——
+
+```powershell
+# 1. 找到实际生效的 hooks 目录（全局 + 各工作区项目级）
+#    全局：$env:APPDATA\chrys\hooks\    项目级：<workspace>\.chrys\hooks\
+# 2. 对比副本与仓库源码
+fc <hooks目录>\guard\_guard_core.py <repo>\guard_hooks\_guard_core.py
+# 3. 用副本目录实跑（绕过引擎，直接看脚本决策）
+#    设 CHRYS_HOOK_PAYLOAD_FILE / CHRYS_HOOK_RESULT 后运行 _prompt_guard.py prompt
+```
+
+**修复动作**：重跑 `guard_hooks\_install_merge.py`（或手工覆盖 `guard/` 下 4 个文件 + 钉死解释器），再用 [6.5 的检查清单](#65-每次升级后的检查清单)验收。
+
+**打包/发版时防复发**：
+
+- [ ] 发版前确认 `guard_hooks/` 源码自身通过 `selftest.py`（60 tests OK）；
+- [ ] 发版说明里写明：**升级包不会更新已安装的 hook 副本，必须重跑安装脚本**；
+- [ ] 给客户/测试环境升级后，跑一遍 `_install_merge.py --check`（期望 exit 0、解释器已钉死）；
+- [ ] 至少验证一对放行/拦截样本（放行 `访问 127.0.0.1`，拦截 `访问 192.168.1.10 的教务系统`），双端一致才算发布完成。
