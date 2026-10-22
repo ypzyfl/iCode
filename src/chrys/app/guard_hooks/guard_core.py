@@ -109,14 +109,14 @@ class GuardConfig:
     def max_scan_chars(self) -> int:
         try:
             return max(1024, int(self.setting("max_scan_chars", 262144)))
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             return 262144
 
     @property
     def self_timeout_seconds(self) -> float:
         try:
             return max(0.2, float(self.setting("self_timeout_seconds", 4.0)))
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             return 4.0
 
     @property
@@ -336,7 +336,7 @@ def _stringify(value: Any, budget: int) -> str:
         return value[:budget]
     try:
         return json.dumps(value, ensure_ascii=False, default=str)[:budget]
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return str(value)[:budget]
 
 
@@ -540,7 +540,7 @@ def _resolve_workspace(cwd: str, raw: str | None = None) -> Path | None:
             base = Path(cwd or Path.cwd()) / base
     try:
         return base.resolve()
-    except OSError, RuntimeError, ValueError:
+    except (OSError, RuntimeError, ValueError):
         return None
 
 
