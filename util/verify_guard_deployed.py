@@ -159,8 +159,7 @@ def main() -> int:
     verbose = "-v" in sys.argv
     failures = []
     for case_id, text, should_block in PROMPT_CASES:
-        code, decision, stderr = invoke(
-            "_prompt_guard.py".replace("_prompt_guard", "prompt_guard"),
+        code, decision, stderr = invoke("_prompt_guard.py",
             {
                 "event": "user_prompt_submit",
                 "session_id": "verify",
@@ -188,7 +187,7 @@ def main() -> int:
             "cwd": WORKSPACE,
             "tool": {"name": name, "kind": kind, "call_id": "verify", "args": args},
         }
-        code, decision, stderr = invoke("tool_guard.py", payload)
+        code, decision, stderr = invoke("_tool_guard.py", payload)
         blocked = decision.get("action") == "block"
         ok = blocked == should_block and code == 0
         if not ok or verbose:
