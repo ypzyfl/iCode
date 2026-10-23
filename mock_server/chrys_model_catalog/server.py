@@ -29,6 +29,8 @@ Endpoints::
 
     GET  /llm/api/v1/continue-config/dispatch   catalog payload for the current mode
     POST /mock/control   {"mode": ..., "delay": N}
+    POST /v1/chat/completions   OpenAI-shaped chat, 401 unless it carries a
+                                ``token`` or ``Authorization`` credential
     POST /api/v1/auth/device/code, /api/v1/auth/device/token, /api/v1/user/info
     GET  /device/verify  (login mock, unless --no-auth)
 """
@@ -165,6 +167,40 @@ def _format_auth_headers(headers: Any) -> str:
         if _is_credential_header(name):
             lines.append(f"    {name}: {_mask_value(value)} (len={len(value)})")
     return "\n".join(lines) or "    (no credential header)"
+
+
+#: The two credential channels a model request arrives on: the AIxCoding login
+#: token the client injects at send time (a logged-out session sends none),
+#: and a profile's own API key — the one that survives a logout.
+LOGIN_TOKEN_HEADER = "token"
+API_KEY_HEADER = "Authorization"
+
+
+def _has_credential(headers: Any) -> bool:
+    """Whether the request carries a credential on either channel.
+
+    Either one names the caller, so one is enough; the gateway refuses only a
+    request that carries neither, which is what a logged-out session sends.
+    """
+    return any((headers.get(name) or "").strip() for name in (LOGIN_TOKEN_HEADER, API_KEY_HEADER))
+
+
+def _llm_auth_error_body() -> dict[str, Any]:
+    """The OpenAI-shaped error a gateway answers an unauthenticated request with.
+
+    ``authentication_error`` is the type the client maps to its auth-failure
+    kind, so a local run lands on the same path a real gateway's 401 triggers
+    — the one that deliberately does not retry — instead of an invented body
+    the client would only misread.
+    """
+    return {
+        "error": {
+            "message": f"Missing authentication credential: expected the {LOGIN_TOKEN_HEADER} or {API_KEY_HEADER} header.",
+            "type": "authentication_error",
+            "param": None,
+            "code": "missing_credential",
+        }
+    }
 
 
 #: What the mock answers with — generic enough to be safe in any context.
@@ -342,14 +378,20 @@ def build_handler_class() -> type[BaseHTTPRequestHandler]:
             self._send_json(200, server.state.snapshot())
 
         def _serve_llm_chat(self) -> None:
-            """Answer like OpenAI.
+            """Answer like OpenAI — once the credential rule has had its say.
 
             No extra logging here: ``_dispatch`` already logs every request
             line together with its credential headers — ``token``,
             ``Authorization``, anything auth-shaped, values masked — which is
             all the mock is watched for. The payload is not logged.
             """
+            # Read the body before answering either way: a rejected request
+            # whose body is left on the socket desyncs a keep-alive
+            # connection and corrupts the next request on it.
             body = self._read_llm_body()
+            if not _has_credential(self.headers):
+                self._send_llm_auth_error()
+                return
             if body is None:
                 self._send_json(400, {"error": "chat request body must be a JSON object"})
                 return
@@ -375,6 +417,16 @@ def build_handler_class() -> type[BaseHTTPRequestHandler]:
             except OSError, ValueError:
                 return None
             return parsed if isinstance(parsed, dict) else None
+
+        def _send_llm_auth_error(self) -> None:
+            """Answer 401, with the challenge header a 401 owes the caller."""
+            body = json.dumps(_llm_auth_error_body(), indent=2).encode("utf-8") + b"\n"
+            self.send_response(401)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("WWW-Authenticate", 'Bearer realm="chrys-model-catalog-mock"')
+            self.end_headers()
+            self.wfile.write(body)
 
         def _send_llm_stream(self, model: str) -> None:
             """Answer a streaming request with SSE chunks, then ``[DONE]``."""

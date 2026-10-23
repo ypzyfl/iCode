@@ -32,7 +32,7 @@ CHRYS_AUTH_ENVIRONMENT=local uv run icode
 |---|---|---|
 | GET | `/llm/api/v1/continue-config/dispatch` | 当前模式下的目录 payload（query 参数被忽略，客户端拼的 `scopeType`/`userId` 不影响响应） |
 | POST | `/mock/control` | `{"mode": "error", "delay": 8}` 运行时切换故障模式；响应体带回 mode / revision / version / 请求数 |
-| POST | `/v1/chat/completions` | LLM chat mock：请求行的统一日志只带出**认证头**（`token` / `Authorization` / 含 auth/key/secret 等字样的头，值打码，没有则显示 `(no credential header)`），不打印载荷；再按 `stream` 回最小合法 ChatCompletion 或 SSE 流。把 `config_new.json` 里模型的 `apiBase` 指到 `http://127.0.0.1:7777/v1` 即可走这条 |
+| POST | `/v1/chat/completions` | LLM chat mock：没有 `token` 也没有 `Authorization` 的请求回 **401**（见下）；有则按 `stream` 回最小合法 ChatCompletion 或 SSE 流。请求行的统一日志只带出**认证头**（`token` / `Authorization` / 含 auth/key/secret 等字样的头，值打码，没有则显示 `(no credential header)`），不打印载荷。把 `config_new.json` 里模型的 `apiBase` 指到 `http://127.0.0.1:7777/v1` 即可走这条 |
 
 只留这两条 —— 外加默认同端口挂载的登录 mock：`POST /api/v1/auth/device/code`、
 `POST /api/v1/auth/device/token`、`POST /api/v1/user/info`、`GET /device/verify`。
@@ -62,6 +62,22 @@ payload 形状是**服务端自己的**，不是 iCode 的 `ModelProfile`：
 `contextLength` → `max_context_tokens`；`provider` / `api_style` 写死（下发模型
 全部走 OpenRouter）；`apiKey` 与 `api_key` **都不使用** —— 服务端不下发凭据，
 profile 里也不留，发消息时按 `base_url` 注入（`service/llm/clients.py`）。
+
+## 模型请求的凭证校验
+
+真实网关不会应答一个没有凭证的模型请求，所以这条路由也不会：`token`（登录
+凭证）和 `Authorization`（profile 自己的 key）**都没有**时回 **401**，带
+`WWW-Authenticate`，体是 OpenAI 的形状：
+
+```json
+{"error": {"message": "Missing authentication credential: expected the token or Authorization header.",
+           "type": "authentication_error", "param": null, "code": "missing_credential"}}
+```
+
+`authentication_error` 正是客户端映射到 `ErrorKind.AUTH_FAILED` 的 type
+（`foundation/errors/provider.py`），而这一类**不重试** —— 所以本地跑出来的
+是真实网关拒绝时那同一条路径。退出登录后下条请求就不带 `token` 了，用它就能
+复现那个场景。
 
 ## 故障模式
 

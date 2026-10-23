@@ -206,9 +206,25 @@ async def test_empty_and_invalid_payloads_are_refused_by_the_client_parser(
         parse_catalog((await _get(_catalog(mock))).json())
 
 
-async def _post_chat(running: RunningCatalogMock, body: dict[str, Any]) -> httpx.Response:
+async def _post_chat(
+    running: RunningCatalogMock,
+    body: dict[str, Any],
+    *,
+    headers: dict[str, str] | None = None,
+) -> httpx.Response:
     async with httpx.AsyncClient() as client:
-        return await client.post(f"{running.origin}{catalog_server.LLM_ROUTE}", json=body)
+        return await client.post(f"{running.origin}{catalog_server.LLM_ROUTE}", json=body, headers=headers)
+
+
+#: What a logged-in session puts on the wire; the route only ever checks that
+#: a credential is carried, never what it says.
+LOGIN_TOKEN_HEADERS = {"token": "mock-login-token"}
+
+
+def _chat_body(**overrides: Any) -> dict[str, Any]:
+    body = {"model": "mock-model", "messages": [{"role": "user", "content": "ping"}]}
+    body.update(overrides)
+    return body
 
 
 async def test_llm_chat_non_streaming(mock: RunningCatalogMock, direct_route: None) -> None:
@@ -221,6 +237,7 @@ async def test_llm_chat_non_streaming(mock: RunningCatalogMock, direct_route: No
             "temperature": 0.2,
             "messages": [{"role": "user", "content": "ping"}],
         },
+        headers=LOGIN_TOKEN_HEADERS,
     )
     assert response.status_code == 200
     payload = response.json()
@@ -241,6 +258,7 @@ async def test_llm_chat_streaming(mock: RunningCatalogMock, direct_route: None) 
             "stream": True,
             "messages": [{"role": "user", "content": "ping"}],
         },
+        headers=LOGIN_TOKEN_HEADERS,
     )
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/event-stream")
@@ -248,3 +266,25 @@ async def test_llm_chat_streaming(mock: RunningCatalogMock, direct_route: None) 
     assert "chat.completion.chunk" in text
     assert catalog_server.LLM_MOCK_REPLY in text
     assert text.endswith("data: [DONE]\n\n")
+
+
+async def test_llm_chat_without_credential_answers_401(mock: RunningCatalogMock, direct_route: None) -> None:
+    """Neither ``token`` nor ``Authorization``: 401, the way a gateway refuses.
+
+    ``authentication_error`` is the type the client maps to its auth-failure
+    kind — the one it deliberately does not retry — so the body has to be the
+    real shape and not an invention of this mock's.
+    """
+    response = await _post_chat(mock, _chat_body())
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"]
+    assert response.json()["error"]["type"] == "authentication_error"
+    assert catalog_server.LLM_MOCK_REPLY not in response.text
+
+
+async def test_llm_chat_accepts_either_credential(mock: RunningCatalogMock, direct_route: None) -> None:
+    """A login token or a profile's key each authenticate a request on their own."""
+    by_token = await _post_chat(mock, _chat_body(), headers={"token": "mock-login-token"})
+    by_key = await _post_chat(mock, _chat_body(), headers={"Authorization": "Bearer mock-profile-key"})
+    assert by_token.status_code == 200
+    assert by_key.status_code == 200
