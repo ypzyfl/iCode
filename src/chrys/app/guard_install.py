@@ -150,7 +150,7 @@ def install_guard_hooks(*, hooks_dir: Path | None = None, asset_dir: Path | None
     text = raw.decode("utf-8-sig")
     try:
         merged_text = merge_guard_entries(text, managed_entries)
-    except (yaml.YAMLError, ValueError):
+    except yaml.YAMLError, ValueError:
         return _replace_unparsable(hooks_file, template_text, had_bom)
     try:
         merged_document = yaml.safe_load(merged_text)
