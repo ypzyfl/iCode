@@ -2,6 +2,15 @@
 
 Chrys is a Python 3.14+ agent platform: Textual TUI, headless CLI and ACP server. Users see it as **AIxCoding** / `aixcoding-cli` (`foundation/branding.py`; `msg()` fallbacks write `{app}`, bound with `app=APP_DISPLAY_NAME`); the package, the `chrys` command, `~/.chrys`, `CHRYS_*`, wire/header names and data keys keep `chrys`. `pyproject.toml` is the source of truth for version and deps. Paths are under `src/chrys/` unless they start with `tests/`, `scripts/`, `docs/`, `locales/`, `.github/` or name a root file; a bare file name continues the directory named just before it.
 
+<!-- AIxCoding entry point to the customization standards (aixcoding/docs/standards) -->
+## AIxCoding customization
+
+All customization work in this fork — everything under `src/chrys/aixcoding/` and `aixcoding/` — is
+governed by `aixcoding/docs/standards/DEVELOPMENT.md` (hard rules R1–R11 + the human-AI workflow).
+Read it (and `DIRECTORY.md`) before adding or changing anything beyond pure upstream files —
+and before reviewing any diff or PR. AI agents must stop and ask for approval before editing any upstream
+file (R2) or adding a third-party dependency (R11).
+
 ## Commands
 ```bash
 uv sync --extra all                  # setup, as CI; bare `uv sync` uninstalls the extras

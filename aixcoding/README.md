@@ -1,52 +1,41 @@
-# aixcoding
+# aixcoding —— AIxCoding 定制专区（纯开发资产）
 
-AIxCoding 二开定制专区。此目录为**不进 wheel 发布包**的定制内容（wheel 仅打包 `src/chrys`，另有 `docs/` 用户指南经 force-include 随包分发，与本目录无关）。
+> **过渡期**：本页描述目录重组完成后的**目标结构**；磁盘现状（`auth/`、`tui/`、`doc/`、`telemetry-mock/` 仍在原地）与执行进度见 `docs/restructure/plan.md`。
 
-- `docs/`：内部设计文档，纯中文、无双语义务，按功能分子目录（如 `telemetry/` 数据上报）
-- `telemetry-mock/`：数据上报 mock server（Python 标准库零依赖，仅供开发调试；M1 时创建）
+本目录承载 iCode-fork 的**全部定制开发资产**（文档、测试、mock），不进 wheel。
+进 wheel 的定制产品代码在 `src/chrys/aixcoding/`。
 
-进包的定制源码在 `src/chrys/aixcoding/`，定制测试在 `tests/aixcoding/`。
-
-
-# iCode TUI 登录改造 —— 增量代码目录
-
-本目录承载本次登录改造的**全部新增代码**，与 `src/chrys` 主包物理隔离，便于增量管理与代码评审。
-
-分支：`lhc/aixcoding_login`（从 `main` 切出）
-
-## 目录约定
+## 结构一图
 
 ```
 aixcoding/
-├── auth/    协议客户端、凭据存储、OS 级加密后端
-└── tui/     Textual 登录对话框
+├── docs/          # 活文档：standards/（规范族+ADR）、restructure/（重组专项）、<特性>/
+├── tests/         # 定制测试唯一落点（显式运行，见下）
+├── mock/          # 自建 mock 专区（auth / update / model_catalog / telemetry）
+└── __init__.py    # 开发资产 import 命名空间锚点（不进 wheel）
 ```
 
-本地 mock 登录服务器位于 `mock_server/aixcoding_auth/server.py`
-（2026-10-08 自 `scripts/mock_auth_server.py` 迁出并并入 `mock_server/` dev-mock 注册表，不放在 aixcoding 内）。
+## 速查
 
-**对 `src/chrys` 的改动仅限于"接线"**，不含业务逻辑：
-
-| 文件 | 改动性质 |
+| 我要… | 去哪 / 怎么做 |
 |---|---|
-| `src/chrys/app/tui/screens/main/commands.py` | 注册 `/login`、`/logout` 斜杠命令（几行） |
-| `src/chrys/app/tui/app.py` | `on_mount` 末尾挂静默检查任务（几行） |
+| 新增定制产品代码 | `src/chrys/aixcoding/`（子包分层判定见规范 §3；先读 `docs/standards/DEVELOPMENT.md`） |
+| 新增定制测试 | `aixcoding/tests/<特性>/` |
+| 新增 mock | `aixcoding/mock/<服务名>/`（步骤见 `mock/README.md`；必须配契约测试） |
+| 跑定制测试 | `uv run --extra all pytest aixcoding/tests -m "not integration and not gc_calibration"` |
+| 查硬规则（R1–R11） | `docs/standards/DEVELOPMENT.md` |
+| 判定本次改动走全管线还是微改动豁免 | `docs/standards/DEVELOPMENT.md` §6（三条件全满足即豁免） |
+| 查人机工作流（责任人五个检查点 + AI 执行流） | `docs/standards/DEVELOPMENT.md` §4 |
+| **团队成员必读（我要做什么·一页）** | `docs/standards/TEAM-GUIDE.md` |
+| 查目录细则（落点/蓝图/tier/命名） | `docs/standards/DIRECTORY.md` |
+| 查"为什么这样定" | `docs/standards/adr/`（含被否决的备选） |
+| 自审怎么做（作者，提 PR 前照做） | `docs/standards/SELF-REVIEW-HOWTO.md` |
+| 评审怎么做（评审人，打开 PR 照做） | `docs/standards/PEER-REVIEW-HOWTO.md` |
+| 新建功能文档 | 从 `docs/standards/templates/` 复制骨架（requirements/design/test-plan/plan/verification/self-review/adr） |
+| 签认文档（R10 责任人本人） | 编辑文档头部字段：状态→已确认、填日期；AI 不得代填 |
+| 校验文档签认 | `uv run python aixcoding/tools/check_docs.py`（ADR + design + self-review 签认；design 含 R11 依赖审批字段联动） |
+| 查定制点清单（升级地图） | `docs/CUSTOMIZATIONS.md`（脚本扫描生成；**待生成**——脚本未建，见 `docs/restructure/plan.md` §0） |
 
-业务逻辑一律放本目录，`src/chrys` 只做最小侵入调用。
+## 历史备注
 
-## 与架构测试的边界
-
-已核实：`tests/architecture/test_layering.py` 的分层 DAG 扫描范围是 `SRC_ROOT / "chrys"`（即 `src/chrys`），本目录不在扫描范围内，因此：
-
-- ✅ 不受 foundation < kernel < service < orchestration < app 的反向导入约束
-- ✅ 不会触发 `unregistered first-party top-level package` 检查
-- ⚠️ 但 `scripts/i18n.py` 的 `SOUCE_ROOT` 同样是 `src/chrys`，本目录内的 `msg()` **不会被提取到 i18n catalog** —— 所以 TUI 文案应保持极小，或由 `src/chrys` 侧的调用方持有文案
-
-## 参考实现
-
-| 项目 | 借鉴内容 |
-|---|---|
-| `D:\project\ChinaBank\aixcoding-continue` | 设备码协议三接口、`client_id: 78`、`mockServer/server.js` 的假数据 |
-| `D:\project\agent_studio_new` | 凭据存储（OS 级加密 + 明文指针引用 + 降级内存态） |
-
-改造方案全文见 `codingExplan/TUI登录改造方案.md`。
+本目录曾含 `auth/`、`tui/` 产品代码并以顶层包身份进 wheel（2026-10-08 `f4f90f5`），曾名 `telemetry-mock/`、`doc/` 等混杂结构。2026-10-21 目录重组（见 `docs/restructure/plan.md` 与 ADR-0002/0003）后定位收敛为纯开发资产。
