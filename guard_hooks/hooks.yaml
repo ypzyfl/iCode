@@ -38,7 +38,7 @@ hooks:
   # 崩溃或引擎异常时本轮请求直接被拦下，而不是静默放行。
   - id: security-prompt-guard
     event: user_prompt_submit
-    description: 提示词层安全拦截（反编译/攻击工具、注入 payload、内网资产、合规类，命中即打断并提示）
+    description: 提示词层安全拦截（反编译/攻击工具、注入 payload、任意 IP 与内网资产、合规类，命中即打断并提示）
     run:
       type: command
       cwd: ${chrys_home}/hooks
