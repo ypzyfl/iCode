@@ -267,7 +267,7 @@ uv run python guard_hooks\_install_merge.py
 uv run python guard_hooks\selftest.py
 ```
 
-60 个用例：每条规则一个正例，外加「日常开发不应被拦」的负例，按 iCode 真实子进程协议跑两个入口脚本，以及安装脚本的解释器探测 / 钉死逻辑。**自检不过不要部署。**
+60 个用例：每条规则一个正例，外加「日常开发不应被拦」的负例，按 iCode 真实子进程协议跑两个入口脚本，以及安装脚本的解释器探测 / 启动器改写逻辑。**自检不过不要部署。**
 
 ---
 
@@ -290,8 +290,8 @@ Get-Content $env:APPDATA\chrys\hooks\guard_audit.jsonl -Wait -Tail 3 -Encoding U
 | `icode hook validate` 报 `script_missing` | 文件没部署全 | 跑 `_install_merge.py` |
 | 报 `broad_before_tool_call` 警告 | 无 match 过滤 = 每次工具调用都跑 | 预期行为，可忽略 |
 | 所有请求都被拦，提示「策略引擎异常」 | `rules.json` 语法错或字段写错 | 看 iCode 日志 stderr 里 `[guard]` 开头的行 |
-| **所有请求都被拦，提示「hook ... failed」** | **hook 子进程起不来**（解释器坏了、脚本被挪走）——`on_error: block` 的 fail-closed | 先跑 `uv run python guard_hooks/_install_merge.py --check`，看「配置里的解释器」那一行；解释器不对就重跑安装脚本（不带 `--check`）自动修好 |
-| 弹「python was not found but can be installed from the Microsoft Store」（exit_code=9009） | iCode 选中了 PATH 上的 **Microsoft Store 别名存根**（`%LOCALAPPDATA%\Microsoft\WindowsApps\python.exe`，0 字节） | 见下方 5.3；用当前版本的安装脚本重跑一次即可自动钉死 |
+| **所有请求都被拦，提示「hook ... failed」** | **hook 子进程起不来**（找不到 python、脚本被挪走）——`on_error: block` 的 fail-closed | 先跑 `uv run python guard_hooks/_install_merge.py --check`，看「配置里的 run」那一行；形态不对就重跑安装脚本（不带 `--check`）自动升级 |
+| 弹「python was not found but can be installed from the Microsoft Store」（exit_code=9009） | hook 的 `run` 还是 `type: script`，iCode 选中了 PATH 上的 **Microsoft Store 别名存根**（`%LOCALAPPDATA%\Microsoft\WindowsApps\python.exe`，0 字节） | 见下方 5.3；用当前版本的安装脚本重跑一次即可自动升级成启动器形态 |
 | 什么都没拦 | `settings.enabled: false`，或整条规则 `enabled: false` | 检查这两处 |
 | 拦截比预期慢 | 正常，单次扫描是毫秒级 | 看 `self_timeout_seconds` 是否被改小 |
 
@@ -311,14 +311,16 @@ Windows 自带一个 **App Execution Alias**：即使你没装任何 Python，
 只要 PATH 上出现存根而前面两步都没命中，就会选中它；`icode hook validate` 也看不出异常
 （存根文件真实存在，`which` 认为它可用）。两个 hook 都是 `on_error: block`，于是一句话都发不出去。
 
-**现在不会再发生了**：安装脚本会跳过存根、探测一个真解释器，并把 hook 的 `run` 钉成
-`type: command` + 绝对路径（见 [README 安装](README.md#解释器会被钉死)）。
+**现在不会再发生了**：安装脚本把两个 hook 的 `run` 写成 PowerShell 启动器形态——hook 每次
+执行时现找 python：先 PATH（跳过 0 字节存根），再打包版 iCode 首次运行解压在
+`%LOCALAPPDATA%\pyapp\data\chrys` 的内嵌解释器（见 [README 安装](README.md#解释器策略执行时现找-python)）。
+找不到才报错退出，配合 `on_error: block` 保持失败关闭。
 
 ```powershell
 uv run python guard_hooks\_install_merge.py --check
-#   配置里的解释器：已钉死 C:\ProgramData\miniforge3\python.exe      ← 健康
-#   配置里的解释器：2 个 hook 仍是 type: script，由 iCode 从 PATH 现选 ← 重跑安装脚本
-#   ⚠️ 钉死的解释器已不可用（不存在或为空文件）：…                    ← 重跑安装脚本换成本机的
+#   配置里的 run：2 个 hook 用启动器形态（执行时现找 python）      ← 健康
+#   配置里的 run：2 个 hook 仍是 type: script，由 iCode 从 PATH 现选 ← 重跑安装脚本升级
+#   配置里的 run：已钉死 C:\ProgramData\miniforge3\python.exe      ← --python 指定的形态
 ```
 
 `--check` 还会打出 iCode 自己的选择顺序（不过滤存根），两行对照就能看出它会选中谁：
@@ -331,12 +333,13 @@ iCode 的选择顺序（不过滤存根）：python3 → …\WindowsApps\python3
 
 | 做法 | 说明 |
 | --- | --- |
-| 重跑安装脚本 | 自动探测本机真解释器并钉死，还能顺带把「已钉死但解释器被卸载了」的旧钉子换掉 |
-| `--python <路径>` | 探测结果不理想时手动指定（不接受 0 字节存根） |
+| 重跑安装脚本 | 自动升级成启动器形态，还能顺带把「旧钉死形态 / script 形态」的条目换掉 |
+| `--python <路径>` | 想固定用一个解释器时手动指定（不接受 0 字节存根） |
 | 关掉应用执行别名 | 设置 → 应用 → 高级应用设置 → 应用执行别名 → 关掉 `python.exe` / `python3.exe`，存根就不再出现在 PATH 上 |
 
-自己手改 `hooks.yaml` 也可以，注意两点：`argv` **不做模板展开**（`${chrys_home}` 只在
-`run.cwd` / `run.env` 里生效），且 hook 的 `cwd` 是**工作目录**而不是配置目录，所以两个路径都得是绝对路径：
+自己手改 `hooks.yaml` 也可以，从仓库 `guard_hooks/hooks.yaml` 直接抄启动器形态（`type: command` +
+powershell argv + `env.GUARD_SCRIPT`）即可，它不依赖本机路径；注意 `argv` **不做模板展开**
+（`${chrys_home}` 只在 `run.cwd` / `run.env` 里生效）。要钉死解释器也行（两个路径都得是绝对路径）：
 
 ```yaml
 run:
@@ -379,7 +382,7 @@ iCode 的**程序文件**和**用户配置**是分开的：
 ```powershell
 # 1) 配置与脚本完整性
 uv run icode hook validate          # 期望 PASS，无 script_missing
-uv run python guard_hooks\_install_merge.py --check   # 期望 exit 0，解释器已钉死
+uv run python guard_hooks\_install_merge.py --check   # 期望 exit 0，启动器形态已生效
 
 # 2) 规则集自身没坏
 uv run python guard_hooks\selftest.py    # 期望 Ran 60 tests ... OK
@@ -428,7 +431,7 @@ uv run icode run "执行 rm -rf /tmp/upgrade_probe_test"
 ### 6.5 每次升级后的检查清单
 
 - [ ] `uv run icode hook validate` → PASS
-- [ ] `uv run python guard_hooks\_install_merge.py --check` → exit 0（解释器已钉死）
+- [ ] `uv run python guard_hooks\_install_merge.py --check` → exit 0（启动器形态已生效）
 - [ ] `uv run python guard_hooks\selftest.py` → 60 tests OK
 - [ ] `uv run icode run "用 IDA Pro 反编译一下这个 exe"` → 被拦
 - [ ] `uv run icode run "执行 rm -rf /tmp/probe"` → 被拦
@@ -452,9 +455,9 @@ git commit -m "feat: add security guard hooks rule pack"
 
 **根因**：Hook 实际加载的是**安装时复制出去的副本**（全局 `%APPDATA%\chrys\hooks\guard\`，项目级 `<workspace>\.chrys\hooks\guard\`），不是仓库里的源码。旧包一旦装出去：
 
-- 重新打包/发版**不会**触碰已安装的副本——`_install_merge.py` 只在手动重跑时才覆盖 `guard/` 下的 4 个 payload 文件；
+- 重新打包/发版**不会**触碰已安装的副本——`_install_merge.py` 只在手动重跑时才覆盖 `guard/` 下的 payload 文件；
 - 新版修掉的 bug（如旧版 `ip_cidr` 检测器不读 `allowed_networks` 白名单，把 `127.0.0.1` 也拦了）会继续在旧副本上复现，看起来像"新包没生效"；
-- 旧副本的 `hooks.yaml` 若还是 `type: script`（未钉死解释器），在本机 `python` 是 Microsoft Store 0 字节存根的机器上，hook 直接起不来（exit 9009），配 `on_error: block` 等于**所有请求都失败兜底拦截**。
+- 旧副本的 `hooks.yaml` 若还是 `type: script`（由 iCode 从 PATH 现选解释器），选中 Microsoft Store 0 字节存根则 hook 起不来（exit 9009），配 `on_error: block` 等于**所有请求都失败兜底拦截**。现在模板与安装脚本都写 PowerShell 启动器形态（`guard/_launcher.ps1`，执行时现找真 python），机器间拷贝配置也能跑。
 
 **排查口诀**：怀疑拦截行为不对时，先确认"拦我的到底是哪份文件"——
 
@@ -467,12 +470,12 @@ fc <hooks目录>\guard\_guard_core.py <repo>\guard_hooks\_guard_core.py
 #    设 CHRYS_HOOK_PAYLOAD_FILE / CHRYS_HOOK_RESULT 后运行 _prompt_guard.py prompt
 ```
 
-**修复动作**：重跑 `guard_hooks\_install_merge.py`（或手工覆盖 `guard/` 下 4 个文件 + 钉死解释器），再用 [6.5 的检查清单](#65-每次升级后的检查清单)验收。
+**修复动作**：重跑 `guard_hooks\_install_merge.py`（或手工覆盖 `guard/` 下 payload 文件 + 升级 `run` 形态），再用 [6.5 的检查清单](#65-每次升级后的检查清单)验收。
 
 **打包/发版时防复发**：
 
-- [ ] **规则包的唯一事实源是仓库根目录 `guard_hooks/`**——wheel 通过 `pyproject.toml` 的 `force-include` 在构建时直接从这里打包进 `chrys/app/guard_hooks/`，引擎每次启动由 `chrys.app.guard_install` 从包内重装到用户 hooks 目录。**不要再手抄一份到 `src/` 下**（0.31.0 之前正是因为存在第二份拷贝且无同步机制，导致 v0.31 前的包带旧规则、`127.0.0.1` 误拦；`tests/architecture/test_guard_hooks_packaging.py` 会守住这一点）；
+- [ ] **规则包的唯一事实源是仓库根目录 `guard_hooks/`**——wheel 通过 `pyproject.toml` 的 `force-include` 在构建时直接从这里打包进 `chrys/app/guard_hooks/`，引擎每次启动由 `chrys.app.guard_install` 从包内重装到全局 hooks 目录。**不要再手抄一份到 `src/` 下**（0.31.0 之前正是因为存在第二份拷贝且无同步机制，导致旧规则进包、`127.0.0.1` 误拦；`tests/architecture/test_guard_hooks_packaging.py` 会守住这一点）；
 - [ ] 改规则只改 `guard_hooks/`，跑 `guard_hooks\selftest.py`（60 tests OK）；
 - [ ] 发版说明里写明：**升级包不会更新已安装的 hook 副本，必须重跑安装脚本**（引擎启动自动重装只覆盖全局 hooks 目录，项目级 `.chrys/hooks/` 不在内）；
-- [ ] 给客户/测试环境升级后，跑一遍 `_install_merge.py --check`（期望 exit 0、解释器已钉死）；
+- [ ] 给客户/测试环境升级后，跑一遍 `_install_merge.py --check`（期望 exit 0、`run` 为启动器形态或已钉死）；
 - [ ] 至少验证一对放行/拦截样本（放行 `访问 127.0.0.1`，拦截 `访问 192.168.1.10 的教务系统`），双端一致才算发布完成。

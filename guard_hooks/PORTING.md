@@ -106,8 +106,15 @@ iCode 的 hook 能力是**自带的**，不是这个规则包发明的。规则�
     event: user_prompt_submit
     description: 提示词层安全拦截
     run:
-      type: script
-      path: guard/_prompt_guard.py
+      type: command
+      argv:
+        - 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
+        - '-NoProfile'
+        - '-NonInteractive'
+        - '-EncodedCommand'
+        - '<base64 载荷，完整内容见仓库 hooks.yaml>'
+      env:
+        GUARD_SCRIPT: _prompt_guard.py
     execution:
       mode: blocking
       timeout_seconds: 5
@@ -117,17 +124,28 @@ iCode 的 hook 能力是**自带的**，不是这个规则包发明的。规则�
     event: before_tool_call
     description: 工具调用前安全拦截
     run:
-      type: script
-      path: guard/_tool_guard.py
+      type: command
+      argv:
+        - 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
+        - '-NoProfile'
+        - '-NonInteractive'
+        - '-EncodedCommand'
+        - '<同上>'
+      env:
+        GUARD_SCRIPT: _tool_guard.py
     execution:
       mode: blocking
       timeout_seconds: 5
       on_error: block
 ```
 
-> 路径是 `guard/xxx.py`，不是 `xxx.py` —— 相对路径以 **`hooks.yaml` 所在目录**为基准。
+> 这是 **Windows 形态**：PowerShell 启动器在 hook 每次执行时现找 python——先 PATH（跳过
+> 商店存根），再打包版 iCode 首次运行解压在 `%LOCALAPPDATA%\pyapp\data\chrys` 的内嵌解释器。
+> 所以配置**不依赖本机路径**，换电脑把整个 hooks 目录拷过去就能用（见 3.7）。
 >
-> 用 `_install_merge.py` 装的话，这两段会被改写成 `type: command` + 绝对路径的解释器，见 [3.7](#37-脚本用哪个-python-跑以及系统里没装-python这个问题)。
+> Linux / macOS 上没有 PowerShell：把 `run` 改回 `type: script` + `path: guard/_prompt_guard.py`
+> （POSIX 没有商店存根问题）；用 `_install_merge.py` 安装时会自动完成这个改写。
+> base64 载荷太长这里不贴全，完整可复制的配置在仓库 `guard_hooks/hooks.yaml`。
 
 ### 3.2 每个字段为什么这么填
 
@@ -135,8 +153,8 @@ iCode 的 hook 能力是**自带的**，不是这个规则包发明的。规则�
 | --- | --- | --- |
 | `id` | `security-prompt-guard` / `security-tool-guard` | 日志和留痕里的标识，唯一即可。安装脚本拿 `security-prompt-guard` 判断是否已装 |
 | `event` | `user_prompt_submit` / `before_tool_call` | 挂在哪个生命周期点 |
-| `run.type` | `script` | 按扩展名推断解释器，`.py` → 从 PATH 现选（**有坑，见 3.7**）；安装脚本会改成 `command` |
-| `run.path` | `guard/*.py` | 相对 `hooks.yaml` 目录；也可写绝对路径 |
+| `run.type` | `command`（Windows）/ `script`（POSIX） | Windows 上走 PowerShell 启动器，hook 每次执行时现找 python（**为什么见 3.7**）；POSIX 上由 iCode 从 PATH 现选 |
+| `run.env.GUARD_SCRIPT` | `_prompt_guard.py` / `_tool_guard.py` | 启动器按 `%APPDATA%\chrys\hooks\guard\` 拼出脚本完整路径，不写死用户名 |
 | `execution.mode` | `blocking` | **同步等它返回**。这是拦截的前提，`async` / `fire_and_forget` 拦不住 |
 | `timeout_seconds` | `5` | 规则匹配是纯字符串/正则运算，毫秒级足够 |
 | `on_error` | `block` | 脚本崩了/超时了 → **本轮直接拦下**，而不是静默放行 |
@@ -283,33 +301,35 @@ $env:PATH = "$env:LOCALAPPDATA\Microsoft\WindowsApps;C:\Windows\System32"
 python "$env:APPDATA\chrys\hooks\guard\_prompt_guard.py"; $LASTEXITCODE   # 9009
 ```
 
-#### 所以安装脚本默认就把解释器钉死
+#### 所以安装脚本默认用「启动器形态」：hook 执行时现找 python
 
-`_install_merge.py` 装的时候会把 3.1 那两段改写成 `type: command` + **绝对路径**：
+`_install_merge.py` 装的时候会把 3.1 那两段改写成 `type: command` + **PowerShell 启动器**
+（就是 3.1 的形状）。启动器不依赖「安装那台机器」的任何路径，而是在 **hook 每次执行时**
+现找一个真实的 python：
 
-```yaml
-run:
-  type: command
-  argv:
-    - 'C:\ProgramData\miniforge3\python.exe'
-    - 'C:\Users\<你>\AppData\Roaming\chrys\hooks\guard\_prompt_guard.py'
-```
+1. PATH 上的 `python.exe`（跳过 0 字节存根）；
+2. 打包版 iCode 首次运行自动解压的内嵌解释器
+   `%LOCALAPPDATA%\pyapp\data\chrys\<hash>\<version>\python\python.exe`。
+
+找到就带着 `GUARD_SCRIPT`（`run.env` 注入）跑 guard 脚本；找不到就报错退出，配合
+`on_error: block` 保持 fail-closed。
 
 两条要点：
 
-* 钉的是**那台机器自己**探测出来的解释器，路径只写进**那台机器**的配置目录；仓库里的
-  `hooks.yaml` 保持可移植。**换台机器重跑一次安装脚本就行**；配置被整个拷到另一台时，
-  `--check` 会报「钉死的解释器已不可用」，重跑脚本自动换成本机的。
+* 配置因此**完全可移植**：换一台电脑把整个 `%APPDATA%\chrys\hooks\` 目录（含 `guard/`）
+  拷过去就能用，不需要那台机器预装 Python，也不需要重跑安装脚本。打包版 icode.exe 首次
+  运行会自动把内嵌 Python 解压到 `%LOCALAPPDATA%\pyapp\data\chrys`，启动器能找到它。
 * `argv` 不做模板展开（`${chrys_home}` 只在 `run.cwd` / `run.env` 里生效），且 hook 的 `cwd`
-  是**工作目录**而不是配置目录 —— 所以两个路径都必须是绝对路径。
+  是**工作目录**而不是配置目录 —— 所以启动器里所有路径都从环境变量（`%APPDATA%` /
+  `%LOCALAPPDATA%`）现拼，不写死任何用户名。
 
-想自己挑（探测结果不理想、或想钉项目 `.venv`）：
+想钉死一个指定解释器（比如项目 `.venv`）：
 
 ```powershell
 uv run python guard_hooks\_install_merge.py --python C:\path\to\python.exe
 ```
 
-确认当前钉的是什么：
+确认当前形态：
 
 ```powershell
 uv run python guard_hooks\_install_merge.py --check   # 期望 exit 0
@@ -318,15 +338,14 @@ uv run python guard_hooks\_install_merge.py --check   # 期望 exit 0
 排查顺序：
 
 ```powershell
-# 1. 手动跑一次，看 stderr
-& "C:\ProgramData\miniforge3\python.exe" "$env:APPDATA\chrys\hooks\guard\_prompt_guard.py"
+# 1. 手动跑一次启动器（argv 那串），看 stderr
+powershell -NoProfile -NonInteractive -EncodedCommand <模板里的 base64>
 # 2. 看日志
 Get-Content "$env:APPDATA\chrys\logs\debug.log" -Tail 30
 ```
 
-> 纯手动安装（4.4）没有“钉解释器”这一步，等于回到上表第一行；这时要么用安装脚本重跑一遍，
-> 要么去 **设置 → 应用 → 高级应用设置 → 应用执行别名** 把 `python.exe` / `python3.exe` 关掉，
-> 让存根不再出现在 PATH 上。
+> 纯手动安装（4.4）时模板本身就是启动器形态，同样可移植。Linux / macOS 上把两条 hook
+> 的 `run` 改回 `type: script`（或用 `_install_merge.py` 自动改写）；POSIX 没有商店存根问题。
 
 ---
 
@@ -361,16 +380,17 @@ uv run python guard_hooks\_install_merge.py
 这个脚本做四件事：
 
 1. 复制 4 个文件到 `<配置目录>/hooks/guard/`
-2. 探测一个**真实**的 Python 解释器（跳过 Windows 应用商店的 0 字节存根），把两条 hook 的
-   `run` 从 `type: script` 改写成 `type: command` + 绝对路径
+2. 把两条 hook 的 `run` 升级成不依赖本机 Python 的形态：Windows 上是 PowerShell 启动器
+   （每次执行时现找 python，见 3.7），Linux / macOS 上改回 `type: script`；`--python`
+   指定解释器时则钉死成绝对路径
 3. 把两条 hook 配置**追加**到 `hooks.yaml` 的 `hooks:` 列表末尾
-4. 写前自动备份（首次追加存 `hooks.yaml.pre-guard`，只改解释器存 `hooks.yaml.pre-pin`），
+4. 写前自动备份（首次追加存 `hooks.yaml.pre-guard`，只改 `run` 存 `hooks.yaml.pre-pin`），
    并保留原文件的换行风格和 BOM
 
-**为什么是"合并"不是"覆盖"**：`<配置目录>/hooks/hooks.yaml` 通常已经有你自己的 hook（遥测、审计之类），直接覆盖会把它们全弄丢。
+**为什么是“合并”不是“覆盖”**：`<配置目录>/hooks/hooks.yaml` 通常已经有你自己的 hook（遥测、审计之类），直接覆盖会把它们全弄丢。
 
-幂等：已存在 `security-prompt-guard` 时不重复追加，只在解释器还没钉死、或钉死的那个已经
-不在了的时候补一次改写，可以反复跑。
+幂等：已存在 `security-prompt-guard` 时不重复追加，只在 `run` 还没升级时补一次改写
+（旧 script 形态与旧钉死形态都会升级），可以反复跑。
 
 配置文件不存在时会自动新建一个最小骨架；写成 `hooks: []` 这种流式写法也会先归一（否则追加的条目会变成非法 YAML）。
 
@@ -398,9 +418,9 @@ Copy-Item guard_hooks\_prompt_guard.py, guard_hooks\_tool_guard.py, `
 
 macOS / Linux 把 `$env:APPDATA` 换成 `~/.chrys/hooks`。
 
-> ⚠️ 纯手动安装没有“钉解释器”这一步，两条 hook 会保持 `type: script`，由 iCode 从 PATH 现选。
-> Windows 上请先看 [3.7](#37-脚本用哪个-python-跑以及系统里没装-python这个问题) 的存根坑——
-> 不想踩的话，直接改用 `_install_merge.py`，或者自己把 `run` 改成 `type: command` + 绝对路径。
+> ⚠️ 模板是 Windows 形态（PowerShell 启动器）。Linux / macOS 上请把两条 hook 的 `run` 改回
+> `type: script` + `path: guard/*.py`（POSIX 没有商店存根问题），或者直接改用
+> `_install_merge.py`（它会自动完成改写）。Windows 上模板可直接用，见 3.7 的启动器说明。
 
 若 `hooks.yaml` **不存在**，新建一个再追加：
 
@@ -488,7 +508,7 @@ uv run python guard_hooks\selftest.py
 | 工具拦了，提示词不拦 | 同上 | 同上 |
 | 配置改了没反应 | 改的是 `hooks.yaml` | 需重启；改 `rules.json` 则不用 |
 | 日志里有 `[guard]` 开头 | 脚本自己报的错 | 脚本把详情写 stderr 了，看日志 |
-| 每句话都被拦，报 `hook ... failed (exit_code=9009)` | iCode 选中了 Microsoft Store 的 0 字节 python 存根 | 重跑安装脚本钉死解释器，见 3.7 |
+| 每句话都被拦，报 `hook ... failed (exit_code=9009)` | hook 的 `run` 还是 `type: script`，iCode 选中了 Microsoft Store 的 0 字节 python 存根 | 重跑 `_install_merge.py` 升级成启动器形态（或手动改），见 3.7 |
 | 什么都没拦但也没报错 | `rules.json` 里 `settings.enabled: false` | 检查这个开关 |
 | 某条规则误伤 | 单条规则太宽 | 在 `rules.json` 里给它加 `"enabled": false` |
 

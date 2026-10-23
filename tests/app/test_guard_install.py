@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -104,9 +105,17 @@ def test_stale_guard_entries_are_replaced_not_duplicated(tmp_path: Path) -> None
     install_guard_hooks(hooks_dir=hooks_dir)
 
     document = yaml.safe_load((hooks_dir / "hooks.yaml").read_text(encoding="utf-8"))
-    paths = {entry["id"]: entry["run"].get("path", "") for entry in document["hooks"]}
-    assert list(paths) == ["telemetry", *MANAGED_HOOK_IDS]
-    assert paths["security-prompt-guard"] == "guard/_prompt_guard.py"
+    runs = {entry["id"]: entry["run"] for entry in document["hooks"]}
+    assert list(runs) == ["telemetry", *MANAGED_HOOK_IDS]
+    if sys.platform == "win32":
+        # Template entries are the PowerShell launcher form, merged verbatim on Windows.
+        launcher_run = runs["security-prompt-guard"]
+        assert launcher_run["type"] == "command"
+        assert any("_launcher.ps1" in argument for argument in launcher_run["argv"])
+        assert launcher_run["env"]["GUARD_SCRIPT"].endswith("_prompt_guard.py")
+    else:
+        # POSIX: the engine rewrites the launcher form back to type: script.
+        assert runs["security-prompt-guard"] == {"type": "script", "path": "guard/_prompt_guard.py"}
 
 
 def test_unparsable_configuration_is_backed_up_and_replaced(tmp_path: Path) -> None:

@@ -99,6 +99,7 @@ packages = ["src/chrys", "aixcoding"]
 "guard_hooks/_tool_guard.py" = "chrys/app/guard_hooks/_tool_guard.py"
 "guard_hooks/rules.json" = "chrys/app/guard_hooks/rules.json"
 "guard_hooks/hooks.yaml" = "chrys/app/guard_hooks/hooks.yaml"
+"guard_hooks/_launcher.ps1" = "chrys/app/guard_hooks/_launcher.ps1"
 
 [tool.hatch.build]
 # Include vendored assets that are gitignored (downloaded at build time)

@@ -71,13 +71,15 @@ GUARD_TEMPLATE_NAME = "hooks.yaml"
 GUARD_SUBDIR = "guard"
 """Scripts and the rule dictionary go here, beside ``hooks.yaml``."""
 
-GUARD_PAYLOAD_FILES = ("_prompt_guard.py", "_tool_guard.py", "_guard_core.py", "rules.json")
+GUARD_PAYLOAD_FILES = ("_prompt_guard.py", "_tool_guard.py", "_guard_core.py", "rules.json", "_launcher.ps1")
 """Files a hook subprocess needs at run time.
 
 These names match ``guard_hooks/`` at the repo root — the single source of
 truth the wheel force-includes into ``chrys/app/guard_hooks/`` (see
-``pyproject.toml``). Legacy installs (before 0.31.0) shipped the same scripts
-without the leading underscore; :func:`_copy_payload` removes those leftovers.
+``pyproject.toml``). ``_launcher.ps1`` is the Windows interpreter launcher the
+shipped ``hooks.yaml`` template invokes; on POSIX it is copied but unused.
+Legacy installs (before 0.31.0) shipped the guard scripts without the leading
+underscore; :func:`_copy_payload` removes those leftovers.
 """
 
 LEGACY_PAYLOAD_FILES = ("prompt_guard.py", "tool_guard.py", "guard_core.py")
@@ -133,6 +135,7 @@ def install_guard_hooks(*, hooks_dir: Path | None = None, asset_dir: Path | None
 
     target_dir = hooks_dir_for(get_platform().config_dir) if hooks_dir is None else hooks_dir
     template_text = (source_dir / GUARD_TEMPLATE_NAME).read_text(encoding="utf-8")
+    template_text = _posix_template(template_text)
     managed_entries = parse_managed_entries(template_text)
 
     _copy_payload(Path(source_dir), target_dir)
@@ -168,6 +171,45 @@ def install_guard_hooks(*, hooks_dir: Path | None = None, asset_dir: Path | None
 def template_literal_text(template_text: str) -> str:
     """Return the template exactly as a fresh install should write it."""
     return template_text.replace("\r\n", "\n").rstrip("\n") + "\n"
+
+
+_LAUNCHER_SCRIPT_RE = re.compile(r"^\s*GUARD_SCRIPT:\s*(\S+)", re.MULTILINE)
+
+
+def _posix_template(template_text: str) -> str:
+    """Rewrite launcher-form ``run`` blocks back to ``type: script`` on POSIX.
+
+    The shipped template invokes ``guard/_launcher.ps1`` through PowerShell so
+    Windows machines without a usable PATH python still run the guard (the
+    launcher finds one at execution time). POSIX has no Store-stub problem, and
+    the hooks runner there has no PowerShell to invoke, so the engine writes
+    the plain script form instead.
+    """
+    if sys.platform == "win32" or "_launcher.ps1" not in template_text:
+        return template_text
+    lines = template_text.splitlines(keepends=True)
+    rewritten: list[str] = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        indent = len(line) - len(line.lstrip())
+        if line.strip() == "run:" and "_launcher.ps1" in "".join(lines[index : index + 30]):
+            block_end = index + 1
+            while block_end < len(lines):
+                following = lines[block_end]
+                if following.strip() and len(following) - len(following.lstrip()) <= indent:
+                    break
+                block_end += 1
+            match = _LAUNCHER_SCRIPT_RE.search("".join(lines[index:block_end]))
+            if match is not None:
+                script = match.group(1).replace("\\", "/")
+                pad = " " * indent
+                rewritten.append(f"{pad}run:\n{pad}  type: script\n{pad}  path: {script}\n")
+                index = block_end
+                continue
+        rewritten.append(line)
+        index += 1
+    return "".join(rewritten)
 
 
 def parse_managed_entries(template_text: str) -> list[str]:
