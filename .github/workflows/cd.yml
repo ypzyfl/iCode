@@ -20,7 +20,7 @@ on:
         type: string
         default: main_aixcoding_cli_0.28.0_final
       version:
-        description: '指定版本号（如 0.28.0，优先级最高）。留空 = 使用默认版本 DEFAULT_PROJECT_VERSION (0.28.0)'
+        description: '指定版本号（如 0.31.0，优先级最高）。留空 = 使用默认版本 DEFAULT_PROJECT_VERSION (0.31.0)'
         type: string
         default: ''
       # GitHub Actions 的 choice 输入不支持多选，因此用逗号分隔的字符串表达
@@ -51,7 +51,7 @@ env:
   PYAPP_PYTHON_VERSION: "3.14"
   # 默认版本号：schedule 触发时 inputs 均为空，输入默认值不生效，
   # 因此默认版本放在这里；dispatch 时显式填写 version 输入可覆盖。
-  DEFAULT_PROJECT_VERSION: "0.28.0"
+  DEFAULT_PROJECT_VERSION: "0.31.0"
 
 jobs:
   # ── Resolve build ref and version ───────────────────────────────────

@@ -116,6 +116,10 @@ ARCHITECTURE_RULES = (
     TestRule("tests/architecture/test_engine_fixture.py"),
     TestRule("tests/architecture/test_event_declaration_guard.py", ("src/chrys/foundation/events/**",)),
     TestRule(
+        "tests/architecture/test_guard_hooks_packaging.py",
+        ("pyproject.toml", "guard_hooks/**", "src/chrys/app/guard_install.py"),
+    ),
+    TestRule(
         "tests/architecture/test_entrypoint_bootstrap.py",
         ("src/chrys/app/cli/**", "src/chrys/app/installer.py", "src/chrys/app/tui/app.py"),
     ),

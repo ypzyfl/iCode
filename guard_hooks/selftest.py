@@ -420,11 +420,12 @@ class EngineTests(GuardTestCase):
 
 
 class InstallerTests(unittest.TestCase):
-    """安装脚本：解释器探测 + 把 ``run`` 钉成 ``type: command``。
+    """安装脚本：解释器探测 + 把 ``run`` 升级成不依赖本机 Python 的形态。
 
     背景：iCode 自己选解释器时会选中 Windows 应用商店的 0 字节转发存根，hook
-    起不来（exit 9009），而 ``on_error: block`` 会把每一轮请求都拦下。安装时就把
-    解释器钉死，是这个包对那台机器的保证。
+    起不来（exit 9009），而 ``on_error: block`` 会把每一轮请求都拦下。默认把两个
+    hook 的 ``run`` 改成 PowerShell 启动器形态——每次执行时现找 python（PATH 真解释
+    器 → 打包版内嵌运行时），配置因此可跨机器携带；``--python`` 指定时钉死解释器。
     """
 
     def test_store_stub_detection(self) -> None:
@@ -453,75 +454,197 @@ class InstallerTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 installer.resolve_python(str(stub))
 
-    def test_pin_interpreter_rewrites_only_the_guard_run_blocks(self) -> None:
+    def test_launcher_form_is_idempotent_and_upgrades_all_script_hooks(self) -> None:
+        # 模板本身就是 -File 启动器形态；重跑安装脚本不改写它，同时把所有
+        # type: script 的 hook（包括别人的）都升级成启动器形态。
         body = installer.hook_entries(Path(__file__).resolve().parent / "hooks.yaml")
+        self.assertIn("powershell.exe", body)
+        self.assertIn("-File", body)
+        self.assertIn("_launcher.ps1", body)
+        self.assertIn("GUARD_SCRIPT: guard\\_prompt_guard.py", body)
+        self.assertIn("GUARD_SCRIPT: guard\\_tool_guard.py", body)
         text = (
             "version: 1\n\nhooks:\n" + body + "\n  - id: other\n    run:\n      type: script\n      path: theirs.py\n"
         )
-        pinned, count = installer.pin_interpreter(text, sys.executable, Path("/cfg"))
+        pinned, count = installer.pin_interpreter(text, "", Path("/cfg"))
+        if sys.platform == "win32":
+            # 模板的两个 guard 已是启动器形态（不计数），别人的 script hook 被升级。
+            self.assertEqual(1, count)
+            self.assertNotIn("type: script", pinned)
+            self.assertIn("GUARD_SCRIPT: theirs.py", pinned)
+        else:
+            # POSIX 上安装脚本会把启动器形态改回 script，别人的 hook 本来就没动。
+            self.assertEqual(2, count)
+            self.assertIn("type: script", pinned)
+            self.assertIn("path: guard/_prompt_guard.py", pinned)
+            self.assertIn("path: theirs.py", pinned)
 
-        self.assertEqual(2, count)
-        self.assertNotIn("type: script\n      path: guard/", pinned)
-        self.assertIn("type: command", pinned)
+    def test_script_form_is_upgraded_to_launcher(self) -> None:
+        # 旧配置是 type: script（iCode 现选解释器，可能选中商店存根）；重跑安装脚本
+        # 要在 Windows 上把它升级成启动器形态；POSIX 上保持 script 不动。
+        script_block = (
+            "  - id: security-prompt-guard\n    run:\n      type: script\n      path: guard/_prompt_guard.py\n"
+        )
+        pinned, count = installer.pin_interpreter(script_block, "", Path("/cfg"))
+        if sys.platform == "win32":
+            self.assertEqual(1, count)
+            self.assertIn("powershell.exe", pinned)
+            self.assertIn("-File", pinned)
+            self.assertIn("_launcher.ps1", pinned)
+            self.assertIn("GUARD_SCRIPT: guard\\_prompt_guard.py", pinned)
+        else:
+            self.assertEqual(0, count)
+            self.assertEqual(script_block, pinned)
+
+    def test_encoded_command_form_is_upgraded_to_file_launcher(self) -> None:
+        # 上一版 -EncodedCommand 启动器形态：重跑安装脚本升级为 -File 形态。
+        old = (
+            "  - id: security-prompt-guard\n"
+            "    run:\n"
+            "      type: command\n"
+            "      argv:\n"
+            "        - 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'\n"
+            "        - '-NoProfile'\n"
+            "        - '-NonInteractive'\n"
+            "        - '-EncodedCommand'\n"
+            "        - '" + "QUJDREVGRw==" * 12 + "'\n"
+            "      env:\n"
+            "        GUARD_SCRIPT: _prompt_guard.py\n"
+        )
+        upgraded, count = installer.pin_interpreter(old, "", Path("/cfg"))
+        self.assertEqual(1, count)
+        self.assertNotIn("EncodedCommand", upgraded)
+        if sys.platform == "win32":
+            self.assertIn("-File", upgraded)
+            self.assertIn("_launcher.ps1", upgraded)
+            self.assertIn("GUARD_SCRIPT: guard\\_prompt_guard.py", upgraded)
+        else:
+            self.assertIn("type: script", upgraded)
+            self.assertIn("path: guard/_prompt_guard.py", upgraded)
+
+    def test_script_form_with_args_keeps_args_after_conversion(self) -> None:
+        # 遥测等别人家的 script hook 也会被升级成启动器形态；run.args 留在原位，
+        # command 形态下 iCode 会把它拼在 argv 后面，启动器再原样转发给脚本。
+        block = (
+            "  - id: telemetry-session\n"
+            "    event: session_started\n"
+            "    run:\n"
+            "      type: script\n"
+            "      path: scripts/session.py\n"
+            "      args:\n"
+            "        - '--foo'\n"
+            "        - '${session_id}'\n"
+            "    execution:\n"
+            "      mode: blocking\n"
+        )
+        converted, count = installer.pin_interpreter(block, "", Path("/cfg"))
+        if sys.platform == "win32":
+            self.assertEqual(1, count)
+            self.assertIn("GUARD_SCRIPT: scripts\\session.py", converted)
+            self.assertIn("args:", converted)
+            self.assertIn("${session_id}", converted)
+        else:
+            self.assertEqual(0, count)
+            self.assertEqual(block, converted)
+
+    def test_old_pin_is_upgraded_to_launcher(self) -> None:
+        # 钉死的绝对路径换台电脑就失效：默认安装（不带 --python）把它换成启动器形态。
+        old = (
+            "  - id: security-prompt-guard\n"
+            "    run:\n"
+            "      type: command\n"
+            "      argv:\n"
+            "        - '/old/machine/python3.13/bin/python'\n"
+            "        - '/cfg/guard/_prompt_guard.py'\n"
+        )
+        upgraded, count = installer.pin_interpreter(old, "", Path("/cfg"))
+        self.assertEqual(1, count)
+        self.assertNotIn("/old/machine", upgraded)
+        if sys.platform == "win32":
+            self.assertIn("powershell.exe", upgraded)
+        else:
+            self.assertIn("type: script", upgraded)
+
+    def test_python_override_pins_absolute_paths(self) -> None:
+        # --python 指定时仍用钉死形态，解释器与脚本都写绝对路径（argv 不做模板展开）。
+        script_block = (
+            "  - id: security-prompt-guard\n    run:\n      type: script\n      path: guard/_prompt_guard.py\n"
+        )
+        pinned, count = installer.pin_interpreter(script_block, sys.executable, Path("/cfg"))
+        self.assertEqual(1, count)
         self.assertIn(f"- '{sys.executable}'", pinned)
         self.assertIn(f"- '{Path('/cfg/guard/_prompt_guard.py')}'", pinned)
-        self.assertIn(f"- '{Path('/cfg/guard/_tool_guard.py')}'", pinned)
-        # 别人的 hook 一个字节都不动。
-        self.assertIn("path: theirs.py", pinned)
 
-    def test_pin_interpreter_is_idempotent(self) -> None:
-        body = installer.hook_entries(Path(__file__).resolve().parent / "hooks.yaml")
-        once, first = installer.pin_interpreter(body, sys.executable, Path("/cfg"))
-        twice, second = installer.pin_interpreter(once, sys.executable, Path("/cfg"))
-        self.assertEqual(2, first)
-        self.assertEqual(0, second)
-        self.assertEqual(once, twice)
-
-    def test_pin_interpreter_refreshes_a_dead_pin(self) -> None:
-        # 换台机器时配置被整个拷过去，钉死的解释器在那边不存在；重跑安装脚本要能换掉它。
-        body = installer.hook_entries(Path(__file__).resolve().parent / "hooks.yaml")
-        pinned, _ = installer.pin_interpreter(body, sys.executable, Path("/cfg"))
+    def test_python_override_refreshes_a_dead_pin_and_keeps_a_live_one(self) -> None:
+        # 换台机器时配置被整个拷过去，钉死的解释器在那边不存在；--python 重跑要能
+        # 换掉它；还活着的钉子则不动（钉死只负责“能起来”，不接管别人的配置）。
+        script_block = (
+            "  - id: security-prompt-guard\n    run:\n      type: script\n      path: guard/_prompt_guard.py\n"
+        )
+        pinned, _ = installer.pin_interpreter(script_block, sys.executable, Path("/cfg"))
         self.assertEqual([sys.executable], installer.pinned_interpreters(pinned))
 
         moved = pinned.replace(sys.executable, "/old/machine/python3.13/bin/python")
         refreshed, count = installer.pin_interpreter(moved, sys.executable, Path("/cfg"))
-        self.assertEqual(2, count)
+        self.assertEqual(1, count)
         self.assertEqual([sys.executable], installer.pinned_interpreters(refreshed))
         self.assertNotIn("/old/machine", refreshed)
 
-    def test_pin_interpreter_keeps_a_live_hand_tuned_pin(self) -> None:
-        # 还活着的手改 argv 不动：钉死只负责“能起来”，不接管别人的配置。
-        body = installer.hook_entries(Path(__file__).resolve().parent / "hooks.yaml")
-        pinned, _ = installer.pin_interpreter(body, sys.executable, Path("/cfg"))
-        again, count = installer.pin_interpreter(pinned, "/somewhere/else/python", Path("/cfg"))
-        self.assertEqual(0, count)
-        self.assertEqual(pinned, again)
+        again, second = installer.pin_interpreter(refreshed, "/somewhere/else/python", Path("/cfg"))
+        self.assertEqual(0, second)
+        self.assertEqual(refreshed, again)
 
-    def test_merge_pins_an_existing_install_and_keeps_other_hooks(self) -> None:
+    def test_merge_upgrades_an_existing_install_and_keeps_other_hooks(self) -> None:
         body = installer.hook_entries(Path(__file__).resolve().parent / "hooks.yaml")
         with tempfile.TemporaryDirectory() as tmp:
             config_dir = Path(tmp) / "hooks"
             config_dir.mkdir()
             target = config_dir / "hooks.yaml"
-            # 模拟已安装但没钉解释器的现状：CRLF + 别人的 hook。
+            # 模拟已安装旧形态的现状：CRLF + 别人的 hook + type: script 的 guard 条目。
+            old_script = (
+                "  - id: security-prompt-guard\n"
+                "    event: user_prompt_submit\n"
+                "    run:\n"
+                "      type: script\n"
+                "      path: guard/_prompt_guard.py\n"
+                "    execution:\n"
+                "      mode: blocking\n"
+                "      timeout_seconds: 5\n"
+                "      on_error: block\n"
+                "  - id: security-tool-guard\n"
+                "    event: before_tool_call\n"
+                "    run:\n"
+                "      type: script\n"
+                "      path: guard/_tool_guard.py\n"
+                "    execution:\n"
+                "      mode: blocking\n"
+                "      timeout_seconds: 5\n"
+                "      on_error: block\n"
+            )
             existing = "version: 1\r\n\r\nhooks:\r\n  - id: telemetry-before-tool\r\n    event: before_tool_call\r\n"
-            existing += body.replace("\n", "\r\n").replace("path: guard/", "path: guard/")
+            existing += old_script.replace("\n", "\r\n")
             target.write_bytes(existing.encode("utf-8"))
 
-            self.assertEqual("pinned", installer.merge(target, body, interpreter=sys.executable))
+            action = installer.merge(target, body)
             pinned = target.read_bytes().decode("utf-8")
             self.assertIn("\r\n", pinned)
             self.assertIn("telemetry-before-tool", pinned)
-            self.assertIn(f"- '{sys.executable}'", pinned)
-            self.assertNotIn("type: script", pinned)
-            self.assertTrue(target.with_name("hooks.yaml.pre-pin").exists())
+            if sys.platform == "win32":
+                self.assertEqual("pinned", action)
+                self.assertIn("powershell.exe", pinned)
+                self.assertIn("-File", pinned)
+                self.assertNotIn("type: script", pinned)
+                self.assertTrue(target.with_name("hooks.yaml.pre-pin").exists())
+            else:
+                self.assertEqual("unchanged", action)
+                self.assertIn("type: script", pinned)
 
-            # 已钉死后重复执行不再改文件。
+            # 升级后重复执行不再改文件。
             before = target.read_bytes()
-            self.assertEqual("unchanged", installer.merge(target, body, interpreter=sys.executable))
+            self.assertEqual("unchanged", installer.merge(target, body))
             self.assertEqual(before, target.read_bytes())
 
-    def test_merge_into_a_fresh_config_pins_on_first_write(self) -> None:
+    def test_merge_into_a_fresh_config_keeps_the_launcher(self) -> None:
         body = installer.hook_entries(Path(__file__).resolve().parent / "hooks.yaml")
         with tempfile.TemporaryDirectory() as tmp:
             config_dir = Path(tmp) / "hooks"
@@ -529,12 +652,15 @@ class InstallerTests(unittest.TestCase):
             target = config_dir / "hooks.yaml"
             target.write_bytes(installer.SEED.encode("utf-8"))
 
-            self.assertEqual("merged", installer.merge(target, body, interpreter=sys.executable))
+            self.assertEqual("merged", installer.merge(target, body))
             merged = target.read_bytes().decode("utf-8")
-            self.assertEqual(2, merged.count("type: command"))
-            self.assertIn(f"- '{sys.executable}'", merged)
             self.assertIn("execution:", merged)
             self.assertIn("on_error: block", merged)
+            if sys.platform == "win32":
+                self.assertIn("powershell.exe", merged)
+                self.assertIn("-File", merged)
+            else:
+                self.assertIn("type: script", merged)
             self.assertTrue(target.with_name("hooks.yaml.pre-guard").exists())
 
 

@@ -5,22 +5,28 @@
 不能直接覆盖 ``hooks.yaml``：多数机器上那里已经有别的 hook（遥测、审计等），
 覆盖会把它们全部弄丢。做法是：
 
-1. 把 4 个脚本/词典文件复制到 ``<config_dir>/hooks/guard/``（子目录，避免和
-   已有脚本混在一起）；
-2. 探测一个**真实**的 Python 解释器，把两个 hook 的 ``run`` 从 ``type: script``
-   改写成钉死解释器绝对路径的 ``type: command``：iCode 选解释器时会选中 Windows
-   应用商店的 0 字节转发存根，选中就起不来，配上 ``on_error: block`` 等于把所有
-   请求都拦下（见 ``OPERATIONS.md`` 5.3）；
+1. 把 5 个脚本/词典/启动器文件复制到 ``<config_dir>/hooks/guard/``（子目录，
+   避免和已有脚本混在一起）；
+2. 把配置里所有 ``type: script`` 的 hook（规则包的，也包括遥测等别人家的）
+   升级成不依赖本机 Python 的形态：Windows 上是 PowerShell 启动器
+   （``guard/_launcher.ps1``，经 ``-File`` 调用），hook 每次执行时现找一个真实
+   的 python——先 PATH（跳过 Microsoft 应用商店的 0 字节/转发点存根），再打包
+   版 iCode 首次运行解压在 ``%LOCALAPPDATA%\\pyapp\\data\\chrys`` 的内嵌解释器。
+   不升级的坏处：iCode 自己选解释器的顺序是 ``uv → python3 → python`` 且不
+   过滤存根，``python --version`` 正常也没用——只要 ``python3`` 命中 WindowsApps
+   的占位程序，hook 就以 exit 9009 起不来，配上 ``on_error: block`` 等于把
+   所有请求都拦下（见 ``OPERATIONS.md`` 5.3）；POSIX 上保持 ``type: script``。
+   ``--python`` 指定解释器时则钉死成绝对路径；
 3. 若配置里还没有 ``security-prompt-guard``，就把两个 blocking hook 追加到
-   ``hooks`` 列表末尾，脚本路径指向 ``guard/``；
+   ``hooks`` 列表末尾；
 4. 写回前自动备份为 ``hooks.yaml.pre-guard``，并保留原文件的换行风格与 BOM。
-   只改写解释器的那次升级另存 ``hooks.yaml.pre-pin``，不覆盖原始回退点。
+   只改写 ``run`` 块的那次升级另存 ``hooks.yaml.pre-pin``，不覆盖原始回退点。
 
 配置文件不存在时新建一个最小骨架；``hooks: []`` 这种流式写法会先归一成块序列，
 否则追加的条目会变成非法 YAML。
 
-幂等：已存在 ``security-prompt-guard`` 时不重复追加，只在解释器还没钉死时补一次
-改写，可重复执行。
+幂等：已存在 ``security-prompt-guard`` 时不重复追加，只在 ``run`` 还没升级时补
+一次改写，可重复执行。
 
 用法::
 
@@ -43,7 +49,7 @@ from pathlib import Path
 BOM = b"\xef\xbb\xbf"
 GUARD_SUBDIR = "guard"
 GUARD_HOOK_ID = "security-prompt-guard"
-PAYLOAD_FILES = ("_prompt_guard.py", "_tool_guard.py", "_guard_core.py", "rules.json")
+PAYLOAD_FILES = ("_prompt_guard.py", "_tool_guard.py", "_guard_core.py", "rules.json", "_launcher.ps1")
 
 SEED = "version: 1\n\nhooks:\n"
 """配置不存在时写入的最小骨架。``hooks:`` 留空（null）而不是 ``[]``：追加的条目是块序列。"""
@@ -62,15 +68,15 @@ def hooks_dir() -> Path:
 
 
 def hook_entries(snippet: Path) -> str:
-    """从规则包的 ``hooks.yaml`` 里取出 hooks 列表（不含 settings）。"""
+    """从规则包的 ``hooks.yaml`` 里取出 hooks 列表（不含 settings）。
+
+    模板本身就是启动器形态（``GUARD_SCRIPT`` 已带 ``guard\\`` 前缀），不需要
+    再改写路径。"""
     block = snippet.read_text(encoding="utf-8")
     marker = "\nhooks:\n"
     if marker not in block:
         raise SystemExit(f"规则包配置里没有 hooks 段落：{snippet}")
-    body = block[block.index(marker) + len(marker) :].rstrip("\n")
-    for name in PAYLOAD_FILES[:2]:
-        body = body.replace(f"path: {name}", f"path: {GUARD_SUBDIR}/{name}")
-    return body
+    return block[block.index(marker) + len(marker) :].rstrip("\n")
 
 
 def copy_payload(here: Path, target: Path) -> list[str]:
@@ -80,6 +86,9 @@ def copy_payload(here: Path, target: Path) -> list[str]:
     written = []
     for name in PAYLOAD_FILES:
         src = here / name
+        if not src.exists():
+            # 启动器在规则包的 guard/ 子目录里，其余文件在根目录。
+            src = here / GUARD_SUBDIR / name
         if not src.exists():
             raise SystemExit(f"规则包文件缺失：{src}")
         shutil.copyfile(src, dest / name)
@@ -139,12 +148,16 @@ def interpreter_report() -> str:
     return "iCode 的选择顺序（不过滤存根）：" + " → ".join(parts)
 
 
-_GUARD_SCRIPT_RUN = re.compile(
+_ANY_SCRIPT_RUN = re.compile(
     r"(?P<indent>[ \t]*)run:[ \t]*\n"
     r"[ \t]*type:[ \t]*script[ \t]*\n"
-    r"[ \t]*path:[ \t]*(?P<rel>(?:[^\s#]+[/\\\\])?_(?:prompt|tool)_guard\.py)[ \t]*\n"
+    r"[ \t]*path:[ \t]*(?P<q>['\"]?)(?P<rel>[^'\"\s#]+)(?P=q)[ \t]*\n"
 )
-"""规则包两个 hook 的未钉死写法；只认这两个脚本名，不碰配置里别人的 hook。"""
+"""任意 ``type: script`` 的 ``run`` 块（规则包的两个 guard，也包括遥测等其他 hook）。
+
+只认 ``run:/type: script/path:`` 三连，不会碰列表里别的字段；替换时只吃掉这三行，
+``run.args`` 等后续字段留在原位（command 形态下 iCode 会把它拼在 ``argv`` 后面，
+启动器再原样转发给脚本）。"""
 
 _GUARD_COMMAND_RUN = re.compile(
     r"(?P<indent>[ \t]*)run:[ \t]*\n"
@@ -156,6 +169,48 @@ _GUARD_COMMAND_RUN = re.compile(
 """已钉死的写法；靠脚本名认领，别的 hook 即使也是 ``type: command`` 也不碰。"""
 
 
+_POWERSHELL_EXE = r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+"""Windows 自带 PowerShell 的固定路径（所有 Windows 机器一致）。启动器靠它绕开
+``type: script`` 的解释器选择（``uv → python3 → python``，可能命中商店存根），
+在每次 hook 执行时现找一个真实的 python。"""
+
+_LAUNCHER_PS1 = r"guard\_launcher.ps1"
+"""启动器脚本在 argv 里的写法（相对 ``cwd: ${chrys_home}/hooks``）。"""
+
+_GUARD_LAUNCHER_RUN = re.compile(
+    r"(?P<indent>[ \t]*)run:[ \t]*\n"
+    r"[ \t]*type:[ \t]*command[ \t]*\n"
+    r"[ \t]*cwd:[ \t]*[^\n]*\n"
+    r"[ \t]*argv:[ \t]*\n"
+    r"[ \t]*-[ \t]*(?P<q>['\"])[^'\"]*powershell\.exe(?P=q)[ \t]*\n"
+    r"[ \t]*-[ \t]*(?P=q)-NoProfile(?P=q)[ \t]*\n"
+    r"[ \t]*-[ \t]*(?P=q)-NonInteractive(?P=q)[ \t]*\n"
+    r"[ \t]*-[ \t]*(?P=q)-ExecutionPolicy(?P=q)[ \t]*\n"
+    r"[ \t]*-[ \t]*(?P=q)Bypass(?P=q)[ \t]*\n"
+    r"[ \t]*-[ \t]*(?P=q)-File(?P=q)[ \t]*\n"
+    r"[ \t]*-[ \t]*(?P=q)[^'\"]*_launcher\.ps1(?P=q)[ \t]*\n"
+    r"[ \t]*env:[ \t]*\n"
+    r"[ \t]*GUARD_SCRIPT:[ \t]*(?P<script>[^\s#]+)[ \t]*\n"
+)
+"""``-File`` 启动器形态的 ``run`` 块（含 ``cwd`` 与 ``env``）；脚本名不限规则包，
+因为安装脚本会把配置里所有 script 形态都转成这个形态。"""
+
+_OLD_ENCODED_RUN = re.compile(
+    r"(?P<indent>[ \t]*)run:[ \t]*\n"
+    r"[ \t]*type:[ \t]*command[ \t]*\n"
+    r"[ \t]*argv:[ \t]*\n"
+    r"[ \t]*-[ \t]*(?P<q>['\"])[^'\"]*powershell\.exe(?P=q)[ \t]*\n"
+    r"[ \t]*-[ \t]*(?P=q)-NoProfile(?P=q)[ \t]*\n"
+    r"[ \t]*-[ \t]*(?P=q)-NonInteractive(?P=q)[ \t]*\n"
+    r"[ \t]*-[ \t]*(?P=q)-EncodedCommand(?P=q)[ \t]*\n"
+    r"[ \t]*-[ \t]*(?P=q)[A-Za-z0-9+/=]{64,}(?P=q)[ \t]*\n"
+    r"[ \t]*env:[ \t]*\n"
+    r"[ \t]*GUARD_SCRIPT:[ \t]*(?P<script>_[a-z]+_guard\.py)[ \t]*\n"
+)
+"""上一版 ``-EncodedCommand`` 启动器形态；升级为 ``-File`` 形态（启动器逻辑放进
+``guard/_launcher.ps1`` 文件，改逻辑不用再重生成 base64）。"""
+
+
 def _pinned_run(indent: str, interpreter: str, script: Path) -> str:
     """生成一个 ``type: command`` 的 ``run`` 块（YAML 单引号，路径里的反斜杠不会被当转义）。"""
     inner = indent + "  "
@@ -163,36 +218,120 @@ def _pinned_run(indent: str, interpreter: str, script: Path) -> str:
     return f"{indent}run:\n{inner}type: command\n{inner}argv:\n{item}- '{interpreter}'\n{item}- '{script}'\n"
 
 
-def pin_interpreter(text: str, interpreter: str, hooks_dir_path: Path) -> tuple[str, int]:
-    """把两个 hook 的解释器钉成绝对路径，返回 ``(新文本, 改写条数)``。
+def _launcher_run(indent: str, rel_script: str) -> str:
+    """生成 ``-File`` 启动器形态的 ``run`` 块。
 
-    两种情况会被改写：``type: script``（靠 iCode 现选，可能选中商店存根）；以及已经
-    钉死但那个解释器已经没了（卸载 / 搬家）——死掉的钉子不换，hook 依旧起不来。
-    还活着的手改 ``argv`` 一律不动，所以可以重复执行。
+    脚本名由 ``run.env.GUARD_SCRIPT`` 带进去（相对 hooks 根目录，如
+    ``guard\\_prompt_guard.py``），启动器按自身位置（``$PSScriptRoot`` 的上一级）
+    拼出完整路径，``cwd: ${chrys_home}/hooks`` 只用来定位 argv 里的启动器相对路径
+    ——所以这份配置不依赖本机路径，换电脑原样可用。"""
+    inner = indent + "  "
+    item = inner + "  "
+    return (
+        f"{indent}run:\n"
+        f"{inner}type: command\n"
+        f"{inner}cwd: ${{chrys_home}}/hooks\n"
+        f"{inner}argv:\n"
+        f"{item}- '{_POWERSHELL_EXE}'\n"
+        f"{item}- '-NoProfile'\n"
+        f"{item}- '-NonInteractive'\n"
+        f"{item}- '-ExecutionPolicy'\n"
+        f"{item}- 'Bypass'\n"
+        f"{item}- '-File'\n"
+        f"{item}- '{_LAUNCHER_PS1}'\n"
+        f"{inner}env:\n"
+        f"{item}GUARD_SCRIPT: {rel_script}\n"
+    )
+
+
+def _posix_run(match: re.Match[str]) -> str:
+    """启动器形态改回 ``type: script``（POSIX 上 iCode 现选解释器是安全的）。"""
+    indent = match.group("indent")
+    script = match.group("script").replace("\\", "/")
+    if "/" not in script:
+        # 旧 -EncodedCommand 形态的 GUARD_SCRIPT 只有文件名，不带 guard/ 前缀。
+        script = f"{GUARD_SUBDIR}/{script}"
+    return f"{indent}run:\n{indent}  type: script\n{indent}  path: {script}\n"
+
+
+def pin_interpreter(text: str, interpreter: str, hooks_dir_path: Path) -> tuple[str, int]:
+    """把配置里的 ``run`` 升级成不依赖本机 Python 的形态，返回 ``(新文本, 改写条数)``。
+
+    默认（*interpreter* 为空）：Windows 上把**所有** ``type: script`` 的 hook（规则包
+    的，也包括遥测等其他 hook）统一改成 ``-File`` 启动器形态——hook 每次执行时现找
+    python（PATH 真解释器 → 打包版内嵌运行时），配置因此可跨机器携带；POSIX 上把
+    启动器形态改回 ``type: script``（iCode 现选解释器在那里是安全的）。``--python``
+    指定解释器时则钉死成 ``type: command`` + 绝对路径。
+
+    四种写法会被改写：``type: script``（iCode 按 ``uv → python3 → python`` 现选，
+    只要 python3 命中商店存根 hook 就起不来）；上一版的 ``-EncodedCommand`` 启动器
+    形态（升级为 ``-File`` 形态）；``-File`` 启动器形态（只在 ``--python`` 时改写成
+    钉死形态）；已经钉死但那个解释器没了（卸载 / 搬家）或只是旧钉死形态——死掉的
+    钉子不换，hook 依旧起不来，而且钉死的路径换电脑就失效。已是目标形态的配置
+    四个正则都不改写它，所以可以重复执行。
 
     ``argv`` 不做模板展开（``${...}`` 只在 ``run.cwd`` / ``run.env`` 里生效），所以
-    解释器与脚本路径都得写成绝对路径。*hooks_dir_path* 是 ``run.path`` 相对路径的基准
-    目录，即含有 ``hooks.yaml`` 的那个目录（不是 ``guard/``）。
+    钉死形态的解释器与脚本路径都得写成绝对路径。*hooks_dir_path* 是 ``run.path``
+    相对路径的基准目录，即含有 ``hooks.yaml`` 的那个目录（不是 ``guard/``）。
     """
-    if not interpreter:
-        return text, 0
 
-    def pin_script(match: re.Match[str]) -> str:
-        script = hooks_dir_path / match.group("rel").replace("\\", "/")
-        return _pinned_run(match.group("indent"), interpreter, script)
+    def script_run(indent: str, rel: str) -> str:
+        return f"{indent}run:\n{indent}  type: script\n{indent}  path: {rel}\n"
+
+    def launch_run(indent: str, rel_script: str) -> str:
+        if interpreter:
+            return _pinned_run(indent, interpreter, hooks_dir_path / rel_script.replace("\\", "/"))
+        if sys.platform == "win32":
+            return _launcher_run(indent, rel_script)
+        return script_run(indent, rel_script.replace("\\", "/"))
+
+    from_script = 0
+    from_encoded = 0
+    from_launcher = 0
+    refreshed = 0
+
+    def convert_script(match: re.Match[str]) -> str:
+        nonlocal from_script
+        from_script += 1
+        return launch_run(match.group("indent"), match.group("rel").replace("/", "\\"))
+
+    def convert_encoded(match: re.Match[str]) -> str:
+        nonlocal from_encoded
+        from_encoded += 1
+        return launch_run(match.group("indent"), f"{GUARD_SUBDIR}\\{match.group('script')}")
+
+    def convert_launcher(match: re.Match[str]) -> str:
+        nonlocal from_launcher
+        from_launcher += 1
+        return launch_run(match.group("indent"), match.group("script"))
 
     def repin_command(match: re.Match[str]) -> str:
         nonlocal refreshed
-        if not is_store_stub(match.group("prog")):
-            return match.group(0)
+        prog = match.group("prog")
+        if interpreter:
+            if not is_store_stub(prog):
+                return match.group(0)  # 还活着的钉子，不动。
+            refreshed += 1
+            return _pinned_run(match.group("indent"), interpreter, Path(match.group("script")))
         refreshed += 1
-        return _pinned_run(match.group("indent"), interpreter, Path(match.group("script")))
+        return launch_run(match.group("indent"), f"{GUARD_SUBDIR}\\{Path(match.group('script')).name}")
 
-    text, from_script = _GUARD_SCRIPT_RUN.subn(pin_script, text)
-    # 第二趟里“还活着的钉子”也会被 ``sub`` 计一次替换，所以自己数。
-    refreshed = 0
+    if interpreter:
+        # --python：三种“现选解释器”的形态全部钉死成绝对路径。
+        text = _ANY_SCRIPT_RUN.sub(convert_script, text)
+        text = _OLD_ENCODED_RUN.sub(convert_encoded, text)
+        text = _GUARD_LAUNCHER_RUN.sub(convert_launcher, text)
+    elif sys.platform == "win32":
+        text = _ANY_SCRIPT_RUN.sub(convert_script, text)
+        text = _OLD_ENCODED_RUN.sub(convert_encoded, text)
+    else:
+        # POSIX 没有商店存根的问题；启动器形态在那里跑不起来，改回 script。
+        text, from_launcher = _GUARD_LAUNCHER_RUN.subn(_posix_run, text)
+        text, from_encoded = _OLD_ENCODED_RUN.subn(_posix_run, text)
+    # 死钉子是最后一趟：前几趟刚生成的形态不会被它匹配（``sub`` 会把“原样
+    # 返回”也算一次替换），所以改写数在回调里自己数。
     text = _GUARD_COMMAND_RUN.sub(repin_command, text)
-    return text, from_script + refreshed
+    return text, from_launcher + from_encoded + from_script + refreshed
 
 
 def pinned_interpreters(text: str) -> list[str]:
@@ -218,11 +357,11 @@ def _relax_console_encoding() -> None:
 
 
 def merge(target: Path, body: str, *, interpreter: str = "") -> str:
-    """写入 hook 条目：首次追加，或把已有条目升级成钉死解释器的形式。
+    """写入 hook 条目：首次追加，或把已有条目升级成可移植的启动器形态。
 
     返回 ``merged`` / ``pinned`` / ``unchanged``。两种写入都会先备份，追加备份成
-    ``hooks.yaml.pre-guard``，只改解释器备份成 ``hooks.yaml.pre-pin``——后者不覆盖
-    原始回退点。
+    ``hooks.yaml.pre-guard``，只改 ``run`` 块备份成 ``hooks.yaml.pre-pin``——后者
+    不覆盖原始回退点。
     """
     raw = target.read_bytes()
     has_bom = raw.startswith(BOM)
@@ -254,8 +393,10 @@ def merge(target: Path, body: str, *, interpreter: str = "") -> str:
     target.write_bytes(BOM + payload if has_bom else payload)
     if action == "merged":
         print(f"已合并到 {target}")
-    else:
+    elif interpreter:
         print(f"已把 {pinned} 个 hook 的解释器钉死为 {interpreter}")
+    else:
+        print(f"已把 {pinned} 个 hook 的 run 升级成启动器形态（执行时现找 python）")
     print(f"  备份：{backup}")
     return action
 
@@ -277,24 +418,45 @@ def main() -> int:
         guard_dir = target.parent / GUARD_SUBDIR
         files = [name for name in PAYLOAD_FILES if (guard_dir / name).exists()]
         missing = [name for name in PAYLOAD_FILES if name not in files]
-        unpinned = len(_GUARD_SCRIPT_RUN.findall(raw))
+        script_runs = len(_ANY_SCRIPT_RUN.findall(raw))
+        encoded_runs = len(_OLD_ENCODED_RUN.findall(raw))
         programs = pinned_interpreters(raw)
+        launchers = len(_GUARD_LAUNCHER_RUN.findall(raw))
         dead = [prog for prog in programs if is_store_stub(prog)]
         print(f"配置目录：{target.parent}")
         print(f"  hooks 已安装：{GUARD_HOOK_ID in raw}")
         print(f"  规则包文件：{len(files)}/{len(PAYLOAD_FILES)} {files}")
         if missing:
             print(f"  缺失：{missing}")
-        if unpinned:
-            print(f"  配置里的解释器：{unpinned} 个 hook 仍是 type: script，由 iCode 从 PATH 现选")
+        if script_runs:
+            print(f"  配置里的 run：{script_runs} 个 hook 仍是 type: script，由 iCode 从 PATH 现选")
+        if encoded_runs:
+            print(f"  配置里的 run：{encoded_runs} 个 hook 是旧 -EncodedCommand 形态，需升级")
+        if launchers:
+            print(f"  配置里的 run：{launchers} 个 hook 用 -File 启动器形态（执行时现找 python）")
         if programs:
-            print(f"  配置里的解释器：已钉死 {'、'.join(programs)}")
+            print(f"  配置里的 run：已钉死 {'、'.join(programs)}")
         if dead:
             print(f"  ⚠️ 钉死的解释器已不可用（不存在或为空文件）：{'、'.join(dead)}")
+        if programs and not launchers and sys.platform == "win32":
+            print("  提示：钉死形态绑定本机路径，换电脑会失效；重跑本脚本可升级成可移植的启动器形态")
         print(f"  {interpreter_report()}")
-        if unpinned or dead:
-            print("  修复：重跑本脚本（不带 --check）即可自动钉死 / 重新钉死")
-        healthy = GUARD_HOOK_ID in raw and not missing and not unpinned and bool(programs) and not dead
+        if sys.platform == "win32":
+            if script_runs or encoded_runs or dead:
+                print("  修复：重跑本脚本（不带 --check）即可自动升级成启动器形态")
+            healthy = (
+                GUARD_HOOK_ID in raw
+                and not missing
+                and not dead
+                and launchers >= 2
+                and not script_runs
+                and not encoded_runs
+            )
+        else:
+            # POSIX 上没有商店存根；script 是健康形态，启动器/旧 encoded 是残留。
+            if launchers or encoded_runs or dead:
+                print("  修复：重跑本脚本（不带 --check）即可自动改回 type: script")
+            healthy = GUARD_HOOK_ID in raw and not missing and not dead and not launchers and not encoded_runs
         return 0 if healthy else 1
 
     if not target.exists():
@@ -302,20 +464,23 @@ def main() -> int:
         target.write_bytes(SEED.encode("utf-8"))
         print(f"未找到钩子配置文件，已新建最小骨架：{target}")
 
-    interpreter = resolve_python(override)
+    interpreter = ""
+    if override:
+        interpreter = resolve_python(override)
     written = copy_payload(here, target.parent)
     print(f"已复制 {len(written)} 个文件到 {target.parent / GUARD_SUBDIR}/")
     action = merge(target, hook_entries(here / "hooks.yaml"), interpreter=interpreter)
     if action == "unchanged":
         print("配置里已存在规则包的 hook，未改动 hooks.yaml（幂等）")
     if interpreter:
-        print(f"解释器：{interpreter}")
+        print(f"解释器（--python 指定，已钉死）：{interpreter}")
+    elif sys.platform == "win32":
+        print("解释器策略：启动器形态——hook 执行时现找 python（PATH 真解释器 →")
+        print("  打包版内嵌运行时 %LOCALAPPDATA%\\pyapp\\data\\chrys\\...\\python.exe）")
     else:
-        print("⚠️ 本机没有可用的 Python 解释器，hook 仍是 type: script。")
-        print("   iCode 会自己从 PATH 选，选中 Microsoft Store 存根就会「什么都干不了」。")
-        print("   装一个真解释器（或 uv）后重跑本脚本，或用 --python <路径> 指定。")
+        print("解释器策略：type: script，由 iCode 从 PATH 现选")
     print("下一步：uv run icode hook validate && uv run icode hook list")
-    return 0 if interpreter else 1
+    return 0
 
 
 if __name__ == "__main__":

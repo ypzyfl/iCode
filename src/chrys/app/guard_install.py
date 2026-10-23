@@ -39,7 +39,28 @@ import yaml
 from chrys.foundation.platform import get_platform
 
 GUARD_ASSET_DIR = Path(__file__).resolve().parent / "guard_hooks"
-"""Directory holding the shipped rule pack."""
+"""Directory holding the shipped rule pack inside a wheel / installed build."""
+
+_SOURCE_ASSET_DIR = Path(__file__).resolve().parents[3] / "guard_hooks"
+"""Repo-root rule pack; the wheel force-includes from here (see pyproject.toml).
+
+Source checkouts have no ``chrys/app/guard_hooks/`` — :func:`resolve_asset_dir`
+falls back to this directory so running from the repo installs the same rules
+a released build would.
+"""
+
+
+def resolve_asset_dir() -> Path:
+    """Return the rule-pack directory present in this tree.
+
+    Prefers the packaged ``chrys/app/guard_hooks/``; falls back to the repo-root
+    ``guard_hooks/`` when running from a source checkout (the force-include has
+    not materialized a packaged copy there).
+    """
+    if (GUARD_ASSET_DIR / GUARD_TEMPLATE_NAME).is_file():
+        return GUARD_ASSET_DIR
+    return _SOURCE_ASSET_DIR
+
 
 GUARD_CONFIG_NAME = "hooks.yaml"
 """Name of the hooks configuration this installer owns entries in."""
@@ -50,8 +71,19 @@ GUARD_TEMPLATE_NAME = "hooks.yaml"
 GUARD_SUBDIR = "guard"
 """Scripts and the rule dictionary go here, beside ``hooks.yaml``."""
 
-GUARD_PAYLOAD_FILES = ("prompt_guard.py", "tool_guard.py", "guard_core.py", "rules.json")
-"""Files a hook subprocess needs at run time."""
+GUARD_PAYLOAD_FILES = ("_prompt_guard.py", "_tool_guard.py", "_guard_core.py", "rules.json", "_launcher.ps1")
+"""Files a hook subprocess needs at run time.
+
+These names match ``guard_hooks/`` at the repo root — the single source of
+truth the wheel force-includes into ``chrys/app/guard_hooks/`` (see
+``pyproject.toml``). ``_launcher.ps1`` is the Windows interpreter launcher the
+shipped ``hooks.yaml`` template invokes; on POSIX it is copied but unused.
+Legacy installs (before 0.31.0) shipped the guard scripts without the leading
+underscore; :func:`_copy_payload` removes those leftovers.
+"""
+
+LEGACY_PAYLOAD_FILES = ("prompt_guard.py", "tool_guard.py", "guard_core.py")
+"""Pre-0.31.0 payload names; removed from installs so stale scripts never linger."""
 
 MANAGED_HOOK_IDS = ("security-prompt-guard", "security-tool-guard")
 """Hook ids this installer owns; re-installing replaces exactly these."""
@@ -96,13 +128,14 @@ def install_guard_hooks(*, hooks_dir: Path | None = None, asset_dir: Path | None
     written, so the configuration never points at scripts that are not there.
     Idempotent: re-running on an up-to-date install rewrites the same content.
     """
-    source_dir = GUARD_ASSET_DIR if asset_dir is None else asset_dir
+    source_dir = resolve_asset_dir() if asset_dir is None else asset_dir
     missing = missing_guard_assets(source_dir)
     if missing:
         raise FileNotFoundError(f"Guard hooks assets are missing from this build: {', '.join(map(str, missing))}")
 
     target_dir = hooks_dir_for(get_platform().config_dir) if hooks_dir is None else hooks_dir
     template_text = (source_dir / GUARD_TEMPLATE_NAME).read_text(encoding="utf-8")
+    template_text = _posix_template(template_text)
     managed_entries = parse_managed_entries(template_text)
 
     _copy_payload(Path(source_dir), target_dir)
@@ -138,6 +171,45 @@ def install_guard_hooks(*, hooks_dir: Path | None = None, asset_dir: Path | None
 def template_literal_text(template_text: str) -> str:
     """Return the template exactly as a fresh install should write it."""
     return template_text.replace("\r\n", "\n").rstrip("\n") + "\n"
+
+
+_LAUNCHER_SCRIPT_RE = re.compile(r"^\s*GUARD_SCRIPT:\s*(\S+)", re.MULTILINE)
+
+
+def _posix_template(template_text: str) -> str:
+    """Rewrite launcher-form ``run`` blocks back to ``type: script`` on POSIX.
+
+    The shipped template invokes ``guard/_launcher.ps1`` through PowerShell so
+    Windows machines without a usable PATH python still run the guard (the
+    launcher finds one at execution time). POSIX has no Store-stub problem, and
+    the hooks runner there has no PowerShell to invoke, so the engine writes
+    the plain script form instead.
+    """
+    if sys.platform == "win32" or "_launcher.ps1" not in template_text:
+        return template_text
+    lines = template_text.splitlines(keepends=True)
+    rewritten: list[str] = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        indent = len(line) - len(line.lstrip())
+        if line.strip() == "run:" and "_launcher.ps1" in "".join(lines[index : index + 30]):
+            block_end = index + 1
+            while block_end < len(lines):
+                following = lines[block_end]
+                if following.strip() and len(following) - len(following.lstrip()) <= indent:
+                    break
+                block_end += 1
+            match = _LAUNCHER_SCRIPT_RE.search("".join(lines[index:block_end]))
+            if match is not None:
+                script = match.group(1).replace("\\", "/")
+                pad = " " * indent
+                rewritten.append(f"{pad}run:\n{pad}  type: script\n{pad}  path: {script}\n")
+                index = block_end
+                continue
+        rewritten.append(line)
+        index += 1
+    return "".join(rewritten)
 
 
 def parse_managed_entries(template_text: str) -> list[str]:
@@ -269,7 +341,7 @@ def _hook_id(block: str) -> str:
 
 def missing_guard_assets(asset_dir: Path | None = None) -> list[Path]:
     """Return shipped files absent from this build."""
-    root = GUARD_ASSET_DIR if asset_dir is None else asset_dir
+    root = resolve_asset_dir() if asset_dir is None else asset_dir
     expected = (root / GUARD_TEMPLATE_NAME, *(root / name for name in GUARD_PAYLOAD_FILES))
     return [path for path in expected if not path.is_file()]
 
@@ -280,6 +352,9 @@ def _copy_payload(source_dir: Path, target_dir: Path) -> None:
     guard_dir.mkdir(parents=True, exist_ok=True)
     for name in GUARD_PAYLOAD_FILES:
         _copy_file_atomic(source_dir / name, guard_dir / name)
+    for name in LEGACY_PAYLOAD_FILES:
+        with contextlib.suppress(OSError):
+            (guard_dir / name).unlink(missing_ok=True)
 
 
 def _copy_file_atomic(source: Path, destination: Path) -> None:
