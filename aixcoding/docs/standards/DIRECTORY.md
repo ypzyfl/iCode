@@ -1,0 +1,130 @@
+# 目录规范细则（iCode-fork 定制专区）
+
+> 上位文档：`DEVELOPMENT.md`（硬规则 R1–R11）。本文是其目录与落点维度的细则层：蓝图、判定规则、机制与约定。
+> 读者：全体定制开发成员与 AI 编码代理。修订本文视同修订规范。
+> 决策理由与被否决的备选方案见 `adr/` 下对应记录，本文只写结论与规则。
+> **过渡期声明**：本文描述目录重组完成后的目标状态；执行进度与现状差距见 `../../restructure/plan.md`。
+
+## 1. 总蓝图
+
+```
+iCode-fork/
+├── src/chrys/aixcoding/          # 【唯一】进 wheel 的定制产品代码
+│   ├── telemetry/                #   tier 1 适配层（被 service/orchestration/app 埋点向下调用）
+│   ├── auth/                     #   tier 1 独立模块（零 chrys 依赖）
+│   ├── tui/                      #   tier 4 侧产品 UI（引用宿主 UI 设施，被 app 接线点调用）
+│   └── *.py                      #   适配层模块（config / git_info / http / update_detection …）
+├── aixcoding/                    # 纯开发资产，不进 wheel
+│   ├── docs/                     #   活文档：standards/（规范族+全局 ADR+模板+评审清单）、restructure/（重组专项）、
+│   │                             #   <feature>/（功能文档管线，见 DEVELOPMENT.md §6）
+│   ├── tests/                    #   【唯一】定制测试落点（显式运行）
+│   ├── mock/                     #   【唯一】自建 mock 专区（纯实现，契约测试在 tests/mock/）
+│   ├── tools/                    #   开发工具脚本（校验/脚手架等，如 check_docs.py）
+│   ├── __init__.py               #   命名空间锚点（例外登记见 §8）
+│   └── README.md                 #   专区导览
+├── tests/                        # 纯上游测试，零定制文件
+├── .github/workflows/
+│   ├── ci.yml                    # 上游 CI（产品定制代码自动在其射程内）
+│   └── aixcoding-tests.yml       # 定制质量门（lint + 定制测试 + mock 契约测试 + 文档签认校验）
+└── pyproject.toml                # packages 仅 ["src/chrys"]（上游原状）
+```
+
+## 2. 落点判定
+
+新增任何定制文件前，按此决策树判定落点：
+
+| 问题 | 落点 |
+|---|---|
+| 会进发布包（被产品运行时用到）？ | `src/chrys/aixcoding/`（唯一进 wheel 落点，子包划分见 §3） |
+| 是测试？ | `aixcoding/tests/` |
+| 是 mock（模拟外部后端服务）？ | `aixcoding/mock/` |
+| 是文档？ | `aixcoding/docs/`（规范族进 `standards/`，功能文档进 `<feature>/`，改造专项进 `restructure/`） |
+| 是开发工具脚本（校验、脚手架等）？ | `aixcoding/tools/` |
+| 以上都不是 | 停下：先在方案中论证归属，必要时修订本文 |
+
+**上游目录零定制文件**：`tests/`、`locales/`、`scripts/`、`docs/`（上游的）、`.github/workflows/ci.yml`、`pyproject.toml` 等 upstream 树内不落定制文件；对它们的任何改动都是 R2 报批项。当前例外清单：空。
+
+## 3. `src/chrys/aixcoding/`（产品代码）
+
+进 wheel 的定制代码**只允许此一处**。子包按**依赖方向**划分（R9）：
+
+| 子包 | tier | 依赖方向 | 判定标准 |
+|---|---|---|---|
+| `telemetry/`、适配层根模块 | 1 | 只依赖 `chrys.foundation` / `chrys.kernel`，被上游高层向下调用 | 会被上游代码 import 的埋点/适配层 |
+| `auth/` | 1 | 零 chrys 依赖（纯三方库），被 tui / service 消费 | 独立产品模块 |
+| `tui/` | 4 侧 | 引用 `chrys.app.tui` 的 UI 基础设施，被 app 接线点同层调用 | 必须嵌入宿主 UI 体系的定制界面 |
+
+- tier 的机器执行者是 `tests/architecture/test_layering.py` 的 DAG（结构性豁免 `tui` 已在其中登记，并与定制清单双向校验）。
+- 新增子包默认 tier 1；需要更高层引用时走 R9 豁免流程（R2 报批 + 定制清单登记 + DAG 体现）。
+- `tui` 豁免的边界：仅限宿主 UI 基础设施（对话框基类、控件、绑定展示、主题），**不得**引用 service / orchestration 业务逻辑。
+
+## 4. 根 `aixcoding/`（纯开发资产）
+
+- 目录构成：`docs/`、`tests/`、`mock/`、`tools/` 与 README（例外登记见 §8）；**不放任何产品代码**。
+- 不进 wheel 的机制是 `pyproject.toml` 的 `packages = ["src/chrys"]`——与目录内有无 `__init__.py` 无关。
+- **import 机制**：`aixcoding/tests/conftest.py` 负责把仓库根加入 `sys.path`，此后开发资产以 `aixcoding.mock.<name>` 等包路径导入（mock 专区结构见 §6）。测试目录自身**不加** `__init__.py`（保持 pytest 的无包收集模式）。
+- 产品代码（打包运行时）**不得** import `aixcoding.*`——根命名空间只存在于开发仓库内，wheel 里没有它。产品代码只 import `chrys.aixcoding.*`。
+
+## 5. `aixcoding/tests/`（定制测试唯一落点）
+
+- **独立收集**：pytest `testpaths` 只含上游路径，本目录须显式运行：
+
+  ```bash
+  uv run --extra all pytest aixcoding/tests -m "not integration and not gc_calibration"
+  ```
+
+- CI 执行点是独立的定制质量门 `.github/workflows/aixcoding-tests.yml`（见 §7），不寄生于上游 CI 分片。
+- `conftest.py` 职责：config-dir 隔离（对齐上游 `tests/conftest.py` 机制的自建等价物）、环境变量清理、`sys.path` 注入仓库根。**不继承**上游 `tests/conftest.py` 的 autouse fixture——这是有意设计（检测器不与被检测对象共享故障域，理由见 ADR-0001）。
+- 目录组织：按特性分子目录（如 `tests/auth/`、`tests/telemetry/`）；mock 的契约测试统一在 `tests/mock/`。
+- 上游测试设施（`tests/support/` 等）可以**阅读、复制**，但不得 import——上游测试内部接口无稳定性承诺。
+
+## 6. `aixcoding/mock/`（mock 专区）
+
+模拟定制所依赖的内部后端服务。**判断标准是"谁建谁维护"**——被测功能归上游还是归定制不影响资产归属（`model_catalog` 模拟的后端主要服务上游的模型目录功能，仍在此）。
+
+每个子包统一结构：
+
+```
+aixcoding/mock/<name>/            # 命名：无前缀服务名（auth / update / model_catalog / telemetry）
+├── __init__.py                   # docstring：端点与公开 API
+├── server.py                     # create_server(...) factory（测试进程内驱动）+ main() CLI（独立进程）
+└── README.md                     # 端点表、故障模式、CLI 用法
+```
+
+强约束（沿用原 `mock_server/README.md` 已验证的规范）：
+
+- 只绑定 loopback（`127.0.0.1` / `::1`），启动时拒绝其它地址；
+- stdlib-only，不 import 产品包；
+- 按真实后端的 wire quirks 逐字节复刻；
+- 测试直连，避开系统代理；
+- **每个 mock 必须有契约测试**（`aixcoding/tests/mock/`），无契约测试的 mock 不得合入。
+
+## 7. CI 质量门
+
+> 过渡期：`aixcoding-tests.yml` 待建（`restructure/plan.md` U3）；本节描述建成后状态。
+
+| 代码 | 门禁 |
+|---|---|
+| 产品定制代码（`src/chrys/aixcoding/`） | 上游 `ci.yml` 全套（ruff / ty / test / compileall 随 `src/`、`src/chrys` 路径自动覆盖） |
+| 定制测试 + mock + 文档（`aixcoding/`） | 独立 workflow `aixcoding-tests.yml`：`ruff check aixcoding/` → `ruff format --check aixcoding/` → `python aixcoding/tools/check_docs.py` → `pytest aixcoding/tests` |
+
+- 触发条件与 `ci.yml` 对齐（PR + push）；初始单 Linux 平台，平台敏感测试验证后再扩矩阵。
+- ty 对齐上游惯例：只查 `src/chrys`，不查测试与 mock。
+
+## 8. 例外登记（对应 DEVELOPMENT.md §10）
+
+| 例外 | 原因 | 期限 |
+|---|---|---|
+| 根 `aixcoding/__init__.py` 保留 | 作为开发资产的 import 命名空间锚点（`aixcoding.mock.*`）；不进 wheel，无打包副作用 | 持续有效 |
+| `tui` 文案不用 `msg()`，直接中文常量 | 内部产品无多语言需求；转 `msg()` 会引入"每次改文案必须同步 catalog"的永久义务（详见 ADR-0005）。**适用范围：新增 UI 定制界面一律沿用**（文案直接中文常量，不引入 `msg()`） | 产品需要英文界面时重评 |
+
+## 9. 命名约定速查
+
+| 对象 | 约定 |
+|---|---|
+| 定制目录/包名 | 全小写 `aixcoding`（上游标记注释用 `AIxCoding`，见 R3） |
+| mock 子包 | 无前缀服务名：`auth`、`update`、`model_catalog`、`telemetry` |
+| 测试文件 | `test_*.py`；契约测试随被测 mock 命名（`test_<name>_server.py`） |
+| mock 公开 API | `create_server(...)`（factory）/ `main()`（CLI）；配置状态类 `Mock*Config` / `Mock*State` |
+| 功能文档目录 | 小写中划线 `<feature-name>/`；文档文件名固定（requirements/design/test-plan/plan/verification.md，见 DEVELOPMENT.md §6） |
+| 文档 | 中文（团队工作语言）；规范族与 ADR 在 `docs/standards/` |
