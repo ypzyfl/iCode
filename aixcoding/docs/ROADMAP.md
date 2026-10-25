@@ -28,31 +28,37 @@
 - 产出：`standards/`（R1–R11 + 8 篇 ADR + 文档模板 + 评审 HOWTO）、`tools/check_docs.py`、`restructure/plan.md`。
 - DoD：规范族签认齐全、check_docs.py 通过。
 
-### 阶段二：基础工程 —— 当前阶段
+### 阶段二：基础工程 —— **已完成（2026-10-25，DoD 达成）**
 
 **选型论证——为什么不重复建设通用基础工程**：上游已具备 CI（三平台分片）、Smart Test、
 测试体系、uv 依赖锁定、ruff + ty、i18n 工具链、构建与 `check_wheel.py` 打包校验、离线打包、
 OTel 遥测框架（opt-in）与 trajectory 会话回放——这些定制化直接继承，不重复建设。
 定制化要补的是两类：上游空白且 fork 急需的本地诊断能力；上游不会有、只有 fork 才需要的规范落地校验。
 
-内容清单（2026-10-25 与负责人确认，**不扩大**）：
+内容清单（2026-10-25 与负责人确认，**不扩大**）——完成状态：
 
-1. **本地诊断包**（`diagnostics/design.md`，设计基线已定稿）：定制日志落盘（`aixcoding.*`
-   logger 子树 + 独立 TOML 配置 + propagate 切换的 F6 面板）、崩溃现场、环境快照——
-   R2 触点仅 `MODULE_ORDER` 一行（实施前报批）；
-2. **规范落地四工具**（`restructure/plan.md` §0）：定制清单生成 / R2 diff 比对 / R3 标记校验 /
-   import 边界校验——其中 ②③④ 为常设 PR 质量门禁，与迁移无关；
-3. **定制 CI 门禁**：`aixcoding-tests.yml`（上游 `ci.yml` 的 `testpaths` 不含定制测试，
-   fork 需自建；上游目录内新增文件）；
-4. **上游升级 runbook**：拉上游 tag → 全量测试 → 定制清单核对 → 冲突处理，固化为文档；
-5. **版本与发布策略**（`versioning.md`，已定稿：上游三段 + fork 第四段如 `0.31.0.1`、
-   基线升级重置第四位、分发名保持上游、CHANGELOG 约定）——本阶段只定策略，
-   发布实施按真实分发需求后置。
+1. ✅ **本地诊断包**（`diagnostics/`，design 签认+R2 扩表重签 2026-10-25）：五模块（config /
+   logging_support / crash / snapshot / launcher）+ screen.py MODULE_ORDER 一行 +
+   test_layering.py DAG 登记（tier=1 + 边豁免含 stale 检测）；29 定制测试含行为锚定；
+   清单 C002–C005；试运行期遗留人工项（F6 实测、launcher 冒烟）见 diagnostics/verification；
+2. ✅ **规范落地四工具**（`devtools/`）：清单生成（含考古模式，报告
+   `devtools/archaeology-report-0.28.0.md` 即 §4 盘点输入）/ R2 比对 / R3 校验 / import 边界；
+   双 AI 评审两轮收敛；
+3. ✅ **定制 CI 门禁** `aixcoding-tests.yml`（ADR-0004 四步 + 四工具挂入；base=merge-base
+   origin/main_iCode；多次运行全绿；实施副产修复 git core.quotepath 中文路径 bug）；
+4. ✅ **上游升级 runbook**：`standards/UPGRADE-RUNBOOK.md`（§8 操作展开：镜像纪律、冲突高发区
+   对照、工具命令序列、已知坑速查、双轨期注意）；
+5. ✅ **版本与发布策略**（`versioning.md`，2026-10-25 定稿：上游三段 + fork 第四段、
+   基线升级重置第四位、分发名保持上游、CHANGELOG 约定）。
 
-- DoD：四工具与诊断包挂入 CI 跑绿；runbook 成文；诊断包 R2 一行获负责人签认（design.md 状态→已确认）。版本策略已定稿（2026-10-25），不阻塞 DoD。
-- 克制原则：本清单之外不建设（遥测后端对接、mock 体系等，排阶段三及以后按痛点驱动）。
+- DoD 核验（2026-10-25）：四工具与诊断包挂入 CI 跑绿（Aixcoding Tests 多次 success，含
+  诊断包 29 用例与 R2/R3 分叉点门禁）✓；runbook 成文 ✓；诊断包 R2 获负责人签认
+  （含实施中扩表重签）✓；版本策略定稿不阻塞 ✓。**阶段二 DoD 全项满足。**
+- 附带产出：AGENTS.md 既有入口段追溯补登记（`agents-md-note/`，清单 C001）；R3 规范
+  YAML 措辞修正；CUSTOMIZATIONS.md 机制全链路五次验证（签认→标记→清单自动收敛）。
+- 克制原则执行情况：清单外未建设（遥测后端对接、mock 体系等留阶段三按痛点驱动）。
 
-### 阶段三：旧功能迁入 —— 未启动
+### 阶段三：旧功能迁入 —— 当前阶段（阶段二 DoD 达成 2026-10-25 起算）
 
 - 输入：§4 盘点清单（工具①落地的首次实战即产出考古扫描）+ `restructure/plan.md` 考古映射
   （其 §3 顺序 / §4 验收骨架仍有效）。
@@ -70,6 +76,7 @@ OTel 遥测框架（opt-in）与 trajectory 会话回放——这些定制化直
 - 旧分支 `main_aixcoding_cli_0.28.0_final` 服役至阶段三完成。
 - 冻结点（**已确认**，负责人 2026-10-25）：新分支进入阶段三后，旧分支只修阻塞级 bug、不加功能。
   - 生效条件：阶段二 DoD 满足之日自动生效，无需另行宣布；生效前旧分支开发不受限；
+  - **冻结已生效（2026-10-25，阶段二 DoD 满足日，见 §2 完成核验）**；
   - "是否阻塞级"由负责人裁决；
   - 冻结期间新功能需求一律引导至新分支，从源头防止两条分支继续分叉。
 - 切换点：阶段三 DoD 满足之日，旧分支转归档。
@@ -97,3 +104,6 @@ OTel 遥测框架（opt-in）与 trajectory 会话回放——这些定制化直
 - 2026-10-25（二）：阶段二内容重构——确立"新建基础工程与旧功能迁移分离"框架；本地诊断包
   划入阶段二（设计基线 `diagnostics/design.md`）；CI 门禁、升级 runbook 入清单；盘点清单
   剥离回阶段三语境。
+- 2026-10-25（三）：**阶段二完成**——五项清单全部落地（四工具 / 诊断包 / CI 门禁 /
+  升级 runbook `standards/UPGRADE-RUNBOOK.md` / 版本策略）；DoD 全项核验通过；
+  依 §3 条款旧分支冻结自动生效；阶段三启动（迁入顺序待按 §4 盘点表逐项规划）。
