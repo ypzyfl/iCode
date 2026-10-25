@@ -55,3 +55,20 @@ def test_signed_design_approves_only_listed_files(git_repo, capsys):
 def test_bad_base_ref_is_env_error(git_repo):
     repo = git_repo(BASE_FILES)
     assert r2.main(["--base", "no-such-ref-anywhere"], repo=repo) == 2
+
+
+def test_chinese_filenames_not_misrouted_by_quotepath(git_repo, capsys):
+    # git core.quotepath defaults to quoting non-ASCII paths as octal escapes;
+    # the tool must see real UTF-8 so custom Chinese-named files route as custom.
+    repo = git_repo(
+        {
+            **BASE_FILES,
+            "aixcoding/docs/standards/adr/0001-定制测试独立收集.md": "# ADR\n",
+        }
+    )
+    (repo / "aixcoding" / "docs" / "standards" / "adr" / "0001-定制测试独立收集.md").write_text(
+        "# ADR updated\n", encoding="utf-8"
+    )
+    assert r2.main(["--base", "HEAD"], repo=repo) == 0  # custom path change: no upstream change
+    out = capsys.readouterr().out
+    assert "upstream_changed=0" in out

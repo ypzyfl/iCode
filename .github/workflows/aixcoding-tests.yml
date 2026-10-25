@@ -1,0 +1,63 @@
+name: Aixcoding Tests
+
+# Custom-asset quality gate (ADR-0004): everything under aixcoding/ plus the
+# governance tools. Upstream ci.yml never sees these paths.
+# Design & sign-off: aixcoding/docs/ci-gate/design.md (R2 approved 2026-10-25)
+
+on:
+  pull_request:
+    branches: [main_aixcoding_cli]
+  push:
+    branches: [main_aixcoding_cli]
+
+concurrency:
+  group: aixcoding-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Aixcoding quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15  # align with upstream ci.yml job convention
+    steps:
+      # Full history: the R2/R3 gates diff against the fork point with
+      # origin/main_iCode (the pure upstream mirror branch).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: "0.13.1"
+          prune-cache: true
+          enable-cache: true
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version-file: .python-version
+          allow-prereleases: true
+      - run: uv sync
+
+      # --- ADR-0004 quality gate, four steps -------------------------------
+      - run: uv run ruff check aixcoding/
+      - run: uv run ruff format --check aixcoding/
+      - run: uv run python aixcoding/tools/check_docs.py
+      - run: uv run pytest aixcoding/tests -m "not integration and not gc_calibration"
+
+      # --- Governance tools (aixcoding/docs/devtools) ----------------------
+      - run: uv run python aixcoding/tools/check_import_boundaries.py
+
+      - name: Manifest regen must be a no-op (CUSTOMIZATIONS.md freshness)
+        # Precondition: CUSTOMIZATIONS.md must be git-tracked (it is, since
+        # the devtools batch) — `git diff --exit-code` sees tracked files only.
+        run: |
+          uv run python aixcoding/tools/gen_customizations.py
+          git diff --exit-code aixcoding/docs/CUSTOMIZATIONS.md
+
+      - name: R2 / R3 gates against the upstream fork point
+        run: |
+          BASE="$(git merge-base origin/main_iCode HEAD)"
+          echo "upstream fork point: $BASE"
+          uv run python aixcoding/tools/check_r2_diff.py --base "$BASE"
+          uv run python aixcoding/tools/check_r3_markers.py --base "$BASE"

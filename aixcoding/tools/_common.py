@@ -218,8 +218,10 @@ class GitError(RuntimeError):
 
 
 def git(repo: Path, *args: str) -> str:
+    # core.quotepath=off: keep non-ASCII paths (Chinese ADR/doc filenames) as
+    # real UTF-8 — the quoted octal-escaped form defeats is_custom() routing.
     proc = subprocess.run(
-        ["git", "-C", str(repo), *args],
+        ["git", "-C", str(repo), "-c", "core.quotepath=off", *args],
         capture_output=True,
         text=True,
         encoding="utf-8",
