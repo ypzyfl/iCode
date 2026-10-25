@@ -4,7 +4,7 @@
 
 ## 状态
 
-双 AI 评审**收敛**（1 轮：0 blocker，修 6 + F7 单开微改）；53 测试全绿；`self-review.md` 已落盘（草案）。待责任人签认 self-review → 提交（ci-gate 批 + F7 规范微改独立 commit）→ push 后 Actions 首跑观察。
+**任务完成**：远程首跑 Aixcoding Tests #1 全绿（run 40174583158，32s，12 核心步骤全执行无跳过，证据 verification 远程首跑节）。阶段二 DoD"四工具挂入 CI 跑绿"达成。后续维护：workflow 变更走微改动或标准管线（视规模）。
 
 ## 待办
 
@@ -13,7 +13,7 @@
 - [x] 本地等效命令验证 + verification.md 留证（#1-#8）
 - [x] 实施副产：修复 git core.quotepath 中文路径 bug（_common.py）+ 锁定测试
 - [x] 双 AI 自审第 1 轮：评审 AI = CodeBuddy·Deepseek-V4-Pro；0 blocker；修 6（F1-F6）+ F7 单开
-- [ ] self-review.md 签认（责任人）→ 提交 → push 后 Actions 首跑观察（结果补录 verification）
+- [x] self-review.md 签认 → 提交（4f65bc9 + 9a682dc）→ push（c926e81）→ **Actions 首跑全绿（32s）**
 
 ## 挂起与备忘
 

@@ -19,7 +19,14 @@
 
 实施中发现并修复的真 bug：**git `core.quotepath` 默认把中文文件名转义为八进制+引号包裹**，导致 `is_custom()` 对中文命名文档（standards/adr/ 全部 ADR）判定失效、分叉点 base 下 8 个 ADR 被误报"未授权上游改动"。修复：`git()` 统一 `-c core.quotepath=off`（`_common.py`）；锁定测试 `test_chinese_filenames_not_misrouted_by_quotepath`（52→53 passed）。该 bug 只在 base 拉出中文文档全量 diff 时暴露——CI 门禁的 merge-base base 语义正是首个触发场景，门禁自身抓住了门禁工具的 bug。
 
+## 2026-10-25 远程首跑（push c926e81 触发）
+
+**Aixcoding Tests #1：completed / success**，run 40174583158，job 28s（workflow 32s，uv 缓存与上游 CI 同仓库共享命中）。
+
+步骤级确认（GitHub API `/actions/runs/40174583158/jobs`）：环境 4 步 + ruff check / format / check_docs / pytest / check_import_boundaries / 清单幂等 / R2·R3 分叉点门禁——**12 个核心步骤全部真实执行、全部 success、无 skipped**。`-n 8` 并行下 53 用例同样通过（本地 `-n0` 串行无差异问题）。
+
+结论：阶段二 DoD 之"四工具挂入 CI 跑绿"达成；下方未验证事项全部闭环。
+
 ## 未验证事项
 
-- **GitHub Actions 远程执行**：本地不可复现；push 后首跑观察（步骤/语法/runner 环境差异），失败以补丁 commit 修复；
-- `uv sync` 在干净 runner 的时长（本地环境已缓存）。
+- （首跑后清空；后续新增未验证事项在此登记）
