@@ -4,20 +4,19 @@
 
 ## 状态
 
-管线文档齐备（requirements / design[已签认 2026-10-25，R2 生效] / test-plan / plan），实施未启动。test-plan 待责任人确认后开工。
+实施完成：五模块 + screen.py 一行 + test_layering.py 登记扩表（R2 扩表已获负责人批准 2026-10-25，**design R2 表已扩待重签**）；82 定制测试 + 10172 上游回归 + 223 架构测试 + ty 三平台全绿；清单 5 定制点 0 警告。待：design 重签 → 双 AI 自审 → self-review 签认 → 提交。
 
 ## 待办
 
-- [ ] test-plan.md 责任人确认（活文档，不签认）
-- [ ] `config.py`：~/.chrys/aixcoding.toml 解析（tomllib 只读、fail-safe 默认）
-- [ ] `logging_support.py`：aixcoding.* logger 工厂 + RotatingFileHandler 落盘恒开 + propagate 开关
-- [ ] `crash.py`：faulthandler + sys/threading excepthook + atexit 兜底
-- [ ] `snapshot.py`：环境快照（脱敏）
-- [ ] `launcher.py`：python -m 装钩子后调 chrys.app.cli.app:main
-- [ ] `screen.py` MODULE_ORDER 一行 + R3 标记（R2 已批，行尾注释）
-- [ ] 定制测试 `aixcoding/tests/diagnostics/`（见 test-plan 矩阵）
-- [ ] 实施后重跑 gen_customizations（5 条"缺标记"警告应收敛为 C002 定制点）
-- [ ] verification.md 留证 → 双 AI 自审 → self-review 签认 → 提交
+- [x] test-plan.md 责任人确认（2026-10-25）
+- [x] `config.py` / `logging_support.py` / `crash.py` / `snapshot.py` / `launcher.py` 五模块
+- [x] `screen.py` MODULE_ORDER 一行 + R3 标记
+- [x] `test_layering.py` 登记扩表（tier=1 注册 + DAG 边豁免 + stale 检测）——R2 扩表批准（2026-10-25）
+- [x] 定制测试 `aixcoding/tests/diagnostics/`（29 用例，含行为锚定）
+- [x] gen 重生成（5 定制点 0 警告：C001-C005）
+- [x] verification.md 留证（#1-#7）
+- [ ] design.md 重签（R2 表扩行触发，责任人）
+- [ ] 双 AI 自审 → self-review.md → 签认 → 提交 → push（CI 全链路第五连胜验证）
 
 ## 挂起与备忘
 

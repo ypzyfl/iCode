@@ -52,6 +52,7 @@
 | 文件 | 改什么 | 预估行数 | 标记注释位置 |
 |---|---|---|---|
 | `src/chrys/app/tui/screens/logs/screen.py` | `MODULE_ORDER` 元组增加 `"aixcoding"` 项（`MODULE_WHITELIST` 派生自动跟随；F6 tab 由 `for module in MODULE_ORDER` 自动生成） | 1 | 该行行尾 |
+| `tests/architecture/test_layering.py` | ① `TIER_ORDER` 注册 `"aixcoding": 1`（新一级子包 tier 登记，1=只准依赖 foundation/kernel，对应 R9/DIRECTORY tier 表；上游 workflows facade 同型先例）；② 新增 `_DAG_EDGE_ALLOWLIST`（仿既有 kernel-private allowlist 模式，含 stale-entry 防漂移检测）登记 `launcher.py → chrys.app.cli.app` 一条边（本表下方登记预告已载明的 R9 入口豁免）。**实施中补充**（2026-10-25 负责人批准）：架构 DAG 为白名单制，新子包必须注册，规范 R9 条文③与 DIRECTORY tier 表预期此登记，设计初稿漏列 | 约 20 | 两处改动行尾 |
 
 R1 自查：业务逻辑全部外置 `src/chrys/aixcoding/diagnostics/`；接线点仅白名单一行，无法更少。
 崩溃收集/环境快照零接线（launcher 包装，`python -m` 运行）；pyproject entry point 为可选增强，

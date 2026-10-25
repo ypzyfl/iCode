@@ -15,6 +15,10 @@
 | id | paths | 标记 | 归属模块 | anchor | risk | reason | tests | removal_condition | 来源 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | C001 | AGENTS.md:5 | AIxCoding entry point to the customization standards (aixcoding/docs/standards) | aixcoding/docs/standards | AGENTS.md 文档结构（正文段落，无符号依赖） | 低 | 待补 | 待补 | 待补 | aixcoding/docs/agents-md-note/design.md |
+| C002 | src/chrys/app/tui/screens/logs/screen.py:67 | AIxCoding diagnostics: F6 tab for custom-layer logs (src/chrys/aixcoding/diagnostics) | src/chrys/aixcoding/diagnostics | `~/.chrys/` 目录约定（`get_platform().config_dir` 同源）；`logging` 标准机制 + `MODULE_ORDER`（R2 一行）；`chrys.app.cli.app:main` 入口签名；`faulthandler` / `sys.excepthook` / `threading.excepthook`（标准库）；版本/平台信息来源（`chrys.__init__` 与 platform 模块） | 低；低（面板）/零（落盘）；中（上游入口重构时需跟） | 待补 | 待补 | 待补 | aixcoding/docs/diagnostics/design.md |
+| C003 | tests/architecture/test_layering.py:44 | AIxCoding diagnostics: custom layer registers at kernel tier — may depend only on foundation/kernel (src/chrys/aixcoding/diagnostics) | src/chrys/aixcoding/diagnostics | `~/.chrys/` 目录约定（`get_platform().config_dir` 同源）；`logging` 标准机制 + `MODULE_ORDER`（R2 一行）；`chrys.app.cli.app:main` 入口签名；`faulthandler` / `sys.excepthook` / `threading.excepthook`（标准库）；版本/平台信息来源（`chrys.__init__` 与 platform 模块） | 低；低（面板）/零（落盘）；中（上游入口重构时需跟） | 待补 | 待补 | 待补 | aixcoding/docs/diagnostics/design.md |
+| C004 | tests/architecture/test_layering.py:89 | AIxCoding diagnostics: registered DAG edge exemption (src/chrys/aixcoding/diagnostics) | src/chrys/aixcoding/diagnostics | `~/.chrys/` 目录约定（`get_platform().config_dir` 同源）；`logging` 标准机制 + `MODULE_ORDER`（R2 一行）；`chrys.app.cli.app:main` 入口签名；`faulthandler` / `sys.excepthook` / `threading.excepthook`（标准库）；版本/平台信息来源（`chrys.__init__` 与 platform 模块） | 低；低（面板）/零（落盘）；中（上游入口重构时需跟） | 待补 | 待补 | 待补 | aixcoding/docs/diagnostics/design.md |
+| C005 | tests/architecture/test_layering.py:245 | AIxCoding diagnostics: registered edge exemption (src/chrys/aixcoding/diagnostics) | src/chrys/aixcoding/diagnostics | `~/.chrys/` 目录约定（`get_platform().config_dir` 同源）；`logging` 标准机制 + `MODULE_ORDER`（R2 一行）；`chrys.app.cli.app:main` 入口签名；`faulthandler` / `sys.excepthook` / `threading.excepthook`（标准库）；版本/平台信息来源（`chrys.__init__` 与 platform 模块） | 低；低（面板）/零（落盘）；中（上游入口重构时需跟） | 待补 | 待补 | 待补 | aixcoding/docs/diagnostics/design.md |
 
 ## 标记豁免（无法加注释的格式）
 
@@ -25,10 +29,6 @@
 
 ## 校验备注
 
-- aixcoding/docs/diagnostics/design.md: registration row `src/chrys/aixcoding/diagnostics/config.py` has no matching marker (designed but not implemented yet, or attribution typo)
-- aixcoding/docs/diagnostics/design.md: registration row `src/chrys/aixcoding/diagnostics/logging_support.py` has no matching marker (designed but not implemented yet, or attribution typo)
-- aixcoding/docs/diagnostics/design.md: registration row `src/chrys/aixcoding/diagnostics/launcher.py` has no matching marker (designed but not implemented yet, or attribution typo)
-- aixcoding/docs/diagnostics/design.md: registration row `src/chrys/aixcoding/diagnostics/crash.py` has no matching marker (designed but not implemented yet, or attribution typo)
-- aixcoding/docs/diagnostics/design.md: registration row `src/chrys/aixcoding/diagnostics/snapshot.py` has no matching marker (designed but not implemented yet, or attribution typo)
+- （无警告。）
 
 <!-- generated-zone-end -->

@@ -41,6 +41,8 @@ WORKFLOWS_FACADE = "workflows"
 TIER_ORDER = {
     FOUNDATION: 0,
     KERNEL: 1,
+    # AIxCoding diagnostics: custom layer registers at kernel tier — may depend only on foundation/kernel (src/chrys/aixcoding/diagnostics)
+    "aixcoding": 1,
     SERVICE: 2,
     # src/chrys/workflows.py re-exports the service-tier SDK for workflow files.
     WORKFLOWS_FACADE: 2,
@@ -82,6 +84,14 @@ _KERNEL_PRIVATE_IMPORT_ALLOWLIST = {
         Path("src/chrys/service/mcp/owned.py"),
         "chrys.kernel._tool_expansion",
     ): _KERNEL_PRIVATE_PROMOTION_REASON,
+}
+
+# AIxCoding diagnostics: registered DAG edge exemption (src/chrys/aixcoding/diagnostics)
+_DAG_EDGE_ALLOWLIST = {
+    (
+        Path("src/chrys/aixcoding/diagnostics/launcher.py"),
+        "chrys.app.cli.app",
+    ): "AIxCoding diagnostics launcher: same-process crash hooks need the upstream CLI entrypoint (R9 exemption, aixcoding/docs/diagnostics/design.md)",
 }
 
 
@@ -210,6 +220,7 @@ def _kernel_private_import_problem(path: Path, source: Path, edge: ImportEdge) -
 def test_first_party_imports_follow_layer_dag() -> None:
     violations: list[str] = []
     observed_private_import_exemptions: set[tuple[Path, str]] = set()
+    observed_dag_edge_exemptions: set[tuple[Path, str]] = set()
     for path in sorted(SRC.rglob("*.py")):
         if _is_root_init(path):
             violations.extend(_root_init_violations(path))
@@ -230,7 +241,10 @@ def test_first_party_imports_follow_layer_dag() -> None:
                 violations.append(problem)
             elif _is_kernel_private_edge(path, edge):
                 observed_private_import_exemptions.add((source, edge.target))
-            if _is_violation(edge):
+            if (source, edge.target) in _DAG_EDGE_ALLOWLIST:
+                # AIxCoding diagnostics: registered edge exemption (src/chrys/aixcoding/diagnostics)
+                observed_dag_edge_exemptions.add((source, edge.target))
+            elif _is_violation(edge):
                 violations.append(_format_violation(edge))
 
     for source, target in sorted(_KERNEL_PRIVATE_IMPORT_ALLOWLIST.keys() - observed_private_import_exemptions):
@@ -240,6 +254,13 @@ def test_first_party_imports_follow_layer_dag() -> None:
             f"(reason: {reason}); violates the AGENTS.md testing-rules section (\"A guard that can't go red is "
             'worse than none — it is believed."). Fix: remove the stale allowlist entry or update it to the '
             "exact live source/target pair"
+        )
+
+    for source, target in sorted(_DAG_EDGE_ALLOWLIST.keys() - observed_dag_edge_exemptions):
+        reason = _DAG_EDGE_ALLOWLIST[(source, target)]
+        violations.append(
+            f"{source}:1: DAG edge allowlist entry for {target!r} has no real import edge "
+            f"(reason: {reason}); remove the stale entry or update it to the exact live source/target pair"
         )
 
     assert violations == []
