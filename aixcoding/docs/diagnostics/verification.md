@@ -34,7 +34,13 @@
 
 - commit `7bd6d45`（21 files，+900/-17）推送；**Aixcoding Tests completed/success**（第五连胜，含本批 diagnostics 29 用例、R2/R3 对 screen.py+test_layering.py 标记的分叉点门禁核对、清单幂等 C001-C005）。
 
+## 2026-10-25 试运行期人工项（阶段二收官后补做）
+
+| # | 命令 | 结果摘要 |
+|---|---|---|
+| 9 | `uv run python -m chrys.aixcoding.diagnostics.launcher --version` | 输出 `0.31.0`，干净退出——**launcher 真实启动冒烟通过**（装钩子→调上游入口 dispatch→无干扰） |
+| 10 | 产物核验 | `%APPDATA%\chrys\aixcoding-diagnostics\20261025T090305Z-28268\` 产生 `faulthandler.txt` + `snapshot.txt`（Windows 平台 config_dir 为 `%APPDATA%\chrys`，platform 层定义）——钩子与快照全链路真实工作 |
+
 ## 未验证事项
 
-- TUI 内 F6 面板实测（aixcoding tab 显示）——需交互环境，试运行期人工确认；
-- launcher 全链路真实运行（`python -m chrys.aixcoding.diagnostics.launcher` 启动真实 CLI）——测试以 fake 入口覆盖接线顺序，真实启动待试运行。
+- TUI 内 F6 面板实测（aixcoding tab 显示）——需交互环境，任一次真实 TUI 使用时按 F6 目视确认即可（panel=true 配置后）。
