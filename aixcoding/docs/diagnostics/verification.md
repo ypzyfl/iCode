@@ -30,6 +30,10 @@
 |---|---|---|
 | 8 | F2 修复后 `ruff format/check src/chrys/aixcoding` + `ty check linux` + `pytest aixcoding/tests -n0 -q` | All checks passed ×3 / **82 passed** |
 
+## 2026-10-25 提交与 CI（push 7bd6d45）
+
+- commit `7bd6d45`（21 files，+900/-17）推送；**Aixcoding Tests completed/success**（第五连胜，含本批 diagnostics 29 用例、R2/R3 对 screen.py+test_layering.py 标记的分叉点门禁核对、清单幂等 C001-C005）。
+
 ## 未验证事项
 
 - TUI 内 F6 面板实测（aixcoding tab 显示）——需交互环境，试运行期人工确认；

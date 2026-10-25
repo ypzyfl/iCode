@@ -4,19 +4,17 @@
 
 ## 状态
 
-实施完成：五模块 + screen.py 一行 + test_layering.py 登记扩表（R2 扩表已获负责人批准 2026-10-25，**design R2 表已扩待重签**）；82 定制测试 + 10172 上游回归 + 223 架构测试 + ty 三平台全绿；清单 5 定制点 0 警告。待：design 重签 → 双 AI 自审 → self-review 签认 → 提交。
+**任务完成**（commit 7bd6d45 已推送，CI 第五连胜全绿）：五模块 + 两处上游登记 + 29 测试 + 清单 C001-C005 + 双 AI 评审收敛（self-review 已签认 2026-10-25）。剩余为试运行期人工验证项（F6 面板实测、launcher 真实启动，见 verification 未验证事项）。
 
 ## 待办
 
 - [x] test-plan.md 责任人确认（2026-10-25）
-- [x] `config.py` / `logging_support.py` / `crash.py` / `snapshot.py` / `launcher.py` 五模块
-- [x] `screen.py` MODULE_ORDER 一行 + R3 标记
-- [x] `test_layering.py` 登记扩表（tier=1 注册 + DAG 边豁免 + stale 检测）——R2 扩表批准（2026-10-25）
-- [x] 定制测试 `aixcoding/tests/diagnostics/`（29 用例，含行为锚定）
-- [x] gen 重生成（5 定制点 0 警告：C001-C005）
-- [x] verification.md 留证（#1-#7）
-- [ ] design.md 重签（R2 表扩行触发，责任人）
-- [ ] 双 AI 自审 → self-review.md → 签认 → 提交 → push（CI 全链路第五连胜验证）
+- [x] 五模块实施（config / logging_support / crash / snapshot / launcher）
+- [x] `screen.py` + `test_layering.py` 上游登记（R2 批准+重签）
+- [x] 定制测试 29 用例（含行为锚定）
+- [x] 清单收敛（C001-C005，0 警告）
+- [x] 双 AI 评审 → self-review 签认 → 提交 7bd6d45 → push → **CI success**
+- [ ] 试运行期：F6 面板人工实测 + launcher 真实启动冒烟（不阻塞阶段二 DoD）
 
 ## 挂起与备忘
 
