@@ -41,6 +41,12 @@
 | 9 | `uv run python -m chrys.aixcoding.diagnostics.launcher --version` | 输出 `0.31.0`，干净退出——**launcher 真实启动冒烟通过**（装钩子→调上游入口 dispatch→无干扰） |
 | 10 | 产物核验 | `%APPDATA%\chrys\aixcoding-diagnostics\20261025T090305Z-28268\` 产生 `faulthandler.txt` + `snapshot.txt`（Windows 平台 config_dir 为 `%APPDATA%\chrys`，platform 层定义）——钩子与快照全链路真实工作 |
 
+## 2026-10-25 F6 面板目视（责任人实测，最后一项闭环）
+
+| # | 操作 | 结果 |
+|---|---|---|
+| 11 | TUI（`uv run icode`，UV_PYTHON=3.14.3）按 F6 | **aixcoding tab 存在（chrys 之后），空态渲染正常**——MODULE_ORDER 白名单接线目视通过；空态符合预期（无业务消费者，与 httpx 空请求时空 tab 行为一致；内容链路由 test_tui_handler_buffers_aixcoding_record 行为锚定机检覆盖，阶段三 telemetry 接入后自动有实时日志）。运行环境注记：uv 0.13.x 下载清单无 3.14.8，本机以 UV_PYTHON=3.14.3 等价运行。 |
+
 ## 未验证事项
 
-- TUI 内 F6 面板实测（aixcoding tab 显示）——需交互环境，任一次真实 TUI 使用时按 F6 目视确认即可（panel=true 配置后）。
+- （清零——阶段二全部验证项闭环。）
