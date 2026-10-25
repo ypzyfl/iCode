@@ -25,6 +25,10 @@
 
 ## 校验备注
 
-- aixcoding/docs/diagnostics/design.md: registration table present but sign-off is '草案（设计基线，2026-10-25 与负责人讨论定稿；实施前签认）' — ignored
+- aixcoding/docs/diagnostics/design.md: registration row `src/chrys/aixcoding/diagnostics/config.py` has no matching marker (designed but not implemented yet, or attribution typo)
+- aixcoding/docs/diagnostics/design.md: registration row `src/chrys/aixcoding/diagnostics/logging_support.py` has no matching marker (designed but not implemented yet, or attribution typo)
+- aixcoding/docs/diagnostics/design.md: registration row `src/chrys/aixcoding/diagnostics/launcher.py` has no matching marker (designed but not implemented yet, or attribution typo)
+- aixcoding/docs/diagnostics/design.md: registration row `src/chrys/aixcoding/diagnostics/crash.py` has no matching marker (designed but not implemented yet, or attribution typo)
+- aixcoding/docs/diagnostics/design.md: registration row `src/chrys/aixcoding/diagnostics/snapshot.py` has no matching marker (designed but not implemented yet, or attribution typo)
 
 <!-- generated-zone-end -->
