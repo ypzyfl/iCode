@@ -43,7 +43,7 @@
 - **R3 标记注释**：获批的上游改动在改动处加**单行**注释：英文、简短、跟随上游注释风格，以 `AIxCoding` 关键词开头（注意大小写）并指向归属模块；自定义目录名统一为全小写 `aixcoding`。
   例：`# AIxCoding telemetry: emit tool events (src/chrys/aixcoding/tool_events)`
   （无方括号——对齐存量标记注释的实际格式；清单生成脚本按此匹配，数量以脚本扫描为准。）
-  不使用多行 BEGIN/END 块标记——注释本身也是 rebase 冲突面。无法加注释的格式（JSON/YAML/二进制）登记到定制清单。
+  不使用多行 BEGIN/END 块标记——注释本身也是 rebase 冲突面。无法加注释的格式（JSON/二进制等）登记到定制清单；YAML/TOML 等支持 `#` 注释的格式正常打标记（可扫后缀清单见 `aixcoding/tools/_common.py`）。
 - **R4 新增文件入定制目录**：所有新增源码、测试、文档、脚本、mock 一律放 `aixcoding` 目录；进入 wheel 的定制代码只允许 `src/chrys/aixcoding/` 一处，仓库根 `aixcoding/` 不进 wheel（`packages` 仅 `["src/chrys"]`，上游原状）。
 - **R5 最小变更**：只改任务必需的内容。禁止顺手重构、格式化无关文件、改动无关注释、升级依赖、修改 CI。
 - **R6 不覆盖他人工作**：发现工作区有未提交的他人改动时，停止并询问，不得覆盖。
