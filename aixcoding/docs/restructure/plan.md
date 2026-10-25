@@ -1,14 +1,17 @@
-# 目录重组执行计划（restructure plan）
+# 目录重组执行计划（restructure plan）——迁入考古参考
 
-> 目标：按 `DIRECTORY.md` 的蓝图重建定制专区。本文是执行清单与续接入口：迁移映射、R2 审批状态、验收项。
-> 决策依据：`../standards/adr/`（0001–0005；0006 起与目录重组无关）。执行中若发现映射有误，先修本文再动代码。
-> 方向确认（2026-10-23）：负责人知情确认 ADR-0002 方向反转（根 `aixcoding/` 退出 wheel、产品代码迁 `src/chrys/aixcoding/`、`packages` 还原 `["src/chrys"]`、含 P4/P5 上游 import 改动在内的 R2 报批范围）。执行待启动指令，本文所列事项均未动代码。
+> **定位更新（2026-10-25）**：新分支 `main_aixcoding_cli`（上游 0.31.0 干净基线）已拉出，旧定制功能未带入——本文从"旧分支原地重组执行清单"转为**阶段三"旧功能迁入"的考古参考**（总路线见 `../ROADMAP.md`）。由此：
+> - §1/§2 钉死的行号与文件位置基于旧分支 0.28.0 基线，**已随上游 0.28→0.31 漂移失效**：迁入定位一律以 `AIxCoding` 标记注释在旧分支考古、在新基线重新比对，不得照抄行号；
+> - "原地迁移"语义变为"跨分支迁入"：各项"现状"指旧分支 `main_aixcoding_cli_0.28.0_final` 的落点；U1–U5 需按新分支现状逐条重核（如 U1 的 `packages` 在新分支已是 `["src/chrys"]`，或无需还原动作）；
+> - §3 执行顺序、§4 验收清单仍有效，作为阶段三操作骨架；前置依赖为先完成 ROADMAP §2 阶段二（五项内容清单）。
+> 目标：按 `DIRECTORY.md` 的蓝图重建定制专区。决策依据：`../standards/adr/`（0001–0005；0006 起与目录重组无关）。执行中若发现映射有误，先修本文再动代码。
+> 方向确认（2026-10-23）：负责人知情确认 ADR-0002 方向反转（根 `aixcoding/` 退出 wheel、产品代码迁 `src/chrys/aixcoding/`、`packages` 还原 `["src/chrys"]`、含 P4/P5 上游 import 改动在内的 R2 报批范围）。2026-10-25 起按新分支重建路线执行（见 `../ROADMAP.md`）。
 > 状态标记：`[ ]` 待办 / `[x]` 完成 / `[~]` 部分完成 / `[-]` 取消（注明原因）。
 
 ## 0. 前置事实（执行时核对）
 
-- [ ] git 核对上游基线的 `testpaths` 原值（还原目标；大概率 `["tests"]`）。
-- [ ] git 核对上游基线的 `[tool.hatch.build.targets.wheel]` 是否存在（我们的 `packages` 改动是否纯增量，还原即删除该段或恢复原值）。
+- [x] git 核对上游基线的 `testpaths` 原值（2026-10-25 已核对：新分支与上游 `pyproject.toml` **全文零差异**——`version` 同为上游原值 `0.31.0`、fork 从未改动（首次比对时上游本地副本停在 0.30.1 故 diff 显示 version 一行，副本更新后复核为零差异）；`testpaths = ["tests"]` 一致——U1 之 `testpaths` 还原无动作）。
+- [x] git 核对上游基线的 `[tool.hatch.build.targets.wheel]`（同次核对：上游本就有该段且同为 `packages = ["src/chrys"]`，`force-include` / `artifacts` 均系上游自带、非 fork 侧增量——U1 之 `packages` 还原无动作；U1 整体在新分支为无操作，阶段三启动时改记 `[-]` 即可）。
 - [ ] **首批工具建设立项**（四个脚本，排入 §3 第 8 步显式里程碑，先于任何新功能开发）：① 定制清单生成脚本（扫描 `AIxCoding` 标记生成 `CUSTOMIZATIONS.md`，规范 §5/§8 依赖，当前不存在——验收第 8 项以其存在为前提）；② R2 diff 比对脚本（PR 改动的上游文件集 vs design.md 批准清单，ADR-0007）；③ R3 标记注释校验脚本（上游 diff 必须带 `AIxCoding` 注释，ADR-0007）；④ import 边界校验脚本（`aixcoding/` 禁 import `tests.support` 等 §9 边界）。防"文档先行、工具永远在后"：规范承诺的自动校验在脚本落地前处于人肉降级态，属临时状态。
 
 > 注：前两项核对仅决定**还原参数**（还原成什么值/删段还是改值），不改变 ADR-0002/0003 的决策结论（单落点、mock_server 自建可删——后者经负责人确认）；若核对发现上游 wheel 配置存在其他 fork 侧增量（如 force-include 系我们添加），U1 审批范围相应更新后再执行。
@@ -55,7 +58,7 @@
 
 | # | 文件 | 改动 | 状态 |
 |---|---|---|---|
-| U1 | `pyproject.toml` | `packages` 还原 `["src/chrys"]`（删除 `"aixcoding"`）；`testpaths` 还原上游原值（删 `"mock_server"`）；per-file-ignores：`"aixcoding/tui/*"` → `"src/chrys/aixcoding/tui/*"`；`"mock_server/**/test_*.py"` → `"aixcoding/tests/**"` | 待批 |
+| U1 | `pyproject.toml` | `packages` 还原 `["src/chrys"]`（删除 `"aixcoding"`）；`testpaths` 还原上游原值（删 `"mock_server"`）；per-file-ignores：`"aixcoding/tui/*"` → `"src/chrys/aixcoding/tui/*"`；`"mock_server/**/test_*.py"` → `"aixcoding/tests/**"` | 已核对（2026-10-25，见 §0）：新分支与上游零差异，还原部分无操作；per-file-ignores 改动在新分支不存在，转为阶段三迁入 tui/tests 时的**新增** R2 报批项 |
 | U2 | `tests/architecture/test_layering.py` | DAG 细化：`chrys.aixcoding` 默认 tier 1，`chrys.aixcoding.tui` 单列 tier 4 侧；新增"DAG 豁免 ↔ 定制清单登记"一致性断言 | 待批 |
 | U3 | `.github/workflows/aixcoding-tests.yml` | 新建（上游目录内新增文件，ADR-0004）：ruff check/format `aixcoding/` + `pytest aixcoding/tests`，触发对齐 ci.yml，初始单 Linux | 待批 |
 | U4 | `tests/app/aixcoding/` 删除（11 文件）+ 上游 tests 树内定制依赖文件更新（P5 两文件） | 见 T2/P5 | 待批（T2/P5/U4 合并审批） |
