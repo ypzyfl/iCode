@@ -56,10 +56,11 @@ uv run python aixcoding/tools/check_docs.py
 
 结果：`check_docs: OK`（8→9 ADR、4→5 design 全程通过）。
 
-## 待办：CI 留证
+## CI 验证（证据源：PR checks，不回写）
 
-`aixcoding-tests.yml` 需 commit + push 后在 GitHub Actions 留证（本地门禁已全绿；
-CI 记录待推送后追加一节）。
+CI 证据 = PR #56 的 checks 记录（GitHub 永久可查），按 DEVELOPMENT.md §7
+"CI 证据归属"不落盘本文件；首轮红的根因与修复见次轮 commit `006862b`
+及其测试内注释（SO_REUSEADDR 平台语义）。
 
 ## 2026-10-26 双 AI 评审修复轮（HOWTO ③）
 

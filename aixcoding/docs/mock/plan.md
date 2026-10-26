@@ -4,9 +4,14 @@
 
 ## 状态
 
-**实现完成，本地验证全绿**（2026-10-26）：pytest 151 passed + 2 skipped（skip 为 catalog 对拍测试自动跳过，随消费方迁入恢复）、ruff check/format 过、import 边界过、launcher 冒烟三项过。剩余：CI push 后留证、self-review 负责人确认。
+**全部完成**（2026-10-26）：本地门禁全绿（pytest 158 passed + 2 skipped / ruff /
+format / import 边界 / check_docs）+ 双 AI 评审闭环（blocker 清零 + 增量复审通过）+
+CI 绿（PR #56 checks，两轮）。CI 证据按 DEVELOPMENT.md §7 以 PR checks 为源，
+不回写仓库。
 
 ## 待办
+
+（无——下方清单全部勾选完成。）
 
 - [x] design.md 负责人签认（R10，2026-10-25）
 - [x] ADR-0009 负责人签认（R10，2026-10-25）
@@ -17,8 +22,8 @@
 - [x] update CLI 补 `--port` 参数（docstring 与 main 同步更新）
 - [x] launcher 冒烟：`--list` / 默认组合起停探测 / 端口占用 fail-fast（exit 1 + netstat 提示）/ 互斥检查（exit 2）；Ctrl+C 路径留日常联调自然验证
 - [x] 全量门禁：`pytest aixcoding/tests` 绿 + ruff check/format `aixcoding/` + `check_import_boundaries.py`
-- [ ] CI（aixcoding-tests.yml）全绿留证（待 commit + push）
-- [x] 产出 self-review.md + verification.md（self-review 待负责人确认）
+- [x] CI（aixcoding-tests.yml）全绿（PR #56 checks，两轮；证据以 PR checks 为源不回写仓库）
+- [x] 产出 self-review.md + verification.md（self-review 负责人已确认 2026-10-26）
 
 ## 挂起与备忘
 
