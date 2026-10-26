@@ -116,7 +116,7 @@ aixcoding/mock/<name>/            # 命名：无前缀服务名（auth / update 
 | 产品定制代码（`src/chrys/aixcoding/`） | 上游 `ci.yml` 全套（ruff / ty / test / compileall 随 `src/`、`src/chrys` 路径自动覆盖），经桥接 `aixcoding-upstream-ci.yml` 在 PR 至 main_aixcoding_cli 时实际生效（ci.yml 自身仅 PR 至 main 触发） |
 | 定制测试 + mock + 文档（`aixcoding/`） | 独立 workflow `aixcoding-tests.yml`：`ruff check aixcoding/` → `ruff format --check aixcoding/` → `python aixcoding/tools/check_docs.py` → `pytest aixcoding/tests` |
 
-- 触发条件与 `ci.yml` 对齐（PR + push）；初始单 Linux 平台，平台敏感测试验证后再扩矩阵。
+- 触发条件：`aixcoding-tests.yml` 为 PR + push 至 main_aixcoding_cli（实测 38 秒–5 分钟）；桥接 `aixcoding-upstream-ci.yml` **仅 PR 触发**（对齐上游 ci.yml 惯例，合并 push 不重复跑；ci.yml 自身仅 PR 至 main 触发），单次拉起上游全套 17 job（多 OS 分片 + architecture + build + wheel 探测），实测约 11–12 分钟。初始单 Linux 平台，平台敏感测试验证后再扩矩阵。
 - ty 对齐上游惯例：只查 `src/chrys`，不查测试与 mock。
 
 ## 8. 例外登记（对应 DEVELOPMENT.md §10）
