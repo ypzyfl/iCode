@@ -114,8 +114,11 @@ class WindowsDPAPI:
             ]
 
         self._blob_type = _DATA_BLOB
-        crypt32 = ctypes.WinDLL("crypt32", use_last_error=True)  # ty: ignore[unresolved-attribute]
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)  # ty: ignore[unresolved-attribute]
+        # WinDLL is a win32-only ctypes member; access it dynamically so
+        # non-Windows type checks resolve it without per-platform ignores.
+        windll = getattr(ctypes, "WinDLL")  # noqa: B009 — dynamic on purpose, see comment above
+        crypt32 = windll("crypt32", use_last_error=True)
+        kernel32 = windll("kernel32", use_last_error=True)
 
         crypt32.CryptProtectData.argtypes = [
             ctypes.POINTER(_DATA_BLOB),  # pDataIn
@@ -174,7 +177,7 @@ class WindowsDPAPI:
             ctypes.byref(out_blob),
         )
         if not ok:
-            raise OSError(f"DPAPI call failed: win32 error {ctypes.get_last_error()}")  # ty: ignore[unresolved-attribute]
+            raise OSError(f"DPAPI call failed: win32 error {getattr(ctypes, 'get_last_error')()}")  # noqa: B009 — win32-only member, dynamic for cross-platform typecheck
         return self._from_blob(out_blob)
 
     def protect(self, plaintext: bytes, label: str = LABEL) -> bytes:

@@ -47,7 +47,10 @@
 - [x] verification.md 记录全部验证证据
 - [x] 双 AI 自审（SELF-REVIEW-HOWTO 五步走完：Deepseek-V4-Pro 评审无 blocker → 修复
       F-2/F-3/F-4+F-1 补句 → 复审增量"过，无 finding"→ self-review.md 生成待签）
-- [ ] 请示 commit/push + PR（用户网页操作）
+- [x] 请示 commit/push + PR（b0375df 已 push，PR #60 已建；Upstream CI windows ty 失败
+      根因修复见 verification 2026-10-27 节——crypto.py 3 处平台相关 ignore 改 getattr
+      动态获取，三平台零 warning；修复 commit 待授权）
+- [ ] CI 双门禁绿后用户合并 PR #60
 
 ## 挂起与备忘
 

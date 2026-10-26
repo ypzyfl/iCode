@@ -72,10 +72,9 @@ uv run python aixcoding/tools/check_import_boundaries.py
   结构/WinDLL 跨平台解析；:158 一行含 pbData/cbData 两错共用一个 ignore；上游 18 处
   ty:ignore 同因先例）+ `types.py` 7 行 7 错（wire payload `object` 进 `int()/float()`，
   0.28 原样解析逻辑不顺手重构）；（评审 F-3 更正：初稿误记"17 处=9+7"）
-- 修复后：linux `All checks passed!`（exit 0）、darwin `All checks passed!`（exit 0）、
-  win32 **exit 0**（3 个 `unused-ignore-comment` warning：`WinDLL/get_last_error` 在
-  win32 为合法符号、ignore 仅 linux/darwin 需要——平台相关 ignore 的固有两难，
-  `--error-on-warning` 下 unused-ignore 不阻断，输出为日志噪音）。
+- 修复后（初轮）：linux/darwin `All checks passed!`；win32 报 3 个 `unused-ignore-comment`
+  warning——**初轮误判其为非阻断**（退出码读取被 cmd `%ERRORLEVEL%` 行首展开时机欺骗，
+  `cmd /c "... & echo %ERRORLEVEL%"` 显示的是旧值；真实退出码见 2026-10-27 更正节）。
 
 ## 2026-10-26 定制清单刷新（R8 机制）
 
@@ -100,6 +99,24 @@ uv run python aixcoding/tools/check_import_boundaries.py
 - ty 三平台：exit 0 ×3（win32 含 3 个非阻断 unused-ignore warning）；
 - 四工具：check_r2_diff OK / check_r3_markers OK / check_import_boundaries OK / check_docs OK；
 - CI 证据 = PR checks（GitHub 永久可查），按 DEVELOPMENT.md §7 不落盘本文件。
+
+## 2026-10-27 CI 失败根因修复（PR #60 Upstream CI windows/core Typecheck (ty)）
+
+- **现象**：PR #60 的 AIxCoding Tests ✅（43s）；Upstream CI 3 次尝试失败——根因 job
+  `ci / Windows shard (windows/core)` 的 `Typecheck (ty)` 步骤（其余失败均为级联/取消）。
+  CI 命令 = `uv run ty check --error-on-warning src/chrys`（Windows runner 原生平台）。
+- **根因**：crypto.py 3 处 `# ty: ignore[unresolved-attribute]`（`WinDLL`×2、
+  `get_last_error`×1）在 win32 平台 unused，`--error-on-warning` 下 unused-ignore
+  **判失败**——平台相关 ignore 的固有两难：linux/darwin 必需、win32 报 unused。
+  本地初轮的"win32 exit 0"结论系 cmd `%ERRORLEVEL%` 行首展开时机欺骗（`&` 连接的
+  echo 在整行解析时展开旧值），改用 `(cmd && echo OK || echo FAIL)` 判定法复测得
+  `TY_WIN32_FAIL`。
+- **修复**：删 3 个平台相关 ignore，`WinDLL`/`get_last_error` 改 `getattr(ctypes, ...)`
+  动态获取（返回 Any，三平台解析均干净）；ruff B009 以行级 `# noqa: B009` 豁免并注明
+  动机（动态访问是目的而非疏忽）。crypto.py 3 行改动，均在自定义路径（零上游外溢）。
+- **复验**：`(uv run ty check --error-on-warning --python-platform {win32,linux,darwin}
+  src/chrys && echo OK || echo FAIL)` → 三平台 `All checks passed!` + `TY_*_OK`
+  **零 warning**；`pytest aixcoding/tests` 263 passed 2 skipped；ruff check/format 绿。
 
 ## 实施后记（同根因格式坑，两处）
 
