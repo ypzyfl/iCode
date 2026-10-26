@@ -51,7 +51,19 @@
 
 **取舍记录**：替选方案"把 17 个上游 job 名逐个设为必过"被否决——上游任一 job 改名即致旧条目永久 Expected（门禁自杀），维护成本高。
 
+## 2026-10-26 gate job 首跑验证（PR #58，commit fb5a61e，run 40285498100）
+
+**18 job 全部 success**（17 上游矩阵 + 1 gate）。gate 验证要点：
+
+- **独立 check run 报告且为绿**：job `AIxCoding upstream gate`（id 121452145813）3 步全 success，耗时 4 秒（07:35:59→07:36:03）——秒级是设计预期：gate 是聚合判定官非测试执行者，唯一实质步骤 `Verify the upstream suite` 执行 `test "$CI_RESULT" = "success"`；测试本体在矩阵 job 跑（同 run 实测：`Unix shard (macos/core)` Run tests 约 11 分钟、`Windows shard (windows/core)` 约 8 分钟、`Architecture` 约 4 分 20 秒）；
+- **`needs: ci` 聚合语义正确**：时序证明 gate 等完了全矩阵——最慢 job `macos/core` 07:35:46 结束 → 上游 `Test (macos)` gate 07:35:56 → 本 gate 07:35:59 才启动；
+- **同构对照**：同 run 内上游 ci.yml 自带的三个 gate（`Test (linux)`/`Test (windows)`/`Test (macos)`）同样各 4-5 秒，模式逐字一致；
+- **fail-closed 语义**：矩阵任一 job 失败 → `needs.ci.result=failure` → gate 断言失败 → 必过 check 拦截合并。
+
+**ruleset 配置生效**：required check `AIxCoding upstream gate`（手输 job 名添加）由 "Expected — Waiting" 转绿，匹配成功；旧 workflow 名条目已清除，PR checks 全部通过、`mergeable_state: clean`。
+
+结论：本节两条未验证事项全部闭环；桥接批次含 gate 修正完整验证完毕。
+
 ## 未验证事项
 
-- gate job 远程首跑（下一次 PR CI）：确认 `AIxCoding upstream gate` 以独立 check run 报告且为绿、`needs.ci.result` 聚合语义正确；
-- ruleset 配置更新（责任人网页操作）：删除永久 Expected 的 `AIxCoding Upstream CI` 条目，改加 `AIxCoding upstream gate` 为必过。
+- （本批次全部闭环；后续新增未验证事项在此登记）
