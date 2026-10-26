@@ -70,7 +70,7 @@ iCode-fork/
 - **独立收集**：pytest `testpaths` 只含上游路径，本目录须显式运行：
 
   ```bash
-  uv run --extra all pytest aixcoding/tests -m "not integration and not gc_calibration"
+  uv run pytest aixcoding/tests -m "not integration and not gc_calibration"
   ```
 
 - CI 执行点是独立的定制质量门 `.github/workflows/aixcoding-tests.yml`（见 §7），不寄生于上游 CI 分片。
@@ -81,6 +81,13 @@ iCode-fork/
 ## 6. `aixcoding/mock/`（mock 专区）
 
 模拟定制所依赖的内部后端服务。**判断标准是"谁建谁维护"**——被测功能归上游还是归定制不影响资产归属（`model_catalog` 模拟的后端主要服务上游的模型目录功能，仍在此）。
+
+**形态语义（2026-10-25 决策澄清）**：目录名描述职责域（mock 专区），实现形态由子包内文件表达——当前全部为 HTTP server 形态（即每子包 `server.py`），不因形态更名目录（曾议 `mock_server/`，维持 `mock/`，详见 `docs/mock/design.md` 决策记录）。进程内替身不属本专区：测试专用 fake/stub 归 `aixcoding/tests/`（§5），产品内可注入测试挂钩归 `src/chrys/aixcoding/`；非 server 形态 mock 资产出现时按 §2 判定树重新论证落点。
+
+**包根编排层（2026-10-25 登记）**：`__main__.py` 为组合启动器——`python -m aixcoding.mock`
+一键起基础组合（默认 `model_catalog` :7777 含内嵌 auth + `update` :7778；`--all` /
+`--only` / `--list`），仅编排各子包既有 `create_server(...)`，不承载 mock 实现；端口
+fail-fast 不静默换。设计依据 `docs/mock/design.md`。
 
 每个子包统一结构：
 
@@ -123,6 +130,7 @@ aixcoding/mock/<name>/            # 命名：无前缀服务名（auth / update 
 | 对象 | 约定 |
 |---|---|
 | 定制目录/包名 | 全小写 `aixcoding`（上游标记注释用 `AIxCoding`，见 R3） |
+| fork 新增环境变量 | 统一 `AIXCODING_` 前缀；例外：挂上游 settings 声明体系的沿用 `CHRYS_` 并在特性 design 登记（首次决策 2026-10-25：`CHRYS_AUTH_*` 随 auth 迁入更名 `AIXCODING_AUTH_*`，详见 `docs/mock/design.md` 决策记录） |
 | mock 子包 | 无前缀服务名：`auth`、`update`、`model_catalog`、`telemetry` |
 | 测试文件 | `test_*.py`；契约测试随被测 mock 命名（`test_<name>_server.py`） |
 | mock 公开 API | `create_server(...)`（factory）/ `main()`（CLI）；配置状态类 `Mock*Config` / `Mock*State` |

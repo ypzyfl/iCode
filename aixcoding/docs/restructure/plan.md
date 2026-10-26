@@ -4,6 +4,9 @@
 > - §1/§2 钉死的行号与文件位置基于旧分支 0.28.0 基线，**已随上游 0.28→0.31 漂移失效**：迁入定位一律以 `AIxCoding` 标记注释在旧分支考古、在新基线重新比对，不得照抄行号；
 > - "原地迁移"语义变为"跨分支迁入"：各项"现状"指旧分支 `main_aixcoding_cli_0.28.0_final` 的落点；U1–U5 需按新分支现状逐条重核（如 U1 的 `packages` 在新分支已是 `["src/chrys"]`，或无需还原动作）；
 > - §3 执行顺序、§4 验收清单仍有效，作为阶段三操作骨架；前置依赖为先完成 ROADMAP §2 阶段二（五项内容清单）。
+> - 顺序调整（2026-10-25，负责人确认）：telemetry 殿后——§3 中 telemetry 相关步骤（M4
+>   telemetry-mock 迁移、T1 的 telemetry-mock 导入增强、telemetry 测试先行验证）随之后移，
+>   M1–M3 与目录基建先行；telemetry 迁入路线待定，见 `../ROADMAP.md` §2 阶段三。
 > 目标：按 `DIRECTORY.md` 的蓝图重建定制专区。决策依据：`../standards/adr/`（0001–0005；0006 起与目录重组无关）。执行中若发现映射有误，先修本文再动代码。
 > 方向确认（2026-10-23）：负责人知情确认 ADR-0002 方向反转（根 `aixcoding/` 退出 wheel、产品代码迁 `src/chrys/aixcoding/`、`packages` 还原 `["src/chrys"]`、含 P4/P5 上游 import 改动在内的 R2 报批范围）。2026-10-25 起按新分支重建路线执行（见 `../ROADMAP.md`）。
 > 状态标记：`[ ]` 待办 / `[x]` 完成 / `[~]` 部分完成 / `[-]` 取消（注明原因）。
@@ -33,7 +36,7 @@
 
 | # | 现状 | 目标 | 备注 |
 |---|---|---|---|
-| T1 | `aixcoding/tests/`（6 测试 + conftest） | 原地保留 | conftest 增强：`sys.path` 注入仓库根（替代 telemetry-mock 目录注入）；更新 telemetry-mock 导入为 `aixcoding.mock.telemetry` 包路径 |
+| T1 | `aixcoding/tests/`（6 测试 + conftest） | 原地保留 | conftest 增强：`sys.path` 注入仓库根（替代 telemetry-mock 目录注入，**新分支已就位**——阶段二诊断包带入）；更新 telemetry-mock 导入为 `aixcoding.mock.telemetry` 包路径（2026-10-25 顺序调整：此部分随 telemetry 殿后） |
 | T2 | `tests/app/aixcoding/`（11 文件） | `aixcoding/tests/`（按特性归组：`auth/`、`tui/` 等） | **上游 tests/ 树内删除，R2 报批**；`test_login_dialog.py` 的 `from tests.support.waiting import wait_until` 复制等价实现进本地 conftest/helper；其 conftest（TUI 主题变量 fixture）合并进 `aixcoding/tests/` |
 
 ### 1.3 mock → `aixcoding/mock/`
@@ -69,7 +72,7 @@
 ## 3. 执行顺序（依赖关系）
 
 1. **文档先行**（本文档组落地 = 本计划外的部分已完成）。
-2. `aixcoding/mock/` 建立 + M1–M4 迁移 + T1 conftest 增强 → 验证：`pytest aixcoding/tests` 绿（telemetry 部分先行可跑）。
+2. `aixcoding/mock/` 建立 + M1–M3 迁移 + 目录基建（= 包根 `__init__.py`、`__main__.py` 组合启动器、`README.md` 骨架）+ T1 的 `sys.path` 通用增强 → 验证：`pytest aixcoding/tests` 绿。（2026-10-25 顺序调整：M4 与 T1 的 telemetry-mock 导入增强、telemetry 测试先行验证随 telemetry 殿后，见顶部注与 `../ROADMAP.md` §2 阶段三。）
 3. T2 迁移（R2 获批后）→ 验证：全部定制测试绿。
 4. P2/P3 产品代码迁移 + P4 接线点更新 → 验证：ty 通过（预留修复窗口：auth/tui 首次进 ty 射程）、定制测试绿、Smart Test 传 `--paths`。
 5. U1/U2（R2 获批后）→ 验证：`pytest tests/architecture` 绿（新 DAG 规则）、`uv build` 产物正确。
@@ -78,6 +81,10 @@
 8. **首批工具建设**（§0 立项四脚本：清单生成 / R2 比对 / R3 校验 / import 边界）→ 验收：脚本挂入 `aixcoding-tests.yml`（或本地强制自检步骤）并跑绿；在此之前不启动新功能开发——规范承诺的自动化校验不得长期处于人肉降级态。
 
 ## 4. 验收清单（全部通过 = 重组完成）
+
+> 注（2026-10-25 顺序调整）：本清单整体对应 ROADMAP §2 的**完整验收**；telemetry 殿后期间，
+> telemetry 相关子项（telemetry-mock 契约测试、telemetry 定制点登记）随迁入后移，其余项
+> 先行按 ROADMAP 部分验收核验。
 
 - [ ] **wheel 内容断言**：解包 wheel——`chrys/aixcoding/auth`、`chrys/aixcoding/tui` 在包内；根 `aixcoding` 资产（docs/tests/mock）不在包内。
 - [ ] 定制测试全绿：`uv run --extra all pytest aixcoding/tests -m "not integration and not gc_calibration"`（含 mock 契约测试）。
