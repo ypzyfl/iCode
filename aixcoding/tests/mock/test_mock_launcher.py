@@ -66,6 +66,12 @@ def test_every_starter_round_trips() -> None:
             stop()  # B1 regression: this must not raise AttributeError
         probe = socket.socket()
         try:
+            # Match the servers' own bind semantics (HTTPServer sets
+            # allow_reuse_address = 1): on Linux a bare bind into leftover
+            # TIME_WAIT tuples fails with EADDRINUSE even though the port is
+            # free for a server, while Windows allows it — aligning the probe
+            # makes the check mean the same thing on both platforms.
+            probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             probe.bind(("127.0.0.1", port))  # released for the next round trip
         finally:
             probe.close()
