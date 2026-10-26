@@ -40,7 +40,7 @@ Run it from the repository root::
 
 Then point iCode at it::
 
-    CHRYS_AUTH_ENVIRONMENT=local uv run icode
+    AIXCODING_AUTH_ENVIRONMENT=local uv run icode
 
 The module is also importable: ``MockAuthConfig`` / ``MockAuthState`` /
 ``create_server`` let tests start a loopback instance as an integration stub

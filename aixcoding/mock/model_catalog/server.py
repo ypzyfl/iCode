@@ -14,7 +14,7 @@ a full URL, so spell the path out when pointing it here.
 One port serves both backends the client needs before it can sync: the catalog
 on the reference dispatch path, and the device-code login flow on the auth
 mock's paths (``/api/v1/...``, ``/device/...``), which is why this listens on
-7777 — the port ``CHRYS_AUTH_ENVIRONMENT=local`` already names. ``--no-auth``
+7777 — the port ``AIXCODING_AUTH_ENVIRONMENT=local`` already names. ``--no-auth``
 serves the catalog alone.
 
 Usage::
@@ -23,7 +23,7 @@ Usage::
                   [--catalog FILE] [--mode {ok,empty,invalid,error,slow,stale}]
                   [--no-auth] [--auth-mode {auto,manual}]
 
-    CHRYS_AUTH_ENVIRONMENT=local uv run icode
+    AIXCODING_AUTH_ENVIRONMENT=local uv run icode
 
 Endpoints::
 
@@ -92,7 +92,7 @@ LLM_ROUTE = "/v1/chat/completions"
 DEFAULT_HOST = "127.0.0.1"
 #: The auth mock's port, because this is one server now: the client logs in
 #: before it can sync a catalog, so both mock backends answer on it. The client's
-#: ``CHRYS_AUTH_ENVIRONMENT=local`` already names :7777, which is why the mock
+#: ``AIXCODING_AUTH_ENVIRONMENT=local`` already names :7777, which is why the mock
 #: moved to it rather than the client.
 DEFAULT_PORT = 7777
 
