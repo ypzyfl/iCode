@@ -80,7 +80,7 @@ def common_fields(workspace_cwd: str | None = None, *, tool_detail: bool = False
     channel = current_channel()
     fields["channelType"] = channel.channel_type
     icode_tui = tool_detail and channel.channel_type == CHANNEL_CLI and channel.channel_name == "icode-tui"
-    fields["channelName"] = "icode" if icode_tui else channel.channel_name
+    fields["channelName"] = "icode" if channel.channel_type == CHANNEL_CLI else channel.channel_name
     channel_version = version if icode_tui else channel.channel_version
     if channel_version:
         fields["channelVersion"] = channel_version

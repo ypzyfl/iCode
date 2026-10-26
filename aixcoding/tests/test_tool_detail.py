@@ -440,13 +440,13 @@ def test_tool_detail_tui_channel_fields(monkeypatch: pytest.MonkeyPatch):
     assert save["channelVersion"] == save["pluginVersion"]
 
 
-def test_tool_detail_headless_channel_unchanged(monkeypatch: pytest.MonkeyPatch):
+def test_tool_detail_headless_channel_uses_icode(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr("sys.argv", ["icode", "run", "prompt"])
     submitter = _CaptureSubmitter()
     reporter = ToolDetailReporter(submitter)
     reporter.on_start(_start())
     save = submitter.calls[0][1]
-    assert save["channelName"] == "icode-cli"
+    assert save["channelName"] == "icode"
     assert "channelVersion" not in save
 
 
