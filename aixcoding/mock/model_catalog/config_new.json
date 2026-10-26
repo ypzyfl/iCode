@@ -1,0 +1,14 @@
+{
+  "models": [
+    {
+      "title": "GPT-4o mini",
+      "provider": "openrouter",
+      "model": "openai/gpt-4o-mini",
+      "apiBase": "http://127.0.0.1:7777/v1",
+      "contextLength": 128000
+    }
+  ],
+  "aa": {
+    "test": "as"
+  }
+}
