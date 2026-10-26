@@ -24,8 +24,9 @@ iCode-fork/
 │   └── README.md                 #   专区导览
 ├── tests/                        # 纯上游测试，零定制文件
 ├── .github/workflows/
-│   ├── ci.yml                    # 上游 CI（产品定制代码自动在其射程内）
-│   └── aixcoding-tests.yml       # 定制质量门（lint + 定制测试 + mock 契约测试 + 文档签认校验）
+│   ├── ci.yml                    # 上游 CI（仅 PR 至 main 触发；发布链路 CD 经 workflow_call 复用）
+│   ├── aixcoding-tests.yml       # 定制质量门（lint + 定制测试 + mock 契约测试 + 文档签认校验）
+│   └── aixcoding-upstream-ci.yml # 上游 CI 桥接（PR 至 main_aixcoding_cli 经 workflow_call 跑上游全套，见 docs/upstream-ci/）
 └── pyproject.toml                # packages 仅 ["src/chrys"]（上游原状）
 ```
 
@@ -112,7 +113,7 @@ aixcoding/mock/<name>/            # 命名：无前缀服务名（auth / update 
 
 | 代码 | 门禁 |
 |---|---|
-| 产品定制代码（`src/chrys/aixcoding/`） | 上游 `ci.yml` 全套（ruff / ty / test / compileall 随 `src/`、`src/chrys` 路径自动覆盖） |
+| 产品定制代码（`src/chrys/aixcoding/`） | 上游 `ci.yml` 全套（ruff / ty / test / compileall 随 `src/`、`src/chrys` 路径自动覆盖），经桥接 `aixcoding-upstream-ci.yml` 在 PR 至 main_aixcoding_cli 时实际生效（ci.yml 自身仅 PR 至 main 触发） |
 | 定制测试 + mock + 文档（`aixcoding/`） | 独立 workflow `aixcoding-tests.yml`：`ruff check aixcoding/` → `ruff format --check aixcoding/` → `python aixcoding/tools/check_docs.py` → `pytest aixcoding/tests` |
 
 - 触发条件与 `ci.yml` 对齐（PR + push）；初始单 Linux 平台，平台敏感测试验证后再扩矩阵。

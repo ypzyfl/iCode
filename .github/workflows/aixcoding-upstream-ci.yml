@@ -1,0 +1,28 @@
+name: AIxCoding Upstream CI
+
+# Bridge: run the upstream ci.yml suite on the fork's development branch.
+# Upstream ci.yml triggers only on PRs to main, so a PR targeting
+# main_aixcoding_cli would never run the full upstream matrix (lint + OS
+# shards + architecture) without this shim. It reuses ci.yml through its
+# workflow_call trigger (the same mechanism cd.yml uses) instead of editing
+# the upstream file; PR-triggered only, matching upstream's own convention
+# (upstream ci.yml has no push trigger either).
+# Design & sign-off: aixcoding/docs/upstream-ci/design.md
+
+on:
+  pull_request:
+    branches: [main_aixcoding_cli]
+
+concurrency:
+  group: aixcoding-upstream-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    # No build_ref input: ci.yml checks out `inputs.build_ref || github.sha`,
+    # which under workflow_call is this bridge's triggering commit (the PR
+    # merge ref) — exactly what we want.
+    uses: ./.github/workflows/ci.yml
