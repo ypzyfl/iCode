@@ -26,3 +26,17 @@ jobs:
     # which under workflow_call is this bridge's triggering commit (the PR
     # merge ref) — exactly what we want.
     uses: ./.github/workflows/ci.yml
+  gate:
+    # One stable required-check name for the whole matrix: needs.ci.result
+    # aggregates every job of the called workflow, so upstream job renames
+    # or shard changes never break the branch-protection rule. (Required
+    # checks match job-level check runs, not workflow names.)
+    name: AIxCoding upstream gate
+    needs: ci
+    if: always()
+    runs-on: ubuntu-slim
+    steps:
+      - name: Verify the upstream suite
+        env:
+          CI_RESULT: ${{ needs.ci.result }}
+        run: test "$CI_RESULT" = "success"

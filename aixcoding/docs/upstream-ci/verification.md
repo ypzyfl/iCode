@@ -41,8 +41,17 @@
 
 两 run 由同一提交 pull_request 同时触发，PR 总等待 10 分 47 秒。
 
-结论：桥接批次目标达成；下方未验证事项全部闭环。
+结论：桥接批次目标达成；本节（远程首跑）相关未验证事项全部闭环。后续批次新增的未验证事项见下方各节，均未闭环。
+
+## 2026-10-26 required check 修正（peer review 后续发现）
+
+**问题**：ruleset 手输 workflow 名 `AIxCoding Upstream CI` 设为必过 → 永久 "Expected — Waiting for status to be reported"。根因：GitHub 分支保护的 required check 匹配 **job 级 check run 名**（实测对照：job 名 `AIxCoding quality gate` 正常匹配），而桥接的 job 全部是被调 ci.yml 的上游 job 名，fork 无自有名字的 check run。
+
+**修正**：桥接新增汇总 gate job `AIxCoding upstream gate`（`needs: ci`；reusable job 的 result 聚合被调 workflow 全部 job）作为稳定必过 check 落点。上游 job 增删改名 → `workflow_call` 自动跑新矩阵、gate 自动聚合，ruleset 零同步。
+
+**取舍记录**：替选方案"把 17 个上游 job 名逐个设为必过"被否决——上游任一 job 改名即致旧条目永久 Expected（门禁自杀），维护成本高。
 
 ## 未验证事项
 
-- （首跑后清空；后续新增未验证事项在此登记）
+- gate job 远程首跑（下一次 PR CI）：确认 `AIxCoding upstream gate` 以独立 check run 报告且为绿、`needs.ci.result` 聚合语义正确；
+- ruleset 配置更新（责任人网页操作）：删除永久 Expected 的 `AIxCoding Upstream CI` 条目，改加 `AIxCoding upstream gate` 为必过。

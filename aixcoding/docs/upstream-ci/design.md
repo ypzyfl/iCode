@@ -16,6 +16,8 @@
 
 背景：上游 ci.yml 触发条件为 `pull_request: branches: [main]`，PR 目标是 `main_aixcoding_cli` 时上游全套不会跑；阶段三迁入会触碰 `src/chrys` 源码，需要上游全量回归防"改坏上游行为"。本桥接把 DIRECTORY.md §7"产品定制代码 → 上游 ci.yml 全套"的目标状态在开发主线上落实。
 
+补记（2026-10-26 首跑后修正）：分支保护的 required check 匹配的是 **job 级 check run 名**而非 workflow 名（实测：手输 workflow 名 `AIxCoding Upstream CI` 为必过 → 永久 Expected；job 名 `AIxCoding quality gate` 正常匹配）。故桥接新增汇总 gate job `AIxCoding upstream gate`（`needs: ci`，reusable job 的 result 聚合被调 workflow 全部 job，上游增删改名 job 零影响 ruleset）作为稳定的必过 check 落点。
+
 ## 备选方案对比
 
 | 决策点 | 方案 | 优点 | 缺点 | 结论 |
@@ -33,7 +35,7 @@ ADR 判定：机制级决策（workflow_call 复用、触发对齐上游）均�
 
 | 文件 | 改什么 | 预估行数 | 标记注释位置 |
 |---|---|---|---|
-| `.github/workflows/aixcoding-upstream-ci.yml` | 新建桥接 workflow（GitHub 硬约束：workflow 必须位于上游目录 `.github/workflows/`）：PR 至 main_aixcoding_cli 触发，workflow_call 复用上游 ci.yml | 约 30 | 不加（同 ci-gate 口径：CUSTOM_EXACT_PATHS 已收录为定制资产，非上游文件改动处） |
+| `.github/workflows/aixcoding-upstream-ci.yml` | 新建桥接 workflow（GitHub 硬约束：workflow 必须位于上游目录 `.github/workflows/`）：PR 至 main_aixcoding_cli 触发，workflow_call 复用上游 ci.yml；2026-10-26 修正补记后含汇总 gate job | 约 43 | 不加（同 ci-gate 口径：CUSTOM_EXACT_PATHS 已收录为定制资产，非上游文件改动处） |
 
 R1 自查：GitHub 平台硬约束下无其他落点；文件为纯新增，上游零感知。真正的门禁豁免来自 `CUSTOM_EXACT_PATHS`（`aixcoding/tools/_common.py`），本表为流程层批准留痕（双轨自洽，同 ci-gate 先例）。本批无新增第三方依赖（本地 `uses: ./.github/workflows/ci.yml` 免 pin，守卫 `test_workflow_action_pins.py` 明确豁免本地路径）。
 
