@@ -32,7 +32,7 @@
 
 ## 2026-10-25 提交与 CI（push 7bd6d45）
 
-- commit `7bd6d45`（21 files，+900/-17）推送；**Aixcoding Tests completed/success**（第五连胜，含本批 diagnostics 29 用例、R2/R3 对 screen.py+test_layering.py 标记的分叉点门禁核对、清单幂等 C001-C005）。
+- commit `7bd6d45`（21 files，+900/-17）推送；**AIxCoding Tests completed/success**（第五连胜，含本批 diagnostics 29 用例、R2/R3 对 screen.py+test_layering.py 标记的分叉点门禁核对、清单幂等 C001-C005）。
 
 ## 2026-10-25 试运行期人工项（阶段二收官后补做）
 

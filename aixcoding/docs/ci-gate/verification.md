@@ -21,7 +21,7 @@
 
 ## 2026-10-25 远程首跑（push c926e81 触发）
 
-**Aixcoding Tests #1：completed / success**，run 40174583158，job 28s（workflow 32s，uv 缓存与上游 CI 同仓库共享命中）。
+**AIxCoding Tests #1：completed / success**，run 40174583158，job 28s（workflow 32s，uv 缓存与上游 CI 同仓库共享命中）。
 
 步骤级确认（GitHub API `/actions/runs/40174583158/jobs`）：环境 4 步 + ruff check / format / check_docs / pytest / check_import_boundaries / 清单幂等 / R2·R3 分叉点门禁——**12 个核心步骤全部真实执行、全部 success、无 skipped**。`-n 8` 并行下 53 用例同样通过（本地 `-n0` 串行无差异问题）。
 
