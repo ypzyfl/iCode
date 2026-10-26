@@ -217,6 +217,40 @@ def test_non_loopback_bind_is_rejected() -> None:
         catalog_server.create_server(host="0.0.0.0")
 
 
+def test_second_instance_on_a_taken_port_is_refused() -> None:
+    """The Windows port-hijack hole stays closed: a live listener — even one
+    bound with SO_REUSEADDR, i.e. another mock instance, the stale-process
+    case — must block a second bind (fail-fast, never a silent second copy)."""
+    first = catalog_server.create_server(port=0)
+    try:
+        with pytest.raises(OSError):
+            catalog_server.create_server(port=first.server_address[1])
+    finally:
+        first.server_close()
+
+
+async def test_rejection_keeps_the_keepalive_connection_usable(mock: RunningCatalogMock, direct_route: None) -> None:
+    """A rejected request must drain its body: leftover bytes on the
+    HTTP/1.1 keep-alive connection would be parsed as the next request line."""
+    async with httpx.AsyncClient() as client:
+        first = await client.post(f"{mock.origin}{catalog_server.CATALOG_ROUTE}", json={"junk": "x" * 200})
+        assert first.status_code == 405
+        second = await client.get(f"{mock.origin}{catalog_server.CATALOG_ROUTE}")
+        assert second.status_code == 200
+
+
+async def test_control_rejects_a_non_numeric_delay(mock: RunningCatalogMock, direct_route: None) -> None:
+    """A bad delay answers 400 (not a dropped connection) and changes nothing."""
+    async with httpx.AsyncClient() as client:
+        before = (await _control(mock, mode="ok"))["revision"]
+        response = await client.post(f"{mock.origin}/mock/control", json={"mode": "ok", "delay": "abc"})
+    assert response.status_code == 400
+    assert "delay" in response.json()["error"]
+    async with httpx.AsyncClient() as client:
+        after = (await _control(mock, mode="ok"))["revision"]
+    assert after == before + 1  # only the two valid control calls bumped it
+
+
 #: The consumer-side contract tests need the fork's catalog consumer code
 #: (``chrys.service.profiles.models.catalog``), which exists on the 0.28
 #: baseline and has not migrated to this branch yet. Skip — automatically —

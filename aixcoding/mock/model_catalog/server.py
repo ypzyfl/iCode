@@ -38,6 +38,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import socket
 import sys
 import threading
 import time
@@ -230,9 +231,25 @@ class RunningCatalogMock:
 
 
 class CatalogMockServer(ThreadingHTTPServer):
-    """Threading HTTP server carrying the mock's state and source."""
+    """Threading HTTP server carrying the mock's state and source.
+
+    Binds without the Windows port-hijack hole: ``HTTPServer``'s
+    ``allow_reuse_address`` (SO_REUSEADDR) lets a second instance bind a port
+    the first one still holds on Windows — the stale-mock-process case the
+    fail-fast promise must catch. Windows binds with SO_EXCLUSIVEADDRUSE
+    instead; other platforms keep SO_REUSEADDR (a Linux restart needs it to
+    slip past TIME_WAIT).
+    """
 
     daemon_threads = True
+    allow_reuse_address = 0
+
+    def server_bind(self) -> None:
+        if sys.platform == "win32":
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        else:
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        super().server_bind()
 
     def __init__(
         self,
@@ -279,6 +296,20 @@ def build_handler_class() -> type[BaseHTTPRequestHandler]:
                 host = f"[{address}]:{port}" if ":" in str(address) else f"{address}:{port}"
             return f"http://{host}{self.path}"
 
+        def _drain_body(self) -> None:
+            """Consume an unread request body (keep-alive hygiene).
+
+            Rejections leave before reading the body; on the HTTP/1.1
+            keep-alive connection the leftover bytes would then be parsed as
+            the next request line and desync the client.
+            """
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                return
+            if length > 0:
+                self.rfile.read(length)
+
         def _dispatch(self, method: str) -> None:
             server: CatalogMockServer = self.server  # type: ignore[assignment]
             server.state.requests += 1
@@ -288,20 +319,24 @@ def build_handler_class() -> type[BaseHTTPRequestHandler]:
 
             if route == CATALOG_ROUTE:
                 if method != "GET":
+                    self._drain_body()
                     self._send_json(405, {"error": f"{method} not allowed on {route}"})
                     return
                 self._serve_catalog()
             elif route == LLM_ROUTE:
                 if method != "POST":
+                    self._drain_body()
                     self._send_json(405, {"error": f"{method} not allowed on {route}"})
                     return
                 self._serve_llm_chat()
             elif route == CONTROL_ROUTE:
                 if method != "POST":
+                    self._drain_body()
                     self._send_json(405, {"error": f"{method} not allowed on {route}"})
                     return
                 self._serve_control()
             else:
+                self._drain_body()
                 self._send_json(404, {"error": f"no mock route for {route}"})
 
         def _serve_catalog(self) -> None:
@@ -332,8 +367,17 @@ def build_handler_class() -> type[BaseHTTPRequestHandler]:
             if mode is None:
                 self._send_json(400, {"error": f"'mode' is required; one of {', '.join(MODES)}"})
                 return
+            # Validate the delay before touching state so a bad value cannot
+            # leave a half-applied mode switch behind.
+            delay = body.get("delay")
+            if delay is not None:
+                try:
+                    delay = float(delay)
+                except ValueError as exc:
+                    self._send_json(400, {"error": f"invalid delay {body.get('delay')!r}: {exc}"})
+                    return
             try:
-                server.state.set_mode(str(mode), body.get("delay"))
+                server.state.set_mode(str(mode), delay)
             except UnknownModeError as exc:
                 self._send_json(400, {"error": str(exc)})
                 return

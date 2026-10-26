@@ -73,6 +73,7 @@ import hashlib
 import json
 import logging
 import re
+import socket
 import sys
 import threading
 import time
@@ -496,6 +497,26 @@ def build_handler_class(state: MockUpdateState) -> type[BaseHTTPRequestHandler]:
     return MockUpdateHandler
 
 
+class _ExclusiveBindHTTPServer(ThreadingHTTPServer):
+    """Bind without the Windows port-hijack hole.
+
+    ``HTTPServer`` sets ``allow_reuse_address`` (SO_REUSEADDR), which on
+    Windows lets a second instance bind a port the first one still holds —
+    exactly the stale-mock-process case the fail-fast promise must catch.
+    Windows therefore binds with SO_EXCLUSIVEADDRUSE; other platforms keep
+    SO_REUSEADDR (a Linux restart needs it to slip past TIME_WAIT).
+    """
+
+    allow_reuse_address = 0
+
+    def server_bind(self) -> None:
+        if sys.platform == "win32":
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        else:
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        super().server_bind()
+
+
 def create_server(
     config: MockUpdateConfig | None = None,
     host: str = DEFAULT_HOST,
@@ -516,7 +537,7 @@ def create_server(
     if drop_problem is not None:
         raise ValueError(f"invalid drop_fields: {drop_problem}")
     state = MockUpdateState(config)
-    server = ThreadingHTTPServer((host, port), build_handler_class(state))
+    server = _ExclusiveBindHTTPServer((host, port), build_handler_class(state))
     server.daemon_threads = True
     # Resolve after binding so the ephemeral port (``port=0``, used by tests)
     # still hands out a download URL that points back at this instance.

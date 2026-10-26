@@ -53,6 +53,7 @@ import argparse
 import json
 import logging
 import secrets
+import socket
 import sys
 import time
 from dataclasses import dataclass, field
@@ -466,6 +467,26 @@ def build_handler_class(state: MockAuthState) -> type[BaseHTTPRequestHandler]:
     return MockAuthHandler
 
 
+class _ExclusiveBindHTTPServer(ThreadingHTTPServer):
+    """Bind without the Windows port-hijack hole.
+
+    ``HTTPServer`` sets ``allow_reuse_address`` (SO_REUSEADDR), which on
+    Windows lets a second instance bind a port the first one still holds —
+    exactly the stale-mock-process case the fail-fast promise must catch.
+    Windows therefore binds with SO_EXCLUSIVEADDRUSE; other platforms keep
+    SO_REUSEADDR (a Linux restart needs it to slip past TIME_WAIT).
+    """
+
+    allow_reuse_address = 0
+
+    def server_bind(self) -> None:
+        if sys.platform == "win32":
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        else:
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        super().server_bind()
+
+
 def create_server(
     config: MockAuthConfig | None = None,
     host: str = DEFAULT_HOST,
@@ -476,7 +497,7 @@ def create_server(
         raise ValueError("The auth mock server may bind only to a loopback address.")
     config = config or MockAuthConfig()
     state = MockAuthState(config)
-    server = ThreadingHTTPServer((host, port), build_handler_class(state))
+    server = _ExclusiveBindHTTPServer((host, port), build_handler_class(state))
     server.daemon_threads = True
     # Resolve after binding so ``--port 0`` (ephemeral, used by tests) still
     # hands out a verification URL that points back at this instance.

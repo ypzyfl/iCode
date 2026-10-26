@@ -52,6 +52,18 @@ def _base(server: Any) -> str:
     return server.mock_config.base_url
 
 
+def test_second_instance_on_a_taken_port_is_refused() -> None:
+    """The Windows port-hijack hole stays closed: a live listener — even one
+    bound with SO_REUSEADDR, i.e. another mock instance, the stale-process
+    case — must block a second bind (fail-fast, never a silent second copy)."""
+    first = update_server.create_server(port=0)
+    try:
+        with pytest.raises(OSError):
+            update_server.create_server(port=first.server_address[1])
+    finally:
+        first.server_close()
+
+
 def _release(server: Any) -> str:
     """The release route with a default valid query (strict mode rejects bare requests)."""
     return f"{_base(server)}{update_server.RELEASE_ROUTE}?{VALID_QUERY}"

@@ -39,6 +39,29 @@
   - N3 `aa` 残留字段被断言固化 | 有意选择——"未知顶层键透传"行为探针 | 保留（清理
     reference 数据时需同步断言）。
 
+## 2026-10-26（二）peer review 轮（PR #56，同事 + 独立评审 AI，追加记录）
+
+8 候选 + 2 专项 + 1 冲突点，负责人裁决（候选 1/2/4 + PR 号笔误修正实施；其余不修）：
+
+- **候选 1（Windows fail-fast 失效）已修**：`HTTPServer.allow_reuse_address`（SO_REUSEADDR）
+  在 Windows 允许第二实例重叠绑定活跃端口——恰是"残留 mock 进程"最常见占用场景，
+  双实例并存、fail-fast 失效。修复：三 server 平台感知 `server_bind`（Windows 用
+  `SO_EXCLUSIVEADDRUSE`，其他平台保持 SO_REUSEADDR 供 Linux TIME_WAIT 重启），配
+  三份"双实例拒绝"回归测试。作者冒烟未暴露的原因：其占用者是裸 socket（无
+  REUSEADDR），Windows 重叠绑定需双方均设——冲突点由此澄清，两结论针对不同占用者
+  类型均成立；
+- **候选 2（catalog keep-alive body 残留）已修**：HTTP/1.1 下 405/404 拒绝应答前
+  `_drain_body()`（auth/update 默认 HTTP/1.0 close 无此问题）；配 keep-alive 连接
+  拒绝后复用测试；
+- **候选 4（`float(delay)` 未捕获）已修**：control 的 delay 前置校验（防 set_mode
+  半应用状态），非数值转 400；配测试（400 + revision 不变断言）；
+- 不修（负责人裁决）：候选 3（auth form body 无上限，loopback 无现实触发）、
+  候选 6/7（竞态/计数非原子，S2 已声明取舍且赋值顺序核验正确）、专项 1（skipif
+  仅测模块存在性——符号改名时测试快速红即信号）、专项 2（PEP 758 无括号 except
+  为 py3.14 合法语法且仓内惯例在案）；
+- PR 号笔误：早前草稿把 run 号 #8 误记为 PR 号，已在文档提交前更正为
+  **PR #56**（随文档 commit 一并入库）。
+
 ### 修复清单（增量，供复审定位）
 
 | finding | 修复 |
