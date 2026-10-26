@@ -1,4 +1,4 @@
-name: Aixcoding Tests
+name: AIxCoding Tests
 
 # Custom-asset quality gate (ADR-0004): everything under aixcoding/ plus the
 # governance tools. Upstream ci.yml never sees these paths.
@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   gate:
-    name: Aixcoding quality gate
+    name: AIxCoding quality gate
     runs-on: ubuntu-latest
     timeout-minutes: 15  # align with upstream ci.yml job convention
     steps:

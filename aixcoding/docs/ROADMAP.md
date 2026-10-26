@@ -51,7 +51,7 @@ OTel 遥测框架（opt-in）与 trajectory 会话回放——这些定制化直
 5. ✅ **版本与发布策略**（`versioning.md`，2026-10-25 定稿：上游三段 + fork 第四段、
    基线升级重置第四位、分发名保持上游、CHANGELOG 约定）。
 
-- DoD 核验（2026-10-25）：四工具与诊断包挂入 CI 跑绿（Aixcoding Tests 多次 success，含
+- DoD 核验（2026-10-25）：四工具与诊断包挂入 CI 跑绿（AIxCoding Tests 多次 success，含
   诊断包 29 用例与 R2/R3 分叉点门禁）✓；runbook 成文 ✓；诊断包 R2 获负责人签认
   （含实施中扩表重签）✓；版本策略定稿不阻塞 ✓。**阶段二 DoD 全项满足。**
 - 附带产出：AGENTS.md 既有入口段追溯补登记（`agents-md-note/`，清单 C001）；R3 规范
