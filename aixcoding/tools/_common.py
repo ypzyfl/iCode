@@ -35,7 +35,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # --- file classification -----------------------------------------------------
 
 CUSTOM_PATH_PREFIXES = ("aixcoding/", "src/chrys/aixcoding/")
-CUSTOM_EXACT_PATHS = (".github/workflows/aixcoding-tests.yml",)
+CUSTOM_EXACT_PATHS = (".github/workflows/aixcoding-tests.yml", ".github/workflows/aixcoding-upstream-ci.yml")
 
 
 def to_posix(path: str | Path) -> str:
