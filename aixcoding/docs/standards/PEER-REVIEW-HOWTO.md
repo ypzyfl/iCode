@@ -20,7 +20,7 @@
 你是独立评审 AI。我在评审一个 PR，请独立执行三项检查（结果可能与作者自审冲突，冲突本身就是发现）。
 
 评审背景（规范摘要，已内嵌无需另读文件；全文见 aixcoding/docs/standards/DEVELOPMENT.md）：
-- R1 非侵入优先，必改上游时少而集中；R2 上游改动必须先获批；R3 获批改动带 AIxCoding 标记注释
+- R1 非侵入优先，必改上游时少而集中（迁移批次含逐行归属细则，见 DEVELOPMENT.md R1）；R2 上游改动必须先获批；R3 获批改动带 AIxCoding 标记注释
 - R4 新增文件只允许落 aixcoding 目录；R9 定制代码默认只依赖 chrys.foundation / chrys.kernel
 - R5 最小变更；R7 验证须附真实命令与输出；R11 新增第三方依赖默认拒绝、须审批
 1. R2/R11 比对：列出 git diff 中所有上游文件与 pyproject.toml/uv.lock/新 import 的第三方变化，

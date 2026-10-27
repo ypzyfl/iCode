@@ -72,3 +72,23 @@
   F-3 R2 表改 +16/−1（numstat 实测 16/1 精确一致）。
 - **第 2 轮**（修复增量复审）：**过，无 finding**——两破坏路径验证红、`_login_token`
   全仓零残留、clients.py 对 base 归零、文档/代码/测试三方一致。
+
+### 2026-10-27 peer review 轮（PR #61 评审，2 轮收敛；记录档追加，不触发重签）
+
+- **第 1 轮**（对 PR #61 head `a815df0` 全量评审，含 auth 已合并内容的基准误差视图）：
+  无 blocker；核心 findings C0（token 无条件注入任意 provider/base_url，安全面，0.28 现网
+  同形态）、C1（通道 2 不锚定本批实现，破坏实验实证）、C2（macOS 每请求 spawn security
+  子进程，design 成本论证未覆盖）、C7-C9、PR#60 评审未闭环对照项。**责任人逐项拍板**：
+  C1 修（`extra_headers` 改真调 `stamp()` 产出——破坏路径双验 5 failed，锚定实现且 SDK
+  合并仍真实发生）；C8/P2-4 修（verification 行数口径更正注记，numstat 权威值 +41/−2→
+  +16/−1）；C0 登记（高优先已知边界，归 catalog 批次——0.28 一致性/立即修扩上游侵入/
+  需产品语义决策）；C2/C3 挂性能观察、C4/C5 维持原拍板、C6 登记可选增强、C9/P2-1/P2-5
+  理论边界、P2-3 归工具改进项；C7 澄清（PR #61 真实增量仅规范+修复，auth 已入 main）。
+  修复复审（增量）：**过，无 finding**（破坏路径独立复现一致；racy stat 观察项收尾以
+  `git update-index --refresh` 处理）。
+- **第 2 轮**（对追加 commit `3f36a16`，base 已正确为 f2a06ef）：确认 C1/C8/P2-4 实测
+  闭环（C1 破坏实验 5 failed 含 `test_overrides_default_headers_on_wire`）；新增 C10-C14
+  全为文档/流程层。**责任人拍板**：C11 修（本节记录）、C12 补记（C0 时序界定：tui 前无
+  登录入口，暴露面≈零，deadline=tui 上线或 catalog 先到）、C13 修（plan 待办同步+PR 描述
+  核对）、C10 澄清（R1 细则二补"自下一份新签 design 起适用，既有不回溯改写"）；C14 不修
+  （KeyError 不可达：model 恒非空不走早退；`.get()` 反弱化断言）。

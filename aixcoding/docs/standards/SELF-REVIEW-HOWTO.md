@@ -21,7 +21,7 @@
 你是独立评审 AI（本次不做开发，只做评审）。请对当前工作区变更执行评审。
 
 评审背景（规范摘要，已内嵌无需另读文件；全文见 aixcoding/docs/standards/DEVELOPMENT.md）：
-- R1 非侵入优先，必改上游时少而集中（升级冲突面最小化）
+- R1 非侵入优先，必改上游时少而集中（升级冲突面最小化）；迁移批次含逐行归属细则（R2 表每行一条归属结论，见 DEVELOPMENT.md R1）
 - R2 上游文件的任何改动必须先获批（对照下方 R2 比对）；R3 获批的上游改动必须带 AIxCoding 单行标记注释
 - R4 新增文件只允许落 aixcoding 目录（产品代码仅 src/chrys/aixcoding/）
 - R5 只改任务必需内容，禁止顺手重构/升级依赖；R6 发现他人未提交改动时停止询问
@@ -33,6 +33,7 @@
 1. 读取 git diff（相对 <base>）与 aixcoding/docs/<feature>/design.md、test-plan.md
 2. 逐项执行以下检查，输出：检查项 | 结论（过/finding）| 证据（文件:行号）
    - R2 比对：diff 中上游文件与 design.md R2 清单逐文件对名，不允许"整体一致"式结论
+   - R1 逐行归属（迁移批次）：R2 表逐行有归属回答（形式检查——只查"是否回答"，归属正确性由责任人签认裁决；细则见 DEVELOPMENT.md R1）
    - R11 比对：diff 中 pyproject.toml / uv.lock / 新 import 的第三方变化与 design.md 依赖申请节
      逐项对名；清单外引入 = blocker
    - 幻觉 API：对 diff 中每个新增 import 的符号验证真实存在与签名正确（查定义处或实际 import）

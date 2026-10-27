@@ -55,12 +55,34 @@
       wire_client 直接 import auth 包（依赖显性化）；上游 2 文件 38 行 → **1 文件 +16/−1**；
       评审两轮收敛（增量评审 3 findings 全修 + 复审无 finding，见 self-review）；全量验证绿；
       1c06bdd 双门禁已全绿（基线确认）
-- [ ] 责任人重签 design（R2 表重写）→ 请示 commit+push → CI 绿后合并 PR #60
-- [ ] CI 双门禁绿后用户合并 PR #60
+- [x] 责任人重签 design（R2 表重写，2026-10-27"确认变更方案——对上游源代码改动更小"）
+      → 缩小重构 commit（dc7b30b）已合并
+- [x] CI 双门禁绿后用户合并 PR #60（merge commit f2a06ef，2026-10-27）
+- [ ] PR #61（feat/r1_migration_rules）：R1 细则（a815df0）+ peer review 修复（3f36a16）
+      已 push 待 CI 绿后合并；PR 页面标题/描述需按实际范围（规范修订+评审修复，非 auth
+      迁入本体——auth 已随 #60 入 main）更新（peer review C13）
 
 ## 挂起与备忘
 
-- 上游两文件完整实现被 R10 重签阻塞（探针改动已在原签认范围：marker + 空函数骨架）；
+- **【高优先·已知边界】token 无条件注入任意 provider/base_url（peer review C0，2026-10-27
+  负责人拍板登记）**：`stamp()` 对有登录态的请求一律注入 `token` 头，无端点判定——用户配置
+  非内网网关时 token 随请求外发。0.28 现网同形态（忠实迁入）；立即修复需向 `RequestHeaders`
+  传入端点信息=扩大上游侵入，与 R1 细则冲突；需产品语义决策（白名单口径）。**归属：catalog
+  批次处理**（模型配置语义所在，端点判定届时自然引入）。
+  **时序界定（peer review C12 补记）**：tui 批次前产品**无登录入口**（登录仅可经 mock/手动
+  脚本），真实暴露面≈零；实际修复 deadline = tui 批次上线或 catalog 批次，先到为准。
+- 【性能观察】每请求同步读盘+OS 解密（peer review C2/C3）：design 成本论证只覆盖 Windows
+  DPAPI，**未覆盖 macOS 每请求 spawn `security` 子进程（2s timeout 最坏值）**——"不实施
+  TTL/mtime 缓存"的决策前提需补 macOS 实测数据；单例无锁与构造失败重试（0.28 既有）同挂
+  此议题，实测成瓶颈再做缓存（保持"登出下一请求生效"语义）。
+- 【可选增强】腐蚀 ciphertext 触发 clear() 无日志（C6；clear-on-corruption 本身是 0.28
+  有意设计）、stamp() import 失败分支日志（首轮 F-5 已拍板不加）——排查便利性增强，随需再做。
+- 【理论边界】纯上游 wheel（不含 aixcoding）上 import 失败不缓存（C9，非现实发行形态）；
+  测试裸调 `get_login_session()` 触真实 config dir（PR#60 评审 P2-1，只读不写，2047 passed
+  实证无碍）；上游测试触发 auth 构造（P2-5，同实证）。
+- 【工具改进项】gen_customizations 匹配粒度：marker module=特性名只匹配特性包登记行，
+  上游接线点登记行的 marker 归属与语义字段（如 wire_client 行风险"中"被 auth 包行"低"
+  覆盖）失真（PR#60 评审 P2-3）——与"check_docs.py 节标题形态校验"同批做工具小改进。
 - `chrys_test.py` 零命中 `aixcoding`：Smart Test 对 `aixcoding/tests/auth` 不可见，
   本地验证以 design"本地验证命令组合"三条为准；
 - ty 三平台为 auth 包首次进射程（0.28 从未被 ty 检查），爆错属预期，修复不扩权；
