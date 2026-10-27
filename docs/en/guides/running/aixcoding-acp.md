@@ -58,6 +58,8 @@ In code-generation (`ai-code`) and file-tool telemetry, a file path inside the s
 
 For CLI, TUI, web (`aixcoding-cli serve`), and ACP runs without desktop identity metadata, tool-call, code-generation, and model-request telemetry consistently report `channelName=icode` with `channelType=cli`. Desktop telemetry keeps its existing channel names and versions.
 
+For non-desktop telemetry, `agentName` identifies the agent that actually performed the operation: the active agent profile for main-agent and workflow calls, or the executing subagent for delegated calls. Tool-call, skill-use, code-generation, and model-request records omit this field when no agent is known. Desktop telemetry retains its existing runner attribution and selected-Agent use records.
+
 If the client supports session management, a closed session can still be restored in the same working directory. Deleting a session removes the session record saved by AIxCoding, and the session can no longer be restored in AIxCoding.
 
 To use the question feature through an ACP client, the client must support AIxCoding's `_chrys/request_input` extension request (shown as `chrys/request_input` in ACP SDKs that add the underscore prefix automatically). AIxCoding uses this request to send the agent's questions to the client and receive the user's answers; a client that does not support it cannot complete tasks that require user answers. Use `--ask-user-timeout` to limit how long AIxCoding waits for an answer.
