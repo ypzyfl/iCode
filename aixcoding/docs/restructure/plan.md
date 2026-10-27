@@ -8,7 +8,7 @@
 >   telemetry-mock 迁移、T1 的 telemetry-mock 导入增强、telemetry 测试先行验证）随之后移，
 >   M1–M3 与目录基建先行；telemetry 迁入路线待定，见 `../ROADMAP.md` §2 阶段三。
 > 目标：按 `DIRECTORY.md` 的蓝图重建定制专区。决策依据：`../standards/adr/`（0001–0005；0006 起与目录重组无关）。执行中若发现映射有误，先修本文再动代码。
-> 方向确认（2026-10-23）：负责人知情确认 ADR-0002 方向反转（根 `aixcoding/` 退出 wheel、产品代码迁 `src/chrys/aixcoding/`、`packages` 还原 `["src/chrys"]`、含 P4/P5 上游 import 改动在内的 R2 报批范围）。2026-10-25 起按新分支重建路线执行（见 `../ROADMAP.md`）。
+> 方向确认（2026-10-23）：负责人知情确认 ADR-0002 方向反转（根 `aixcoding/` 退出 wheel、产品代码迁 `src/chrys/aixcoding/`、`packages` 还原 `["src/chrys"]`、含 P4/P5 上游 import 改动在内的 R2 报批范围）。2026-10-25 起按新分支重建路线执行（见 `../ROADMAP.md`）。**（落位形态后经 ADR-0011 更新为按 tier——`src/chrys/{tier}/aixcoding/`，见 §1.1；本行其余内容为历史记录）**
 > 状态标记：`[ ]` 待办 / `[x]` 完成 / `[~]` 部分完成 / `[-]` 取消（注明原因）。
 
 ## 0. 前置事实（执行时核对）
@@ -21,13 +21,13 @@
 
 ## 1. 迁移映射（现状 → 目标）
 
-### 1.1 产品代码 → `src/chrys/aixcoding/`
+### 1.1 产品代码 → `src/chrys/{tier}/aixcoding/`（目标落位随 ADR-0011 按 tier 更新）
 
 | # | 现状 | 目标 | 备注 |
 |---|---|---|---|
-| P1 | `src/chrys/aixcoding/`（telemetry + 根模块） | 原地不动 | 已是目标形态 |
-| P2 | `aixcoding/auth/`（9 py） | `src/chrys/aixcoding/auth/` | import 改名 `aixcoding.auth` → `chrys.aixcoding.auth`：包内互引（`__init__/session/storage/client/environments` 等 8 文件）+ 下述全部消费方 |
-| P3 | `aixcoding/tui/`（含 `login.tcss`） | `src/chrys/aixcoding/tui/` | 同上；`tui/login.py:34` 的 `aixcoding.auth` import 一并改 |
+| P1 | `src/chrys/aixcoding/`（telemetry + 根模块） | `src/chrys/kernel/aixcoding/` | ~~原地不动~~ ADR-0011 废弃单点后，telemetry 迁入时直落 kernel 档 |
+| P2 | `aixcoding/auth/`（9 py） | `src/chrys/kernel/aixcoding/auth/` | import 改名 `aixcoding.auth` → `chrys.kernel.aixcoding.auth`：包内互引（`__init__/session/storage/client/environments` 等 8 文件）+ 下述全部消费方。注：PR #60 已按当时单点形态迁入 `src/chrys/aixcoding/auth/`，随 ADR-0011 回迁批次搬至 kernel 档 |
+| P3 | `aixcoding/tui/`（含 `login.tcss`） | `src/chrys/app/aixcoding/tui/` | 同上；`tui/login.py:34` 的 `aixcoding.auth` import 一并改。tui design 已联动 ADR-0011 落 app 档（tui 批次实施） |
 | P4 | **上游 src 树消费方**（2026-10-22 逐文件复核钉死，R2 范围）：`service/profiles/models/catalog.py`×2（459/488 运行时 import）+ **docstring 路径文字×3（76/82/84，R3/R8 口径同步）**、`service/llm/clients.py:148`、`app/tui/screens/main/screen.py`×5（145/991/2246/2253/2272）、`app/tui/screens/main/login_indicator.py`×2（14/15）、`app/tui/app.py`×2（153/1032；1050 行已是 `chrys.aixcoding.*` 目标形态无需动） | 原地改 import（+注释同步） | 均为既有定制点（带 `AIxCoding` 注释），跟随更新。~~commands.py~~ 复核剔除：该文件仅含文案字符串，无 Python import。**执行前仍重跑 `grep -rn "aixcoding\." src/ tests/` 终验防漂移** |
 | P5 | **上游 tests 树消费方**：`tests/service/profiles/models/test_catalog_sync.py`（168-169）、`tests/app/tui/screens/main/test_login_indicator.py`（9-12） | 原地改 import 或随 U4 处理 | 与 U4 合并审批（同属上游 tests 树内的定制依赖） |
 | P6 | **定制内部互引**：`src/chrys/aixcoding/telemetry/subscriber.py:189`、`src/chrys/aixcoding/context.py:125`（均 lazy import `aixcoding.auth`） | 原地改 import | 随 P2 一起改 |

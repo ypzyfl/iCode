@@ -9,7 +9,7 @@
 - 责任人：周彬
 - 状态：已确认
 - 确认日期：2026-10-27
-- 确认意见：无特别意见
+- 确认意见：PR #63 评审处置后重新确认
 
 ## 背景
 
@@ -38,8 +38,9 @@ ADR-0002（2026-10-22）决策：定制产品代码统一进 `src/chrys/aixcodin
 - `src/chrys/aixcoding/` 目录废弃：存量 auth/diagnostics 回迁
   `src/chrys/kernel/aixcoding/`；`test_layering.py` 删除 `TIER_ORDER` 的 `"aixcoding": 1`
   fork 登记键（diagnostics 批次引入于 `:44-45`；`_source_top`/`_target_top` 本为上游原状）；
-- "DAG 豁免 ↔ 定制清单登记"机器双向校验断言不再需要（豁免表锁定为 diagnostics launcher
-  1 条），降格为条文"豁免须登记定制清单"；
+- ADR-0002/R9 所称"DAG 豁免 ↔ 定制清单登记"机器双向校验**实为从未实现的承诺**
+  （`test_layering.py` 实际仅有豁免边 staleness 检查 `:259-264`，与定制清单无关）——本 ADR
+  将该承诺作废，豁免管控以条文"豁免须登记定制清单"执行；
 - 不变：仓库根 `aixcoding/` 纯开发资产不进 wheel（ADR-0002 处置延续）；`packages=["src/chrys"]`
   上游原状不动；`aixcoding` 路径段仍是全部定制代码的统一标记。
 
@@ -54,10 +55,10 @@ ADR-0002（2026-10-22）决策：定制产品代码统一进 `src/chrys/aixcodin
    按需建立，不预建空目录。kernel 档为**默认最低档**：零 chrys 依赖与仅依赖 foundation 的
    定制均落此档（foundation 档不设，完整考量见"否决的备选"末条）。
 2. **判据——依赖做硬判据，语义做参考**：落位档 = 四档中**能容纳其全部依赖的最低档**
-   （如 login.py 依赖 `BaseDialog` → app 基建 → 落 `src/chrys/app/aixcoding/tui/`；纯三方库
-   包 auth 零 chrys 依赖 → 落 kernel 档）。判据与执法对齐：`test_layering` 只认 import
-   方向，放错层即红，规则自执行；语义归属作设计期参考，与依赖冲突时以依赖为准；
-   依赖上涨 → 测试红 → 挪档，反馈回路闭环。
+   （如 login.py 依赖 `BaseDialog` → app 基建 → 落 `src/chrys/app/aixcoding/tui/`；auth 仅
+   foundation 依赖——`storage.py:52` lazy `get_platform`——→ 落 kernel 档）。判据与执法
+   对齐：`test_layering` 只认 import 方向，放错层即红，规则自执行；语义归属作设计期参考，
+   与依赖冲突时以依赖为准；依赖上涨 → 测试红 → 挪档，反馈回路闭环。
    **例外（个别结构性挂接边）**：整包档位由**主体依赖**决定；包内个别模块对宿主的
    **向上结构性挂接**（进程入口、钩子注册等"被宿主调用"性质的接线，非业务库依赖）不
    改变整包档位，该边走豁免登记（见第 5 条）。适用条件：①挂接性质（非库依赖）；②包内
@@ -66,15 +67,15 @@ ADR-0002（2026-10-22）决策：定制产品代码统一进 `src/chrys/aixcodin
    `src/chrys/kernel/aixcoding/`（两者主体均为 ≤kernel 依赖）。import 改写分两类：**包内
    互引由绝对导入改为相对导入**（`from chrys.aixcoding.auth.client import …` →
    `from .client import …`；kernel 层硬约束：`test_layering.py:552-553` 规定 kernel→kernel
-   必须相对导入，绝对导入回迁后   立即全量违规——此为回迁实施第一步的红线）；**包外消费方**
+   必须相对导入，绝对导入回迁后立即全量违规——此为回迁实施第一步的红线）；**包外消费方**
    （`wire_client.py` lazy import、定制测试）改前缀
    `chrys.aixcoding.*` → `chrys.kernel.aixcoding.*`。
 4. **上游还原**：`test_layering.py` 删除 `TIER_ORDER["aixcoding"]: 1` fork 登记键
    （`:44-45`，2 行）；`_source_top`/`_target_top` 本为上游原状（fork 从未改动），无需还原。
 5. **豁免保留与管控**：`_DAG_EDGE_ALLOWLIST` 的 diagnostics launcher → `chrys.app.cli.app`
    条目保留（属决策 2 结构性挂接例外：挂 app 入口注册 crash hook，不改变整包档位；Path
-   随回迁跟改）。豁免表管控降格为条文：每条豁免须登记定制清单（reason/anchor），不再建
-   机器双向校验断言。
+   随回迁跟改）。豁免管控以条文执行：每条豁免须登记定制清单（reason/anchor）；ADR-0002/R9
+   所称"机器双向校验"从未实现（实际仅存豁免边 staleness 检查 `:259-264`），该承诺作废。
 6. **每级目录须有 `__init__.py`**（hatchling 包识别与 Python import 的硬要求）。
 
 ## 理由
@@ -91,7 +92,8 @@ ADR-0002（2026-10-22）决策：定制产品代码统一进 `src/chrys/aixcodin
    `src/chrys/*/aixcoding/**` 一条说清。当时否决的"双落点"（根 `aixcoding/` 整包泄漏开发
    资产进 wheel）与本案（全部落 `src/chrys` 治理射程内）本质不同。
 4. **回迁成本实测最小且时机最优**：上游 src 树消费点仅 1 处（`service/llm/wire_client.py:122`
-   lazy import，service(2)→kernel 档(1) 方向依然合法）；定制测试 12 文件前缀替换；包内互引
+   lazy import，service(2)→kernel 档(1) 方向依然合法）；定制测试 14 文件前缀替换（auth 9 +
+   diagnostics 5，git grep 实测）；包内互引
    绝对→相对导入改写（可脚本化机械执行，但成本高于纯前缀替换——kernel 层相对导入纪律，
    见决策 3）；git mv 本身零逻辑改动。tui/catalog 批次尚未迁入，auth 消费面处于历史最小，
    此后只增不减。
@@ -127,24 +129,42 @@ ADR-0002（2026-10-22）决策：定制产品代码统一进 `src/chrys/aixcodin
 
 - **回迁实施**（独立小批次，R2 报批 1 项）：git mv 两包 + import 改写（包内互引绝对→相对
   + 包外消费方前缀替换）——上游 `service/llm/wire_client.py` 1 行、`test_layering.py`
-  删登记键 2 行 + 豁免条目 Path 跟改 1 行、定制测试 12 文件、**工具脚本路径联动 4 处**
-  （见"规范联动"条，漏改则回迁后新路径被工具误判为上游）；launcher 入口命令随之变为
+  删登记键 2 行 + 豁免条目 Path 跟改 1 行 + 注释内旧路径 2 处（`:89`/`:245`，`:44` 随键删）
+  + 豁免 reason 措辞 1 处（`:94` "R9 exemption" 随 R9 重写跟改，非路径）、定制测试 14 文件、
+  **工具脚本路径联动 5 处 + 工具测试夹具 4 文件**
+  （见"规范联动"条，漏改则回迁后新路径被工具误判为上游、工具自检测试红）；launcher
+  入口命令随之变为
   `python -m chrys.kernel.aixcoding.diagnostics.launcher`（相关文档联动）；验证 =
   `pytest tests/architecture` + `pytest aixcoding/tests`
   + `ty check`（kernel 档新路径）+ wheel 冒烟（`chrys.kernel.aixcoding` 在包内）。
 - **规范联动**（规范族文本已随本 ADR 的 PR 同步完成）：DEVELOPMENT.md §2/R1/R3/R4/R9/R11/§9
-  （R9 按 tier 重写，机器双向校验降格为登记条文）、DIRECTORY.md §1-§8、
-  SELF-REVIEW-HOWTO R4 摘要、templates/design 落点、README×2、`restructure/plan.md`
-  U1（per-file-ignores 路径）/U2（作废留档，R8）。
+  （R9 按 tier 重写）、DIRECTORY.md §1-§8、SELF-REVIEW-HOWTO 与 PEER-REVIEW-HOWTO 的
+  R4/R9 内嵌摘要、templates/design 落点、README×2、`restructure/plan.md` §1.1 标题 +
+  P1/P2/P3 目标路径（P4-P6 为 0.28 钉死的源侧事实不改）与 U1（per-file-ignores 路径）/
+  U2（作废留档，R8）。
   **工具脚本路径联动（随回迁批次实施，同 `docs/devtools/design.md`"分类器随实现走"口径）**：
-  文件分类/扫描逻辑硬编码于 4 处——`_common.py:37 CUSTOM_PATH_PREFIXES`、
+  文件分类/扫描逻辑硬编码于 **5 处**——`_common.py:37 CUSTOM_PATH_PREFIXES`、
   `gen_customizations.py:295,312`、`check_import_boundaries.py:10-13,85-86`、
-  `check_r2_diff.py:13`——统一改为 `src/chrys/*/aixcoding/` 前缀判定（CUSTOMIZATIONS.md
-  本身是生成产物，无扫描规则可改）；不改的后果：回迁后新路径被 `is_custom()` 误判为上游，
-  B3 规则失效、gen_customizations 漏扫、check_r2_diff 误报。
+  `check_r2_diff.py:13`、`docs/devtools/design.md:28`（分类器定义）——统一改为
+  `src/chrys/*/aixcoding/` 前缀判定（CUSTOMIZATIONS.md 本身是生成产物，无扫描规则可改）；
+  **连带**：`aixcoding/tests/tools/` 的 4 个测试文件以旧路径为夹具
+  （test__common / test_check_import_boundaries / test_check_r3_markers /
+  test_gen_customizations），分类器改通配后须同步更新夹具路径，否则工具自检红；不改的
+  后果：回迁后新路径被 `is_custom()` 误判为上游，B3 规则失效、gen_customizations 漏扫、
+  check_r2_diff 误报。
+- **进行中批次联动（前瞻，非既成）**：tui design（`aixcoding/docs/tui/design.md`，**草案
+  在工作区尚未入库**，随 tui 批次提交）落位**将**改 `src/chrys/app/aixcoding/tui/`，R2
+  表 8 号（test_layering 登记）**将**整行删除，表 7 号 per-file-ignores 路径跟改。
+- **测试侧不联动目录**：定制测试（`aixcoding/tests/`）维持按特性组织（DIRECTORY.md §5
+  既有约定，非本 ADR 新决策），不镜像 tier 落位——tier 是依赖决定的技术落位，测试不受
+  分层守卫治理（`test_layering` 射程仅 `src/chrys`）；测试仅 import 路径随回迁前缀替换
+  （已计入上述回迁实施项）。
+- **ADR-0002 头部状态改"被取代（被 ADR-0011 取代）"**，正文一字不动（§6 快照原则）。
 - **已知残留旧路径引用（随各迁入批次改，R8 留档）**：`aixcoding/mock/update/__init__.py:32`
   docstring 引用 `src/chrys/aixcoding/update_detection.py`（随 update 批次迁入时改）；
-  `docs/auth/*`、`docs/diagnostics/*` 等签认/记录档为历史快照，不回改。
+  `docs/ROADMAP.md:106-107`（旧分支资产盘点，随阶段三迁入完成度更新）；
+  `adr/0005-*.md:36`（快照内待执行指令，已被 plan.md U1 新路径取代，正文按 §6 快照原则
+  不改）；`docs/auth/*`、`docs/diagnostics/*` 等签认/记录档为历史快照，不回改。
 - **进行中批次联动**：tui design（`aixcoding/docs/tui/design.md`）落位改
   `src/chrys/app/aixcoding/tui/`，R2 表 8 号（test_layering 登记）整行删除，表 7 号
   per-file-ignores 路径跟改。
