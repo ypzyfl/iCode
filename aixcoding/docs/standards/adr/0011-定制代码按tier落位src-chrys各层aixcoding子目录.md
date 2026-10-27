@@ -9,7 +9,7 @@
 - 责任人：周彬
 - 状态：已确认
 - 确认日期：2026-10-27
-- 确认意见：PR #63 评审处置后重新确认
+- 确认意见：第 2 轮 N1 修复后重新确认
 
 ## 背景
 
@@ -165,20 +165,12 @@ ADR-0002（2026-10-22）决策：定制产品代码统一进 `src/chrys/aixcodin
   `docs/ROADMAP.md:106-107`（旧分支资产盘点，随阶段三迁入完成度更新）；
   `adr/0005-*.md:36`（快照内待执行指令，已被 plan.md U1 新路径取代，正文按 §6 快照原则
   不改）；`docs/auth/*`、`docs/diagnostics/*` 等签认/记录档为历史快照，不回改。
-- **进行中批次联动**：tui design（`aixcoding/docs/tui/design.md`）落位改
-  `src/chrys/app/aixcoding/tui/`，R2 表 8 号（test_layering 登记）整行删除，表 7 号
-  per-file-ignores 路径跟改。
-- **测试侧不联动目录**：定制测试（`aixcoding/tests/`）维持按特性组织（DIRECTORY.md §5
-  既有约定，非本 ADR 新决策），不镜像 tier 落位——tier 是依赖决定的技术落位，测试不受
-  分层守卫治理（`test_layering` 射程仅 `src/chrys`）；测试仅 import 路径随回迁前缀替换
-  （已计入上述回迁实施项）。
-- **ADR-0002 头部状态改"被取代（被 ADR-0011 取代）"**，正文一字不动（§6 快照原则）。
 - **代价（如实承认，非一次性）**：定制代码位置从一处变为按 tier 分散（现在 kernel + app，
   将来 service/orchestration 若有定制再加）；找代码要记 N 个位置、升级排查遍历 N 个
   `aixcoding/` 目录、扫描规则随档位增长。以"上游原则零破坏 + 冲突面净减"换，成立。
 - **命名空间变长**（`chrys.aixcoding.*` → `chrys.kernel.aixcoding.*` / `chrys.app.aixcoding.*`），
   换来 tier 归属在 import 路径上自明。
-- **语义张力（如实提示）**：零依赖业务代码（如 auth 登录会话）落入 kernel 层（上游核心
+- **语义张力（如实提示）**：低依赖业务代码（如 auth 登录会话，仅 foundation 依赖）落入 kernel 层（上游核心
   抽象层所在），并被动继承 kernel 层"层内必须相对导入"的纪律（回迁改写成本的根源，见
   决策 3）；`chrys.kernel.aixcoding` 路径段标记缓解混淆——后来者遇"kernel 目录内有业务
   代码"疑问时，以本 ADR 档位判据（能容纳全部依赖的最低档）为准。

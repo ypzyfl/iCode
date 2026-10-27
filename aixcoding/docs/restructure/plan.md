@@ -27,7 +27,7 @@
 |---|---|---|---|
 | P1 | `src/chrys/aixcoding/`（telemetry + 根模块） | `src/chrys/kernel/aixcoding/` | ~~原地不动~~ ADR-0011 废弃单点后，telemetry 迁入时直落 kernel 档 |
 | P2 | `aixcoding/auth/`（9 py） | `src/chrys/kernel/aixcoding/auth/` | import 改名 `aixcoding.auth` → `chrys.kernel.aixcoding.auth`：包内互引（`__init__/session/storage/client/environments` 等 8 文件）+ 下述全部消费方。注：PR #60 已按当时单点形态迁入 `src/chrys/aixcoding/auth/`，随 ADR-0011 回迁批次搬至 kernel 档 |
-| P3 | `aixcoding/tui/`（含 `login.tcss`） | `src/chrys/app/aixcoding/tui/` | 同上；`tui/login.py:34` 的 `aixcoding.auth` import 一并改。tui design 已联动 ADR-0011 落 app 档（tui 批次实施） |
+| P3 | `aixcoding/tui/`（含 `login.tcss`） | `src/chrys/app/aixcoding/tui/` | 同上；`tui/login.py:34` 的 `aixcoding.auth` import 一并改。tui design 落位将随 ADR-0011 落 app 档（tui 批次实施时修订，design 草案尚未入库） |
 | P4 | **上游 src 树消费方**（2026-10-22 逐文件复核钉死，R2 范围）：`service/profiles/models/catalog.py`×2（459/488 运行时 import）+ **docstring 路径文字×3（76/82/84，R3/R8 口径同步）**、`service/llm/clients.py:148`、`app/tui/screens/main/screen.py`×5（145/991/2246/2253/2272）、`app/tui/screens/main/login_indicator.py`×2（14/15）、`app/tui/app.py`×2（153/1032；1050 行已是 `chrys.aixcoding.*` 目标形态无需动） | 原地改 import（+注释同步） | 均为既有定制点（带 `AIxCoding` 注释），跟随更新。~~commands.py~~ 复核剔除：该文件仅含文案字符串，无 Python import。**执行前仍重跑 `grep -rn "aixcoding\." src/ tests/` 终验防漂移** |
 | P5 | **上游 tests 树消费方**：`tests/service/profiles/models/test_catalog_sync.py`（168-169）、`tests/app/tui/screens/main/test_login_indicator.py`（9-12） | 原地改 import 或随 U4 处理 | 与 U4 合并审批（同属上游 tests 树内的定制依赖） |
 | P6 | **定制内部互引**：`src/chrys/aixcoding/telemetry/subscriber.py:189`、`src/chrys/aixcoding/context.py:125`（均 lazy import `aixcoding.auth`） | 原地改 import | 随 P2 一起改 |
@@ -62,7 +62,7 @@
 | # | 文件 | 改动 | 状态 |
 |---|---|---|---|
 | U1 | `pyproject.toml` | `packages` 还原 `["src/chrys"]`（删除 `"aixcoding"`）；`testpaths` 还原上游原值（删 `"mock_server"`）；per-file-ignores：`"aixcoding/tui/*"` → `"src/chrys/app/aixcoding/tui/*"`；`"mock_server/**/test_*.py"` → `"aixcoding/tests/**"` | 已核对（2026-10-25，见 §0）：新分支与上游零差异，还原部分无操作；per-file-ignores 改动在新分支不存在，转为阶段三迁入 tui/tests 时的**新增** R2 报批项（路径已随 ADR-0011 按 tier 落位更新） |
-| U2 | `tests/architecture/test_layering.py` | ~~DAG 细化：`chrys.aixcoding` 默认 tier 1，`chrys.aixcoding.tui` 单列 tier 4 侧；新增"DAG 豁免 ↔ 定制清单登记"一致性断言~~ | **作废（2026-10-27，被 ADR-0011 取代——按 tier 落位后 tui 落 `src/chrys/app/aixcoding/` 天然合法，无需改 test_layering 判定机制；双向校验断言降格为登记条文；R8 留档）** |
+| U2 | `tests/architecture/test_layering.py` | ~~DAG 细化：`chrys.aixcoding` 默认 tier 1，`chrys.aixcoding.tui` 单列 tier 4 侧；新增"DAG 豁免 ↔ 定制清单登记"一致性断言~~ | **作废（2026-10-27，被 ADR-0011 取代——按 tier 落位后 tui 落 `src/chrys/app/aixcoding/` 天然合法，无需改 test_layering 判定机制；"双向校验"断言实为从未实现的承诺，随 ADR-0011 作废；R8 留档）** |
 | U3 | `.github/workflows/aixcoding-tests.yml` | 新建（上游目录内新增文件，ADR-0004）：ruff check/format `aixcoding/` + `pytest aixcoding/tests`，触发对齐 ci.yml，初始单 Linux | 待批 |
 | U4 | `tests/app/aixcoding/` 删除（11 文件）+ 上游 tests 树内定制依赖文件更新（P5 两文件） | 见 T2/P5 | 待批（T2/P5/U4 合并审批） |
 | U5 | `mock_server/` 删除 | 见 M5 | 待批（可与 M5 合并审批） |
