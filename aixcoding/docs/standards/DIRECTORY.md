@@ -76,7 +76,7 @@ iCode-fork/
 
 - CI 执行点是独立的定制质量门 `.github/workflows/aixcoding-tests.yml`（见 §7），不寄生于上游 CI 分片。
 - `conftest.py` 职责：config-dir 隔离（对齐上游 `tests/conftest.py` 机制的自建等价物）、环境变量清理、`sys.path` 注入仓库根。**不继承**上游 `tests/conftest.py` 的 autouse fixture——这是有意设计（检测器不与被检测对象共享故障域，理由见 ADR-0001）。
-- 目录组织：按特性分子目录（如 `tests/auth/`、`tests/telemetry/`）；mock 的契约测试统一在 `tests/mock/`。
+- 目录组织：按特性分子目录（如 `tests/auth/`、`tests/telemetry/`）；mock 的契约测试统一在 `tests/mock/`。测试**不镜像**产品代码的 tier 落位——tier 是依赖决定的技术落位（ADR-0011），测试不受 `test_layering` 分层守卫治理（其射程仅 `src/chrys`），组织跟随被测特性；文件内 import 路径则随产品落位联动（如 `chrys.kernel.aixcoding.auth`）。
 - 上游测试设施（`tests/support/` 等）可以**阅读、复制**，但不得 import——上游测试内部接口无稳定性承诺。
 
 ## 6. `aixcoding/mock/`（mock 专区）
