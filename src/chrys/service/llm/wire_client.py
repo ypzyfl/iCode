@@ -111,12 +111,25 @@ class RequestHeaders:
         remaining ones must be sendable over HTTP.
         """
         model_id = request.get("model")
+        # AIxCoding auth: send-time login ``token`` header for the LLM
+        # gateway (auth migration design). Resolved per request —
+        # login/logout takes effect on the next request, and the login
+        # credential overrides any static ``token`` the caller supplied.
+        # The fully-swallowing helper lives in chrys.aixcoding.auth and the
+        # import rides the same try, so any failure here degrades to "no
+        # header", never a failed request.
+        try:
+            from chrys.aixcoding.auth import login_token_header_value
+
+            login_token = login_token_header_value()
+        except Exception:
+            login_token = ""
         session_id = self.route_session_id()
         if self.use_route_session_context:
             parent_session_id = llm_parent_session_id.get() or self.parent_session_id
         else:
             parent_session_id = self.parent_session_id
-        if not model_id and not session_id and not parent_session_id:
+        if not model_id and not session_id and not parent_session_id and not login_token:
             # No Chrys metadata to merge — any caller-supplied extra headers
             # still go to the wire as-is, so they still need the charset gate.
             _reject_wire_unsafe_request_values(None, request.get("extra_headers"))
@@ -139,6 +152,8 @@ class RequestHeaders:
         if parent_session_id:
             headers[X_PARENT_SESSION_ID_HEADER] = parent_session_id
             headers[PARENT_SESSION_ID_HEADER] = parent_session_id
+        if login_token:
+            headers["token"] = login_token
         request["extra_headers"] = headers
 
 

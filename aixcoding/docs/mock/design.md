@@ -96,23 +96,23 @@ aixcoding/mock/
 - `--all`：加全部已迁入 mock（telemetry 迁入后含 :4321）；`--only auth,update` 自选；
   `--list`：列可用 mock、端口、产品端配置项；
 - 实现：argparse → 调各子包 `create_server(...)`（固定端口）→ 每 server 一 daemon 线程
-  `serve_forever` → 打印服务清单与**产品端联调配方**（`CHRYS_AUTH_ENVIRONMENT=local`、
+  `serve_forever` → 打印服务清单与**产品端联调配方**（`AIXCODING_AUTH_ENVIRONMENT=local`、
   `AIXCODING_EXTENSION_BASE_URL=http://127.0.0.1:7778/csas` 等）→ 等 KeyboardInterrupt →
   全部 shutdown；端口被占时明确报错指出是哪个服务。
 
 ### 端口约定（沿用旧分支既有默认，产品端 LOCAL 档已对齐）
 
 合用说明：catalog 默认与 auth 合用 :7777 **并非技术上必须**——auth 有
-`CHRYS_AUTH_SERVER_URL` 覆盖（替换 origin 保留 `/api/v1` 路径）、catalog 有独立 base
+`AIXCODING_AUTH_SERVER_URL` 覆盖（替换 origin 保留 `/api/v1` 路径）、catalog 有独立 base
 配置项，任意端口组合都配得出——而是 LOCAL 档零配置联调的刻意选择：
-`CHRYS_AUTH_ENVIRONMENT=local` 默认指向 :7777，catalog 内嵌 auth 路由后**单 server +
+`AIXCODING_AUTH_ENVIRONMENT=local` 默认指向 :7777，catalog 内嵌 auth 路由后**单 server +
 单 env** 即覆盖登录、目录、LLM chat（`apiBase` 指 :7777/v1）。`--no-auth` + 独立
 auth mock 的拆用形态原样保留。
 
 | mock | 默认端口 | 产品端指向（默认） | 换端口逃生门（产品端 env） |
 |---|---|---|---|
-| auth（独立形态） | 7777 | `CHRYS_AUTH_ENVIRONMENT=local`（零配置） | `CHRYS_AUTH_SERVER_URL` |
-| model_catalog（默认内嵌 auth） | 7777 | 同上（一站式）；目录端点经 `model.catalog.base_url` | `CHRYS_MODEL_CATALOG_BASE_URL`（目录）/ `CHRYS_AUTH_SERVER_URL`（auth） |
+| auth（独立形态） | 7777 | `AIXCODING_AUTH_ENVIRONMENT=local`（零配置） | `AIXCODING_AUTH_SERVER_URL` |
+| model_catalog（默认内嵌 auth） | 7777 | 同上（一站式）；目录端点经 `model.catalog.base_url` | `CHRYS_MODEL_CATALOG_BASE_URL`（目录）/ `AIXCODING_AUTH_SERVER_URL`（auth） |
 | update | 7778 | `AIXCODING_EXTENSION_BASE_URL=http://127.0.0.1:7778/csas` | 同左（改指新端口） |
 | telemetry（殿后，占位） | 4321 | config.py LOCAL 档默认 | 同左 |
 
@@ -262,3 +262,9 @@ checklist，不再笼统"全否"）：
 | mock 目录名维持 `aixcoding/mock/` | 决策记录（二）+ §6 形态语义 | 否 | 对 ADR-0003 的重确认与语义澄清，未推翻任何决策 |
 | 直跑形态保留 + sys.path hack 适配 | 决策记录（三） | 否 | 模块内实现选择（动机与脆弱性已记录在案） |
 | fork 环境变量统一 `AIXCODING_` 前缀 | 决策记录（一）+ DIRECTORY.md §9 | **是 → ADR-0009（已出，待签认）** | 命中 checklist ①（否决备选：保持/兼容期）与 ③（约束未来全部特性的 env 命名） |
+
+---
+
+变更记录：
+
+- 2026-10-26：auth 更名联动——`CHRYS_AUTH_ENVIRONMENT`/`CHRYS_AUTH_SERVER_URL` 配方串与端口表（5 处）同步为新名 `AIXCODING_AUTH_*`（机械联动、设计语义零变化；依据 ADR-0009 与 `aixcoding/docs/auth/design.md` 联动面清单；:121/:130/:151-152 历史与决策记录按约定不回改）。

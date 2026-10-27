@@ -8,13 +8,13 @@
 
 | 子包 | 模拟目标 | 默认端口 | 产品端指向（默认） |
 |---|---|---|---|
-| `auth/` | 设备码登录认证服务 | 7777 | `CHRYS_AUTH_ENVIRONMENT=local`（零配置） |
+| `auth/` | 设备码登录认证服务 | 7777 | `AIXCODING_AUTH_ENVIRONMENT=local`（零配置） |
 | `model_catalog/` | 服务端下发模型目录（**默认同端口内嵌 auth 路由** + LLM chat `/v1`） | 7777 | 同上（一站式）；目录端点经 `model.catalog.base_url` |
 | `update/` | TUI 版本更新检测（`--port` 可覆盖） | 7778 | `AIXCODING_EXTENSION_BASE_URL=http://127.0.0.1:7778/csas` |
 | `telemetry/` | 遥测接收后端（**殿后**，随 telemetry 迁入） | 4321（占位） | config.py LOCAL 档默认 |
 
 **合用端口说明**：catalog 与 auth 合用 :7777 并非技术上必须（auth 有
-`CHRYS_AUTH_SERVER_URL` 覆盖、catalog 有独立 base 配置），而是 LOCAL 档零配置联调的
+`AIXCODING_AUTH_SERVER_URL` 覆盖、catalog 有独立 base 配置），而是 LOCAL 档零配置联调的
 刻意选择——单 server + 单 env 覆盖登录、目录、LLM chat。`--no-auth` + 独立 auth mock
 的拆用形态保留。
 
@@ -45,7 +45,7 @@ tasklist /fi "PID eq <pid>"         # 看进程名，杀掉残留 mock 后重试
 ```
 
 逃生门（人工作出端口时）：mock 侧 `--port` + 产品端 env 同步覆盖
-（`CHRYS_AUTH_SERVER_URL` / `CHRYS_MODEL_CATALOG_BASE_URL` / `AIXCODING_EXTENSION_BASE_URL`）。
+（`AIXCODING_AUTH_SERVER_URL` / `CHRYS_MODEL_CATALOG_BASE_URL` / `AIXCODING_EXTENSION_BASE_URL`）。
 
 ## 目录结构
 
