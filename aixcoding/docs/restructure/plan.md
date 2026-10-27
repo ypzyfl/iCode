@@ -90,7 +90,7 @@
 - [ ] 定制测试全绿：`uv run --extra all pytest aixcoding/tests -m "not integration and not gc_calibration"`（含 mock 契约测试）。
 - [ ] 上游架构测试绿：`uv run pytest tests/architecture`（含 layering 新规则与豁免一致性断言）。
 - [ ] ty 三平台通过（auth/tui 新进射程的修复完成）。
-- [ ] i18n `check` 绿；catalog diff 仅限中文 fallback 借壳条目（ADR-0010 定制面中文单语：pot 可有条目、**po 无 diff**）。
+- [ ] i18n `check` 绿；借壳条目登记齐备（pot + po 中文条目 `msgstr`=中文 + oracle **两处动作**：`_catalog_oracle_ids.py` id 集合 +1 且 `test_catalog_oracle.py` size 断言 +1，ADR-0010 细则 2③），catalog diff 全部为中文单语借壳条目。
 - [ ] ruff check/format 通过（含 `aixcoding/` 新路径与修订后的 per-file-ignores）。
 - [ ] 离线打包冒烟：`dist` 产物 `--version` 正常、登录对话框可打开并完成 mock 登录流程。
 - [ ] `CUSTOMIZATIONS.md` 定制清单刷新（脚本扫描 + 本次 U1–U5 登记核对）。
