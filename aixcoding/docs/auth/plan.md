@@ -55,8 +55,12 @@
       wire_client 直接 import auth 包（依赖显性化）；上游 2 文件 38 行 → **1 文件 +16/−1**；
       评审两轮收敛（增量评审 3 findings 全修 + 复审无 finding，见 self-review）；全量验证绿；
       1c06bdd 双门禁已全绿（基线确认）
-- [ ] 责任人重签 design（R2 表重写）→ 请示 commit+push → CI 绿后合并 PR #60
-- [ ] CI 双门禁绿后用户合并 PR #60
+- [x] 责任人重签 design（R2 表重写，2026-10-27"确认变更方案——对上游源代码改动更小"）
+      → 缩小重构 commit（dc7b30b）已合并
+- [x] CI 双门禁绿后用户合并 PR #60（merge commit f2a06ef，2026-10-27）
+- [ ] PR #61（feat/r1_migration_rules）：R1 细则（a815df0）+ peer review 修复（3f36a16）
+      已 push 待 CI 绿后合并；PR 页面标题/描述需按实际范围（规范修订+评审修复，非 auth
+      迁入本体——auth 已随 #60 入 main）更新（peer review C13）
 
 ## 挂起与备忘
 
@@ -65,6 +69,8 @@
   非内网网关时 token 随请求外发。0.28 现网同形态（忠实迁入）；立即修复需向 `RequestHeaders`
   传入端点信息=扩大上游侵入，与 R1 细则冲突；需产品语义决策（白名单口径）。**归属：catalog
   批次处理**（模型配置语义所在，端点判定届时自然引入）。
+  **时序界定（peer review C12 补记）**：tui 批次前产品**无登录入口**（登录仅可经 mock/手动
+  脚本），真实暴露面≈零；实际修复 deadline = tui 批次上线或 catalog 批次，先到为准。
 - 【性能观察】每请求同步读盘+OS 解密（peer review C2/C3）：design 成本论证只覆盖 Windows
   DPAPI，**未覆盖 macOS 每请求 spawn `security` 子进程（2s timeout 最坏值）**——"不实施
   TTL/mtime 缓存"的决策前提需补 macOS 实测数据；单例无锁与构造失败重试（0.28 既有）同挂
