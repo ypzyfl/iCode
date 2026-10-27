@@ -149,6 +149,7 @@ def _hand_out_sub_agent_client(monkeypatch: pytest.MonkeyPatch, client: MockChat
     async def create_client(
         model_profile: ModelProfile,
         *,
+        agent_name: str | None = None,
         on_intermediate_text_async: Callable[[str], Awaitable[None]],
         on_intermediate_text_sync: Callable[[str], None],
         session_id: str,

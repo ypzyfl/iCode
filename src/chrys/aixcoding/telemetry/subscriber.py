@@ -108,14 +108,14 @@ def attach(bus: EventBus) -> None:
     _register(bus, ApprovalResponse, _on_approval_response)
 
 
-def record_skill_invocation(skill_name: str, session_id: str | None) -> None:
+def record_skill_invocation(skill_name: str, session_id: str | None, agent_name: str | None = None) -> None:
     """输入触发上报（方案 §4.4）：引擎侧 skill 引用命中的唯一调用点，吞一切异常。"""
     try:
         from chrys.aixcoding.config import load_settings
 
         if not load_settings().telemetry_enabled:
             return
-        default_reporter().record_invocation(skill_name, session_id)
+        default_reporter().record_invocation(skill_name, session_id, agent_name)
     except Exception:
         logger.warning("AIxCoding telemetry skill invocation report failed", exc_info=True)
 

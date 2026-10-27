@@ -97,6 +97,13 @@ def current_function_name() -> str | None:
     return _function_name
 
 
+def telemetry_agent_name(actual_name: str | None) -> str | None:
+    """Keep desktop runner attribution; use the actual agent on other channels."""
+    if current_channel().channel_type == CHANNEL_DESKTOP:
+        return current_function_name()
+    return actual_name or None
+
+
 class UserIdProvider(Protocol):
     """userId 数据源接口；登录落地后由 ``aixcoding.auth`` 提供实现，接口不变。"""
 

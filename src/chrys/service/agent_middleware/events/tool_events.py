@@ -391,6 +391,7 @@ class ToolEventMiddleware(FunctionMiddleware):
         await self._bus.publish(
             InvocationToolCallStart(
                 origin=origin,
+                agent_profile_name=self._profile_name,
                 tool_name=tool_name,
                 tool_kind=tool_kind,
                 args=args,
@@ -693,6 +694,7 @@ class ToolEventMiddleware(FunctionMiddleware):
                     await self._bus.publish(
                         InvocationToolCallResult(
                             origin=origin,
+                            agent_profile_name=self._profile_name,
                             tool_name=tool_name,
                             call_id=call_id,
                             # AIxCoding telemetry: provider call id keys the per-call registry.

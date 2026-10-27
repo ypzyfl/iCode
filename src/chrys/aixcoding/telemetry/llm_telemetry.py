@@ -150,14 +150,18 @@ def clear_call_registry() -> None:
 # ---------------------------------------------------------------------------
 
 
-def build_telemetry_middleware(session_id: str | None, workspace_cwd: str | None = None) -> list[ChatMiddleware] | None:
+def build_telemetry_middleware(
+    session_id: str | None,
+    workspace_cwd: str | None = None,
+    agent_name: str | None = None,
+) -> list[ChatMiddleware] | None:
     """组栈入口（``instrumented.py`` 调用）；装配异常只降级为不上报。
 
     ``workspace_cwd``：明确的会话工作区，作为 projectName / Git 字段的取值基。
     没有工作区时省略这些字段，避免把进程目录误当成项目。
     """
     try:
-        return [AixTelemetryMiddleware(session_id=session_id, workspace_cwd=workspace_cwd)]
+        return [AixTelemetryMiddleware(session_id=session_id, workspace_cwd=workspace_cwd, agent_name=agent_name)]
     except Exception:
         logger.warning("AIxCoding telemetry middleware unavailable; llm telemetry disabled", exc_info=True)
         return None
@@ -166,9 +170,15 @@ def build_telemetry_middleware(session_id: str | None, workspace_cwd: str | None
 class AixTelemetryMiddleware(ChatMiddleware):
     """llm-call 搭车遥测：payload 注入 + function call 关联登记。"""
 
-    def __init__(self, session_id: str | None, workspace_cwd: str | None = None) -> None:
+    def __init__(
+        self,
+        session_id: str | None,
+        workspace_cwd: str | None = None,
+        agent_name: str | None = None,
+    ) -> None:
         self._session_id = session_id
         self._workspace_cwd = workspace_cwd
+        self._agent_name = agent_name
 
     async def process(self, context: ChatContext, call_next: Callable[[], Awaitable[None]]) -> None:
         if not self._enabled():
@@ -236,11 +246,13 @@ class AixTelemetryMiddleware(ChatMiddleware):
         }
         if span_id:
             payload["spanId"] = span_id
-        from chrys.aixcoding.context import current_channel, plugin_version
+        from chrys.aixcoding.context import CHANNEL_DESKTOP, current_channel, plugin_version
 
         channel = current_channel()
         payload["channelType"] = channel.channel_type
         payload["channelName"] = "icode"
+        if channel.channel_type != CHANNEL_DESKTOP and self._agent_name:
+            payload["agentName"] = self._agent_name
         if channel.channel_version:
             payload["channelVersion"] = channel.channel_version
         payload["pluginVersion"] = plugin_version()

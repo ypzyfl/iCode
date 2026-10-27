@@ -63,6 +63,7 @@ class LlmTelemetryPayload(TypedDict, total=False):
     channelType: str
     channelName: str
     channelVersion: str
+    agentName: str
     pluginVersion: str
     projectName: str
     gitRemote: str

@@ -77,6 +77,7 @@ def _hand_out_child_client(monkeypatch: pytest.MonkeyPatch, client: MockChatClie
     async def create_client(
         model_profile: Any,
         *,
+        agent_name: str | None = None,
         on_intermediate_text_async: Callable[[str], Awaitable[None]],
         on_intermediate_text_sync: Callable[[str], None],
         session_id: str,

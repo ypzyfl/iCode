@@ -199,11 +199,15 @@ class AiCodeReporter:
 
     def __init__(self, add: Callable[[Mapping[str, object]], None]) -> None:
         self._add = add
-        self._args_by_call: dict[str, tuple[dict[str, Any], str]] = {}
+        self._args_by_call: dict[str, tuple[dict[str, Any], str, str]] = {}
 
     def on_start(self, event: InvocationToolCallStart) -> None:
         if event.tool_name in FILE_WRITE_TOOLS:
-            remember_bounded(self._args_by_call, event.call_id, (dict(event.args or {}), event.workspace_cwd))
+            remember_bounded(
+                self._args_by_call,
+                event.call_id,
+                (dict(event.args or {}), event.workspace_cwd, event.agent_profile_name or event.agent_name),
+            )
 
     def on_result(
         self,
@@ -215,7 +219,7 @@ class AiCodeReporter:
         started = self._args_by_call.pop(event.call_id, None)
         if started is None or event.tool_name not in FILE_WRITE_TOOLS or errored:
             return
-        args, started_workspace = started
+        args, started_workspace, started_agent = started
         snapshot = event.metadata.get("file_snapshot")
         # file_snapshot 是 tuple(before, after) (pipeline.py:89) — 同 tool_detail 修正.
         before_text = snapshot[0] if isinstance(snapshot, tuple) and len(snapshot) == 2 else None
@@ -254,9 +258,9 @@ class AiCodeReporter:
             if request[1]:
                 # spanId = 提问周期链路 span (同 tool-detail 语义修正, 2026-10-09).
                 payload["spanId"] = request[1]
-        from chrys.aixcoding.context import current_function_name
+        from chrys.aixcoding.context import telemetry_agent_name
 
-        if agent_name := current_function_name():
+        if agent_name := telemetry_agent_name(event.agent_profile_name or event.agent_name or started_agent):
             payload["agentName"] = agent_name
         payload.update(
             {

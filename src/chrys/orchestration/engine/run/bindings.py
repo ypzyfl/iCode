@@ -210,6 +210,7 @@ class TurnBindings:
         )
         self._max_retries_override = max_transient_retries
 
+        self._agent_profile_name = profile_name
         self._intermediate_buffer = intermediate_buffer
         self._response_validation = response_validation_middleware
         self._publish_intermediate_text = publish_intermediate_text
@@ -469,6 +470,7 @@ class TurnBindings:
             await emitter.publish(
                 InvocationToolCallStart(
                     origin=emitter.origin,
+                    agent_profile_name=self._agent_profile_name,
                     tool_name=view.tool_name,
                     call_id=operation.presentation_id,
                     provider_hosted=True,
@@ -544,6 +546,7 @@ class TurnBindings:
             await emitter.publish(
                 InvocationToolCallResult(
                     origin=emitter.origin,
+                    agent_profile_name=self._agent_profile_name,
                     tool_name=view.tool_name,
                     call_id=operation.presentation_id,
                     provider_hosted=True,
