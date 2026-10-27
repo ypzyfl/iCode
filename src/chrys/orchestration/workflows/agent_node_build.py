@@ -208,6 +208,7 @@ async def build_kernel_node(
     chat_options = effective_chat_options(model)
     client = await create_client(
         model,
+        agent_name=profile.name,
         on_intermediate_text_async=callbacks.publish_intermediate,
         on_intermediate_text_sync=intermediate_buffer.store,
         session_id=derive_llm_route_session_id(

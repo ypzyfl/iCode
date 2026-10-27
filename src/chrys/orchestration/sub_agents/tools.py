@@ -454,6 +454,7 @@ class SubAgentTools:
 
             client = await create_client(
                 sub_active_profile,
+                agent_name=profile.name,
                 on_intermediate_text_async=_on_intermediate_async,
                 on_intermediate_text_sync=_on_intermediate_sync,
                 session_id=sub_agent_session_id,

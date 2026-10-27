@@ -70,6 +70,7 @@ class _StubProvider:
     def __init__(self, scripts: dict[str, list[tuple[dict[str, Any], str]]]) -> None:
         self._scripts = scripts
         self.models: list[str] = []
+        self.agent_names: list[str | None] = []
 
     async def handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:
@@ -81,6 +82,7 @@ class _StubProvider:
                 request = json.loads(await reader.readexactly(int(headers.get("content-length", "0"))))
                 model = request["model"]
                 self.models.append(model)
+                self.agent_names.append(request.get("telemetry", {}).get("agentName"))
                 message, finish_reason = self._scripts[model].pop(0)
                 body = json.dumps(_completion(model, message, finish_reason)).encode()
                 writer.write(
@@ -125,8 +127,12 @@ async def _turn(started: ClientEngine, messages: list[InvocationMessage], text: 
 
 
 async def test_turns_across_a_rebuild_use_live_clients_and_close_the_old_ones(
-    agent_engine: AgentEngineFactory, tmp_path: Path, http_client_ledger: HttpClientLedger
+    agent_engine: AgentEngineFactory,
+    tmp_path: Path,
+    http_client_ledger: HttpClientLedger,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr("chrys.aixcoding.context._desktop_channel", None)
     main_id, alt_id, sub_id = (loopback_model(name).model_id for name in (MAIN_MODEL, ALT_MODEL, SUB_MODEL))
     provider = _StubProvider(
         {
@@ -146,6 +152,7 @@ async def test_turns_across_a_rebuild_use_live_clients_and_close_the_old_ones(
 
         assert errors == []
         assert provider.models == [main_id, sub_id, main_id, alt_id]
+        assert provider.agent_names == [started.profile.name, SUB_AGENT, started.profile.name, started.profile.name]
         [old_main] = http_client_ledger.for_profile(MAIN_MODEL)
         [new_main] = http_client_ledger.for_profile(ALT_MODEL)
         old_sub, new_sub = http_client_ledger.for_profile(SUB_MODEL)

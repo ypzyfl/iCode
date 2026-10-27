@@ -7,10 +7,28 @@ from __future__ import annotations
 import pytest
 
 from chrys.aixcoding.context import ChannelContext
+from chrys.aixcoding.telemetry.llm_telemetry import AixTelemetryMiddleware
 from chrys.aixcoding.telemetry.reporters.ai_code import AiCodeReporter
 from chrys.aixcoding.telemetry.reporters.tool_detail import ToolDetailReporter
 from chrys.foundation.events.types import InvocationToolCallResult, InvocationToolCallStart
 from chrys.foundation.models.invocations import InvocationOrigin
+from chrys.kernel.middleware import ChatContext
+
+
+@pytest.mark.parametrize("desktop", [False, True])
+@pytest.mark.parametrize("name", [None, "Code", "QA"])
+def test_model_agent_attribution(monkeypatch, desktop, name):
+    monkeypatch.setattr(
+        "chrys.aixcoding.context._desktop_channel",
+        ChannelContext("desktop", "AgentStudio", "1.0") if desktop else None,
+    )
+    context = ChatContext(client=None, messages=[], options={})
+
+    AixTelemetryMiddleware(session_id="session", agent_name=name)._inject_telemetry(context, "request", "")
+
+    payload = context.options["extra_body"]["telemetry"]
+    assert payload.get("agentName") == (None if desktop else name)
+    assert payload["channelType"] == ("desktop" if desktop else "cli")
 
 
 @pytest.mark.parametrize("desktop", [False, True])

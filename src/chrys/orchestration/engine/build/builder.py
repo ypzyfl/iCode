@@ -499,6 +499,7 @@ async def build_agent(
 
         client = await create_client(
             active_profile,
+            agent_name=profile.name,
             on_intermediate_text_async=_publish_intermediate,
             on_intermediate_text_sync=on_intermediate_sync,
             session_id=session_id,

@@ -470,6 +470,7 @@ async def create_client(
     session_dir: Path | None = None,
     tool_result_ceiling_tokens: int | None = None,
     workspace_cwd: str | None = None,
+    agent_name: str | None = None,
 ) -> Any:
     """Create a chat client stack based on the configured ``ModelProfile``.
 
@@ -525,6 +526,7 @@ async def create_client(
     # AIxCoding telemetry: thread the session id + workspace cwd into the instrumented stack.
     stack_kwargs["session_id"] = session_id
     stack_kwargs["workspace_cwd"] = workspace_cwd
+    stack_kwargs["agent_name"] = agent_name
     api_key = _resolve_profile_api_key(profile)
     headers = _build_default_headers(
         session_id,
