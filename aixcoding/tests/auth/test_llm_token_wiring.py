@@ -148,12 +148,16 @@ async def test_overrides_default_headers_on_wire(logged_in_session) -> None:
         http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
     )
     try:
-        # extra_headers here is what stamp() produces on the wire path: the
-        # send-time login token (resolved per request, not snapshotted).
+        # extra_headers here is the real stamp() output — the send-time login
+        # token resolved per request (never a hand-built dict), so breaking the
+        # injection line in stamp() makes this test red too: the SDK would
+        # then merge only the default static token onto the wire.
+        stamped: dict = {"model": "test-model"}
+        RequestHeaders(session_id="wire-1").stamp(stamped)
         await client.chat.completions.create(
             model="test-model",
             messages=[{"role": "user", "content": "hi"}],
-            extra_headers={"token": TOKEN},
+            extra_headers=stamped["extra_headers"],
         )
     finally:
         await client.close()

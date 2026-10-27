@@ -130,6 +130,8 @@ uv run python aixcoding/tools/check_import_boundaries.py
   （try 包裹不变，注释 9→7 行）；`test_stamp_survives_import_failure` patch 目标改
   `chrys.aixcoding.auth`。
 - **上游净改动**：2 文件 ~38 行 → **1 文件 +14/−1**（clients.py 完全退出 R2）。
+  （更正：本行为实施时预估口径；numstat 实测初版 `+41/−2`、终版 `+16/−1`，以本文件
+  2026-10-27 评审修复轮 F-3 与 design R2 表为准——peer review C8/P2-4 追记）
 - 验证见下节全量门禁。
 
 ## 2026-10-27 缩小重构后全量门禁
