@@ -546,8 +546,9 @@ def test_read_ide_channel_meta_sets_channel_and_function_name():
 
 
 def test_reporter_payload_includes_agent_name():
-    from chrys.aixcoding.context import set_current_function_name
+    from chrys.aixcoding.context import set_current_function_name, set_desktop_channel
 
+    set_desktop_channel("AgentStudio", "1.0")
     set_current_function_name("code_gen")
     submitter = _CaptureSubmitter()
     reporter = ToolDetailReporter(submitter)
@@ -557,7 +558,9 @@ def test_reporter_payload_includes_agent_name():
 
 
 def test_desktop_agent_usage_is_single_save_with_model_link(tmp_path: Path):
-    from chrys.aixcoding.context import set_current_function_name
+    from chrys.aixcoding.context import set_current_function_name, set_desktop_channel
+
+    set_desktop_channel("AgentStudio", "1.0")
 
     submitter = _CaptureSubmitter()
     reporter = ToolDetailReporter(submitter)

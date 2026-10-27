@@ -344,6 +344,7 @@ class SubAgentEventMiddleware(FunctionMiddleware):
             await self._bus.publish(
                 InvocationToolCallStart(
                     origin=origin,
+                    agent_profile_name=self._profile_name,
                     **common,
                     tool_kind=HOSTED_TOOL_DEFAULT_KIND_BY_FAMILY.get(view.family, ""),
                     args=view.arguments,
@@ -400,6 +401,7 @@ class SubAgentEventMiddleware(FunctionMiddleware):
             await self._bus.publish(
                 InvocationToolCallResult(
                     origin=origin,
+                    agent_profile_name=self._profile_name,
                     **common,
                     result=view.result_text,
                     image_contents=view.image_contents,
@@ -645,6 +647,7 @@ class SubAgentEventMiddleware(FunctionMiddleware):
         await self._bus.publish(
             InvocationToolCallStart(
                 origin=origin,
+                agent_profile_name=self._profile_name,
                 agent_name=self._agent_name,
                 tool_name=tool_name,
                 tool_kind=tool_kind,
@@ -895,6 +898,7 @@ class SubAgentEventMiddleware(FunctionMiddleware):
                     await self._bus.publish(
                         InvocationToolCallResult(
                             origin=origin,
+                            agent_profile_name=self._profile_name,
                             agent_name=self._agent_name,
                             tool_name=tool_name,
                             call_id=call_id,

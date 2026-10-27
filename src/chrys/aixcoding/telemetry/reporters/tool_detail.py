@@ -179,9 +179,9 @@ class ToolDetailReporter:
             file_name = str(event.args.get("path") or event.args.get("file_path") or "").strip()
             if file_name:
                 payload["fileName"] = relative_file_name(file_name, event.workspace_cwd or None)
-        from chrys.aixcoding.context import current_function_name
+        from chrys.aixcoding.context import telemetry_agent_name
 
-        if agent_name := current_function_name():
+        if agent_name := telemetry_agent_name(event.agent_profile_name or event.agent_name):
             payload["agentName"] = agent_name
         payload.update(common_fields(event.workspace_cwd or None, tool_detail=True))
         self._submit(TOOL_DETAIL_SAVE, payload)
@@ -223,9 +223,9 @@ class ToolDetailReporter:
             usage["requestId"] = request[0]
             if request[1]:
                 usage["spanId"] = request[1]
-        from chrys.aixcoding.context import current_function_name
+        from chrys.aixcoding.context import telemetry_agent_name
 
-        if agent_name := current_function_name():
+        if agent_name := telemetry_agent_name(event.agent_profile_name or event.agent_name):
             usage["agentName"] = agent_name
         usage.update(common_fields(event.workspace_cwd or None, tool_detail=True))
         self._submit(TOOL_DETAIL_SAVE, usage)
@@ -253,7 +253,7 @@ class ToolDetailReporter:
         payload.update(line_counts(event.metadata))
         self._submit(TOOL_DETAIL_UPDATE, payload)
 
-    def record_invocation(self, skill_name: str, session_id: str | None) -> None:
+    def record_invocation(self, skill_name: str, session_id: str | None, agent_name: str | None = None) -> None:
         """输入触发：用户输入的 slash skill 引用命中 → 单条 save（funcType=0）。"""
         from chrys.aixcoding.telemetry.llm_telemetry import resolve_call
         from chrys.aixcoding.telemetry.reporters import common_fields
@@ -268,9 +268,9 @@ class ToolDetailReporter:
             # 输入触发先于本轮 LLM 请求发出：requestId 留空（不误挂上一轮，
             # 对齐 aixcoding InputTriggeredUsage 语义），用 spanId 关联本轮。
             payload["spanId"] = request[1]
-        from chrys.aixcoding.context import current_function_name
+        from chrys.aixcoding.context import telemetry_agent_name
 
-        if agent_name := current_function_name():
+        if agent_name := telemetry_agent_name(agent_name):
             payload["agentName"] = agent_name
         payload.update(common_fields(tool_detail=True))
         self._submit(TOOL_DETAIL_SAVE, payload)

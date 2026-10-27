@@ -403,6 +403,8 @@ class InvocationToolCallStart(InvocationEvent):
     """A tool call started inside a sub-agent."""
 
     agent_name: str = ""
+    # Canonical execution profile, separate from the frontend's sub-agent label.
+    agent_profile_name: str = ""
     tool_name: str = ""
     tool_kind: str = ""
     args: dict[str, Any] = field(default_factory=dict)
@@ -472,6 +474,8 @@ class InvocationToolCallResult(InvocationEvent):
     """A tool call completed inside a sub-agent."""
 
     agent_name: str = ""
+    # Canonical execution profile, separate from the frontend's sub-agent label.
+    agent_profile_name: str = ""
     tool_name: str = ""
     call_id: str = ""
     result: str = ""

@@ -422,7 +422,11 @@ class ActiveTurnInjector:
         # AIxCoding telemetry: input-trigger report for a resolved slash skill reference.
         from chrys.aixcoding.telemetry.subscriber import record_skill_invocation
 
-        record_skill_invocation(reference.skill.name, self._session.session_id)
+        record_skill_invocation(
+            reference.skill.name,
+            self._session.session_id,
+            self._session.agent_profile.name if self._session.agent_profile is not None else None,
+        )
         return format_skill_reference_reminder(reference)
 
 

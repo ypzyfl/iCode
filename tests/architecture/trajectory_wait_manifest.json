@@ -8838,7 +8838,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings._flush_carried_compressions",
       "source_column": 15,
-      "source_line": 778,
+      "source_line": 781,
       "wrapper_target": null
     },
     {
@@ -8858,7 +8858,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings._interrupt_active_sleep",
       "source_column": 8,
-      "source_line": 906,
+      "source_line": 909,
       "wrapper_target": null
     },
     {
@@ -8878,7 +8878,7 @@
       "primitive": "timeout",
       "qualname": "TurnBindings._interrupt_active_sleep",
       "source_column": 12,
-      "source_line": 914,
+      "source_line": 917,
       "wrapper_target": null
     },
     {
@@ -8898,7 +8898,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings._interrupt_active_sleep",
       "source_column": 12,
-      "source_line": 918,
+      "source_line": 921,
       "wrapper_target": null
     },
     {
@@ -8918,7 +8918,7 @@
       "primitive": "sleep",
       "qualname": "TurnBindings._interruptible_sleep",
       "source_column": 12,
-      "source_line": 925,
+      "source_line": 928,
       "wrapper_target": null
     },
     {
@@ -8938,7 +8938,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings._local_call_start_published",
       "source_column": 12,
-      "source_line": 373,
+      "source_line": 374,
       "wrapper_target": null
     },
     {
@@ -8958,7 +8958,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings._publish_hosted_operation",
       "source_column": 16,
-      "source_line": 404,
+      "source_line": 405,
       "wrapper_target": null
     },
     {
@@ -8978,7 +8978,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings._publish_hosted_operation",
       "source_column": 16,
-      "source_line": 416,
+      "source_line": 417,
       "wrapper_target": null
     },
     {
@@ -8998,7 +8998,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings._publish_hosted_operation",
       "source_column": 16,
-      "source_line": 418,
+      "source_line": 419,
       "wrapper_target": null
     },
     {
@@ -9018,7 +9018,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings._publish_hosted_operation",
       "source_column": 12,
-      "source_line": 437,
+      "source_line": 438,
       "wrapper_target": null
     },
     {
@@ -9038,7 +9038,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings._publish_hosted_operation",
       "source_column": 12,
-      "source_line": 448,
+      "source_line": 449,
       "wrapper_target": null
     },
     {
@@ -9058,7 +9058,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings._publish_hosted_operation",
       "source_column": 12,
-      "source_line": 455,
+      "source_line": 456,
       "wrapper_target": null
     },
     {
@@ -9071,14 +9071,14 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await emitter.publish(InvocationToolCallStart(origin=emitter.origin, tool_name=view.tool_name, call_id=operation.presentation_id, provider_hosted=True, hosted_family=view.family, provider=view.provider, provider_item_type=view.provider_item_type, provider_call_id=view.provider_call_id, provider_status=view.provider_status, tool_kind=HOSTED_TOOL_DEFAULT_KIND_BY_FAMILY.get(view.family, ''), args=view.arguments, session_id=self._session_id))",
+      "expression": "await emitter.publish(InvocationToolCallStart(origin=emitter.origin, agent_profile_name=self._agent_profile_name, tool_name=view.tool_name, call_id=operation.presentation_id, provider_hosted=True, hosted_family=view.family, provider=view.provider, provider_item_type=view.provider_item_type, provider_call_id=view.provider_call_id, provider_status=view.provider_status, tool_kind=HOSTED_TOOL_DEFAULT_KIND_BY_FAMILY.get(view.family, ''), args=view.arguments, session_id=self._session_id))",
       "identity": "chrys.orchestration.engine.run.bindings:TurnBindings._publish_hosted_operation:7",
       "module": "chrys.orchestration.engine.run.bindings",
       "ordinal": 7,
       "primitive": "awaitable",
       "qualname": "TurnBindings._publish_hosted_operation",
       "source_column": 12,
-      "source_line": 469,
+      "source_line": 470,
       "wrapper_target": null
     },
     {
@@ -9098,7 +9098,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings._publish_hosted_operation",
       "source_column": 12,
-      "source_line": 487,
+      "source_line": 489,
       "wrapper_target": null
     },
     {
@@ -9118,7 +9118,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings._publish_hosted_operation",
       "source_column": 12,
-      "source_line": 504,
+      "source_line": 506,
       "wrapper_target": null
     },
     {
@@ -9138,7 +9138,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings._publish_hosted_operation",
       "source_column": 12,
-      "source_line": 529,
+      "source_line": 531,
       "wrapper_target": null
     },
     {
@@ -9151,14 +9151,14 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await emitter.publish(InvocationToolCallResult(origin=emitter.origin, tool_name=view.tool_name, call_id=operation.presentation_id, provider_hosted=True, hosted_family=view.family, provider=view.provider, provider_item_type=view.provider_item_type, provider_call_id=view.provider_call_id, provider_status=view.provider_status, result=view.result_text, image_contents=view.image_contents, metadata=view.metadata, artifacts=self._artifact_descriptors(operation), session_id=self._session_id))",
+      "expression": "await emitter.publish(InvocationToolCallResult(origin=emitter.origin, agent_profile_name=self._agent_profile_name, tool_name=view.tool_name, call_id=operation.presentation_id, provider_hosted=True, hosted_family=view.family, provider=view.provider, provider_item_type=view.provider_item_type, provider_call_id=view.provider_call_id, provider_status=view.provider_status, result=view.result_text, image_contents=view.image_contents, metadata=view.metadata, artifacts=self._artifact_descriptors(operation), session_id=self._session_id))",
       "identity": "chrys.orchestration.engine.run.bindings:TurnBindings._publish_hosted_operation:11",
       "module": "chrys.orchestration.engine.run.bindings",
       "ordinal": 11,
       "primitive": "awaitable",
       "qualname": "TurnBindings._publish_hosted_operation",
       "source_column": 12,
-      "source_line": 544,
+      "source_line": 546,
       "wrapper_target": null
     },
     {
@@ -9178,7 +9178,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings._publish_response_text",
       "source_column": 12,
-      "source_line": 846,
+      "source_line": 849,
       "wrapper_target": null
     },
     {
@@ -9198,7 +9198,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings._publish_response_text",
       "source_column": 8,
-      "source_line": 850,
+      "source_line": 853,
       "wrapper_target": null
     },
     {
@@ -9218,7 +9218,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings._publish_retry_notice",
       "source_column": 12,
-      "source_line": 818,
+      "source_line": 821,
       "wrapper_target": null
     },
     {
@@ -9238,7 +9238,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings._publish_retry_notice",
       "source_column": 8,
-      "source_line": 820,
+      "source_line": 823,
       "wrapper_target": null
     },
     {
@@ -9258,7 +9258,7 @@
       "primitive": "wrapper",
       "qualname": "TurnBindings._publish_wire_retry_attempt",
       "source_column": 8,
-      "source_line": 805,
+      "source_line": 808,
       "wrapper_target": "chrys.orchestration.engine.run.bindings.TurnBindings._publish_retry_notice"
     },
     {
@@ -9278,7 +9278,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings._reject_stream",
       "source_column": 12,
-      "source_line": 1017,
+      "source_line": 1020,
       "wrapper_target": null
     },
     {
@@ -9298,7 +9298,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings.begin",
       "source_column": 12,
-      "source_line": 687,
+      "source_line": 690,
       "wrapper_target": null
     },
     {
@@ -9318,7 +9318,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings.begin",
       "source_column": 8,
-      "source_line": 689,
+      "source_line": 692,
       "wrapper_target": null
     },
     {
@@ -9338,7 +9338,7 @@
       "primitive": "wrapper",
       "qualname": "TurnBindings.begin",
       "source_column": 8,
-      "source_line": 690,
+      "source_line": 693,
       "wrapper_target": "chrys.orchestration.engine.run.bindings.TurnBindings._flush_carried_compressions"
     },
     {
@@ -9358,7 +9358,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings.failed",
       "source_column": 8,
-      "source_line": 712,
+      "source_line": 715,
       "wrapper_target": null
     },
     {
@@ -9378,7 +9378,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings.failed",
       "source_column": 12,
-      "source_line": 716,
+      "source_line": 719,
       "wrapper_target": null
     },
     {
@@ -9398,7 +9398,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings.failed",
       "source_column": 8,
-      "source_line": 718,
+      "source_line": 721,
       "wrapper_target": null
     },
     {
@@ -9418,7 +9418,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings.finished",
       "source_column": 12,
-      "source_line": 735,
+      "source_line": 738,
       "wrapper_target": null
     },
     {
@@ -9438,7 +9438,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings.finished",
       "source_column": 16,
-      "source_line": 737,
+      "source_line": 740,
       "wrapper_target": null
     },
     {
@@ -9458,7 +9458,7 @@
       "primitive": "awaitable",
       "qualname": "TurnBindings.interrupt",
       "source_column": 12,
-      "source_line": 873,
+      "source_line": 876,
       "wrapper_target": null
     },
     {
@@ -9478,7 +9478,7 @@
       "primitive": "wrapper",
       "qualname": "TurnBindings.interrupt",
       "source_column": 16,
-      "source_line": 883,
+      "source_line": 886,
       "wrapper_target": "chrys.orchestration.engine.run.bindings.TurnBindings._interrupt_active_sleep"
     },
     {
@@ -9498,7 +9498,7 @@
       "primitive": "wrapper",
       "qualname": "TurnBindings.succeeded",
       "source_column": 12,
-      "source_line": 694,
+      "source_line": 697,
       "wrapper_target": "chrys.orchestration.engine.run.bindings.TurnBindings._publish_response_text"
     },
     {
@@ -9518,7 +9518,7 @@
       "primitive": "awaitable",
       "qualname": "_MainStreamObserver.before_finalize",
       "source_column": 8,
-      "source_line": 1084,
+      "source_line": 1087,
       "wrapper_target": null
     },
     {
@@ -9538,7 +9538,7 @@
       "primitive": "awaitable",
       "qualname": "_MainStreamObserver.before_finalize",
       "source_column": 12,
-      "source_line": 1086,
+      "source_line": 1089,
       "wrapper_target": null
     },
     {
@@ -9558,7 +9558,7 @@
       "primitive": "awaitable",
       "qualname": "_MainStreamObserver.on_retry_boundary",
       "source_column": 12,
-      "source_line": 1058,
+      "source_line": 1061,
       "wrapper_target": null
     },
     {
@@ -16051,7 +16051,7 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._bus.publish(Error(code='no_registry', message='No profile registry configured \u2014 cannot switch profiles', display_message=_CONTROLS_NO_REGISTRY.bind(), session_id=self._session.session_id))",
+      "expression": "await self._bus.publish(Error(code='no_registry', message='No profile registry configured — cannot switch profiles', display_message=_CONTROLS_NO_REGISTRY.bind(), session_id=self._session.session_id))",
       "identity": "chrys.orchestration.engine.state.controls:RuntimeControls.on_profile_switch:1",
       "module": "chrys.orchestration.engine.state.controls",
       "ordinal": 1,
@@ -16231,7 +16231,7 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._bus.publish(Error(code='runtime_mutation_not_ready', message='No active agent \u2014 cannot switch model', display_message=_CONTROLS_MODEL_SWITCH_NOT_READY.bind(), session_id=self._session.session_id))",
+      "expression": "await self._bus.publish(Error(code='runtime_mutation_not_ready', message='No active agent — cannot switch model', display_message=_CONTROLS_MODEL_SWITCH_NOT_READY.bind(), session_id=self._session.session_id))",
       "identity": "chrys.orchestration.engine.state.controls:RuntimeControls.on_set_model_profile:1",
       "module": "chrys.orchestration.engine.state.controls",
       "ordinal": 1,
@@ -16471,7 +16471,7 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._bus.publish(Error(code='runtime_mutation_not_ready', message='No active agent \u2014 cannot change workspace', display_message=_CONTROLS_WORKSPACE_SWITCH_NOT_READY.bind(), session_id=self._session.session_id))",
+      "expression": "await self._bus.publish(Error(code='runtime_mutation_not_ready', message='No active agent — cannot change workspace', display_message=_CONTROLS_WORKSPACE_SWITCH_NOT_READY.bind(), session_id=self._session.session_id))",
       "identity": "chrys.orchestration.engine.state.controls:RuntimeControls.on_workspace_change:1",
       "module": "chrys.orchestration.engine.state.controls",
       "ordinal": 1,
@@ -35298,7 +35298,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process",
       "source_column": 8,
-      "source_line": 561,
+      "source_line": 563,
       "wrapper_target": "chrys.service.agent_middleware.events.sub_agent_events.SubAgentEventMiddleware._release_intermediate_text"
     },
     {
@@ -35318,7 +35318,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process",
       "source_column": 18,
-      "source_line": 573,
+      "source_line": 575,
       "wrapper_target": "chrys.service.agent_middleware.events.hook_dispatch.apply_before_tool_hooks"
     },
     {
@@ -35338,7 +35338,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process",
       "source_column": 12,
-      "source_line": 595,
+      "source_line": 597,
       "wrapper_target": "chrys.service.agent_middleware.events.sub_agent_events.SubAgentEventMiddleware._process_tool_call"
     },
     {
@@ -35358,7 +35358,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process",
       "source_column": 23,
-      "source_line": 599,
+      "source_line": 601,
       "wrapper_target": "chrys.service.trajectory.preparation.preparation_lock"
     },
     {
@@ -35378,7 +35378,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process",
       "source_column": 16,
-      "source_line": 600,
+      "source_line": 602,
       "wrapper_target": "chrys.service.agent_middleware.events.sub_agent_events.SubAgentEventMiddleware._process_tool_call"
     },
     {
@@ -35398,7 +35398,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process",
       "source_column": 23,
-      "source_line": 604,
+      "source_line": 606,
       "wrapper_target": "chrys.service.trajectory.preparation.preparation_lock"
     },
     {
@@ -35418,7 +35418,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process",
       "source_column": 16,
-      "source_line": 605,
+      "source_line": 607,
       "wrapper_target": "chrys.service.agent_middleware.events.sub_agent_events.SubAgentEventMiddleware._process_tool_call"
     },
     {
@@ -35438,7 +35438,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process",
       "source_column": 12,
-      "source_line": 609,
+      "source_line": 611,
       "wrapper_target": "chrys.service.agent_middleware.events.sub_agent_events.SubAgentEventMiddleware._process_tool_call"
     },
     {
@@ -35458,7 +35458,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 22,
-      "source_line": 635,
+      "source_line": 637,
       "wrapper_target": "chrys.service.mutations.pipeline.prepare_mutation_tracking"
     },
     {
@@ -35471,14 +35471,14 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._bus.publish(InvocationToolCallStart(origin=origin, agent_name=self._agent_name, tool_name=tool_name, tool_kind=tool_kind, args=args, call_id=call_id, session_id=self._session_id, workspace_cwd=self._workspace_cwd))",
+      "expression": "await self._bus.publish(InvocationToolCallStart(origin=origin, agent_profile_name=self._profile_name, agent_name=self._agent_name, tool_name=tool_name, tool_kind=tool_kind, args=args, call_id=call_id, session_id=self._session_id, workspace_cwd=self._workspace_cwd))",
       "identity": "chrys.service.agent_middleware.events.sub_agent_events:SubAgentEventMiddleware._process_tool_call:2",
       "module": "chrys.service.agent_middleware.events.sub_agent_events",
       "ordinal": 2,
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 8,
-      "source_line": 645,
+      "source_line": 647,
       "wrapper_target": null
     },
     {
@@ -35498,7 +35498,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 12,
-      "source_line": 659,
+      "source_line": 662,
       "wrapper_target": null
     },
     {
@@ -35518,7 +35518,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 16,
-      "source_line": 699,
+      "source_line": 702,
       "wrapper_target": null
     },
     {
@@ -35538,7 +35538,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 16,
-      "source_line": 705,
+      "source_line": 708,
       "wrapper_target": null
     },
     {
@@ -35558,7 +35558,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 12,
-      "source_line": 720,
+      "source_line": 723,
       "wrapper_target": null
     },
     {
@@ -35578,7 +35578,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 41,
-      "source_line": 804,
+      "source_line": 807,
       "wrapper_target": "chrys.service.mutations.pipeline.finalize_mutation_tracking"
     },
     {
@@ -35598,7 +35598,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 36,
-      "source_line": 860,
+      "source_line": 863,
       "wrapper_target": "chrys.service.agent_middleware.events.hook_dispatch.fire_after_tool_hooks"
     },
     {
@@ -35611,14 +35611,14 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._bus.publish(InvocationToolCallResult(origin=origin, agent_name=self._agent_name, tool_name=tool_name, call_id=call_id, result=result_text, image_contents=result_images, duration_ms=duration_ms, metadata=metadata, session_id=self._session_id, workspace_cwd=self._workspace_cwd))",
+      "expression": "await self._bus.publish(InvocationToolCallResult(origin=origin, agent_profile_name=self._profile_name, agent_name=self._agent_name, tool_name=tool_name, call_id=call_id, result=result_text, image_contents=result_images, duration_ms=duration_ms, metadata=metadata, session_id=self._session_id, workspace_cwd=self._workspace_cwd))",
       "identity": "chrys.service.agent_middleware.events.sub_agent_events:SubAgentEventMiddleware._process_tool_call:9",
       "module": "chrys.service.agent_middleware.events.sub_agent_events",
       "ordinal": 9,
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 20,
-      "source_line": 895,
+      "source_line": 898,
       "wrapper_target": null
     },
     {
@@ -35638,7 +35638,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 24,
-      "source_line": 913,
+      "source_line": 917,
       "wrapper_target": null
     },
     {
@@ -35658,7 +35658,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 24,
-      "source_line": 922,
+      "source_line": 926,
       "wrapper_target": null
     },
     {
@@ -35678,7 +35678,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._process_tool_call",
       "source_column": 20,
-      "source_line": 930,
+      "source_line": 934,
       "wrapper_target": "chrys.service.agent_middleware.events.sub_agent_events.SubAgentEventMiddleware._publish_progress"
     },
     {
@@ -35751,7 +35751,7 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._bus.publish(InvocationToolCallStart(origin=origin, **common, tool_kind=HOSTED_TOOL_DEFAULT_KIND_BY_FAMILY.get(view.family, ''), args=view.arguments, provider_item_type=view.provider_item_type, provider_call_id=view.provider_call_id, provider_status=view.provider_status, workspace_cwd=self._workspace_cwd))",
+      "expression": "await self._bus.publish(InvocationToolCallStart(origin=origin, agent_profile_name=self._profile_name, **common, tool_kind=HOSTED_TOOL_DEFAULT_KIND_BY_FAMILY.get(view.family, ''), args=view.arguments, provider_item_type=view.provider_item_type, provider_call_id=view.provider_call_id, provider_status=view.provider_status, workspace_cwd=self._workspace_cwd))",
       "identity": "chrys.service.agent_middleware.events.sub_agent_events:SubAgentEventMiddleware._publish_hosted_operation:4",
       "module": "chrys.service.agent_middleware.events.sub_agent_events",
       "ordinal": 4,
@@ -35778,7 +35778,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._publish_hosted_operation",
       "source_column": 12,
-      "source_line": 358,
+      "source_line": 359,
       "wrapper_target": null
     },
     {
@@ -35798,7 +35798,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._publish_hosted_operation",
       "source_column": 12,
-      "source_line": 370,
+      "source_line": 371,
       "wrapper_target": null
     },
     {
@@ -35818,7 +35818,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._publish_hosted_operation",
       "source_column": 12,
-      "source_line": 390,
+      "source_line": 391,
       "wrapper_target": null
     },
     {
@@ -35831,14 +35831,14 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._bus.publish(InvocationToolCallResult(origin=origin, **common, result=view.result_text, image_contents=view.image_contents, metadata=view.metadata, artifacts=self._artifact_descriptors(operation), provider_item_type=view.provider_item_type, provider_call_id=view.provider_call_id, provider_status=view.provider_status, workspace_cwd=self._workspace_cwd))",
+      "expression": "await self._bus.publish(InvocationToolCallResult(origin=origin, agent_profile_name=self._profile_name, **common, result=view.result_text, image_contents=view.image_contents, metadata=view.metadata, artifacts=self._artifact_descriptors(operation), provider_item_type=view.provider_item_type, provider_call_id=view.provider_call_id, provider_status=view.provider_status, workspace_cwd=self._workspace_cwd))",
       "identity": "chrys.service.agent_middleware.events.sub_agent_events:SubAgentEventMiddleware._publish_hosted_operation:8",
       "module": "chrys.service.agent_middleware.events.sub_agent_events",
       "ordinal": 8,
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._publish_hosted_operation",
       "source_column": 12,
-      "source_line": 400,
+      "source_line": 401,
       "wrapper_target": null
     },
     {
@@ -35878,7 +35878,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware._publish_progress",
       "source_column": 8,
-      "source_line": 473,
+      "source_line": 475,
       "wrapper_target": null
     },
     {
@@ -35918,7 +35918,7 @@
       "primitive": "gather",
       "qualname": "SubAgentEventMiddleware._schedule_progress_publish._publish_after_previous",
       "source_column": 16,
-      "source_line": 446,
+      "source_line": 448,
       "wrapper_target": null
     },
     {
@@ -35938,7 +35938,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware._schedule_progress_publish._publish_after_previous",
       "source_column": 12,
-      "source_line": 447,
+      "source_line": 449,
       "wrapper_target": "chrys.service.agent_middleware.events.sub_agent_events.SubAgentEventMiddleware._publish_progress"
     },
     {
@@ -35978,7 +35978,7 @@
       "primitive": "gather",
       "qualname": "SubAgentEventMiddleware.flush_progress",
       "source_column": 12,
-      "source_line": 469,
+      "source_line": 471,
       "wrapper_target": null
     },
     {
@@ -35998,7 +35998,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentEventMiddleware.process",
       "source_column": 16,
-      "source_line": 508,
+      "source_line": 510,
       "wrapper_target": null
     },
     {
@@ -36018,7 +36018,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentEventMiddleware.process",
       "source_column": 12,
-      "source_line": 509,
+      "source_line": 511,
       "wrapper_target": "chrys.service.agent_middleware.events.sub_agent_events.SubAgentEventMiddleware._process"
     },
     {
@@ -36331,7 +36331,7 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._bus.publish(InvocationToolCallStart(origin=origin, tool_name=tool_name, tool_kind=tool_kind, args=args, call_id=call_id, provider_call_id=provider_call_id, session_id=self._session_id, workspace_cwd=self._workspace_cwd or ''))",
+      "expression": "await self._bus.publish(InvocationToolCallStart(origin=origin, agent_profile_name=self._profile_name, tool_name=tool_name, tool_kind=tool_kind, args=args, call_id=call_id, provider_call_id=provider_call_id, session_id=self._session_id, workspace_cwd=self._workspace_cwd or ''))",
       "identity": "chrys.service.agent_middleware.events.tool_events:ToolEventMiddleware._process_tool_call:2",
       "module": "chrys.service.agent_middleware.events.tool_events",
       "ordinal": 2,
@@ -36358,7 +36358,7 @@
       "primitive": "awaitable",
       "qualname": "ToolEventMiddleware._process_tool_call",
       "source_column": 12,
-      "source_line": 406,
+      "source_line": 407,
       "wrapper_target": null
     },
     {
@@ -36378,7 +36378,7 @@
       "primitive": "awaitable",
       "qualname": "ToolEventMiddleware._process_tool_call",
       "source_column": 16,
-      "source_line": 486,
+      "source_line": 487,
       "wrapper_target": null
     },
     {
@@ -36398,7 +36398,7 @@
       "primitive": "awaitable",
       "qualname": "ToolEventMiddleware._process_tool_call",
       "source_column": 16,
-      "source_line": 492,
+      "source_line": 493,
       "wrapper_target": null
     },
     {
@@ -36418,7 +36418,7 @@
       "primitive": "awaitable",
       "qualname": "ToolEventMiddleware._process_tool_call",
       "source_column": 12,
-      "source_line": 507,
+      "source_line": 508,
       "wrapper_target": null
     },
     {
@@ -36438,7 +36438,7 @@
       "primitive": "wrapper",
       "qualname": "ToolEventMiddleware._process_tool_call",
       "source_column": 41,
-      "source_line": 600,
+      "source_line": 601,
       "wrapper_target": "chrys.service.mutations.pipeline.finalize_mutation_tracking"
     },
     {
@@ -36458,7 +36458,7 @@
       "primitive": "wrapper",
       "qualname": "ToolEventMiddleware._process_tool_call",
       "source_column": 36,
-      "source_line": 658,
+      "source_line": 659,
       "wrapper_target": "chrys.service.agent_middleware.events.hook_dispatch.fire_after_tool_hooks"
     },
     {
@@ -36471,14 +36471,14 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._bus.publish(InvocationToolCallResult(origin=origin, tool_name=tool_name, call_id=call_id, provider_call_id=provider_call_id, result=result_text, image_contents=result_images, duration_ms=duration_ms, session_id=self._session_id, metadata=metadata, workspace_cwd=self._workspace_cwd or ''))",
+      "expression": "await self._bus.publish(InvocationToolCallResult(origin=origin, agent_profile_name=self._profile_name, tool_name=tool_name, call_id=call_id, provider_call_id=provider_call_id, result=result_text, image_contents=result_images, duration_ms=duration_ms, session_id=self._session_id, metadata=metadata, workspace_cwd=self._workspace_cwd or ''))",
       "identity": "chrys.service.agent_middleware.events.tool_events:ToolEventMiddleware._process_tool_call:9",
       "module": "chrys.service.agent_middleware.events.tool_events",
       "ordinal": 9,
       "primitive": "awaitable",
       "qualname": "ToolEventMiddleware._process_tool_call",
       "source_column": 20,
-      "source_line": 693,
+      "source_line": 694,
       "wrapper_target": null
     },
     {
@@ -36498,7 +36498,7 @@
       "primitive": "awaitable",
       "qualname": "ToolEventMiddleware._process_tool_call",
       "source_column": 24,
-      "source_line": 715,
+      "source_line": 717,
       "wrapper_target": null
     },
     {
@@ -36518,7 +36518,7 @@
       "primitive": "awaitable",
       "qualname": "ToolEventMiddleware._process_tool_call",
       "source_column": 24,
-      "source_line": 724,
+      "source_line": 726,
       "wrapper_target": null
     },
     {
@@ -36538,7 +36538,7 @@
       "primitive": "awaitable",
       "qualname": "ToolEventMiddleware._process_tool_call._emit_progress",
       "source_column": 16,
-      "source_line": 461,
+      "source_line": 462,
       "wrapper_target": null
     },
     {
@@ -36558,7 +36558,7 @@
       "primitive": "awaitable",
       "qualname": "ToolEventMiddleware._process_tool_call._emit_web_progress",
       "source_column": 16,
-      "source_line": 438,
+      "source_line": 439,
       "wrapper_target": null
     },
     {
