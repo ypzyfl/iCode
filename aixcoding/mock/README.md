@@ -88,7 +88,7 @@ aixcoding/mock/
 
 1. **挑名字**：无前缀服务名（如 `telemetry`）；目录名描述职责域，不预设实现形态
    （形态由子包内文件表达，当前均为 HTTP server 即 `server.py`；进程内替身不进本专区
-   ——测试 fake 归 `aixcoding/tests/`，产品内挂钩归 `src/chrys/aixcoding/`）；
+   ——测试 fake 归 `aixcoding/tests/`，产品内挂钩归 `src/chrys/{tier}/aixcoding/`（按落位规则，ADR-0011））；
 2. **建子包**：
    - `__init__.py`：docstring 列端点与公开 API；
    - `server.py`：`create_server(...)` factory（测试进程内驱动）+ `main()` CLI（独立

@@ -28,9 +28,9 @@
 
 ## 2. 目录与术语
 
-- **上游代码**：`src/chrys/`（`src/chrys/aixcoding/` 除外）、`tests/`、`locales/`、`scripts/`、`docs/`、`pyproject.toml` 及根级配置。**上游测试（`tests/`）视同上游源码。** 上游目录内不落定制文件。
+- **上游代码**：`src/chrys/`（各 tier 目录下的 `aixcoding/` 子目录除外）、`tests/`、`locales/`、`scripts/`、`docs/`、`pyproject.toml` 及根级配置。**上游测试（`tests/`）视同上游源码。** 上游目录内不落定制文件。
 - **定制代码**（新增文件的唯一合法落点，均以 `aixcoding` 命名）：
-  - `src/chrys/aixcoding/` —— 产品定制代码，**唯一进 wheel 落点**；子包按依赖方向分层（见 R9）
+  - `src/chrys/{tier}/aixcoding/` —— 产品定制代码（按 tier 落位，ADR-0011），进 wheel；档位判据见 R9 与 `DIRECTORY.md §3`
   - 仓库根 `aixcoding/` —— 纯开发资产：`tests/`、`docs/`、`mock/`、`tools/`，不进 wheel
 - **定制测试**：唯一落点 `aixcoding/tests/`，独立于上游默认收集（显式运行命令见 §4，CI 执行点见 §9）。
 - **定制点**：每一处获批的上游修改，或每一个独立定制模块。
@@ -43,7 +43,7 @@
   **迁移批次（阶段三起）执行细则**（细则单源在本条，design 模板与评审模板只引用不展开）：
 
   - **细则一（基线重审）**：迁移是在新基线上的重实现——旧分支挂点因基线漂移必然重审（可能失效或不再最优），照搬不是选项；
-  - **细则二（逐行归属）**：R2 表**每行一条归属结论**（自下一份新签 design 起适用；既有已签认 design 不回溯改写），回答"这行能挪进 `src/chrys/aixcoding/` 吗"；行数最小（追版本成本）与归属正确（语义内聚；判据：该逻辑是否属该特性包的领域知识）双约束冲突时**归属优先**；函数体归位定制包、上游只留挂点是默认形态（实例：auth 批次 2 文件 `+41/−2` 收敛为 1 文件 `+16/−1`，git numstat 口径，见 `docs/auth/design.md`）；
+  - **细则二（逐行归属）**：R2 表**每行一条归属结论**（自下一份新签 design 起适用；既有已签认 design 不回溯改写），回答"这行能挪进定制包（`src/chrys/{tier}/aixcoding/`）吗"；行数最小（追版本成本）与归属正确（语义内聚；判据：该逻辑是否属该特性包的领域知识）双约束冲突时**归属优先**；函数体归位定制包、上游只留挂点是默认形态（实例：auth 批次 2 文件 `+41/−2` 收敛为 1 文件 `+16/−1`，git numstat 口径，见 `docs/auth/design.md`）；
   - **细则三（消费方视野）**：公共逻辑沉为定制包公共 API，为后续批次复用铺路（反面教训：0.28 `_login_token`/`_catalog_token` 双份相似实现）。
 
   硬约束：上游对定制包的 import 须**函数内 lazy + 全吞错**（降级可接受时，如 auth 的 token 读取）；结构性接线（UI 基类继承等）失败应显式呈现，不适用全吞错；**直接依赖优于间接**（import 路径显性可见升级冲突）；**最小 ≠ 最隐**（显式小 diff 优于静默 patch；marker 与语义注释是必要开销）。
@@ -51,17 +51,17 @@
   职责：design 作者必答（责任人签认时核对，见 4.1②）；评审抽查"是否逐行回答"（形式检查）。
 - **R2 上游修改须审批**：对上游代码的任何改动（含 `tests/`、构建与打包配置如 `pyproject.toml` 的 packages）实施前，必须列出"改哪个文件、改什么、几行"，获负责人明确批准。AI 不得自行推断已获授权，不得以修 bug、顺手优化、重构为由绕过；被拒后回到 R1。
 - **R3 标记注释**：获批的上游改动在改动处加**单行**注释：英文、简短、跟随上游注释风格，以 `AIxCoding` 关键词开头（注意大小写）并指向归属模块；自定义目录名统一为全小写 `aixcoding`。
-  例：`# AIxCoding telemetry: emit tool events (src/chrys/aixcoding/tool_events)`
+  例：`# AIxCoding telemetry: emit tool events (src/chrys/kernel/aixcoding/tool_events)`
   （无方括号——对齐存量标记注释的实际格式；清单生成脚本按此匹配，数量以脚本扫描为准。）
   不使用多行 BEGIN/END 块标记——注释本身也是 rebase 冲突面。无法加注释的格式（JSON/二进制等）登记到定制清单；YAML/TOML 等支持 `#` 注释的格式正常打标记（可扫后缀清单见 `aixcoding/tools/_common.py`）。
-- **R4 新增文件入定制目录**：所有新增源码、测试、文档、脚本、mock 一律放 `aixcoding` 目录；进入 wheel 的定制代码只允许 `src/chrys/aixcoding/` 一处，仓库根 `aixcoding/` 不进 wheel（`packages` 仅 `["src/chrys"]`，上游原状）。
+- **R4 新增文件入定制目录**：所有新增源码、测试、文档、脚本、mock 一律放 `aixcoding` 目录；进入 wheel 的定制代码落 `src/chrys/{tier}/aixcoding/`（按 tier 落位，ADR-0011），仓库根 `aixcoding/` 不进 wheel（`packages` 仅 `["src/chrys"]`，上游原状）。
 - **R5 最小变更**：只改任务必需的内容。禁止顺手重构、格式化无关文件、改动无关注释、升级依赖、修改 CI。
 - **R6 不覆盖他人工作**：发现工作区有未提交的他人改动时，停止并询问，不得覆盖。
 - **R7 验证即证据**："完成/测试通过"必须附实际执行的命令与输出摘要；未运行的验证不得描述为通过；自生成测试不构成充分性证明。
 - **R8 文档与登记同步**：改动落地时同步更新活文档与定制清单；**"决定不做"的事同样必须记录**（防止重复提议已否决方案）。
-- **R9 定制代码依赖方向**：`src/chrys/aixcoding/` 默认只允许依赖 `chrys.foundation`（T0）与 `chrys.kernel`（T1）。子包/模块需引用更高层（service/orchestration/app）时：① 按 R2 流程报批（引用清单 + 理由）；② 登记定制清单（`reason` / `anchor` / 允许引用的边界子集）；③ 体现在 `tests/architecture/test_layering.py` 的 DAG 中，架构测试持续校验"DAG 豁免 ↔ 清单登记"一致性。已知结构性豁免：产品 UI 类定制（`tui`，tier 4 侧），边界限定为宿主 UI 基础设施。
+- **R9 定制代码依赖方向（按 tier 落位）**：定制产品代码按**实际依赖**落位 `src/chrys/{tier}/aixcoding/`（ADR-0011）：档位 = 四档（kernel/service/orchestration/app，按需建）中**能容纳其全部依赖的最低档**；kernel 档为默认最低档（零依赖与仅 foundation 依赖均落此），foundation 档不设；依赖做硬判据、语义做参考——放错层 `test_layering` 即红。kernel 档内互引必须**相对导入**。**例外（结构性挂接边）**：包内个别模块对宿主的向上挂接（进程入口、钩子注册，非业务库依赖）不改变整包档位，走 `_DAG_EDGE_ALLOWLIST` 豁免 + 定制清单登记（reason/anchor）。细则见 `DIRECTORY.md §3`。
 - **R10 个人责任制（签认）**：每个任务/功能有唯一责任人，对其全部产出（需求理解、设计、实现、验证）负责。**需签认的文档**：`design.md` 与 ADR（决策档，仅 R2 清单变更须重签）、`self-review.md`（记录档，签一次追加不重签）；其余功能文档（requirements/test-plan/plan/verification）为活文档不签认。签认字段组：`责任人 / 状态 / 确认日期 / 确认意见（可选）`，**必须由责任人本人编辑并提交，AI 不得代填**。校验：`uv run python aixcoding/tools/check_docs.py`（覆盖 ADR、design、self-review 三类签认；design 含 R11 联动——依赖申请节存在且已确认时审批人/审批日期须非空；git blame 交叉核验与 CI 挂接为后续增强）；`git blame` 为抽查提供"谁签的、谁改的"事实依据。R2 的批准记录落盘于对应设计文档的签认与确认意见，不以聊天记录为凭。
-- **R11 第三方依赖须审批**：定制代码（`src/chrys/aixcoding/` 与根 `aixcoding/` 全部资产）新增第三方依赖——运行时或开发用——**默认拒绝**，引入前须报批，申请说明：① 现有手段逐项排除（标准库 / 已有依赖 / 上游已有依赖，为什么都不行）；② 许可证兼容性；③ 供应链评估（维护活跃度、使用量、传递依赖树）；④ 锁定版本；⑤ 对 uv.lock 冲突面与离线打包的影响。申请落点为 design.md 的"第三方依赖申请"节（五项结构）；批准 = 获审批人（负责人或其指定人）同意，审批人/审批日期记入 **design.md 头部"新增第三方依赖审批"区域**（**经审批人同意后由责任人代填，AI 不得代填**；依赖清单变更须重新过审批人；谎报以抽查与追责兜底）；依赖引入通常命中 ADR 判定②（撤销代价高），应出 ADR。运行时依赖必改 `pyproject.toml`，同时是 R2 报批项；开发依赖不改上游文件，R11 即其唯一管控点。跟随上游升级带来的依赖变更（上游自身的增删）不在此列，走 §8；mock 专区维持 stdlib-only 更强约束（DIRECTORY.md §6）。决策理由见 ADR-0008。
+- **R11 第三方依赖须审批**：定制代码（`src/chrys/*/aixcoding/` 与根 `aixcoding/` 全部资产）新增第三方依赖——运行时或开发用——**默认拒绝**，引入前须报批，申请说明：① 现有手段逐项排除（标准库 / 已有依赖 / 上游已有依赖，为什么都不行）；② 许可证兼容性；③ 供应链评估（维护活跃度、使用量、传递依赖树）；④ 锁定版本；⑤ 对 uv.lock 冲突面与离线打包的影响。申请落点为 design.md 的"第三方依赖申请"节（五项结构）；批准 = 获审批人（负责人或其指定人）同意，审批人/审批日期记入 **design.md 头部"新增第三方依赖审批"区域**（**经审批人同意后由责任人代填，AI 不得代填**；依赖清单变更须重新过审批人；谎报以抽查与追责兜底）；依赖引入通常命中 ADR 判定②（撤销代价高），应出 ADR。运行时依赖必改 `pyproject.toml`，同时是 R2 报批项；开发依赖不改上游文件，R11 即其唯一管控点。跟随上游升级带来的依赖变更（上游自身的增删）不在此列，走 §8；mock 专区维持 stdlib-only 更强约束（DIRECTORY.md §6）。决策理由见 ADR-0008。
 
 > **R 系列变更的同步义务（防漂移）**：修改本节任一规则时，同步更新两处内嵌摘要——`SELF-REVIEW-HOWTO.md` §二 与 `PEER-REVIEW-HOWTO.md` §二 评审模板中的"评审背景"块（模板自包含，摘要滞后 = 评审 AI 用旧规则）。
 
@@ -197,7 +197,7 @@ peer review 由另一人按 `PEER-REVIEW-HOWTO.md` 执行——**上游接触面
 ## 9. 定制代码自身约束
 
 - **降级优先（宁缺毋错）**：定制功能依赖缺失或环境异常时 lazy import + 降级，不得影响上游主流程；上报数据字段宁缺勿错。**降级与异常必须可查、可追溯**（问题发生时有据可依），具体可观测性机制（日志、状态、诊断入口等）不预设结论，待专项讨论定稿后补充本条。
-- 依赖方向：定制适配层可被上游显式调用（获批埋点），定制业务不得让上游反向依赖具体实现；`src/chrys/aixcoding/` 内部的分层约束见 R9。
+- 依赖方向：定制适配层可被上游显式调用（获批埋点），定制业务不得让上游反向依赖具体实现；`src/chrys/*/aixcoding/` 内部的分层约束见 R9。
 - 新第三方依赖默认拒绝、报批后引入，管控细则见 R11。
 - 定制测试独立于上游默认收集（`aixcoding/tests` 显式运行；CI 执行点为独立 workflow `.github/workflows/aixcoding-tests.yml`——**规划中待建**（`restructure/plan.md` U3），建成后覆盖 `aixcoding/` 的 lint 与 mock 契约测试），不修改上游测试基础设施来适配定制测试，不 import 上游 `tests/support/` 设施（可阅读、复制，不可依赖）。
 - 自建 mock 统一放 `aixcoding/mock/`，结构强约束见 `DIRECTORY.md`；每个 mock 必须有契约测试（`aixcoding/tests/mock/`）。

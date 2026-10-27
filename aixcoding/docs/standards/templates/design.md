@@ -54,7 +54,7 @@ R1 自查（必答）：业务逻辑是否已全部外置到定制模块？接�
 
 ## 定制点登记预告
 
-<落点（src/chrys/aixcoding/<子包>）、anchor（依赖的上游符号）、风险等级——对照 CUSTOMIZATIONS.md 字段>
+<落点（src/chrys/{tier}/aixcoding/<子包>）、anchor（依赖的上游符号）、风险等级——对照 CUSTOMIZATIONS.md 字段>
 
 ## 风险与最坏情况
 
