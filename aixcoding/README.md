@@ -4,7 +4,7 @@
 > 本页"结构一图"与速查表中 `tests/`、`mock/` 为阶段三迁入后的**目标结构**，当前尚未建立（磁盘现状仅 `docs/`、`tools/`、`README.md`）。
 
 本目录承载 iCode-fork 的**全部定制开发资产**（文档、测试、mock），不进 wheel。
-进 wheel 的定制产品代码在 `src/chrys/aixcoding/`。
+进 wheel 的定制产品代码按 tier 落位 `src/chrys/{tier}/aixcoding/`（ADR-0011）。
 
 ## 结构一图
 
@@ -20,7 +20,7 @@ aixcoding/
 
 | 我要… | 去哪 / 怎么做 |
 |---|---|
-| 新增定制产品代码 | `src/chrys/aixcoding/`（子包分层判定见规范 §3；先读 `docs/standards/DEVELOPMENT.md`） |
+| 新增定制产品代码 | `src/chrys/{tier}/aixcoding/`（档位判据见规范 §3；先读 `docs/standards/DEVELOPMENT.md`） |
 | 新增定制测试 | `aixcoding/tests/<特性>/` |
 | 新增 mock | `aixcoding/mock/<服务名>/`（步骤见 `mock/README.md`；必须配契约测试） |
 | 跑定制测试 | `uv run --extra all pytest aixcoding/tests -m "not integration and not gc_calibration"` |

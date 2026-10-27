@@ -127,15 +127,24 @@ ADR-0002（2026-10-22）决策：定制产品代码统一进 `src/chrys/aixcodin
 
 - **回迁实施**（独立小批次，R2 报批 1 项）：git mv 两包 + import 改写（包内互引绝对→相对
   + 包外消费方前缀替换）——上游 `service/llm/wire_client.py` 1 行、`test_layering.py`
-  删登记键 2 行 + 豁免条目 Path 跟改 1 行、定制测试 12 文件；launcher 入口命令随之变为
+  删登记键 2 行 + 豁免条目 Path 跟改 1 行、定制测试 12 文件、**工具脚本路径联动 4 处**
+  （见"规范联动"条，漏改则回迁后新路径被工具误判为上游）；launcher 入口命令随之变为
   `python -m chrys.kernel.aixcoding.diagnostics.launcher`（相关文档联动）；验证 =
   `pytest tests/architecture` + `pytest aixcoding/tests`
   + `ty check`（kernel 档新路径）+ wheel 冒烟（`chrys.kernel.aixcoding` 在包内）。
-- **规范联动**：DEVELOPMENT.md §2（定制代码落点：`src/chrys/*/aixcoding/`）、R4（"只允许
-  `src/chrys/aixcoding/` 一处"改写为按 tier 落位）、R9（分层约束按 tier 重写，机器双向
-  校验降格为登记条文）；DIRECTORY.md §3（子包表与 tier 落位蓝图）；
-  `restructure/plan.md` U1（per-file-ignores 路径跟改）与 U2（作废，按 R8 留档说明）；
-  CUSTOMIZATIONS.md 扫描规则改 glob `src/chrys/*/aixcoding/**`。
+- **规范联动**（规范族文本已随本 ADR 的 PR 同步完成）：DEVELOPMENT.md §2/R1/R3/R4/R9/R11/§9
+  （R9 按 tier 重写，机器双向校验降格为登记条文）、DIRECTORY.md §1-§8、
+  SELF-REVIEW-HOWTO R4 摘要、templates/design 落点、README×2、`restructure/plan.md`
+  U1（per-file-ignores 路径）/U2（作废留档，R8）。
+  **工具脚本路径联动（随回迁批次实施，同 `docs/devtools/design.md`"分类器随实现走"口径）**：
+  文件分类/扫描逻辑硬编码于 4 处——`_common.py:37 CUSTOM_PATH_PREFIXES`、
+  `gen_customizations.py:295,312`、`check_import_boundaries.py:10-13,85-86`、
+  `check_r2_diff.py:13`——统一改为 `src/chrys/*/aixcoding/` 前缀判定（CUSTOMIZATIONS.md
+  本身是生成产物，无扫描规则可改）；不改的后果：回迁后新路径被 `is_custom()` 误判为上游，
+  B3 规则失效、gen_customizations 漏扫、check_r2_diff 误报。
+- **已知残留旧路径引用（随各迁入批次改，R8 留档）**：`aixcoding/mock/update/__init__.py:32`
+  docstring 引用 `src/chrys/aixcoding/update_detection.py`（随 update 批次迁入时改）；
+  `docs/auth/*`、`docs/diagnostics/*` 等签认/记录档为历史快照，不回改。
 - **进行中批次联动**：tui design（`aixcoding/docs/tui/design.md`）落位改
   `src/chrys/app/aixcoding/tui/`，R2 表 8 号（test_layering 登记）整行删除，表 7 号
   per-file-ignores 路径跟改。

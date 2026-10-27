@@ -23,7 +23,7 @@
 评审背景（规范摘要，已内嵌无需另读文件；全文见 aixcoding/docs/standards/DEVELOPMENT.md）：
 - R1 非侵入优先，必改上游时少而集中（升级冲突面最小化）；迁移批次含逐行归属细则（R2 表每行一条归属结论，见 DEVELOPMENT.md R1）
 - R2 上游文件的任何改动必须先获批（对照下方 R2 比对）；R3 获批的上游改动必须带 AIxCoding 单行标记注释
-- R4 新增文件只允许落 aixcoding 目录（产品代码仅 src/chrys/aixcoding/）
+- R4 新增文件只允许落 aixcoding 目录（产品代码按 tier 落位 `src/chrys/{tier}/aixcoding/`，ADR-0011）
 - R5 只改任务必需内容，禁止顺手重构/升级依赖；R6 发现他人未提交改动时停止询问
 - R7 "测试通过"必须附真实命令与输出；R8 文档与定制清单须同步更新
 - R9 定制代码默认只依赖 chrys.foundation / chrys.kernel

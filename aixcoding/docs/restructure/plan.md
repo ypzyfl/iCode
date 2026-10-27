@@ -61,8 +61,8 @@
 
 | # | 文件 | 改动 | 状态 |
 |---|---|---|---|
-| U1 | `pyproject.toml` | `packages` 还原 `["src/chrys"]`（删除 `"aixcoding"`）；`testpaths` 还原上游原值（删 `"mock_server"`）；per-file-ignores：`"aixcoding/tui/*"` → `"src/chrys/aixcoding/tui/*"`；`"mock_server/**/test_*.py"` → `"aixcoding/tests/**"` | 已核对（2026-10-25，见 §0）：新分支与上游零差异，还原部分无操作；per-file-ignores 改动在新分支不存在，转为阶段三迁入 tui/tests 时的**新增** R2 报批项 |
-| U2 | `tests/architecture/test_layering.py` | DAG 细化：`chrys.aixcoding` 默认 tier 1，`chrys.aixcoding.tui` 单列 tier 4 侧；新增"DAG 豁免 ↔ 定制清单登记"一致性断言 | 待批 |
+| U1 | `pyproject.toml` | `packages` 还原 `["src/chrys"]`（删除 `"aixcoding"`）；`testpaths` 还原上游原值（删 `"mock_server"`）；per-file-ignores：`"aixcoding/tui/*"` → `"src/chrys/app/aixcoding/tui/*"`；`"mock_server/**/test_*.py"` → `"aixcoding/tests/**"` | 已核对（2026-10-25，见 §0）：新分支与上游零差异，还原部分无操作；per-file-ignores 改动在新分支不存在，转为阶段三迁入 tui/tests 时的**新增** R2 报批项（路径已随 ADR-0011 按 tier 落位更新） |
+| U2 | `tests/architecture/test_layering.py` | ~~DAG 细化：`chrys.aixcoding` 默认 tier 1，`chrys.aixcoding.tui` 单列 tier 4 侧；新增"DAG 豁免 ↔ 定制清单登记"一致性断言~~ | **作废（2026-10-27，被 ADR-0011 取代——按 tier 落位后 tui 落 `src/chrys/app/aixcoding/` 天然合法，无需改 test_layering 判定机制；双向校验断言降格为登记条文；R8 留档）** |
 | U3 | `.github/workflows/aixcoding-tests.yml` | 新建（上游目录内新增文件，ADR-0004）：ruff check/format `aixcoding/` + `pytest aixcoding/tests`，触发对齐 ci.yml，初始单 Linux | 待批 |
 | U4 | `tests/app/aixcoding/` 删除（11 文件）+ 上游 tests 树内定制依赖文件更新（P5 两文件） | 见 T2/P5 | 待批（T2/P5/U4 合并审批） |
 | U5 | `mock_server/` 删除 | 见 M5 | 待批（可与 M5 合并审批） |
@@ -75,7 +75,7 @@
 2. `aixcoding/mock/` 建立 + M1–M3 迁移 + 目录基建（= 包根 `__init__.py`、`__main__.py` 组合启动器、`README.md` 骨架）+ T1 的 `sys.path` 通用增强 → 验证：`pytest aixcoding/tests` 绿。（2026-10-25 顺序调整：M4 与 T1 的 telemetry-mock 导入增强、telemetry 测试先行验证随 telemetry 殿后，见顶部注与 `../ROADMAP.md` §2 阶段三。）
 3. T2 迁移（R2 获批后）→ 验证：全部定制测试绿。
 4. P2/P3 产品代码迁移 + P4 接线点更新 → 验证：ty 通过（预留修复窗口：auth/tui 首次进 ty 射程）、定制测试绿、Smart Test 传 `--paths`。
-5. U1/U2（R2 获批后）→ 验证：`pytest tests/architecture` 绿（新 DAG 规则）、`uv build` 产物正确。
+5. U1（R2 获批后）→ 验证：`pytest tests/architecture` 绿、`uv build` 产物正确。（U2 已作废，见 §2 表；另随 ADR-0011 回迁批次的工具脚本路径联动见该 ADR 后果节）
 6. U3 新 workflow → 验证：CI 全绿。
 7. M5/R1 收尾删除 → 全量验收（§4）。
 8. **首批工具建设**（§0 立项四脚本：清单生成 / R2 比对 / R3 校验 / import 边界）→ 验收：脚本挂入 `aixcoding-tests.yml`（或本地强制自检步骤）并跑绿；在此之前不启动新功能开发——规范承诺的自动化校验不得长期处于人肉降级态。
