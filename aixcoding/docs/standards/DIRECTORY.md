@@ -124,7 +124,7 @@ aixcoding/mock/<name>/            # 命名：无前缀服务名（auth / update 
 | 例外 | 原因 | 期限 |
 |---|---|---|
 | 根 `aixcoding/__init__.py` 保留 | 作为开发资产的 import 命名空间锚点（`aixcoding.mock.*`）；不进 wheel，无打包副作用 | 持续有效 |
-| `tui` 文案不用 `msg()`，直接中文常量 | 内部产品无多语言需求；转 `msg()` 会引入"每次改文案必须同步 catalog"的永久义务（详见 ADR-0005）。**适用范围：新增 UI 定制界面一律沿用**（文案直接中文常量，不引入 `msg()`） | 产品需要英文界面时重评 |
+| `tui` 文案不用 `msg()`，直接中文常量 | 定制面 i18n **中文单语总则**（ADR-0010，取代 ADR-0005）：默认纯中文常量；上游强类型（`MessageRef` 等）处允许 `msg(key, fallback="中文")` 借壳且 **zh PO 永不登记翻译**（副产物仅 pot 流水线条目）；例外（必须双语/收益明显）须在批次 design 具名给理由。**首个具名登记：`src/chrys/aixcoding/tui/*` 整包**（对话框/徽标/toast 纯常量；命令注册处 description/man 借壳） | 产品需要英文界面时重评 |
 
 ## 9. 命名约定速查
 
