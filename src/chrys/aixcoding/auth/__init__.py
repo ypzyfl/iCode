@@ -5,9 +5,11 @@
 Public API -- import from :mod:`chrys.aixcoding.auth` rather than the submodules::
 
     from chrys.aixcoding.auth import AuthClient, CredentialStore, Environment, get_backend
-    from chrys.aixcoding.auth import LoginSession, get_login_session
+    from chrys.aixcoding.auth import LoginSession, get_login_session, login_token_header_value
     from chrys.aixcoding.auth import DelegatedCredential, detect_delegation
 """
+
+import logging
 
 from chrys.aixcoding.auth.client import AuthClient
 from chrys.aixcoding.auth.crypto import get_backend
@@ -40,6 +42,31 @@ from chrys.aixcoding.auth.types import (
     TokenResult,
 )
 
+_log = logging.getLogger(__name__)
+
+
+def login_token_header_value() -> str:
+    """The login token as the ``token`` header value, or ``""`` when absent.
+
+    The send-time consumer of the stored login credential: AIxCoding's LLM
+    gateway authenticates traffic with the token the login flow stored. The
+    engine (and its LLM clients) are built before login can complete, so a
+    construction-time snapshot would pin an empty token for the whole
+    session -- resolve this per request instead. Reading the session performs
+    no network I/O, and every failure (no session, broken storage, degraded
+    backend) degrades to ``""`` so an unauthenticated or broken session simply
+    sends no header -- a downstream that resolves this per request gets
+    login/logout on the next request, never a failed call.
+    """
+    try:
+        stored = get_login_session().stored_token
+    except Exception:
+        # Read on every request, so a warning per call would spam the log.
+        _log.debug("No login session for the token header.", exc_info=True)
+        return ""
+    return (stored or "").strip()
+
+
 __all__ = [
     "COMPAT_EHR_VARIABLE",
     "COMPAT_TOKEN_VARIABLE",
@@ -67,4 +94,5 @@ __all__ = [
     "detect_delegation",
     "get_backend",
     "get_login_session",
+    "login_token_header_value",
 ]

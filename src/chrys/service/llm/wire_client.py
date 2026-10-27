@@ -111,18 +111,17 @@ class RequestHeaders:
         remaining ones must be sendable over HTTP.
         """
         model_id = request.get("model")
-        # AIxCoding auth: send-time token header for the LLM gateway
-        # (auth migration design). The engine (and its LLM clients) are built
-        # before login can complete, so a construction-time snapshot would pin
-        # an empty token for the whole session. Resolved per request,
-        # login/logout takes effect on the next request; it overrides any
-        # static ``token`` the caller supplied (login credential is
-        # authoritative). The import rides the same try so a clients-module
-        # import failure degrades to "no token", never a failed request.
+        # AIxCoding auth: send-time login ``token`` header for the LLM
+        # gateway (auth migration design). Resolved per request —
+        # login/logout takes effect on the next request, and the login
+        # credential overrides any static ``token`` the caller supplied.
+        # The fully-swallowing helper lives in chrys.aixcoding.auth and the
+        # import rides the same try, so any failure here degrades to "no
+        # header", never a failed request.
         try:
-            from chrys.service.llm.clients import _login_token
+            from chrys.aixcoding.auth import login_token_header_value
 
-            login_token = _login_token()
+            login_token = login_token_header_value()
         except Exception:
             login_token = ""
         session_id = self.route_session_id()

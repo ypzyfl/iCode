@@ -50,6 +50,12 @@
 - [x] 请示 commit/push + PR（b0375df 已 push，PR #60 已建；Upstream CI windows ty 失败
       根因修复见 verification 2026-10-27 节——crypto.py 3 处平台相关 ignore 改 getattr
       动态获取，三平台零 warning；修复 commit 待授权）
+- [x] 缩小重构（2026-10-27，负责人确认在 PR #60 内执行）：token 解析归位 auth 包
+      `login_token_header_value()`（__all__ 27 项）；clients.py 对 base **diff 归零**退出 R2；
+      wire_client 直接 import auth 包（依赖显性化）；上游 2 文件 38 行 → **1 文件 +16/−1**；
+      评审两轮收敛（增量评审 3 findings 全修 + 复审无 finding，见 self-review）；全量验证绿；
+      1c06bdd 双门禁已全绿（基线确认）
+- [ ] 责任人重签 design（R2 表重写）→ 请示 commit+push → CI 绿后合并 PR #60
 - [ ] CI 双门禁绿后用户合并 PR #60
 
 ## 挂起与备忘

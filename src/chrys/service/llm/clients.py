@@ -102,26 +102,6 @@ def _provider_sdk_user_agent(provider: str) -> str | None:
     return f"AsyncOpenAI/Python {openai.__version__}"
 
 
-# AIxCoding auth: token header for the LLM gateway (auth migration design).
-def _login_token() -> str:
-    """The AIxCoding login token for the ``token`` header, or "" when absent.
-
-    An AIxCoding deployment authenticates its LLM traffic with the same
-    credential the login flow stored — the gateway in front of the models
-    rejects a request without it. Reading the session performs no network
-    I/O, so an unauthenticated session simply sends no header.
-    """
-    try:
-        from chrys.aixcoding.auth import get_login_session
-
-        stored = get_login_session().stored_token
-    except Exception:
-        # Read on every request, so a warning per call would spam the log.
-        _log.debug("No login session for the LLM request token header.", exc_info=True)
-        return ""
-    return (stored or "").strip()
-
-
 def _build_default_headers(
     session_id: str | None,
     profile: ModelProfile,
@@ -136,10 +116,7 @@ def _build_default_headers(
     and ``Chrys-Model-Id``) merged with the profile's ``http_headers`` (parsed
     from JSON). Profile headers take precedence on key conflicts except for
     Chrys-managed request metadata. The wire clients overwrite the model
-    header per request with the final provider ``model`` value, and add the
-    AIxCoding login ``token`` header at send time — a construction-time
-    snapshot would pin the empty token of a session built before login (the
-    engine does not rebuild on login).
+    header per request with the final provider ``model`` value.
     """
     from chrys import __version__
 

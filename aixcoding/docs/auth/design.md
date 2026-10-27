@@ -7,8 +7,8 @@
 
 - 责任人：周彬
 - 状态：已确认
-- 确认日期：2026-10-26
-- 确认意见：无特别意见
+- 确认日期：2026-10-27
+- 确认意见：确认变更方案——对上游源代码改动更小
 
 ## 方案概述
 
@@ -23,7 +23,7 @@
 src/chrys/aixcoding/auth/          9 文件迁移                   tui 全家（login dialog /
 aixcoding/tests/auth/              7 测试迁移 + 1 新增             indicator / commands / screen）
 env 更名 AIXCODING_AUTH_*×5        含 DELEGATED_* 三件            catalog 模型目录同步（整套重建）
-LLM token 接线                     clients.py + wire_client.py    context / telemetry（殿后）
+LLM token 接线                     wire_client.py（唯一上游挂点）  context / telemetry（殿后）
 mock 更名联动                      aixcoding/mock/ 内 6+ 文件      update_detection
 ```
 
@@ -83,15 +83,23 @@ P2 四条均采纳：import+调用同进 try（wire_client 注入形态稳健性
 
 | # | 文件 | 改什么 | 预估行数 | 标记注释位置 |
 |---|---|---|---|---|
-| 1 | `src/chrys/service/llm/clients.py` | ① 新增 `_login_token()` 函数（0.28:138-155 原文平移，仅两处适配：import 改 `chrys.aixcoding.auth`；docstring 中 `:func:`catalog._catalog_token`` 引用因 catalog 本批 OUT（0.31 缺位）改写为不依赖 catalog 的自含表述），插入点：`_provider_sdk_user_agent` 之后、`_build_default_headers` 之前（0.31 现约 104 行处）；② `_build_default_headers` docstring 尾部补 send-time token 说明两句（0.28:171-175 适配 0.31 措辞，"Instrumented chat clients"→"wire clients"） | +20 / +3 | `_login_token()` def 前一行 `# AIxCoding auth: ...`（0.28 原标记形态平移；module 词 `login`→`auth` 系实施期修正，对齐 module=特性名先例与登记落点匹配，见 verification"定制清单刷新"节） |
-| 2 | `src/chrys/service/llm/wire_client.py` | `RequestHeaders.stamp()`（现 106-142 行）内注入：**import 与调用同进一个 try**（`try: from chrys.service.llm.clients import _login_token; login_token = _login_token() / except Exception: login_token = ""`——对 0.28 instrumented.py:203 无 try 形态的稳健性增强：防上游重构改名 `_login_token` 时 import 抛错炸掉每个 LLM 请求）→ send-time 语义注释块（0.28:210-216 平移）→ 早退条件（现 119 行）追加 `and not login_token` → 头赋值区尾部 `if login_token: headers["token"] = login_token` | +15 | 注释块首行 `# AIxCoding auth: ...`（0.28 instrumented 两处标记的合并平移；module 词修正同上） |
+| 1 | `src/chrys/service/llm/wire_client.py` | `RequestHeaders.stamp()` 内注入：**import 与调用同进一个 try**（`try: from chrys.aixcoding.auth import login_token_header_value; login_token = login_token_header_value() / except Exception: login_token = ""`——0.28 语义，解析函数本体位于 auth 包公共 API）→ send-time 语义注释块（0.28:210-216 精神平移）→ 早退条件追加 `and not login_token` → 头赋值区尾部 `if login_token: headers["token"] = login_token` | +16 / −1 | 注释块首行 `# AIxCoding auth: ...`（0.28 instrumented 两处标记的合并平移；module 词 `login`→`auth` 系实施期修正，对齐 module=特性名先例与登记落点匹配，见 verification"定制清单刷新"节） |
 
-R1 自查：业务逻辑（会话/存储/加密/轮询）全部外置 `src/chrys/aixcoding/auth/`；上游仅剩两个
-最小接线锚点（token 解析函数 + send-time 注入点），0.28 已验证无法更少（构造期快照方案被
-否决）；上游扩展点本身分散（clients 构建期 / wire 发送期），跟随其结构分散接线优于强行集中。
+> **缩小重构记录（2026-10-27，负责人确认在 PR #60 内执行）**：初版 R2 表曾含
+> `clients.py` 两处（`_login_token()` 函数 + `_build_default_headers` docstring，+23 行）。
+> 依"减少一处上游改动也值得认真对待"原则收敛：token 解析逻辑归位 auth 包
+> （`chrys.aixcoding.auth.login_token_header_value()` 公共函数，自定义路径），`clients.py`
+> **完全退出 R2**（对 base diff 归零），wire_client 对定制层由"经 clients 私有函数的间接
+> 依赖"改为"直接 import auth 包"（分层合规：service(2)→aixcoding(1) 合法向下，
+> test_layering 零豁免、check_import_boundaries 零违规；依赖显性化利于升级冲突可见）。
+> 附带收益：catalog 批次的 `_catalog_token` 可直接复用该公共函数，消除 0.28 的双份实现。
 
-**不改动**的上游相邻项：`clients.py` 的 `_build_default_headers` 本体逻辑、`wire_client.py`
-的 `WireClient._stamp_request_headers`（254-255 行的 None 跳过路径保留原样）、
+R1 自查：业务逻辑（会话/存储/加密/轮询/token 解析）全部外置 `src/chrys/aixcoding/auth/`；
+上游仅剩**一个**最小接线锚点（send-time 注入点），构造期快照方案已被 0.28 否决、hook/patch
+路线经评估劣于显式挂点（见对比二与四轮评审）——单文件挂点为 chrys 侧 send-time 语义的最小承载。
+
+**不改动**的上游相邻项：`clients.py` **整文件**（缩小重构后恢复上游原样）、`wire_client.py`
+的 `WireClient._stamp_request_headers`（None 跳过路径保留原样）、
 `tests/architecture/test_layering.py`（auth 落 `src/chrys/aixcoding/` 自动 tier 1，无需新
 DAG 豁免——service(2) → aixcoding(1) 属合法向下依赖）、`pyproject.toml`（httpx 已声明，
 per-file-ignores 无需新增）。
@@ -217,8 +225,7 @@ desktop 若走兼容通道（`AIXCODING_USER_EHR`+`OPENAI_API_KEY`）完全不�
 
 | 落点 | anchor | 风险等级 |
 |---|---|---|
-| `src/chrys/aixcoding/auth/`（9 文件） | `chrys.foundation.platform`（storage lazy import）+ httpx | 低（tier 1 自治包，升级零耦合） |
-| `clients.py::_login_token()` | `_build_default_headers` 邻域（函数自含，锚点稳定） | 中（函数级插入，上游重构该区域概率低） |
+| `src/chrys/aixcoding/auth/`（9 文件 + `login_token_header_value` 公共函数） | `chrys.foundation.platform`（storage lazy import）+ httpx | 低（tier 1 自治包，升级零耦合） |
 | `wire_client.py::RequestHeaders.stamp()` token 注入 | `stamp()` 方法（0.31 新结构，短期内稳定） | 中（若上游再重构 header stamping 需重接线，对照 0.28→0.31 instrumented→wire_client 迁移史） |
 
 ## 实施流程约束（R2 gate 机器语义，2026-10-26 四轮评审补写）

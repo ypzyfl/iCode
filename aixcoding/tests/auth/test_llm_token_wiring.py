@@ -90,11 +90,14 @@ def test_overrides_extra_headers(logged_in_session) -> None:
     assert headers["X-Custom"] == "keep"
 
 
-def test_stamp_survives_import_failure(monkeypatch) -> None:
-    """A broken clients-module import degrades to no token, never a failed request."""
+def test_stamp_survives_import_failure(logged_in_session, monkeypatch) -> None:
+    """A broken auth-package import degrades to no token, never a failed request."""
     import sys
 
-    monkeypatch.setitem(sys.modules, "chrys.service.llm.clients", None)
+    # Sanity arm: with the import path intact the header is present, so the
+    # patched assertions below can actually tell the two paths apart.
+    assert _stamp()["token"] == TOKEN
+    monkeypatch.setitem(sys.modules, "chrys.aixcoding.auth", None)
     headers = _stamp()
     assert "token" not in headers
     assert headers["X-Session-ID"] == "s-1"

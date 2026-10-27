@@ -118,6 +118,44 @@ uv run python aixcoding/tools/check_import_boundaries.py
   src/chrys && echo OK || echo FAIL)` → 三平台 `All checks passed!` + `TY_*_OK`
   **零 warning**；`pytest aixcoding/tests` 263 passed 2 skipped；ruff check/format 绿。
 
+## 2026-10-27 缩小重构（PR #60 内追加，负责人确认）
+
+- **动机**：负责人原则"即使减少一处上游改动也值得认真对待"+ 依赖显性化分析
+  （原形态 wire_client 经 `clients._login_token` 的**间接**定制依赖 → 直接 import auth 包，
+  分层合规 service(2)→aixcoding(1) 零豁免零违规）。
+- **改动**：`chrys.aixcoding.auth.__init__` 新增 `login_token_header_value()` 公共函数
+  （logger + 全吞错 + strip，0.28 `_login_token` 逻辑归位 auth 包，`__all__` 26→27 项）；
+  `clients.py` 撤销两处**对 base diff 归零**（已验证：`git diff <base> -- clients.py` 零输出）；
+  `wire_client.py` stamp() 改直接 `from chrys.aixcoding.auth import login_token_header_value`
+  （try 包裹不变，注释 9→7 行）；`test_stamp_survives_import_failure` patch 目标改
+  `chrys.aixcoding.auth`。
+- **上游净改动**：2 文件 ~38 行 → **1 文件 +14/−1**（clients.py 完全退出 R2）。
+- 验证见下节全量门禁。
+
+## 2026-10-27 缩小重构后全量门禁
+
+- `pytest aixcoding/tests/auth`：**100 passed**（含 patch 目标更新后的 import_failure 用例）；
+  全量 `pytest aixcoding/tests`：**263 passed, 2 skipped**；
+- `pytest tests/service/llm`：**2047 passed**；
+- ty 三平台（干净退出码法）：`All checks passed!` ×3（linux/win32/darwin 全 OK 零 warning）；
+- ruff check（src/chrys + aixcoding）/ format：全绿；
+- 四工具：`check_r2_diff` **upstream_changed=4、approved_pool=6——本批上游改动仅剩
+  wire_client.py 一个文件**（clients.py 退出批准池，diff 对 base 归零）；
+  `check_r3_markers` OK（4 文件 marker 全过）；`check_import_boundaries` OK（1100 文件）；
+  `check_docs` OK（9 ADR / 7 design / 5 self-review）；
+- `gen_customizations`：清单 7→**6 定制点**（clients.py 定制点随退出消失；1 warning 为
+  wire_client 接线登记行的 marker 归属 auth 包行，与既往同类非阻断噪音）。
+
+## 2026-10-27 缩小重构评审修复轮（F-1/F-2/F-3）
+
+- F-1：`test_stamp_survives_import_failure` 挂 `logged_in_session` + patch 前 sanity arm
+  （`assert _stamp()["token"] == TOKEN`）——评审核验"删 except"与"patch 失效"两条破坏路径
+  现均红，vacuous 消除（该缺陷系 b0375df 既有，首轮评审漏检、缩小重构增量评审抓出）；
+- F-2：`login_token_header_value` docstring 逐字补入 0.28 时序论证原句；
+- F-3：design R2 表行数 +14/−1 → +16/−1（numstat 实测一致）。
+- 回归：`test_llm_token_wiring` 7 passed；`aixcoding/tests` 263 passed 2 skipped；
+  ruff/format 绿；ty win32 OK。复审（增量）：**过，无 finding**。
+
 ## 实施后记（同根因格式坑，两处）
 
 本批踩中同一根因两次：**design 模板的节标题是机器接口（R2 表/登记表被 `check_r2_diff.py` /
