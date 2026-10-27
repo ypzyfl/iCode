@@ -43,4 +43,4 @@
 - import 全量改名：`aixcoding.auth` / `aixcoding.tui` → `chrys.aixcoding.*`。消费方影响面（2026-10-22 逐文件复核）：上游 src 树 `catalog.py`×2（另 docstring 路径文字×3）、`llm/clients.py`、`tui/screens/main/screen.py`×5、`tui/screens/main/login_indicator.py`×2、`tui/app.py`×2；上游 tests 树 `test_catalog_sync.py`、`test_login_indicator.py` 及 `tests/app/aixcoding/` 全部；定制内部 `telemetry/subscriber.py`、`context.py` 的 lazy import。完整清单与执行终验要求见 `restructure/plan.md` P4–P6；
 - `tui` 从未被 ty 检查过，迁入后新进射程，重建时预留修复窗口；
 - ruff per-file-ignores 的 `aixcoding/tui/*`（RUF001）条目跟随改路径；
-- tui 文案处理见 ADR-0005。
+- tui 文案处理见 ADR-0010（取代 ADR-0005）。
