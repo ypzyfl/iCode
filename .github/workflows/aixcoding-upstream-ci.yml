@@ -21,7 +21,37 @@ permissions:
   contents: read
 
 jobs:
+  # Doc-only PRs (every changed file matching docs) skip the ~11-minute
+  # upstream matrix: touching nothing but docs leaves upstream code
+  # identical to upstream's own green main. The skip decision lives at job
+  # level on purpose: the branch-protection required check is the JOB-LEVEL
+  # "AIxCoding upstream gate" run name, so the gate job must always run and
+  # report — a workflow-level paths-ignore would leave the required check
+  # skipped and block doc-only PRs from merging (verification.md, required-
+  # check semantics).
+  filter:
+    runs-on: ubuntu-slim
+    outputs:
+      doc_only: ${{ steps.f.outputs.doc_only }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: f
+        # Fail-closed: the diff lands in a file first so a failing git diff
+        # aborts this job under set -e (an `if <pipeline>` condition position
+        # is exempt) — the gate then fails on the skipped matrix instead of
+        # waving the PR through.
+        run: |
+          git diff --name-only "${{ github.event.pull_request.base.sha }}" HEAD > /tmp/changed.txt
+          if grep -qvE '(\.md$|^docs/|^aixcoding/docs/)' /tmp/changed.txt; then
+            echo "doc_only=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "doc_only=true" >> "$GITHUB_OUTPUT"
+          fi
   ci:
+    needs: filter
+    if: needs.filter.outputs.doc_only == 'false'
     # No build_ref input: ci.yml checks out `inputs.build_ref || github.sha`,
     # which under workflow_call is this bridge's triggering commit (the PR
     # merge ref) — exactly what we want.
@@ -30,13 +60,21 @@ jobs:
     # One stable required-check name for the whole matrix: needs.ci.result
     # aggregates every job of the called workflow, so upstream job renames
     # or shard changes never break the branch-protection rule. (Required
-    # checks match job-level check runs, not workflow names.)
+    # checks match job-level check runs, not workflow names.) Always runs —
+    # doc-only PRs report success straight from the filter, everything else
+    # still requires the full upstream suite to be green.
     name: AIxCoding upstream gate
-    needs: ci
+    needs: [filter, ci]
     if: always()
     runs-on: ubuntu-slim
     steps:
       - name: Verify the upstream suite
         env:
+          DOC_ONLY: ${{ needs.filter.outputs.doc_only }}
           CI_RESULT: ${{ needs.ci.result }}
-        run: test "$CI_RESULT" = "success"
+        run: |
+          if [ "$DOC_ONLY" = "true" ]; then
+            echo "doc-only PR: upstream matrix skipped by design"
+            exit 0
+          fi
+          test "$CI_RESULT" = "success"

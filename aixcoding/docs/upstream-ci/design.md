@@ -7,8 +7,8 @@
 
 - 责任人：周彬
 - 状态：已确认
-- 确认日期：2026-10-26
-- 确认意见：已知会增加约11-12分钟测试时间，导致PR提交需要多等11-12分钟，但是为了质量，在主分支上这是值得的。
+- 确认日期：2026-10-28
+- 确认意见：新方案中纯文档改变只跑必要测试，节约大量时间，确认。
 
 ## 方案概述
 
@@ -27,7 +27,7 @@
 | | 复制一份 ci.yml 为定制版 | 独立可控 | 双份维护，上游 CI 演进必漂移 | 否 |
 | 触发范围 | 仅 pull_request（对齐上游惯例） | PR 门禁语义一致；合并 push 不重复烧 runner | fork 直接 push 合并后无 CI 记录（PR 已验证，风险低） | **采用** |
 | | PR + push 双触发（对齐 aixcoding-tests.yml） | 合并后主干也有全量记录 | 同一提交跑两遍，runner 成本翻倍 | 否 |
-| paths 过滤 | 无过滤（对齐上游） | 门禁不开洞；纯 aixcoding 改动也全量验证 | 只改文档的 PR 也烧全套矩阵 | **采用**（先观察成本，痛点出现再收窄） |
+| paths 过滤 | 无过滤（对齐上游） | 门禁不开洞；纯 aixcoding 改动也全量验证 | 只改文档的 PR 也烧全套矩阵 | ~~**采用**（先观察成本，痛点出现再收窄）~~ → **2026-10-28 收窄（job 级方案）**：前置 `filter` job（git diff 判 `doc_only`：全部改动文件匹配 `\.md$|^docs/|^aixcoding/docs/` 即纯文档）→ `ci` 按 `doc_only == 'false'` 条件跑，`gate` 保持 `if: always()` 且 doc-only 直通 success。**不用 workflow 级 `paths-ignore`**——它会让 required check（job 级 run 名 `AIxCoding upstream gate`）整体 skip，纯文档 PR 永久卡 "Expected" 无法合并（外部 AI 评审拦截；与 verification.md required-check 语义同源坑）。gate 永远产生 check run = 门禁语义不变：doc-only 直绿、混合 PR 仍需全套矩阵绿 |
 
 ADR 判定：机制级决策（workflow_call 复用、触发对齐上游）均无新的长期约束形态，属 ci-gate（ADR-0004）既定"上游目录内定制文件"框架下的执行层选型——不出新 ADR。
 
@@ -56,7 +56,7 @@ R1 自查：GitHub 平台硬约束下无其他落点；文件为纯新增，上�
 
 - **GitHub Actions 远程环境本批不可本地复现**：本地跑守卫测试（action pins / permissions / R2 / R3 / 清单幂等）+ YAML 人工审，首跑验证后置（PR 后观察，失败即修，最坏删除 workflow 文件回滚）；
 - 首跑可能爆红：上游全量测试首次在含定制改动的分支上跑，Smart Test 射程外的远端消费者问题会暴露——属预期收益（提前发现，而非阻塞）；处置走正常修复流程；
-- runner 时长：多 OS 分片矩阵，PR 总等待 ≈ 上游 ci.yml 关键路径——上游仓库（openJiuwen-ai/iCode）实测成功 run 11 分 02 秒 / 11 分 35 秒、失败 run 16 分 28 秒（2026-10-26 GitHub API 查询）；fork 侧 aixcoding-tests.yml 实测 38-49 秒（uv 缓存热），两 workflow 并行互不阻塞；若成为痛点，按备选表预留的收窄路径加 paths 过滤；
+- runner 时长：多 OS 分片矩阵，PR 总等待 ≈ 上游 ci.yml 关键路径——上游仓库（openJiuwen-ai/iCode）实测成功 run 11 分 02 秒 / 11 分 35 秒、失败 run 16 分 28 秒（2026-10-26 GitHub API 查询）；fork 侧 aixcoding-tests.yml 实测 38-49 秒（uv 缓存热），两 workflow 并行互不阻塞；~~若成为痛点，按备选表预留的收窄路径加 paths 过滤~~ **已收窄（2026-10-28，见备选表）**：纯文档 PR 仅跑 filter+gate（秒级）+ aixcoding-tests，混合 PR 照旧全套矩阵；
 - 回滚：删除 `.github/workflows/aixcoding-upstream-ci.yml` 及 `CUSTOM_EXACT_PATHS` 对应条目即完全回滚。
 
 ## ADR 判定
