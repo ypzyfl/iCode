@@ -1,13 +1,13 @@
 # ruff: noqa: S101
 # (tests — asserts are pytest idiom, Chinese prose is the data)
-"""Tests for chrys.aixcoding.diagnostics.config."""
+"""Tests for chrys.kernel.aixcoding.diagnostics.config."""
 
 from __future__ import annotations
 
 import logging
 from pathlib import Path
 
-from chrys.aixcoding.diagnostics.config import load_config
+from chrys.kernel.aixcoding.diagnostics.config import load_config
 
 
 def test_defaults_when_file_missing(tmp_path: Path):

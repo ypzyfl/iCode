@@ -1,6 +1,6 @@
 # ruff: noqa: S101
 # (tests — asserts are pytest idiom, Chinese prose is the data)
-"""Tests for chrys.aixcoding.diagnostics.crash."""
+"""Tests for chrys.kernel.aixcoding.diagnostics.crash."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from chrys.aixcoding.diagnostics import crash
+from chrys.kernel.aixcoding.diagnostics import crash
 
 
 def test_write_crash_report_appends_entry(tmp_path: Path):

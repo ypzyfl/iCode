@@ -7,7 +7,7 @@
 
 - 责任人：周彬
 - 状态：已确认
-- 确认日期：2026-10-27
+- 确认日期：2026-10-28
 - 确认意见：确认变更方案——对上游源代码改动更小
 
 ## 方案概述
@@ -225,7 +225,7 @@ desktop 若走兼容通道（`AIXCODING_USER_EHR`+`OPENAI_API_KEY`）完全不�
 
 | 落点 | anchor | 风险等级 |
 |---|---|---|
-| `src/chrys/aixcoding/auth/`（9 文件 + `login_token_header_value` 公共函数） | `chrys.foundation.platform`（storage lazy import）+ httpx | 低（tier 1 自治包，升级零耦合） |
+| `src/chrys/kernel/aixcoding/auth/`（9 文件 + `login_token_header_value` 公共函数） | `chrys.foundation.platform`（storage lazy import）+ httpx + kernel 门面导入链（ADR-0011 回迁实测补记：`chrys.kernel/__init__` 包级导入，冷导入 206ms/354 模块一次性，主程序运行时零增量） | 低（tier 1 自治包；回迁后新增 kernel 门面健康度耦合边——仅门面导入期异常时受影响，见 tier-migration/design.md 假设 3 勘误） |
 | `wire_client.py::RequestHeaders.stamp()` token 注入 | `stamp()` 方法（0.31 新结构，短期内稳定） | 中（若上游再重构 header stamping 需重接线，对照 0.28→0.31 instrumented→wire_client 迁移史） |
 
 ## 实施流程约束（R2 gate 机器语义，2026-10-26 四轮评审补写）

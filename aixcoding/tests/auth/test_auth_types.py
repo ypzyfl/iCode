@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import time
 
-from chrys.aixcoding.auth import AccountInfo, DeviceCode, Environment, StoredCredential, TokenResult
+from chrys.kernel.aixcoding.auth import AccountInfo, DeviceCode, Environment, StoredCredential, TokenResult
 
 
 def test_environment_str_is_plain_value() -> None:

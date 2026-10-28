@@ -2,18 +2,18 @@
 
 """AIxCoding device-code login: protocol client, storage, and crypto backends.
 
-Public API -- import from :mod:`chrys.aixcoding.auth` rather than the submodules::
+Public API -- import from :mod:`chrys.kernel.aixcoding.auth` rather than the submodules::
 
-    from chrys.aixcoding.auth import AuthClient, CredentialStore, Environment, get_backend
-    from chrys.aixcoding.auth import LoginSession, get_login_session, login_token_header_value
-    from chrys.aixcoding.auth import DelegatedCredential, detect_delegation
+    from chrys.kernel.aixcoding.auth import AuthClient, CredentialStore, Environment, get_backend
+    from chrys.kernel.aixcoding.auth import LoginSession, get_login_session, login_token_header_value
+    from chrys.kernel.aixcoding.auth import DelegatedCredential, detect_delegation
 """
 
 import logging
 
-from chrys.aixcoding.auth.client import AuthClient
-from chrys.aixcoding.auth.crypto import get_backend
-from chrys.aixcoding.auth.delegation import (
+from .client import AuthClient
+from .crypto import get_backend
+from .delegation import (
     COMPAT_EHR_VARIABLE,
     COMPAT_TOKEN_VARIABLE,
     DELEGATED_EHR_VARIABLE,
@@ -22,7 +22,7 @@ from chrys.aixcoding.auth.delegation import (
     DelegatedCredential,
     detect_delegation,
 )
-from chrys.aixcoding.auth.errors import (
+from .errors import (
     AuthError,
     AuthNetworkError,
     AuthServerError,
@@ -31,9 +31,9 @@ from chrys.aixcoding.auth.errors import (
     DevicePollTimeout,
     ProtectUnavailable,
 )
-from chrys.aixcoding.auth.session import LoginSession, get_login_session
-from chrys.aixcoding.auth.storage import CredentialStore, default_config_dir
-from chrys.aixcoding.auth.types import (
+from .session import LoginSession, get_login_session
+from .storage import CredentialStore, default_config_dir
+from .types import (
     CREDENTIAL_TTL_SECONDS,
     AccountInfo,
     DeviceCode,

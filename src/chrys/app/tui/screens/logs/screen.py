@@ -64,7 +64,7 @@ _REFRESH_INTERVAL = 1
 # and memory bounded.
 MODULE_ORDER: tuple[str, ...] = (
     "chrys",
-    "aixcoding",  # AIxCoding diagnostics: F6 tab for custom-layer logs (src/chrys/aixcoding/diagnostics)
+    "aixcoding",  # AIxCoding diagnostics: F6 tab for custom-layer logs (src/chrys/kernel/aixcoding/diagnostics)
     "openai",
     "anthropic",
     "httpcore",

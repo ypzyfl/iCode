@@ -33,7 +33,7 @@ import os
 from collections.abc import Mapping
 from urllib.parse import urlsplit
 
-from chrys.aixcoding.auth.types import Environment
+from .types import Environment
 
 _BASE_PATHS: dict[Environment, tuple[str, str]] = {
     Environment.LOCAL: ("http://localhost:7777/api/v1", "http://localhost:7777/api/v1"),

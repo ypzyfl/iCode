@@ -10,7 +10,8 @@ the R2 approval record (R10); tables in unsigned designs authorize nothing.
 The changed set is ``git diff --name-only <base>`` (tracked modifications,
 staged/unstaged, deletions) **plus untracked files**, so a never-added new
 upstream file cannot slip past the gate. Custom paths (root ``aixcoding/``,
-``src/chrys/aixcoding/``, the aixcoding CI workflow) are out of R2 scope.
+``src/chrys/*/aixcoding/`` per ADR-0011, the aixcoding CI workflow) are out
+of R2 scope.
 
 Usage (repo root)::
 

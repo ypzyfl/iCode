@@ -2,8 +2,8 @@
 
 """Login session: the boundary between the login feature and everything after.
 
-The device-code flow itself lives in :class:`~chrys.aixcoding.auth.client.AuthClient`
-and persistence in :class:`~chrys.aixcoding.auth.storage.CredentialStore`; this module
+The device-code flow itself lives in :class:`~chrys.kernel.aixcoding.auth.client.AuthClient`
+and persistence in :class:`~chrys.kernel.aixcoding.auth.storage.CredentialStore`; this module
 binds them into the single object the rest of the app talks to::
 
     session = get_login_session()
@@ -18,11 +18,11 @@ binds them into the single object the rest of the app talks to::
     session.logout()                            # /logout
 
 When iCode runs as a child of the AIxCoding desktop, the parent's login is
-detected as a :class:`~chrys.aixcoding.auth.delegation.DelegatedCredential` and
-shadows the store -- see :mod:`chrys.aixcoding.auth.delegation` for the contract.
+detected as a :class:`~chrys.kernel.aixcoding.auth.delegation.DelegatedCredential` and
+shadows the store -- see :mod:`chrys.kernel.aixcoding.auth.delegation` for the contract.
 
 The module-level :func:`get_login_session` is a process-wide singleton on
-purpose: when the crypto backend degrades to :class:`~chrys.aixcoding.auth.crypto.MemoryBackend`
+purpose: when the crypto backend degrades to :class:`~chrys.kernel.aixcoding.auth.crypto.MemoryBackend`
 the credential lives inside the backend instance, so every caller must share
 one session or "logged in" state would fragment.
 """
@@ -34,13 +34,13 @@ from pathlib import Path
 
 import httpx
 
-from chrys.aixcoding.auth.client import AuthClient
-from chrys.aixcoding.auth.crypto import ProtectBackend
-from chrys.aixcoding.auth.delegation import DelegatedCredential, detect_delegation
-from chrys.aixcoding.auth.environments import resolve_endpoints, resolve_environment
-from chrys.aixcoding.auth.errors import AuthError, AuthServerError
-from chrys.aixcoding.auth.storage import CredentialStore, default_config_dir
-from chrys.aixcoding.auth.types import (
+from .client import AuthClient
+from .crypto import ProtectBackend
+from .delegation import DelegatedCredential, detect_delegation
+from .environments import resolve_endpoints, resolve_environment
+from .errors import AuthError, AuthServerError
+from .storage import CredentialStore, default_config_dir
+from .types import (
     AccountInfo,
     DeviceCode,
     Environment,
@@ -54,7 +54,7 @@ DEFAULT_POLL_INTERVAL = 1.0
 
 def _default_backend() -> ProtectBackend:
     """Resolve the OS crypto backend lazily (probe runs only when needed)."""
-    from chrys.aixcoding.auth.crypto import get_backend
+    from .crypto import get_backend
 
     return get_backend()
 
@@ -197,7 +197,7 @@ class LoginSession:
     ) -> AccountInfo:
         """Poll the grant to its end, store the credential, return the user.
 
-        Raises on every non-happy path (:class:`~chrys.aixcoding.auth.errors.AuthError`
+        Raises on every non-happy path (:class:`~chrys.kernel.aixcoding.auth.errors.AuthError`
         family); nothing is stored unless the full chain succeeds.  Under an
         active delegation the store write still happens but stays shadowed
         until the delegated token is rejected -- the parent's session wins.

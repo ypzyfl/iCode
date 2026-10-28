@@ -19,7 +19,7 @@ def _write(tmp_path: Path, name: str, content: str) -> Path:
 class TestClassification:
     def test_custom_paths(self):
         assert common.is_custom("aixcoding/tools/_common.py")
-        assert common.is_custom("src/chrys/aixcoding/telemetry/x.py")
+        assert common.is_custom("src/chrys/kernel/aixcoding/auth/client.py")  # ADR-0011 tier placement
         assert common.is_custom(".github/workflows/aixcoding-tests.yml")
         assert common.is_custom(r"aixcoding\tests\tools\test_x.py")  # windows-style input
 
@@ -28,6 +28,7 @@ class TestClassification:
         assert common.is_upstream("tests/support/ci.py")
         assert common.is_upstream("pyproject.toml")
         assert common.is_upstream(".github/workflows/ci.yml")
+        assert common.is_upstream("src/chrys/aixcoding/legacy.py")  # pre-ADR-0011 single-point layout is upstream now
         assert not common.is_upstream("aixcoding/docs/CUSTOMIZATIONS.md")
 
 
@@ -36,13 +37,13 @@ class TestMarkers:
         p = _write(
             tmp_path,
             "up.py",
-            "X = 1  # AIxCoding telemetry: emit tool events (src/chrys/aixcoding/tool_events)\n",
+            "X = 1  # AIxCoding telemetry: emit tool events (src/chrys/kernel/aixcoding/tool_events)\n",
         )
         hits = common.scan_python_file("up.py", p)
         assert len(hits) == 1
         hit = hits[0]
         assert hit.is_comment
-        assert hit.module == "src/chrys/aixcoding/tool_events"
+        assert hit.module == "src/chrys/kernel/aixcoding/tool_events"
         assert hit.line == 1
 
     def test_brand_string_is_not_comment_marker(self, tmp_path):
@@ -69,10 +70,10 @@ class TestMarkers:
         assert hits[0].is_comment and hits[0].module == "diagnostics"
 
     def test_text_hash_comment(self, tmp_path):
-        p = _write(tmp_path, "conf.toml", "key = 1  # AIxCoding demo: tweak (src/chrys/aixcoding/demo)\n")
+        p = _write(tmp_path, "conf.toml", "key = 1  # AIxCoding demo: tweak (src/chrys/kernel/aixcoding/demo)\n")
         hits = common.scan_text_file("conf.toml", p)
         assert len(hits) == 1 and hits[0].is_comment
-        assert hits[0].module == "src/chrys/aixcoding/demo"
+        assert hits[0].module == "src/chrys/kernel/aixcoding/demo"
 
     def test_text_html_comment(self, tmp_path):
         p = _write(tmp_path, "doc.md", "text\n<!-- AIxCoding demo: panel note -->\n")
@@ -111,7 +112,7 @@ class TestDesignParsing:
         "| src/chrys/app/up2.py | tweak2 | 2 | 行尾 |\n\n"
         "## 定制点登记预告\n\n"
         "| 落点 | anchor（依赖的上游符号） | 风险等级 |\n|---|---|---|\n"
-        "| src/chrys/aixcoding/demo | MODULE_ORDER | 低 |\n"
+        "| src/chrys/kernel/aixcoding/demo | MODULE_ORDER | 低 |\n"
     )
     UNSIGNED = SIGNED.replace("- 状态：已确认", "- 状态：草案")
 
@@ -125,7 +126,7 @@ class TestDesignParsing:
 
     def test_parse_registration_table(self):
         rows = common.parse_table_section(self.SIGNED, "定制点登记预告")
-        assert rows[0]["落点"] == "src/chrys/aixcoding/demo"
+        assert rows[0]["落点"] == "src/chrys/kernel/aixcoding/demo"
 
     def test_missing_section_returns_empty(self):
         assert common.parse_table_section(self.SIGNED, "不存在的节") == []

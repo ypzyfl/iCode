@@ -21,7 +21,7 @@ import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from chrys.aixcoding.diagnostics.config import DiagnosticsConfig
+from .config import DiagnosticsConfig
 
 ROOT_LOGGER_NAME = "aixcoding"
 LOG_DIR_NAME = "aixcoding-logs"
@@ -69,7 +69,7 @@ def setup_logging(cfg: DiagnosticsConfig, config_dir: Path | None = None) -> Pat
     Returns the log file path, or None when the sink could not be created.
     Safe to call repeatedly (e.g. tests, re-entry): an existing sink is reused.
     """
-    from chrys.aixcoding.diagnostics.config import resolve_config_dir
+    from .config import resolve_config_dir
 
     logger = logging.getLogger(ROOT_LOGGER_NAME)
     logger.setLevel(cfg.logging.level)

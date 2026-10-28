@@ -2,7 +2,7 @@
 # (stderr notes are the observable-degradation channel, DEVELOPMENT.md §9)
 """Process entry: install diagnostics hooks, then hand off to the upstream CLI.
 
-Run as ``python -m chrys.aixcoding.diagnostics.launcher`` (equivalent to the
+Run as ``python -m chrys.kernel.aixcoding.diagnostics.launcher`` (equivalent to the
 ``chrys`` entrypoint, but with crash capture, snapshot and the aixcoding log
 sink active). Zero upstream source changes: the upstream entrypoint is loaded
 dynamically by name — an explicitly registered R9 entry-point exemption
@@ -16,10 +16,10 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from chrys.aixcoding.diagnostics.config import load_config, resolve_config_dir
-from chrys.aixcoding.diagnostics.crash import install_crash_hooks, session_stem
-from chrys.aixcoding.diagnostics.logging_support import setup_logging
-from chrys.aixcoding.diagnostics.snapshot import write_snapshot
+from .config import load_config, resolve_config_dir
+from .crash import install_crash_hooks, session_stem
+from .logging_support import setup_logging
+from .snapshot import write_snapshot
 
 SESSION_DIR_NAME = "aixcoding-diagnostics"
 UPSTREAM_ENTRYPOINT = "chrys.app.cli.app:main"

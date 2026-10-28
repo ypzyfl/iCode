@@ -5,8 +5,8 @@ Chrys is a Python 3.14+ agent platform: Textual TUI, headless CLI and ACP server
 <!-- AIxCoding entry point to the customization standards (aixcoding/docs/standards) -->
 ## AIxCoding customization
 
-All customization work in this fork — everything under `src/chrys/aixcoding/` and `aixcoding/` — is
-governed by `aixcoding/docs/standards/DEVELOPMENT.md` (hard rules R1–R11 + the human-AI workflow).
+All customization work in this fork — everything under `src/chrys/*/aixcoding/` (tier placement, ADR-0011) and `aixcoding/` — is
+governed by `aixcoding/docs/standards/DEVELOPMENT.md` (hard rules R1–R11 + the human-AI workflow). <!-- AIxCoding standards: tier placement paths (ADR-0011) -->
 Read it (and `DIRECTORY.md`) before adding or changing anything beyond pure upstream files —
 and before reviewing any diff or PR. AI agents must stop and ask for approval before editing any upstream
 file (R2) or adding a third-party dependency (R11).

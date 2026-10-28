@@ -31,14 +31,14 @@ from typing import Any
 
 import httpx
 
-from chrys.aixcoding.auth.errors import (
+from .errors import (
     AuthNetworkError,
     AuthServerError,
     DevicePollCancelled,
     DevicePollDenied,
     DevicePollTimeout,
 )
-from chrys.aixcoding.auth.types import AccountInfo, DeviceCode, TokenResult
+from .types import AccountInfo, DeviceCode, TokenResult
 
 CLIENT_ID = 78
 DEVICE_CODE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"

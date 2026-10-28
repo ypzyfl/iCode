@@ -1,14 +1,14 @@
 # ruff: noqa: S101
 # (tests — asserts are pytest idiom, Chinese prose is the data)
-"""Tests for chrys.aixcoding.diagnostics.logging_support."""
+"""Tests for chrys.kernel.aixcoding.diagnostics.logging_support."""
 
 from __future__ import annotations
 
 import logging
 from pathlib import Path
 
-from chrys.aixcoding.diagnostics.config import DiagnosticsConfig, LoggingConfig
-from chrys.aixcoding.diagnostics.logging_support import (
+from chrys.kernel.aixcoding.diagnostics.config import DiagnosticsConfig, LoggingConfig
+from chrys.kernel.aixcoding.diagnostics.logging_support import (
     _Marker,
     get_logger,
     setup_logging,

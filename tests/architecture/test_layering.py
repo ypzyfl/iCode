@@ -41,8 +41,6 @@ WORKFLOWS_FACADE = "workflows"
 TIER_ORDER = {
     FOUNDATION: 0,
     KERNEL: 1,
-    # AIxCoding diagnostics: custom layer registers at kernel tier — may depend only on foundation/kernel (src/chrys/aixcoding/diagnostics)
-    "aixcoding": 1,
     SERVICE: 2,
     # src/chrys/workflows.py re-exports the service-tier SDK for workflow files.
     WORKFLOWS_FACADE: 2,
@@ -86,12 +84,12 @@ _KERNEL_PRIVATE_IMPORT_ALLOWLIST = {
     ): _KERNEL_PRIVATE_PROMOTION_REASON,
 }
 
-# AIxCoding diagnostics: registered DAG edge exemption (src/chrys/aixcoding/diagnostics)
+# AIxCoding diagnostics: registered DAG edge exemption (src/chrys/kernel/aixcoding/diagnostics)
 _DAG_EDGE_ALLOWLIST = {
     (
-        Path("src/chrys/aixcoding/diagnostics/launcher.py"),
+        Path("src/chrys/kernel/aixcoding/diagnostics/launcher.py"),
         "chrys.app.cli.app",
-    ): "AIxCoding diagnostics launcher: same-process crash hooks need the upstream CLI entrypoint (R9 exemption, aixcoding/docs/diagnostics/design.md)",
+    ): "AIxCoding diagnostics launcher: same-process crash hooks need the upstream CLI entrypoint (R9 structural-hook exemption, aixcoding/docs/diagnostics/design.md)",
 }
 
 
@@ -242,7 +240,7 @@ def test_first_party_imports_follow_layer_dag() -> None:
             elif _is_kernel_private_edge(path, edge):
                 observed_private_import_exemptions.add((source, edge.target))
             if (source, edge.target) in _DAG_EDGE_ALLOWLIST:
-                # AIxCoding diagnostics: registered edge exemption (src/chrys/aixcoding/diagnostics)
+                # AIxCoding diagnostics: registered edge exemption (src/chrys/kernel/aixcoding/diagnostics)
                 observed_dag_edge_exemptions.add((source, edge.target))
             elif _is_violation(edge):
                 violations.append(_format_violation(edge))

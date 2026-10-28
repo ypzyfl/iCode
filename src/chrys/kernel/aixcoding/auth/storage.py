@@ -15,7 +15,7 @@ Design points (mirroring the reference app's ``safeStorage`` scheme):
 * writes are atomic (temp file + ``os.replace``) and integrity-stamped
 * corruption (sha256 mismatch, unprotect failure, torn JSON) resolves to
   "no credential": the pointer is cleared and the user simply logs in again
-* a non-persistent backend (:class:`~chrys.aixcoding.auth.crypto.MemoryBackend`)
+* a non-persistent backend (:class:`~chrys.kernel.aixcoding.auth.crypto.MemoryBackend`)
   keeps the credential in RAM only -- nothing touches disk
 * POSIX-only hardening: 0700 dirs, 0600 files, ``O_NOFOLLOW`` opens
 """
@@ -31,8 +31,8 @@ import secrets
 import sys
 from pathlib import Path
 
-from chrys.aixcoding.auth.crypto import LABEL, MemoryBackend, ProtectBackend
-from chrys.aixcoding.auth.types import (
+from .crypto import LABEL, MemoryBackend, ProtectBackend
+from .types import (
     ENVELOPE_SCHEMA_VERSION,
     PURPOSE,
     Environment,

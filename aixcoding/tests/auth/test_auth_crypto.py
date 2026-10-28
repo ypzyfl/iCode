@@ -15,8 +15,8 @@ import sys
 
 import pytest
 
-from chrys.aixcoding.auth import crypto
-from chrys.aixcoding.auth.crypto import (
+from chrys.kernel.aixcoding.auth import crypto
+from chrys.kernel.aixcoding.auth.crypto import (
     LABEL,
     MacOSSecurity,
     MemoryBackend,
@@ -50,7 +50,7 @@ def test_plaintext_backend_is_identity_and_degraded() -> None:
 @pytest.mark.skipif(sys.platform != "win32", reason="DPAPI is Windows-only")
 class TestWindowsDPAPI:
     def test_round_trip(self) -> None:
-        from chrys.aixcoding.auth.crypto import WindowsDPAPI
+        from chrys.kernel.aixcoding.auth.crypto import WindowsDPAPI
 
         backend = WindowsDPAPI()
         assert not backend.degraded
@@ -59,7 +59,7 @@ class TestWindowsDPAPI:
         assert backend.unprotect(ciphertext) == PROBE
 
     def test_wrong_label_fails(self) -> None:
-        from chrys.aixcoding.auth.crypto import WindowsDPAPI
+        from chrys.kernel.aixcoding.auth.crypto import WindowsDPAPI
 
         backend = WindowsDPAPI()
         ciphertext = backend.protect(PROBE, label="other-purpose")

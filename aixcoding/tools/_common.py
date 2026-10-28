@@ -34,8 +34,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # --- file classification -----------------------------------------------------
 
-CUSTOM_PATH_PREFIXES = ("aixcoding/", "src/chrys/aixcoding/")
+CUSTOM_PATH_PREFIXES = ("aixcoding/",)
 CUSTOM_EXACT_PATHS = (".github/workflows/aixcoding-tests.yml", ".github/workflows/aixcoding-upstream-ci.yml")
+# ADR-0011: custom product code lands in src/chrys/{tier}/aixcoding/ (tier = kernel/service/orchestration/app).
+CUSTOM_SRC_TIER_RE = re.compile(r"^src/chrys/[^/]+/aixcoding(/|$)")
 
 
 def to_posix(path: str | Path) -> str:
@@ -43,10 +45,17 @@ def to_posix(path: str | Path) -> str:
     return str(path).replace("\\", "/")
 
 
+def is_custom_src(relpath: str) -> bool:
+    """True inside src/chrys/{tier}/aixcoding/ (ADR-0011 tier placement)."""
+    return CUSTOM_SRC_TIER_RE.match(to_posix(relpath)) is not None
+
+
 def is_custom(relpath: str) -> bool:
     """True for fork-owned assets (never requires an R2 approval to change)."""
     rel = to_posix(relpath)
-    return rel.startswith(CUSTOM_PATH_PREFIXES) or rel in CUSTOM_EXACT_PATHS
+    return (
+        rel.startswith(CUSTOM_PATH_PREFIXES) or CUSTOM_SRC_TIER_RE.match(rel) is not None or rel in CUSTOM_EXACT_PATHS
+    )
 
 
 def is_upstream(relpath: str) -> bool:
@@ -81,14 +90,14 @@ class MarkerHit:
     line: int  # 1-based
     text: str  # the full comment body (or line) carrying the keyword
     is_comment: bool  # True: real R3 comment marker; False: brand-string hit
-    module: str = field(default="")  # attributed module, e.g. src/chrys/aixcoding/x
+    module: str = field(default="")  # attributed module, e.g. src/chrys/kernel/aixcoding/x
 
 
 def classify_marker_body(body: str) -> str:
     """Extract the attributed module from a marker comment body.
 
     Prefers the parenthesized path — ``# AIxCoding telemetry: emit events
-    (src/chrys/aixcoding/tool_events)``; falls back to the word before the
+    (src/chrys/kernel/aixcoding/tool_events)``; falls back to the word before the
     colon (``telemetry`` above) for older/abbreviated forms.
     """
     m = MODULE_PAREN_RE.search(body)

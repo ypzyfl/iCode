@@ -50,6 +50,16 @@ MANUAL_TEMPLATE = (
     f"{MANUAL_START}\n- 当前所基于的上游版本：0.31.0\n- 最近一次升级完成日期：（随每次升级完成人工更新）\n{MANUAL_END}"
 )
 
+# R3 marker exemptions (formats that cannot carry a comment, ADR-0007): owned
+# here so the generated zone stays script-rendered (no hand edits, §5).
+MARKER_EXEMPTIONS = (
+    (
+        "tests/architecture/trajectory_wait_manifest.json",
+        "生成产物：wait 节点清单随模块路径刷新（`uv run python -m tests.support.trajectory_wait_inventory`）",
+        "aixcoding/docs/tier-migration/design.md",
+    ),
+)
+
 EXCLUDED_DIRS = {
     ".git",
     ".venv",
@@ -217,8 +227,12 @@ def render_manifest(
         "",
         "| 文件 | 改动概述 | 依据 |",
         "| --- | --- | --- |",
-        "",
-        "（暂无。）",
+    ]
+    if MARKER_EXEMPTIONS:
+        lines.extend(f"| `{f}` | {d} | {src} |" for f, d, src in MARKER_EXEMPTIONS)
+    else:
+        lines.append("（暂无。）")
+    lines += [
         "",
         "## 校验备注",
         "",
@@ -292,7 +306,11 @@ def run_archaeology(repo: Path, out: Path | None) -> int:
     hits = scan_markers(repo)
 
     custom_assets: list[str] = []
-    for base in ("aixcoding", "src/chrys/aixcoding"):
+    # Legacy single-point layout kept for archaeology scans of pre-ADR-0011 checkouts;
+    # current repos carry src/chrys/{tier}/aixcoding/ (ADR-0011).
+    bases = ["aixcoding", "src/chrys/aixcoding"]
+    bases += [common.to_posix(p.relative_to(repo)) for p in sorted((repo / "src" / "chrys").glob("*/aixcoding"))]
+    for base in bases:
         base_dir = repo / base
         if base_dir.is_dir():
             custom_assets.extend(
@@ -309,7 +327,7 @@ def run_archaeology(repo: Path, out: Path | None) -> int:
             f"- 上游侧标记命中：{len(hits)}（注释标记 {sum(h.is_comment for h in hits)} /"
             f" 非注释命中 {sum(not h.is_comment for h in hits)}）"
         ),
-        f"- 定制资产文件数：{len(custom_assets)}（aixcoding/ + src/chrys/aixcoding/）",
+        f"- 定制资产文件数：{len(custom_assets)}（aixcoding/ + src/chrys/*/aixcoding/，兼容考古目标旧单点形态）",
         "",
         "## 上游侧命中（甄别分类；非注释命中多为品牌字符串，需人工判定归属）",
         "",
