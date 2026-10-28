@@ -147,13 +147,17 @@ def perform_logout(host: LoginActionHost) -> None:
 async def silent_login_check(screen: SilentCheckScreen) -> None:
     """Validate the stored credential at startup, silently.
 
-    Offline is not a logout, a rejected credential self-cleans inside the
-    check, and startup must never be disturbed: every outcome is swallowed.
-    The indicator refresh afterwards re-reads the session rather than the
-    check result -- a network failure keeps the credential (stays signed in),
-    a rejection has already cleared it (flips the badge to logged out).
+    The badge paints the stored state FIRST (logged-out chip, or the stored
+    ehr when a credential exists -- 0.28 behaviour via the initial
+    refresh_localization sweep): without this the chip stays hidden whenever
+    the check itself throws (no credential yet), and "not logged in" would
+    never show. Offline is not a logout, a rejected credential self-cleans
+    inside the check, and startup must never be disturbed: every outcome of
+    the check is swallowed. The refresh afterwards re-reads the session
+    rather than the check result -- a network failure keeps the credential
+    (stays signed in), a rejection has already cleared it (flips the badge).
     """
-    account: AccountInfo | None = None
+    screen.refresh_login_indicator()
     with contextlib.suppress(Exception):
         account = await get_login_session().check_silent()
         screen.refresh_login_indicator(account=account)

@@ -188,15 +188,16 @@ App:ansi #mode-badge:hover, App:ansi #mode-badge:focus, App:ansi #mode-badge.-ac
     visibility: hidden;
 }
 
-/* AIxCoding tui: account login badge (signed-in / logged-out states). Third
-   overlay-docked sibling; its right margin is pinned to the approval badge's
-   left edge at runtime (see AppHeader._refresh_login_badge). */
+/* AIxCoding tui: account login badge (signed-in / logged-out states). Sits
+   rightmost of the right-docked badges; the approval badge's right margin is
+   re-pinned at runtime to make room (AppHeader._refresh_login_badge). */
 #login-badge {
     layer: overlay;
     dock: right;
     width: auto;
     height: 1;
     text-style: bold;
+    margin-right: 1;
     color: $success;
     background: $success 15%;
 }

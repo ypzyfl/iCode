@@ -118,9 +118,9 @@ class AppHeader(Widget):
             yield NonSelectableStatic(id="approval-reviewing")
             yield _HeaderBadge(id="approval-badge")
         if self._show_login_badge:
-            # AIxCoding tui: account badge -- a third overlay-docked sibling kept
-            # left of the approval badge by the dynamic margin in
-            # ``_refresh_login_badge`` (same pattern as ``#approval-reviewing``).
+            # AIxCoding tui: account badge -- an overlay-docked sibling docked
+            # right of the approval badge; the approval badge's right margin is
+            # re-pinned (see ``_refresh_login_badge``) to make room for it.
             login_badge = _HeaderBadge(id="login-badge")
             login_badge.display = False  # hidden until a login state is pushed
             yield login_badge
@@ -190,9 +190,6 @@ class AppHeader(Widget):
         for mode_key, cls in _APPROVAL_CLASSES.items():
             badge.set_class(mode_key == mode, cls)
         moved = badge.styles.set_rule("width", Scalar.from_number(cell_len(badge_text)))
-        if self._show_login_badge:  # AIxCoding tui: keep the account badge left of ours
-            login_badge = self.query_one("#login-badge", Static)
-            moved = self._place_login_badge(login_badge) or moved
         if moved:
             self._clear_arrangement_cache()
             if not self._refresh_review_count():
@@ -262,39 +259,45 @@ class AppHeader(Widget):
     def _refresh_login_badge(self) -> None:
         """Repaint the account badge from the stored indicator state.
 
-        AIxCoding tui: an overlay-docked sibling left of the approval badge,
-        anchored by a dynamic right margin (the approval badge's width plus its
-        margin) -- the same pattern ``_refresh_review_count`` uses for the
-        reviewing label. Repaints are pinned-width (``layout=False``).
+        AIxCoding tui: both badges are overlay-docked siblings; the account
+        badge sits rightmost (fixed margin), and the approval badge's right
+        margin is re-pinned to make room — ``_refresh_review_count``'s
+        ``margin.right + width`` arithmetic then anchors the reviewing label
+        to the approval badge's (moved) left edge unchanged.
         """
         if not self._show_login_badge or not self.is_mounted:
             return
         badge = self.query_one("#login-badge", Static)
         state = self._login_state
+        moved = False
         if state is None:
             if badge.display:
                 badge.display = False
-            return
-        badge.display = True
-        badge.set_class(not state.logged_in, "-logged-out")
-        badge_text = f"\u25cf {state.label}"
-        badge.update(Content.from_text(badge_text, markup=False), layout=False)
-        badge.tooltip = Content.from_text(state.tooltip, markup=False) if state.tooltip else None
-        moved = badge.styles.set_rule("width", Scalar.from_number(cell_len(badge_text)))
-        moved = self._place_login_badge(badge) or moved
+                moved = True
+        else:
+            badge.display = True
+            badge.set_class(not state.logged_in, "-logged-out")
+            badge_text = f"\u25cf {state.label}"
+            badge.update(Content.from_text(badge_text, markup=False), layout=False)
+            badge.tooltip = Content.from_text(state.tooltip, markup=False) if state.tooltip else None
+            moved = badge.styles.set_rule("width", Scalar.from_number(cell_len(badge_text)))
+        moved = self._make_room_for_login_badge(badge) or moved
         if moved:
             self._clear_arrangement_cache()
             if not self._refresh_review_count():
                 resync_compositor_regions(self)
 
-    def _place_login_badge(self, badge: Static) -> bool:
-        """Pin the account badge's right margin to the approval badge's left edge."""
+    def _make_room_for_login_badge(self, badge: Static) -> bool:
+        """Re-pin the approval badge's right margin: the login badge's width
+        plus its margins when showing, the stylesheet default (1) when not."""
         approval = self.query("#approval-badge")
-        approval_width = approval[0].styles.width if approval else None
-        right = 1  # the approval badge's own margin-right
-        right += int(approval_width.value) if approval_width is not None else 0
-        right += 1  # one gutter column between the two badges
-        return badge.styles.set_rule("margin", Spacing(0, right, 0, 0))
+        if not approval:
+            return False
+        right = 1  # the stylesheet default (upstream's own margin-right)
+        if badge.display:
+            login_width = badge.styles.width
+            right += (int(login_width.value) if login_width is not None else 0) + 1  # its own margin
+        return approval[0].styles.set_rule("margin", Spacing(0, right, 0, 0))
 
     def _localizer(self) -> Localizer | None:
         controller = self._locale_controller
