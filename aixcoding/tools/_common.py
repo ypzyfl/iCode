@@ -54,9 +54,7 @@ def is_custom(relpath: str) -> bool:
     """True for fork-owned assets (never requires an R2 approval to change)."""
     rel = to_posix(relpath)
     return (
-        rel.startswith(CUSTOM_PATH_PREFIXES)
-        or CUSTOM_SRC_TIER_RE.match(rel) is not None
-        or rel in CUSTOM_EXACT_PATHS
+        rel.startswith(CUSTOM_PATH_PREFIXES) or CUSTOM_SRC_TIER_RE.match(rel) is not None or rel in CUSTOM_EXACT_PATHS
     )
 
 
