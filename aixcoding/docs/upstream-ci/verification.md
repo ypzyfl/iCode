@@ -64,6 +64,28 @@
 
 结论：本节两条未验证事项全部闭环；桥接批次含 gate 修正完整验证完毕。
 
+## 2026-10-28 doc-only 跳过的 required check 语义（外部 AI 评审拦截）
+
+**同源坑复盘**：本文件上一节已确立"required check 匹配 **job 级** check run 名"——但 CI 收窄初版（workflow 级 `paths-ignore`）恰恰漏了这条联动：`paths-ignore` 命中时**整个 workflow 不触发**，`AIxCoding upstream gate` 不产生 check run → required check 变 skipped → 纯文档 PR 永久卡 "Expected"、`mergeable_state` 非 clean、**无法合并**（GitHub 官方 troubleshooting 的 "Handling skipped but required checks" 章节即此故障态；社区先例 *"Docs PRs stopped burning runner time. Then they stopped merging."*）。
+
+**修正（已入 design 备选表）**：跳过判断下放 job 级——`filter` job（秒级 git diff 判 `doc_only`）→ `ci` 条件跳过 → `gate` 保持 `if: always()` 且 doc-only 直通 exit 0。**gate 永远产生 check run**，门禁语义不变（doc-only 直绿 / 混合 PR 仍需全套矩阵绿）。
+
+**待实测验证**（该 PR 自身改 workflow，会照跑全套）：首个纯文档 PR 上观察 gate 报告 "doc-only PR: upstream matrix skipped by design" 且 check 转绿、PR 可合并。
+
+**本地守卫留痕（2026-10-28 本批实跑，R7）**：
+
+| 命令 | 结果 |
+|---|---|
+| `uv run pytest tests/architecture/test_workflow_action_pins.py -n0 -q` | 27 passed（含新增 filter checkout pin 的锚定；peer review 破坏性实验：pin 改 `@v7` 后该套件 1 failed 精确点名 `aixcoding-upstream-ci.yml:37`，恢复后复绿） |
+| `python aixcoding/tools/check_docs.py` | OK（11 ADR + 8 design + 6 self-review；design 重签头部合法） |
+| `python aixcoding/tools/gen_customizations.py` | 幂等（`git diff CUSTOMIZATIONS.md` 为空；唯一 warning 为 auth 既有在案项） |
+| `python aixcoding/tools/check_r2_diff.py --base 04263c9` | OK（upstream_changed=0，该 yml 在批准池 8 项内） |
+| `python aixcoding/tools/check_r3_markers.py --base 04263c9` | OK（exempt=1，CUSTOM_EXACT_PATHS 口径） |
+| 新链路远程首跑（PR #66，run 40650505374） | `filter` job success + `ci` 矩阵照跑（= `doc_only=false` 判定正确，PR 含 .yml 改动） |
+
+**peer review（2026-10-28）4 候选处置**：C1 中文文件名误判（quotePath 默认转义使 `.md$` 不匹配——ADR 即中文命名，实测探针在案）已修（`-c core.quotePath=off`）；C2 空 diff 判纯文档已修（`test -s`，fail-closed）；C3 本留痕缺失即本节；C4 R2 表条目/行数未同步已修（design 表行更新为 84 行口径 + 收窄描述；初写 87 系笔误，负责人复核纠正）。
+
 ## 未验证事项
 
-- （本批次全部闭环；后续新增未验证事项在此登记）
+- **doc-only 直通路径的远程首跑**（2026-10-28 收窄批）：`filter` 判 `true` → `ci` skipped → `gate` 报 "doc-only PR: upstream matrix skipped by design" 直绿、PR 可合并——PR #66 自身改 `.yml` 照跑全套（filter=false 路径已实证），`true` 路径待首个纯文档 PR 观察闭环；
+- `actions/checkout@3d3c42e5` ↔ `v7.0.1` 的 SHA↔tag 对应关系（本机网络阻断未核，与仓库既有 12 处 pin 逐字符一致）。
