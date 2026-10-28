@@ -8,7 +8,7 @@
 - 责任人：周彬
 - 状态：已确认
 - 确认日期：2026-10-28
-- 确认意见：新方案中纯文档改变只跑必要测试，节约大量时间，确认。
+- 确认意见：新方案中纯文档改变只跑必要测试，节约大量时间，确认。含 peer review C1-C4 修复与 84 行口径重新确认。
 
 ## 方案概述
 
@@ -27,7 +27,7 @@
 | | 复制一份 ci.yml 为定制版 | 独立可控 | 双份维护，上游 CI 演进必漂移 | 否 |
 | 触发范围 | 仅 pull_request（对齐上游惯例） | PR 门禁语义一致；合并 push 不重复烧 runner | fork 直接 push 合并后无 CI 记录（PR 已验证，风险低） | **采用** |
 | | PR + push 双触发（对齐 aixcoding-tests.yml） | 合并后主干也有全量记录 | 同一提交跑两遍，runner 成本翻倍 | 否 |
-| paths 过滤 | 无过滤（对齐上游） | 门禁不开洞；纯 aixcoding 改动也全量验证 | 只改文档的 PR 也烧全套矩阵 | ~~**采用**（先观察成本，痛点出现再收窄）~~ → **2026-10-28 收窄（job 级方案）**：前置 `filter` job（git diff 判 `doc_only`：全部改动文件匹配 `\.md$|^docs/|^aixcoding/docs/` 即纯文档）→ `ci` 按 `doc_only == 'false'` 条件跑，`gate` 保持 `if: always()` 且 doc-only 直通 success。**不用 workflow 级 `paths-ignore`**——它会让 required check（job 级 run 名 `AIxCoding upstream gate`）整体 skip，纯文档 PR 永久卡 "Expected" 无法合并（外部 AI 评审拦截；与 verification.md required-check 语义同源坑）。gate 永远产生 check run = 门禁语义不变：doc-only 直绿、混合 PR 仍需全套矩阵绿 |
+| paths 过滤 | 无过滤（对齐上游） | 门禁不开洞；纯 aixcoding 改动也全量验证 | 只改文档的 PR 也烧全套矩阵 | ~~**采用**（先观察成本，痛点出现再收窄）~~ → **2026-10-28 收窄（job 级方案）**：前置 `filter` job（git diff 判 `doc_only`：全部改动文件匹配 `\.md$|^docs/|^aixcoding/docs/` 即纯文档；diff 用 `quotePath=off`——默认八进制引号转义使中文命名文档行尾非 `d` 而误判 fail（peer review C1，ADR 即中文命名）；空 diff `test -s` fail-closed（C2）；diff 先落盘使 `set -e` 豁免位移出（fail-closed））→ `ci` 按 `doc_only == 'false'` 条件跑，`gate` 保持 `if: always()` 且 doc-only 直通 success。**不用 workflow 级 `paths-ignore`**——它会让 required check（job 级 run 名 `AIxCoding upstream gate`）整体 skip，纯文档 PR 永久卡 "Expected" 无法合并（外部 AI 评审拦截；与 verification.md required-check 语义同源坑）。gate 永远产生 check run = 门禁语义不变：doc-only 直绿、混合 PR 仍需全套矩阵绿 |
 
 ADR 判定：机制级决策（workflow_call 复用、触发对齐上游）均无新的长期约束形态，属 ci-gate（ADR-0004）既定"上游目录内定制文件"框架下的执行层选型——不出新 ADR。
 
@@ -35,7 +35,7 @@ ADR 判定：机制级决策（workflow_call 复用、触发对齐上游）均�
 
 | 文件 | 改什么 | 预估行数 | 标记注释位置 |
 |---|---|---|---|
-| `.github/workflows/aixcoding-upstream-ci.yml` | 新建桥接 workflow（GitHub 硬约束：workflow 必须位于上游目录 `.github/workflows/`）：PR 至 main_aixcoding_cli 触发，workflow_call 复用上游 ci.yml；2026-10-26 修正补记后含汇总 gate job | 约 43 | 不加（同 ci-gate 口径：CUSTOM_EXACT_PATHS 已收录为定制资产，非上游文件改动处） |
+| `.github/workflows/aixcoding-upstream-ci.yml` | 新建桥接 workflow（GitHub 硬约束：workflow 必须位于上游目录 `.github/workflows/`）：PR 至 main_aixcoding_cli 触发，workflow_call 复用上游 ci.yml；2026-10-26 修正补记后含汇总 gate job；**2026-10-28 doc-only 收窄（R10 重签批准，含 peer review C1/C2 修复）**：前置 `filter` job（pinned checkout + `quotePath=off` git diff 判 `doc_only`，空 diff fail-closed）+ `ci` 条件触发 + `gate` 恒运行（doc-only 直绿），实际 84 行 | 84（新建约 43 + 收窄含评审修复 +41） | 不加（同 ci-gate 口径：CUSTOM_EXACT_PATHS 已收录为定制资产，非上游文件改动处） |
 
 R1 自查：GitHub 平台硬约束下无其他落点；文件为纯新增，上游零感知。真正的门禁豁免来自 `CUSTOM_EXACT_PATHS`（`aixcoding/tools/_common.py`），本表为流程层批准留痕（双轨自洽，同 ci-gate 先例）。本批无新增第三方依赖（本地 `uses: ./.github/workflows/ci.yml` 免 pin，守卫 `test_workflow_action_pins.py` 明确豁免本地路径）。
 

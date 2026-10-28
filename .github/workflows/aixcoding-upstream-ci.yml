@@ -41,9 +41,13 @@ jobs:
         # Fail-closed: the diff lands in a file first so a failing git diff
         # aborts this job under set -e (an `if <pipeline>` condition position
         # is exempt) — the gate then fails on the skipped matrix instead of
-        # waving the PR through.
+        # waving the PR through. quotePath=off keeps non-ASCII (Chinese) doc
+        # names matchable — with the default quoting their lines end in `"`
+        # and `.md$` never matches (peer review C1); an empty diff likewise
+        # aborts instead of counting as doc-only (C2).
         run: |
-          git diff --name-only "${{ github.event.pull_request.base.sha }}" HEAD > /tmp/changed.txt
+          git -c core.quotePath=off diff --name-only "${{ github.event.pull_request.base.sha }}" HEAD > /tmp/changed.txt
+          test -s /tmp/changed.txt
           if grep -qvE '(\.md$|^docs/|^aixcoding/docs/)' /tmp/changed.txt; then
             echo "doc_only=false" >> "$GITHUB_OUTPUT"
           else
