@@ -24,7 +24,7 @@ EXEMPT_MANIFEST = (
 def test_marker_present_passes(git_repo):
     repo = git_repo(BASE_FILES)
     (repo / "src" / "chrys" / "app" / "up.py").write_text(
-        "X = 2  # AIxCoding demo: whitelist entry (src/chrys/aixcoding/demo)\n", encoding="utf-8"
+        "X = 2  # AIxCoding demo: whitelist entry (src/chrys/kernel/aixcoding/demo)\n", encoding="utf-8"
     )
     assert r3.main(["--base", "HEAD"], repo=repo) == 0
 
@@ -53,7 +53,7 @@ def test_untracked_read_failure_fails_closed(git_repo, monkeypatch, capsys):
 def test_untracked_upstream_file_checked_as_whole(git_repo, capsys):
     repo = git_repo(BASE_FILES)
     (repo / "src" / "chrys" / "app" / "fresh.py").write_text(
-        "# AIxCoding demo: whole new upstream file (src/chrys/aixcoding/demo)\nY = 1\n",
+        "# AIxCoding demo: whole new upstream file (src/chrys/kernel/aixcoding/demo)\nY = 1\n",
         encoding="utf-8",
     )
     assert r3.main(["--base", "HEAD"], repo=repo) == 0

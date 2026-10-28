@@ -115,11 +115,12 @@ class RequestHeaders:
         # gateway (auth migration design). Resolved per request —
         # login/logout takes effect on the next request, and the login
         # credential overrides any static ``token`` the caller supplied.
-        # The fully-swallowing helper lives in chrys.aixcoding.auth and the
-        # import rides the same try, so any failure here degrades to "no
+        # The fully-swallowing helper lives in chrys.kernel.aixcoding.auth;
+        # the import rides the same try, so any failure here degrades to "no
         # header", never a failed request.
+        # AIxCoding auth: helper path updated by ADR-0011 tier migration.
         try:
-            from chrys.aixcoding.auth import login_token_header_value
+            from chrys.kernel.aixcoding.auth import login_token_header_value
 
             login_token = login_token_header_value()
         except Exception:

@@ -1,12 +1,12 @@
 # ruff: noqa: S101
 # (tests — asserts are pytest idiom, Chinese prose is the data)
-"""Tests for chrys.aixcoding.diagnostics.snapshot."""
+"""Tests for chrys.kernel.aixcoding.diagnostics.snapshot."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from chrys.aixcoding.diagnostics.snapshot import take_snapshot, write_snapshot
+from chrys.kernel.aixcoding.diagnostics.snapshot import take_snapshot, write_snapshot
 
 
 def test_fields_present():

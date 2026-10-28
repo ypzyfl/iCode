@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-import chrys.aixcoding.auth.session as auth_session
+import chrys.kernel.aixcoding.auth.session as auth_session
 
 
 def pytest_configure(config: pytest.Config) -> None:

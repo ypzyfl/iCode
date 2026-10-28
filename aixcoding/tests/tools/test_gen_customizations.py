@@ -12,11 +12,11 @@ SIGNED_DEMO = (
     "# 设计：demo\n\n- 责任人：t\n- 状态：已确认\n- 确认日期：2026-10-25\n\n"
     "## 定制点登记预告\n\n"
     "| 落点 | anchor（依赖的上游符号） | 风险等级 |\n|---|---|---|\n"
-    "| src/chrys/aixcoding/demo | MODULE_ORDER | 低 |\n"
+    "| src/chrys/kernel/aixcoding/demo | MODULE_ORDER | 低 |\n"
 )
 UNSIGNED_DEMO = SIGNED_DEMO.replace("- 状态：已确认", "- 状态：草案")
 
-UPSTREAM_WITH_MARKER = "VALUE = 1  # AIxCoding demo: whitelist one entry (src/chrys/aixcoding/demo)\n"
+UPSTREAM_WITH_MARKER = "VALUE = 1  # AIxCoding demo: whitelist one entry (src/chrys/kernel/aixcoding/demo)\n"
 
 
 def manifest_of(repo: Path) -> str:
@@ -90,7 +90,7 @@ def test_archaeology_mode(file_tree, tmp_path):
         {
             "src/chrys/app/up.py": UPSTREAM_WITH_MARKER,
             "src/chrys/foundation/branding.py": 'APP = "AIxCoding"\n',
-            "src/chrys/aixcoding/demo.py": "X = 1\n",
+            "src/chrys/kernel/aixcoding/demo.py": "X = 1\n",
         }
     )
     out = tmp_path / "report.md"
@@ -99,7 +99,7 @@ def test_archaeology_mode(file_tree, tmp_path):
     assert "注释标记" in report and "非注释命中" in report
     assert "src/chrys/app/up.py:1" in report
     assert "src/chrys/foundation/branding.py" in report
-    assert "src/chrys/aixcoding/demo.py" in report  # custom asset listing
+    assert "src/chrys/kernel/aixcoding/demo.py" in report  # custom asset listing
 
 
 def test_archaeology_bad_repo_path(tmp_path):

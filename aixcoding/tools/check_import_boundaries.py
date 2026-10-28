@@ -7,10 +7,11 @@ Statically scans ``.py`` files with AST and enforces four rules:
 - **B1** — everything under root ``aixcoding/`` (dev assets: tests, tools,
   mocks) must not import the upstream test infrastructure (``tests.*``);
   reading/copying is allowed, importing is not.
-- **B2** — upstream code (``src/chrys/`` outside ``src/chrys/aixcoding/``)
+- **B2** — upstream code (``src/chrys/`` outside ``src/chrys/*/aixcoding/``)
   must not import the root ``aixcoding`` namespace: that namespace only
   exists in the dev repo, never in the wheel (DIRECTORY.md §4).
-- **B3** — customized product code (``src/chrys/aixcoding/``) must not
+- **B3** — customized product code (``src/chrys/*/aixcoding/``, ADR-0011
+  tier placement) must not
   import ``tests.*`` nor the root ``aixcoding`` namespace.
 - **B4** — ``aixcoding/mock/`` is stdlib-only (DIRECTORY.md §6): standard
   library plus its own package (``aixcoding.mock.*``); no product packages,
@@ -82,7 +83,7 @@ def check_file(relpath: str, path: Path) -> list[Violation]:
 
     is_custom_root = rel.startswith("aixcoding/")
     is_mock = rel.startswith("aixcoding/mock/")
-    is_chrys_aixcoding = rel.startswith("src/chrys/aixcoding/")
+    is_chrys_aixcoding = common.is_custom_src(rel)
     is_chrys_upstream = rel.startswith("src/chrys/") and not is_chrys_aixcoding
 
     violations: list[Violation] = []

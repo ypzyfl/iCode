@@ -7,7 +7,7 @@
 
 - 责任人：周彬
 - 状态：已确认
-- 确认日期：2026-10-25
+- 确认日期：2026-10-28
 - 确认意见：无特别意见
 
 ## 方案概述
@@ -25,9 +25,9 @@ aixcoding/tools/
 aixcoding/tests/tools/        配套测试（临时 git repo / 临时文件树 fixture，可复现）
 ```
 
-**文件分类器（①②③④共用）**：定制 = 根 `aixcoding/` + `src/chrys/aixcoding/` + `.github/workflows/aixcoding-tests.yml`；其余全部视为上游（含 `tests/`、`pyproject.toml`、`src/chrys/` 上游部分——R2 定义"对上游代码的任何改动（含 tests/、构建与打包配置）"）。
+**文件分类器（①②③④共用）**：定制 = 根 `aixcoding/` + `src/chrys/*/aixcoding/`（ADR-0011 tier 落位，档位段通配）+ `.github/workflows/aixcoding-tests.yml`；其余全部视为上游（含 `tests/`、`pyproject.toml`、`src/chrys/` 上游部分——R2 定义"对上游代码的任何改动（含 tests/、构建与打包配置）"）。
 
-**标记正则（①③共用）**：行注释中 `\bAIxCoding\b` 且非方括号形态、大小写敏感；命中行同时捕获注释全文与归属模块（标记后括号内路径，如 `(src/chrys/aixcoding/tool_events)`）。字符串常量中的 `AIxCoding`（品牌名）非注释形态——按语法甄别（Python: AST/tokenize 注释 token；文本格式: 行首 `#` 后接标记）。
+**标记正则（①③共用）**：行注释中 `\bAIxCoding\b` 且非方括号形态、大小写敏感；命中行同时捕获注释全文与归属模块（标记后括号内路径，如 `(src/chrys/kernel/aixcoding/tool_events)`）。字符串常量中的 `AIxCoding`（品牌名）非注释形态——按语法甄别（Python: AST/tokenize 注释 token；文本格式: 行首 `#` 后接标记）。
 
 **标记来源**：R3 口径——存量 19 处 + 新增均为 `# AIxCoding <模块>: <说明>` 单行英文注释；tcss/toml 等文本格式用 `#` 同规则。
 

@@ -1,6 +1,6 @@
 # ruff: noqa: S101
 # (tests — asserts are pytest idiom, Chinese prose is the data)
-"""Tests for chrys.aixcoding.diagnostics.launcher.
+"""Tests for chrys.kernel.aixcoding.diagnostics.launcher.
 
 The upstream entrypoint is faked via importlib so the test never boots the
 real TUI; hook installation and the hand-off order are what we verify here.
@@ -15,7 +15,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from chrys.aixcoding.diagnostics import launcher
+from chrys.kernel.aixcoding.diagnostics import launcher
 
 
 class FakeMain:
@@ -53,7 +53,7 @@ def test_launcher_installs_hooks_snapshot_then_calls(tmp_path, fake_upstream, re
 
     monkeypatch_snapshot.setattr(launcher, "write_snapshot", tracking_snapshot)
 
-    import chrys.aixcoding.diagnostics.launcher as mod
+    import chrys.kernel.aixcoding.diagnostics.launcher as mod
 
     monkeypatch_snapshot.setattr(mod, "resolve_config_dir", lambda _: tmp_path)
     try:

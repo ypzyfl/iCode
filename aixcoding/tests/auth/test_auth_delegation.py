@@ -10,8 +10,8 @@ import threading
 import pytest
 from aixcoding.mock.auth.server import MockAuthConfig, create_server
 
-import chrys.aixcoding.auth.session as auth_session
-from chrys.aixcoding.auth import (
+import chrys.kernel.aixcoding.auth.session as auth_session
+from chrys.kernel.aixcoding.auth import (
     DELEGATED_TOKEN_VARIABLE,
     Environment,
     LoginSession,
@@ -19,15 +19,15 @@ from chrys.aixcoding.auth import (
     detect_delegation,
     get_login_session,
 )
-from chrys.aixcoding.auth.crypto import MemoryBackend
-from chrys.aixcoding.auth.delegation import (
+from chrys.kernel.aixcoding.auth.crypto import MemoryBackend
+from chrys.kernel.aixcoding.auth.delegation import (
     COMPAT_EHR_VARIABLE,
     COMPAT_TOKEN_VARIABLE,
     DELEGATED_EHR_VARIABLE,
     DELEGATED_NAME_VARIABLE,
     DelegatedCredential,
 )
-from chrys.aixcoding.auth.types import AccountInfo
+from chrys.kernel.aixcoding.auth.types import AccountInfo
 
 
 class MockServer:

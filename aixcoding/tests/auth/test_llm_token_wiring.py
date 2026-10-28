@@ -15,9 +15,9 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from chrys.aixcoding.auth import Environment, LoginSession
-from chrys.aixcoding.auth.crypto import MemoryBackend
-from chrys.aixcoding.auth.types import StoredCredential
+from chrys.kernel.aixcoding.auth import Environment, LoginSession
+from chrys.kernel.aixcoding.auth.crypto import MemoryBackend
+from chrys.kernel.aixcoding.auth.types import StoredCredential
 from chrys.service.llm.wire_client import RequestHeaders
 
 TOKEN = "login-tok-1"
@@ -40,7 +40,7 @@ def logged_in_session(tmp_path, monkeypatch):
             token=TOKEN,
         ),
     )
-    monkeypatch.setattr("chrys.aixcoding.auth.get_login_session", lambda: session)
+    monkeypatch.setattr("chrys.kernel.aixcoding.auth.get_login_session", lambda: session)
     return session
 
 
@@ -64,7 +64,7 @@ def test_no_session_no_header(monkeypatch) -> None:
     def _raise() -> LoginSession:
         raise RuntimeError("no auth subsystem")
 
-    monkeypatch.setattr("chrys.aixcoding.auth.get_login_session", _raise)
+    monkeypatch.setattr("chrys.kernel.aixcoding.auth.get_login_session", _raise)
     headers = _stamp()
     assert "token" not in headers
     # The rest of the Chrys metadata is unaffected — the request still goes out.
@@ -78,7 +78,7 @@ def test_login_token_empty_string_means_no_header(monkeypatch, tmp_path) -> None
         config_dir=tmp_path,
         backend=MemoryBackend(),
     )
-    monkeypatch.setattr("chrys.aixcoding.auth.get_login_session", lambda: session)
+    monkeypatch.setattr("chrys.kernel.aixcoding.auth.get_login_session", lambda: session)
     headers = _stamp()
     assert "token" not in headers
 
@@ -97,7 +97,7 @@ def test_stamp_survives_import_failure(logged_in_session, monkeypatch) -> None:
     # Sanity arm: with the import path intact the header is present, so the
     # patched assertions below can actually tell the two paths apart.
     assert _stamp()["token"] == TOKEN
-    monkeypatch.setitem(sys.modules, "chrys.aixcoding.auth", None)
+    monkeypatch.setitem(sys.modules, "chrys.kernel.aixcoding.auth", None)
     headers = _stamp()
     assert "token" not in headers
     assert headers["X-Session-ID"] == "s-1"

@@ -343,6 +343,39 @@
         ["awaitable", "await _prepare()", "unresolved"]
       ]
     },
+    "chrys.kernel.aixcoding.auth.client": {
+      "AuthClient._post_json": [
+        ["wrapper", "await self._post_on(self._http, url, payload)", "unresolved", "chrys.kernel.aixcoding.auth.client.AuthClient._post_on"],
+        ["async_context", "async with httpx.AsyncClient(timeout=self._timeout, trust_env=False)", "unresolved"],
+        ["wrapper", "await self._post_on(client, url, payload)", "unresolved", "chrys.kernel.aixcoding.auth.client.AuthClient._post_on"]
+      ],
+      "AuthClient._post_on": [
+        ["awaitable", "await client.post(url, json=payload)", "unresolved"]
+      ],
+      "AuthClient.fetch_user_info": [
+        ["wrapper", "await self._post_json(f'{self._data_url}/user/info', {'token': token})", "unresolved", "chrys.kernel.aixcoding.auth.client.AuthClient._post_json"]
+      ],
+      "AuthClient.poll_token": [
+        ["wrapper", "await self._post_json(f'{self._auth_url}/auth/device/token', payload)", "unresolved", "chrys.kernel.aixcoding.auth.client.AuthClient._post_json"],
+        ["awaitable", "await sleep(wait)", "unresolved"]
+      ],
+      "AuthClient.request_device_code": [
+        ["wrapper", "await self._post_json(f'{self._auth_url}/auth/device/code', {'client_id': CLIENT_ID})", "unresolved", "chrys.kernel.aixcoding.auth.client.AuthClient._post_json"]
+      ]
+    },
+    "chrys.kernel.aixcoding.auth.session": {
+      "LoginSession.check_silent": [
+        ["awaitable", "await self._make_client().fetch_user_info(delegated.token)", "unresolved"],
+        ["awaitable", "await self._make_client().fetch_user_info(credential.token)", "unresolved"]
+      ],
+      "LoginSession.complete_login": [
+        ["awaitable", "await client.poll_token(device_code.device_code, interval=DEFAULT_POLL_INTERVAL, cancel_event=cancel_event)", "unresolved"],
+        ["awaitable", "await client.fetch_user_info(token.token)", "unresolved"]
+      ],
+      "LoginSession.request_device_code": [
+        ["awaitable", "await self._make_client().request_device_code()", "unresolved"]
+      ]
+    },
     "chrys.kernel.client": {
       "BaseChatClient._prepare_messages_for_model_call": [
         ["wrapper", "await apply_compaction(working_messages, strategy=compaction_strategy, tokenizer=tokenizer, context=context)", "unresolved", "chrys.kernel.compaction.apply_compaction"]

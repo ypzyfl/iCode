@@ -13,7 +13,7 @@
   - **配置**：`~/.chrys/aixcoding.toml` 解析（tomllib 只读；定位为定制层共享配置基建，后续定制功能扩展此文件）；
   - **崩溃现场**：faulthandler + sys/threading excepthook + atexit 兜底，写会话目录；
   - **环境快照**：启动环境（版本/平台/开关，脱敏）；
-  - **launcher**：`python -m chrys.aixcoding.diagnostics.launcher` 装钩子后调上游入口，零上游文件改动。
+  - **launcher**：`python -m chrys.kernel.aixcoding.diagnostics.launcher` 装钩子后调上游入口，零上游文件改动（ADR-0011 回迁后路径）。
 - 非目标：
   - 不做遥测上报（旧分支功能，阶段三迁入）；
   - 不做远程/后端对接；

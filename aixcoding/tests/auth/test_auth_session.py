@@ -9,8 +9,8 @@ import threading
 
 from aixcoding.mock.auth.server import MockAuthConfig, create_server
 
-from chrys.aixcoding.auth import Environment, LoginSession, StoredCredential, get_login_session
-from chrys.aixcoding.auth.crypto import MemoryBackend
+from chrys.kernel.aixcoding.auth import Environment, LoginSession, StoredCredential, get_login_session
+from chrys.kernel.aixcoding.auth.crypto import MemoryBackend
 
 
 class MockServer:
@@ -124,7 +124,7 @@ async def test_logout_clears_everything(tmp_path) -> None:
 
 
 async def test_get_login_session_is_a_singleton(monkeypatch) -> None:
-    import chrys.aixcoding.auth.session as session_module
+    import chrys.kernel.aixcoding.auth.session as session_module
 
     monkeypatch.setattr(session_module, "_default_session", None)
     first = get_login_session()

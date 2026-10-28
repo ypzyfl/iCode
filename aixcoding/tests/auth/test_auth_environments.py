@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import pytest
 
-from chrys.aixcoding.auth import Environment
-from chrys.aixcoding.auth.environments import resolve_endpoints, resolve_environment
+from chrys.kernel.aixcoding.auth import Environment
+from chrys.kernel.aixcoding.auth.environments import resolve_endpoints, resolve_environment
 
 
 def test_default_environment_is_prod() -> None:

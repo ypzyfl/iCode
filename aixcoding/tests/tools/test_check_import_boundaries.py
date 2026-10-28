@@ -38,12 +38,12 @@ def test_b2_upstream_imports_root_namespace(tmp_path):
 
 
 def test_b2_not_triggered_inside_chrys_aixcoding(tmp_path):
-    v = check(tmp_path, "src/chrys/aixcoding/adapter.py", "import aixcoding.mock.catalog\n")
+    v = check(tmp_path, "src/chrys/kernel/aixcoding/adapter.py", "import aixcoding.mock.catalog\n")
     assert v and v[0].rule == "B3"  # B3 scope, not B2
 
 
 def test_b3_custom_product_imports_tests(tmp_path):
-    v = check(tmp_path, "src/chrys/aixcoding/telemetry.py", "from tests.support import ci\n")
+    v = check(tmp_path, "src/chrys/kernel/aixcoding/telemetry.py", "from tests.support import ci\n")
     assert v and v[0].rule == "B3"
 
 
@@ -75,7 +75,7 @@ def test_clean_files_pass(tmp_path):
         "aixcoding/tools/ok.py": "import ast\nimport subprocess\n",
         "aixcoding/mock/svc.py": "import http.server\nfrom aixcoding.mock import peer\n",
         "src/chrys/app/up.py": "import asyncio\n",
-        "src/chrys/aixcoding/mod.py": "from chrys.foundation import branding\n",
+        "src/chrys/kernel/aixcoding/mod.py": "from chrys.foundation import branding\n",
     }
     violations = []
     for rel, code in files.items():

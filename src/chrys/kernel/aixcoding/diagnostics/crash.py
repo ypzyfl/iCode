@@ -4,7 +4,7 @@
 
 Design: aixcoding/docs/diagnostics/design.md (signed off 2026-10-25).
 
-Installed by the launcher (``python -m chrys.aixcoding.diagnostics.launcher``)
+Installed by the launcher (``python -m chrys.kernel.aixcoding.diagnostics.launcher``)
 or by any embedder. Diagnostics must never become a fault source: every hook
 wraps its work in a broad except, and original hooks stay chained so upstream
 behavior is preserved. Crash artifacts land in a per-run session directory as

@@ -11,9 +11,9 @@ import json
 
 import pytest
 
-from chrys.aixcoding.auth import Environment, StoredCredential
-from chrys.aixcoding.auth.crypto import LABEL, MemoryBackend, PlaintextBackend
-from chrys.aixcoding.auth.storage import POINTER_PREFIX, CredentialStore
+from chrys.kernel.aixcoding.auth import Environment, StoredCredential
+from chrys.kernel.aixcoding.auth.crypto import LABEL, MemoryBackend, PlaintextBackend
+from chrys.kernel.aixcoding.auth.storage import POINTER_PREFIX, CredentialStore
 
 
 @pytest.fixture

@@ -15,9 +15,9 @@ import threading
 import httpx
 import pytest
 
-from chrys.aixcoding.auth import AccountInfo, AuthClient, DeviceCode
-from chrys.aixcoding.auth.client import MAX_POLL_INTERVAL_SECONDS
-from chrys.aixcoding.auth.errors import (
+from chrys.kernel.aixcoding.auth import AccountInfo, AuthClient, DeviceCode
+from chrys.kernel.aixcoding.auth.client import MAX_POLL_INTERVAL_SECONDS
+from chrys.kernel.aixcoding.auth.errors import (
     AuthNetworkError,
     AuthServerError,
     DevicePollCancelled,
