@@ -54,6 +54,7 @@
   例：`# AIxCoding telemetry: emit tool events (src/chrys/kernel/aixcoding/tool_events)`
   （无方括号——对齐存量标记注释的实际格式；清单生成脚本按此匹配，数量以脚本扫描为准。）
   不使用多行 BEGIN/END 块标记——注释本身也是 rebase 冲突面。无法加注释的格式（JSON/二进制等）登记到定制清单；YAML/TOML 等支持 `#` 注释的格式正常打标记（可扫后缀清单见 `aixcoding/tools/_common.py`）。
+  粒度（澄清，2026-10-28）：同一文件内**相邻**（成对行/同一代码块）的同特性改动**共用一个标记**；语义区分隔的改动各自标记——marker 的价值在 rebase 冲突现场的归属提示，相邻处合并零损失、逐处重复徒增清单噪音。
 - **R4 新增文件入定制目录**：所有新增源码、测试、文档、脚本、mock 一律放 `aixcoding` 目录；进入 wheel 的定制代码落 `src/chrys/{tier}/aixcoding/`（按 tier 落位，ADR-0011），仓库根 `aixcoding/` 不进 wheel（`packages` 仅 `["src/chrys"]`，上游原状）。
 - **R5 最小变更**：只改任务必需的内容。禁止顺手重构、格式化无关文件、改动无关注释、升级依赖、修改 CI。
 - **R6 不覆盖他人工作**：发现工作区有未提交的他人改动时，停止并询问，不得覆盖。
