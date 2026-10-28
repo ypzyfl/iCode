@@ -1358,7 +1358,11 @@ class DiffScreen(RightClickScreenCopyMixin, Screen):
     def compose(self) -> ComposeResult:
         from chrys.app.tui.widgets.chrome.app_header import AppHeader
 
-        header = AppHeader(show_approval_badge=False, locale_controller=self._locale_controller)
+        header = AppHeader(
+            show_approval_badge=False,
+            show_login_badge=False,  # AIxCoding tui: no account badge on the diff screen
+            locale_controller=self._locale_controller,
+        )
         yield header
         container = VerticalGroup(id="diff-container")
         from chrys.foundation.util.session_ids import session_short_id

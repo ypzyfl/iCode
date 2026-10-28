@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from textual.app import ComposeResult
     from textual.timer import Timer
 
+    from chrys.app.aixcoding.tui.login_indicator import LoginIndicatorState
     from chrys.app.tui.i18n import LocaleController
     from chrys.foundation.i18n import Localizer
 
@@ -94,13 +95,16 @@ class AppHeader(Widget):
         self,
         *,
         show_approval_badge: bool = True,
+        show_login_badge: bool = True,  # AIxCoding tui: account badge toggle
         show_mode_badge: bool = False,
         locale_controller: LocaleController | None = None,
     ) -> None:
         super().__init__(id="app-header")
         self._show_approval_badge = show_approval_badge
+        self._show_login_badge = show_login_badge
         self._show_mode_badge = show_mode_badge
         self._workflow_mode = False
+        self._login_state: LoginIndicatorState | None = None
         self._locale_controller = locale_controller
         self._auto_review_count = 0
         self._review_frame = 0
@@ -113,12 +117,20 @@ class AppHeader(Widget):
         if self._show_approval_badge:
             yield NonSelectableStatic(id="approval-reviewing")
             yield _HeaderBadge(id="approval-badge")
+        if self._show_login_badge:
+            # AIxCoding tui: account badge -- a third overlay-docked sibling kept
+            # left of the approval badge by the dynamic margin in
+            # ``_refresh_login_badge`` (same pattern as ``#approval-reviewing``).
+            login_badge = _HeaderBadge(id="login-badge")
+            login_badge.display = False  # hidden until a login state is pushed
+            yield login_badge
 
     def on_mount(self) -> None:
         if self._locale_controller is not None:
             self._locale_controller.register_surface(self)
         self._refresh_title()
         self._refresh_mode()
+        self._refresh_login_badge()  # AIxCoding tui: initial badge paint
         if self._show_approval_badge:
             self._review_timer = self.set_interval(_REVIEW_SPIN_SECONDS, self._spin_review, pause=True)
             self._refresh_approval_badge(self.approval_mode)
@@ -177,7 +189,11 @@ class AppHeader(Widget):
         # Swap CSS class for color
         for mode_key, cls in _APPROVAL_CLASSES.items():
             badge.set_class(mode_key == mode, cls)
-        if badge.styles.set_rule("width", Scalar.from_number(cell_len(badge_text))):
+        moved = badge.styles.set_rule("width", Scalar.from_number(cell_len(badge_text)))
+        if self._show_login_badge:  # AIxCoding tui: keep the account badge left of ours
+            login_badge = self.query_one("#login-badge", Static)
+            moved = self._place_login_badge(login_badge) or moved
+        if moved:
             self._clear_arrangement_cache()
             if not self._refresh_review_count():
                 resync_compositor_regions(self)
@@ -233,6 +249,52 @@ class AppHeader(Widget):
         indicator = self.query_one("#approval-reviewing", Static)
         if is_widget_shown_on_active_screen(indicator):
             indicator.update(Content.from_text(self._review_text(), markup=False), layout=False)
+
+    def set_login_indicator(self, state: LoginIndicatorState) -> None:
+        """Update the account badge (``None`` hides it) and repaint.
+
+        AIxCoding tui: the state itself is computed in the aixcoding package;
+        the header only holds and repaints it.
+        """
+        self._login_state = state
+        self._refresh_login_badge()
+
+    def _refresh_login_badge(self) -> None:
+        """Repaint the account badge from the stored indicator state.
+
+        AIxCoding tui: an overlay-docked sibling left of the approval badge,
+        anchored by a dynamic right margin (the approval badge's width plus its
+        margin) -- the same pattern ``_refresh_review_count`` uses for the
+        reviewing label. Repaints are pinned-width (``layout=False``).
+        """
+        if not self._show_login_badge or not self.is_mounted:
+            return
+        badge = self.query_one("#login-badge", Static)
+        state = self._login_state
+        if state is None:
+            if badge.display:
+                badge.display = False
+            return
+        badge.display = True
+        badge.set_class(not state.logged_in, "-logged-out")
+        badge_text = f"\u25cf {state.label}"
+        badge.update(Content.from_text(badge_text, markup=False), layout=False)
+        badge.tooltip = Content.from_text(state.tooltip, markup=False) if state.tooltip else None
+        moved = badge.styles.set_rule("width", Scalar.from_number(cell_len(badge_text)))
+        moved = self._place_login_badge(badge) or moved
+        if moved:
+            self._clear_arrangement_cache()
+            if not self._refresh_review_count():
+                resync_compositor_regions(self)
+
+    def _place_login_badge(self, badge: Static) -> bool:
+        """Pin the account badge's right margin to the approval badge's left edge."""
+        approval = self.query("#approval-badge")
+        approval_width = approval[0].styles.width if approval else None
+        right = 1  # the approval badge's own margin-right
+        right += int(approval_width.value) if approval_width is not None else 0
+        right += 1  # one gutter column between the two badges
+        return badge.styles.set_rule("margin", Spacing(0, right, 0, 0))
 
     def _localizer(self) -> Localizer | None:
         controller = self._locale_controller

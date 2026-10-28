@@ -1169,6 +1169,8 @@ def make_slash_actions(screen: SuggestionScreen) -> SlashCommandActions:
         configure_settings=screen._open_settings,
         show_manual_pages=lambda _pages, _start_index: None,
         warn=lambda message, title, timeout: screen.notify(message, title=title, timeout=timeout),
+        open_login=lambda: None,  # AIxCoding tui: /login /logout stubs for the screen double
+        perform_account_logout=lambda: None,
     )
 
 
