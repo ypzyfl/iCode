@@ -98,7 +98,9 @@
    uv run python -c "import sys, chrys.kernel.aixcoding.auth; print('chrys.kernel.agent' in sys.modules)"
    # → True（回迁前 base 布局为 False）
    uv run python -c "import time,sys; t0=time.perf_counter(); import chrys.kernel; ..."
-   # → 门面冷导入 206 ms，拉入 354 模块；auth 自身增量 56.7 ms
+   # → 门面导入 206 ms（热缓存口径：本机已有 pyc 缓存），拉入 354 模块；auth 自身增量 56.7 ms
+   # 数字口径注记（peer review C1 复核）：冷启动（无缓存/评审机）peer review 实测约 1.1 s、
+   # 模块 delta ≈357——耗时系环境/缓存敏感数字（与 C3 同类），模块数两方吻合，结论不受影响。
    ```
 
    处置：接受 + design 假设 3 勘误入档（无技术绕过路径，理由见 design 风险节）。

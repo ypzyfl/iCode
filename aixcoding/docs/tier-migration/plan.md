@@ -49,6 +49,11 @@
   既定语义，design R2 节补注记。ADR-0011 快照不动（档位判据不受影响，导入副作用属未预见
   代价维度，与"语义张力"条同类）。CI 修复：Step7 ruff format（`_common.py` 单行化，
   commit `27118f4`）。
+- **peer review 第 3 轮（2026-10-28，head `6288365`）**：C1-C4 全部**已闭环（处置落档核实
+  一致）**；新发现 C5（本文件前条记录误写评审档位置——评审档实际在 `aixcoding/docs/pr/`
+  未跟踪工作区，worktree 为 `.codebuddy/pr64-wt*`，本条即改正）；可选裁决项 C1 耗时数字
+  口径已注记于 verification（206ms 系热缓存口径，冷启动 peer review 实测约 1.1s）。
+  轮次 1-3 全文见 `aixcoding/docs/pr/`（不入库，R8 留痕 = PR 描述 + 本记录 + 修订注记）。
 
 ## 挂起与备忘
 
