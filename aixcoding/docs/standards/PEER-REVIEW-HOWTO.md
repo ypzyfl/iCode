@@ -23,6 +23,7 @@
 - R1 非侵入优先，必改上游时少而集中（迁移批次含逐行归属细则，见 DEVELOPMENT.md R1）；R2 上游改动必须先获批；R3 获批改动带 AIxCoding 标记注释
 - R4 新增文件只允许落 aixcoding 目录（产品代码按 tier 落位 `src/chrys/{tier}/aixcoding/`，ADR-0011）；R9 档位=能容纳全部依赖的最低档，放错层 test_layering 即红
 - R5 最小变更；R7 验证须附真实命令与输出；R11 新增第三方依赖默认拒绝、须审批
+- R12 迁移批次方案重审：旧实现只是内容索引——对照目标基线同类机制现状同构跟随（不做形态平移），design 必含"是否有更优方案"专题
 1. R2/R11 比对：列出 git diff 中所有上游文件与 pyproject.toml/uv.lock/新 import 的第三方变化，
    与 docs/<feature>/design.md 的 R2 清单和依赖申请节逐项对名，输出"清单内/清单外"标注
 2. 幻觉 API 验证：对 diff 新增 import 的每个符号查证定义存在与签名正确，输出证据（定义文件:行）
