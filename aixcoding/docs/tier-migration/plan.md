@@ -38,6 +38,17 @@
 - **复审（2026-10-28）**：通过——F1-F5 全部处置到位、无新 blocker；2 个非 blocker 尾项
   S1（wire_client 标记行残留 "The"）/S2（AGENTS.md 标记拆断 "is governed"）按评审建议
   修复，复验门禁全绿（R2 OK / R3 OK / gen 7 条目 / tools 53 passed）。评审收敛。
+- **peer review 第 2 轮（2026-10-28，PR #64 head `27118f4`；评审 AI = CodeBuddy
+  GLM-5.3-FlashX，同工具同模型族不满足双 AI 口径、如实记录，评审档在 `.codebuddy/pr/`
+  工作区不入库）**：4 候选处置——C1（kernel 门面导入闭包，唯一行为级）：开发 AI 独立复跑
+  实验证实（`chrys.kernel.agent` 连带加载、206ms/354 模块），**接受 + 入档**（无技术
+  绕过路径），design 假设 3 勘误 + 基线重审类推勘误 + 登记口径修正（tier-migration 与
+  auth 两 design）+ 风险节补时序窗口；C2（R2 行数口径）：R2 表 wire_client 2→+4/−3、
+  净效果句 7→8 行勘误；C3（263 复现性）：verification 补环境差异注记（peer review 机
+  端口用例失败 base 同败=存量）；C4（R2 双口径）：裁决确认"落位即 custom"为 ADR-0011
+  既定语义，design R2 节补注记。ADR-0011 快照不动（档位判据不受影响，导入副作用属未预见
+  代价维度，与"语义张力"条同类）。CI 修复：Step7 ruff format（`_common.py` 单行化，
+  commit `27118f4`）。
 
 ## 挂起与备忘
 

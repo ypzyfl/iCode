@@ -89,3 +89,23 @@
    manifest 豁免格式未登记）→ 三处处置（行内/独立标记 + `MARKER_EXEMPTIONS` 常量渲染豁免表）
    → 复跑 OK；标记迭代 2 次（括号内形态不满足"注释体前缀"规则、S1 残留 "The"）→ 终态前缀
    形态独立行。
+
+## 2026-10-28 peer review（第 2 轮）C1 实测复核与 C3 复现性注记
+
+1. **C1 kernel 门面导入闭包**（开发 AI 独立复跑 peer review 实验，确认属实）：
+
+   ```
+   uv run python -c "import sys, chrys.kernel.aixcoding.auth; print('chrys.kernel.agent' in sys.modules)"
+   # → True（回迁前 base 布局为 False）
+   uv run python -c "import time,sys; t0=time.perf_counter(); import chrys.kernel; ..."
+   # → 门面冷导入 206 ms，拉入 354 模块；auth 自身增量 56.7 ms
+   ```
+
+   处置：接受 + design 假设 3 勘误入档（无技术绕过路径，理由见 design 风险节）。
+2. **C3 复现性注记**：peer review 环境实跑 `aixcoding/tests` = 262 passed + 1 failed
+   （`test_mock_launcher.py::test_every_starter_round_trips`，WinError 10048 端口占用，
+   **base 副本同败** = 环境性存量，非本批次引入）。本文"263 passed"为开发机当日无端口
+   冲突时的实测——该数字敏感于本机端口状态，以用例集与 skip 计数为准。
+3. CI 修复记录：PR #64 首跑 Step7（`ruff format --check aixcoding/`）失败——`_common.py`
+   `is_custom` 多行括号形式应单行化（+1/−3 纯排版，commit `27118f4`）。**教训：本地验证
+   清单须含 `ruff format --check aixcoding/`（CI 质量门第 2 步），此前四项验证漏此条。**

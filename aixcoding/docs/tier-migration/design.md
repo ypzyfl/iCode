@@ -35,21 +35,28 @@ src/chrys/aixcoding/                     src/chrys/kernel/aixcoding/
 
 | 文件 | 改什么 | 预估行数 | 标记注释位置 |
 |---|---|---|---|
-| `src/chrys/service/llm/wire_client.py` | `:118` 注释 + `:122` lazy import 前缀 `chrys.aixcoding.auth` → `chrys.kernel.aixcoding.auth` | 2 | 既有标记行内跟改 |
+| `src/chrys/service/llm/wire_client.py` | lazy import 前缀 `chrys.aixcoding.auth` → `chrys.kernel.aixcoding.auth`，及所在注释块改写 + 新增独立标记行（peer review 实测 +4/−3，C2 勘误：原预估 2 系仅计注释 1 行 + import 1 行，S1 标记行修复后旧侧改写扩为 3 行 + 新增 1 行） | 4（+4/−3） | 新增独立标记行 |
 | `tests/architecture/test_layering.py` | `:44-45` 删 `TIER_ORDER` 的 `"aixcoding": 1` fork 登记键及其注释；`:89`/`:245` 注释内旧路径跟改；`:92` 豁免条目 Path 跟改；`:94` reason 措辞 "R9 exemption" 随 R9 重写跟改 | 6 | 既有标记行内跟改 |
 | `src/chrys/app/tui/screens/logs/screen.py` | `:67` 注释内旧路径 `src/chrys/aixcoding/diagnostics` 跟改（ADR-0011 清单外发现，清单外发现处置 ①） | 1 | 既有标记行内跟改 |
 | `tests/architecture/trajectory_wait_manifest.json` | 生成产物刷新：wait 节点清单随模块路径重生成（`uv run python -m tests.support.trajectory_wait_inventory`），+33 行纯新增（实施中发现，评审 F1 补录） | 33 | 不适用——JSON 无注释位，登记 CUSTOMIZATIONS.md 豁免表 |
 | `src/chrys/aixcoding/__init__.py` | 删除旧单点入口——分类器通配化后 diff 中旧路径形态按上游对待（实跑 check_r2_diff 发现，评审外补充） | −8 | 不适用——纯删除，无注释位 |
 
-净效果：上游文件删 2 行既有 fork 登记 + 7 行既有标记行内路径/措辞跟改 + 旧单点入口删除
+净效果：上游文件删 2 行既有 fork 登记 + 8 行既有标记行内路径/措辞跟改（peer review 实测，
+C2 勘误：原句计 7 漏了 wire_client 注释块扩行）+ 旧单点入口删除
 （−8）+ 生成产物刷新（+33），无新增上游逻辑——ADR-0011 理由 1"升级冲突面净减"的兑现。
-注记（评审 P3）：ADR-0011 后果节计 `wire_client.py` "1 行"系仅指 `:122` import 行；实测
-`:118` 注释同含旧前缀，本表按 2 行计。ADR 为已签认决策快照，数字勘误不改变结论，
+注记（评审 P3 + peer review C2）：ADR-0011 后果节计 `wire_client.py` "1 行"系仅指 `:122`
+import 行；实测含注释块改写与标记行为 +4/−3。ADR 为已签认决策快照，数字勘误不改变结论，
 不回改正文（§6 快照原则），以本表实测为准。
+注记（peer review C4 裁决澄清）：**"落位即 custom"是 ADR-0011 既定治理口径**——决策 1/2 +
+理由 3（"`aixcoding` 路径段仍是全部定制代码的统一标记，glob 一条说清"）+ R4/R9 条文同口径；
+工具分类器 `src/chrys/*/aixcoding/` 通配是该条文的机器实现，非副作用。16 个新路径文件
+（15 改名 + 1 新建）不入 R2 表正是此语义的执行结果，其批准链落在 ADR-0011 决策本体。
 
 R1 自查（迁移批次）：
-- 基线重审（细则一）：回迁目标落位已在 0.31 基线由 ADR-0011 实测审定（`__init__.py` 空壳、
-  hatchling 递归打包、无 `walk_packages` 扫描），本批次照执行；
+- 基线重审（细则一）：回迁目标落位已在 0.31 基线由 ADR-0011 实测审定（hatchling 递归打包、
+  无 `walk_packages` 扫描），本批次照执行。**勘误（peer review C1）**：ADR-0011 所称
+  "`__init__.py` 空壳"实测对象是 **app 层**（为 tui 落点服务），未验 kernel 层——kernel 层
+  事实见假设 3 勘误；
 - 逐行归属（细则二）：本批次为纯位置移动，无业务逻辑位置变化，不存在"这行能否挪进定制包"
   的归属问题——R2 表全部行均为既有定制挂点的路径/登记跟改或生成产物刷新，细则二逐行展开
   豁免（评审 F5 确认此形态可豁免）；
@@ -62,8 +69,17 @@ R1 自查（迁移批次）：
    `chrys.kernel.aixcoding` 自动入 wheel。失效表现：wheel 冒烟缺包（ADR-0011 已实测背书）。
 2. `test_layering` `_source_top`/`_target_top` 按第一级包名判 tier → `chrys.kernel.*`
    自然落 kernel 档，service→kernel 方向合法。失效表现：architecture 测试红。
-3. `src/chrys/kernel/__init__.py` 已存在（上游）且 kernel 档无包级逻辑 → 新建
-   `kernel/aixcoding/__init__.py` 无副作用。失效表现：import 失败（测试即红）。
+3. ~~`src/chrys/kernel/__init__.py` 已存在（上游）且 kernel 档无包级逻辑~~ **勘误（peer
+   review C1，实施后实测）**：kernel 门面 `__init__.py` 含大量包级导入（`TELEMETRY_GATE`、
+   `LoopRecorder`、`Agent`、client/compaction/images/instrumentation/loop/middleware/
+   sessions/types 全家）；`import chrys.kernel.aixcoding.*` 必先执行整个门面（实测闭包：
+   `chrys.kernel.agent` 被连带加载，回迁前零加载；冷导入 206ms、拉入 354 模块）。原假设
+   系由 app 层实测类推、未验 kernel 层——**方法教训：涉及上游的断言须逐层实测，A 层实测
+   不能为 B 层背书**。后果如实入档（接受，无技术绕过路径——改顶层包名违反路径段标记、改
+   上游门面 lazy 违反 R1/R2、脚本直跑破坏相对导入）：①launcher 崩溃钩子时序窗口（见风险节）；
+   ②auth 独立导入绑定 kernel 门面健康度（登记口径已修正）；③主程序运行时零增量（wire_client
+   消费点 kernel 本已加载，import 幂等）。失效表现：kernel 门面导入期异常时崩溃钩子未装、
+   无 crash 文件（诊断设施在最需要时缺席）。
 
 ## 定制点登记预告
 
@@ -72,7 +88,7 @@ R1 自查（迁移批次）：
 
 | 落点 | anchor（依赖的上游符号） | 风险等级 |
 |---|---|---|
-| `src/chrys/kernel/aixcoding/auth/` | `chrys.foundation.platform`（storage lazy import）+ httpx | 低（tier 1 自治包，升级零耦合） |
+| `src/chrys/kernel/aixcoding/auth/` | `chrys.foundation.platform`（storage lazy import）+ httpx + **kernel 门面导入链**（peer review C1：`chrys.kernel/__init__` 包级导入，冷导入 206ms/354 模块，一次性） | 低（tier 1 自治包；~~升级零耦合~~ 勘误 C1：回迁后新增 kernel 门面健康度耦合边，触发窗口窄——仅门面导入期异常时崩溃钩子未装） |
 | `src/chrys/kernel/aixcoding/diagnostics/` | `chrys.app.cli.app:main` 入口签名（launcher 结构性挂接边，`_DAG_EDGE_ALLOWLIST` 豁免登记）+ `MODULE_ORDER` | 低（面板）/中（上游入口重构时需跟） |
 
 ## 联动清单（非上游部分）
@@ -116,6 +132,12 @@ R1 自查（迁移批次）：
 - 最坏情况：工具分类器漏改 → `is_custom()` 将新路径误判为上游，B3 觱控失效 /
   gen_customizations 漏扫 / check_r2_diff 误报（ADR-0011 后果节已列）——工具自检 4 文件
   夹具更新即为此风险的守卫；
+- **kernel 门面导入期异常窗口（peer review C1，接受）**：launcher（崩溃钩子入口）的 import
+  先于钩子安装执行整个 kernel 门面——门面导入期异常（升级期文件不一致/依赖漂移/上游重构
+  引入的导入 bug）时钩子未装、裸 traceback 退出、无 crash 文件。触发概率低（正常发版流程
+  该类失败被 CI 拦截），后果为崩溃现场丢失而非功能错误；无技术绕过路径（见假设 3 勘误），
+  以入档接受。次要影响：aixcoding 测试 collection 半径扩大（门面坏时全挂而非只挂 auth）；
+  独立脚本冷导入 +206ms 一次性；
 - 回滚：单分支单 PR，`git revert` 整批回退（纯位置移动 + 机械改写，无数据/格式迁移）。
 
 ## ADR 判定
