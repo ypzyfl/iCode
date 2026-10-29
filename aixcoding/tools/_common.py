@@ -154,27 +154,28 @@ def _comment_body(line: str, allow_hash: bool = True) -> tuple[int, str] | None:
     '*/' closer so the body carries the marker prose only (CUSTOMIZATIONS.md
     readability). '/*' matters for ``.tcss``/``.css`` marker comments.
     """
-    candidates: list[tuple[int, str]] = []
+    candidates: list[tuple[int, int, str]] = []  # (opening start, body offset, body)
     hash_idx = line.find("#") if allow_hash else -1
     if hash_idx >= 0:
-        candidates.append((hash_idx + 1, line[hash_idx + 1 :]))
+        candidates.append((hash_idx, hash_idx + 1, line[hash_idx + 1 :]))
     tag_idx = line.find("<!--")
     if tag_idx >= 0:
         body = line[tag_idx + 4 :]
         end = body.find("-->")
         if end >= 0:
             body = body[:end]
-        candidates.append((tag_idx + 4, body))
+        candidates.append((tag_idx, tag_idx + 4, body))
     slash_idx = line.find("/*")
     if slash_idx >= 0:
         body = line[slash_idx + 2 :]
         end = body.find("*/")
         if end >= 0:
             body = body[:end]
-        candidates.append((slash_idx + 2, body))
+        candidates.append((slash_idx, slash_idx + 2, body))
     if not candidates:
         return None
-    return min(candidates, key=lambda cand: cand[0])
+    _start, offset, body = min(candidates, key=lambda cand: cand[0])
+    return offset, body
 
 
 def scan_text_file(relpath: str, path: Path, allow_hash: bool = True) -> list[MarkerHit]:
