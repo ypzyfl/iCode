@@ -11,6 +11,18 @@ Read it (and `DIRECTORY.md`) before adding or changing anything beyond pure upst
 and before reviewing any diff or PR. AI agents must stop and ask for approval before editing any upstream
 file (R2) or adding a third-party dependency (R11).
 
+AI agent conduct (ADR-0012; full protocol in DEVELOPMENT.md §4.2 and §6):
+
+- Before starting any task outside the pre-defined exemption-free list (living-doc appends,
+  read-only operations, implementation work already covered by a signed design), present an
+  opening assessment — situation + recommendation with rationale + all path options — and STOP
+  for the owner's decision; the owner may overturn any of the AI's judgments. The AI never
+  self-approves a pipeline exemption and never classifies a task into the list on its own.
+- Chat acknowledgment is discussion feedback, not approval; the only signal to start
+  implementing is a signed-off design.md.
+- Git write operations are authorized one by one: after each command the AI stops and reports,
+  waiting for the next explicit instruction.
+
 ## Commands
 ```bash
 uv sync                              # setup, as CI; also installs the dev group (tests, ruff, ty)
