@@ -21,4 +21,4 @@
 
 - 探测方案（五形态）已否决，重提时以 ADR-0012 理由节为准（R8）；
 - 实践反馈通道：判定单协议运行中的摩擦（如报备冗余、裁决负担）按责任人签认意见"实践过程中有问题再研究"，必要时出新 ADR 取代 ADR-0012；
-- auth-logging 批次（feat/auth_logging 分支）待本批合并后按新协议重启。
+- auth-logging 批次待本批合并后按新协议重启（届时新建特性分支；`aixcoding/docs/diagnostics/verification.md` 的 #12–16 tier 回迁后重验记录随该批次入库——peer review C1 处置移出本 PR）。
