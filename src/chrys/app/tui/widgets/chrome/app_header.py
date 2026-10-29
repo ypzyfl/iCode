@@ -189,8 +189,7 @@ class AppHeader(Widget):
         # Swap CSS class for color
         for mode_key, cls in _APPROVAL_CLASSES.items():
             badge.set_class(mode_key == mode, cls)
-        moved = badge.styles.set_rule("width", Scalar.from_number(cell_len(badge_text)))
-        if moved:
+        if badge.styles.set_rule("width", Scalar.from_number(cell_len(badge_text))):
             self._clear_arrangement_cache()
             if not self._refresh_review_count():
                 resync_compositor_regions(self)
@@ -263,9 +262,11 @@ class AppHeader(Widget):
         badge sits rightmost (fixed margin), and the approval badge's right
         margin is re-pinned to make room — ``_refresh_review_count``'s
         ``margin.right + width`` arithmetic then anchors the reviewing label
-        to the approval badge's (moved) left edge unchanged.
+        to the approval badge's (moved) left edge unchanged. No ``is_mounted``
+        guard: this runs from ``on_mount`` (children are queryable there, and
+        the flag is only set after the mount message — peer review C3 probe).
         """
-        if not self._show_login_badge or not self.is_mounted:
+        if not self._show_login_badge:
             return
         badge = self.query_one("#login-badge", Static)
         state = self._login_state

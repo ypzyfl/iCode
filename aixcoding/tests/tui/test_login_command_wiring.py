@@ -127,3 +127,4 @@ def test_main_screen_teardown_cancels_silent_login_check() -> None:
     on_unmount = inspect.getsource(MainScreen.on_unmount)
     assert "_login_silent_check_task" in on_unmount
     assert ".cancel()" in on_unmount
+    assert "await self._login_silent_check_task" in on_unmount  # peer review C4: the 5-line floor, fully anchored

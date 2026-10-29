@@ -49,3 +49,31 @@ async def test_app_header_can_hide_login_badge() -> None:
 
     async with AppHeaderWithoutLoginApp().run_test() as pilot:
         assert list(pilot.app.query("#login-badge")) == []
+
+
+async def test_login_badge_presence_re_pins_the_approval_badge_margin() -> None:
+    """AIxCoding tui: peer review C3 -- the room-making margin is anchored.
+
+    The approval badge's right margin is the stylesheet default (1) while the
+    account badge is hidden, and login width + 2 while it shows; deleting the
+    room-making call must fail here (it had zero automated coverage).
+    """
+    async with AppHeaderApp().run_test() as pilot:
+        header = pilot.app.query_one(AppHeader)
+        approval = pilot.app.query_one("#approval-badge", Static)
+        assert approval.styles.margin.right == 1  # hidden: the stylesheet default
+
+        header.set_login_indicator(
+            LoginIndicatorState(label="已登录", tooltip="已登录：测试员", logged_in=True, managed=False)
+        )
+        await pilot.pause()
+        login = pilot.app.query_one("#login-badge", Static)
+        assert login.display is True
+        login_width = login.styles.width
+        assert login_width is not None
+        expected = 1 + int(login_width.value) + 1  # default + badge + its own margin
+        assert approval.styles.margin.right == expected
+
+        header.set_login_indicator(None)  # hides the badge again
+        await pilot.pause()
+        assert approval.styles.margin.right == 1
