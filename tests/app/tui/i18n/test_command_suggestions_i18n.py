@@ -167,6 +167,7 @@ def test_manual_pages_render_english_byte_identically_and_translate_at_display(
         "  /login        - 用 AIxCoding 账号登录\n"
         "  /logout       - 登出并清除已存储的凭据\n"
         "  /theme        - Set color theme\n"
+        # AIxCoding tui: /man index expectation includes /login /logout
         "  /language     - Set display language\n"
         "  /chdir        - Change working directory\n"
         "  /copy         - Copy agent, user, or all turns to clipboard\n"

@@ -348,7 +348,7 @@ _message_ids: set[str | tuple[str, str]] = {
     "tui.commands.description.fold",
     "tui.commands.description.fork",
     "tui.commands.description.language",
-    "aixcoding.tui.commands.description.login",
+    "aixcoding.tui.commands.description.login",  # AIxCoding tui: /login /logout keys
     "aixcoding.tui.commands.description.logout",
     "tui.commands.description.man",
     "tui.commands.description.models",
