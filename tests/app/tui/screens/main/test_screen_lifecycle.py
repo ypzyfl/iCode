@@ -48,6 +48,7 @@ def test_unmount_shuts_down_buddy_before_flushing_notifications() -> None:
     screen = SimpleNamespace(
         _events=SimpleNamespace(close_approval_waits=lambda: calls.append("approval_waits_close")),
         _workflow_timer=None,
+        _login_silent_check_task=None,  # AIxCoding tui: startup check handle
         _workflow=SimpleNamespace(close=close_workflow),
         _subscriptions=_Subscriptions(),
         _suggestions=SimpleNamespace(buddy_command=_BuddyCommand()),

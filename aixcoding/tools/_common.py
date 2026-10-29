@@ -148,22 +148,34 @@ def scan_python_file(relpath: str, path: Path) -> list[MarkerHit]:
 
 
 def _comment_body(line: str, allow_hash: bool = True) -> tuple[int, str] | None:
-    """Offset + body of the first comment opening ('#' or '<!--') in a line.
+    """Offset + body of the first comment opening ('#', '<!--' or '/*') in a line.
 
-    HTML comment bodies are cut at the '-->' closer so the body carries the
-    marker prose only (CUSTOMIZATIONS.md readability).
+    HTML comment bodies are cut at the '-->' closer and C-style bodies at the
+    '*/' closer so the body carries the marker prose only (CUSTOMIZATIONS.md
+    readability). '/*' matters for ``.tcss``/``.css`` marker comments.
     """
+    candidates: list[tuple[int, int, str]] = []  # (opening start, body offset, body)
     hash_idx = line.find("#") if allow_hash else -1
+    if hash_idx >= 0:
+        candidates.append((hash_idx, hash_idx + 1, line[hash_idx + 1 :]))
     tag_idx = line.find("<!--")
-    if hash_idx >= 0 and (tag_idx < 0 or hash_idx < tag_idx):
-        return hash_idx + 1, line[hash_idx + 1 :]
     if tag_idx >= 0:
         body = line[tag_idx + 4 :]
         end = body.find("-->")
         if end >= 0:
             body = body[:end]
-        return tag_idx + 4, body
-    return None
+        candidates.append((tag_idx, tag_idx + 4, body))
+    slash_idx = line.find("/*")
+    if slash_idx >= 0:
+        body = line[slash_idx + 2 :]
+        end = body.find("*/")
+        if end >= 0:
+            body = body[:end]
+        candidates.append((slash_idx, slash_idx + 2, body))
+    if not candidates:
+        return None
+    _start, offset, body = min(candidates, key=lambda cand: cand[0])
+    return offset, body
 
 
 def scan_text_file(relpath: str, path: Path, allow_hash: bool = True) -> list[MarkerHit]:

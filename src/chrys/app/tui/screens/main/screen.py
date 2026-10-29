@@ -152,6 +152,7 @@ if TYPE_CHECKING:
     from chrys.foundation.events.bus import EventBus
     from chrys.foundation.models.background_tasks import BackgroundTaskView
     from chrys.foundation.models.hook_runs import HookRunDetail, HookRunRecord
+    from chrys.kernel.aixcoding.auth import AccountInfo
     from chrys.orchestration.engine.engine import AgentEngine
     from chrys.service.profiles.agents.registry import AgentProfileRegistry
     from chrys.service.profiles.models.registry import ModelProfileRegistry
@@ -467,6 +468,7 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
             profile_descriptions=self._runtime_info,
             locale_controller=self._locale_controller,
         )
+        self._login_silent_check_task: asyncio.Task[None] | None = None  # AIxCoding tui: silent login check
         self._slash_actions = self._new_slash_command_actions()
         self._suggestions = SuggestionHandler(
             state=self._state,
@@ -739,6 +741,20 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         )
         self.query_one(StatusBar).set_model(state)
 
+    def refresh_login_indicator(self, *, account: AccountInfo | None = None) -> None:
+        """Recompute the header account badge from the login session (no network I/O).
+
+        AIxCoding tui: state computation lives in the aixcoding package;
+        ``account`` is the freshest ``user/info`` result when the caller has
+        one -- without it the badge falls back to the stored ehr, so an
+        offline start still shows a signed-in chip.
+        """
+        from chrys.app.aixcoding.tui.login_indicator import compute_login_indicator_state
+        from chrys.kernel.aixcoding.auth import get_login_session
+
+        state = compute_login_indicator_state(get_login_session(), account=account)
+        self.query_one(AppHeader).set_login_indicator(state)
+
     def refresh_localization(self) -> None:
         """Recompute screen-owned localized chrome text in place."""
         self._refresh_model_indicator()
@@ -763,6 +779,8 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         )
 
     def _new_slash_command_actions(self) -> SlashCommandActions:
+        from chrys.app.aixcoding.tui import login_actions  # AIxCoding tui: /login /logout
+
         return SlashCommandActions(
             list_themes=lambda: sorted(self.app.available_themes),
             get_theme=lambda: self.app.theme,
@@ -801,6 +819,8 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
                 start_index=start_index,
             ),
             warn=self._warn_slash_command,
+            open_login=lambda: login_actions.open_login_dialog(self),  # AIxCoding tui: /login /logout
+            perform_account_logout=lambda: login_actions.perform_logout(self),
         )
 
     def _new_diff_controller(self) -> DiffController:
@@ -1298,11 +1318,23 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         if self._locale_controller is not None:
             self._locale_controller.register_surface(self)
         self._refresh_model_indicator()
+        # AIxCoding tui: validate any stored login credential silently; any
+        # failure only means the badge keeps its stored-credential state.
+        with contextlib.suppress(Exception):
+            from chrys.app.aixcoding.tui.login_actions import silent_login_check
+
+            self._login_silent_check_task = asyncio.create_task(silent_login_check(self))
         self._update_subtitle()
         self._workspace_branch.start(self._workspace_cwd())
 
     async def on_unmount(self) -> None:
         """Flush pending UI-owned settings before the screen is torn down."""
+        # AIxCoding tui: cancel the startup silent login check (app teardown pattern).
+        if self._login_silent_check_task is not None and not self._login_silent_check_task.done():
+            self._login_silent_check_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._login_silent_check_task
+        self._login_silent_check_task = None
         self._events.close_approval_waits()
         if self._locale_controller is not None:
             self._locale_controller.unregister_surface(self)

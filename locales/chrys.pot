@@ -14,6 +14,31 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
+#. English: 用 AIxCoding 账号登录
+#. chrys-meta={"fingerprint":"0f9d4360e6bb34436c9b82f1a6586d94d5fef3c48a827b67677b36a9fec0a6c0","multiline":false,"placeholders":[]}
+#: src/chrys/app/aixcoding/tui/login_actions.py
+msgid "aixcoding.tui.commands.description.login"
+msgstr ""
+
+#. English: 登出并清除已存储的凭据
+#. chrys-meta={"fingerprint":"acecb60662473c300642d6afb9ac8a2d8732666192c53d789d92be49e6e1af1d","multiline":false,"placeholders":[]}
+#: src/chrys/app/aixcoding/tui/login_actions.py
+msgid "aixcoding.tui.commands.description.logout"
+msgstr ""
+
+#. English: 打开 AIxCoding 设备码登录对话框。  对话框显示用户码并自动在浏览器打开验证 页面；在页面上确认授权即可完成登录。
+#. 凭据以操作系统级加密存储，下次启动时 静默校验。取消对话框不会存储任何内容。
+#. chrys-meta={"fingerprint":"cd08e589b9cd6a4cc5040495d7611d90b50b47d0e7e3100faf75a874fb7af58d","multiline":true,"placeholders":[]}
+#: src/chrys/app/aixcoding/tui/login_actions.py
+msgid "aixcoding.tui.man.login.body"
+msgstr ""
+
+#. English: 清除当前环境存储的 AIxCoding 凭据并登出。  未登录时执行该命令是安全的：命令会报告 当前状态，不做任何改动。
+#. chrys-meta={"fingerprint":"55b4fa11a286ea52fb6c1966391ea0161292bc7322478835a8d8b883a4d128c5","multiline":true,"placeholders":[]}
+#: src/chrys/app/aixcoding/tui/login_actions.py
+msgid "aixcoding.tui.man.logout.body"
+msgstr ""
+
 #. English: Allowed once, but the approval could not be remembered. Check
 #. storage permissions or manage grants with icode approval.
 #. chrys-meta={"fingerprint":"279b7064d529d04e14050b066cbe8ee9e05790fabd5087cea79846cb7f5f8c61","multiline":false,"placeholders":[]}

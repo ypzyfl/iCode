@@ -203,6 +203,8 @@ ignore = [
 # Workflow SDK and worker host run inside any Python >= 3.9 interpreter: 3.9 syntax only
 "src/chrys/service/workflows/sdk/*" = ["UP", "B905", "RUF007"]
 "src/chrys/service/workflows/worker_host.py" = ["UP", "B905", "RUF007"]
+# AIxCoding tui: user-visible text is Chinese-only constants (ADR-0010)
+"src/chrys/app/aixcoding/tui/*" = ["RUF001"]
 # Tests — relax security checks, tolerate loop-append pattern
 "tests/**" = ["S", "PERF401"]
 # Golden workflow example: user-facing Chinese prose keeps its full-width punctuation

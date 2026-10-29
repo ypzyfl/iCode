@@ -1,6 +1,6 @@
 # 目录规范细则（iCode-fork 定制专区）
 
-> 上位文档：`DEVELOPMENT.md`（硬规则 R1–R11）。本文是其目录与落点维度的细则层：蓝图、判定规则、机制与约定。
+> 上位文档：`DEVELOPMENT.md`（硬规则）。本文是其目录与落点维度的细则层：蓝图、判定规则、机制与约定。
 > 读者：全体定制开发成员与 AI 编码代理。修订本文视同修订规范。
 > 决策理由与被否决的备选方案见 `adr/` 下对应记录，本文只写结论与规则。
 > **过渡期声明**：本文描述目录重组完成后的目标状态；执行进度与现状差距见 `../../restructure/plan.md`。
@@ -128,7 +128,7 @@ aixcoding/mock/<name>/            # 命名：无前缀服务名（auth / update 
 | 例外 | 原因 | 期限 |
 |---|---|---|
 | 根 `aixcoding/__init__.py` 保留 | 作为开发资产的 import 命名空间锚点（`aixcoding.mock.*`）；不进 wheel，无打包副作用 | 持续有效 |
-| 定制面 i18n 中文单语（ADR-0010 总则，取代 ADR-0005 的 tui 条目） | 默认纯中文常量；上游强类型（`MessageRef` 等）处借壳 `msg(key, fallback="中文").bind()`，借壳条目随上游流水线登记（pot + **po 中文条目** + oracle，义务与边界见 ADR-0010 细则 2）；例外（必须双语/收益明显）须在批次 design 具名给理由。**预登记：`src/chrys/app/aixcoding/tui/*` 整包**（随 tui 批次落地核销；对话框/徽标/toast 纯常量；命令注册处 description/man 借壳） | 产品需要英文界面时重评 |
+| 定制面 i18n 中文单语（ADR-0010 总则，取代 ADR-0005 的 tui 条目） | 默认纯中文常量；上游强类型（`MessageRef` 等）处借壳 `msg(key, fallback="中文").bind()`，借壳条目随上游流水线登记（pot + **po 中文条目** + oracle，义务与边界见 ADR-0010 细则 2）；例外（必须双语/收益明显）须在批次 design 具名给理由。**已登记：`src/chrys/app/aixcoding/tui/*` 整包**（tui 批次已落地核销：对话框/徽标/toast 纯常量；命令注册处 description/man 借壳 + pot/po/oracle 三点登记，2026-10-28） | 产品需要英文界面时重评 |
 
 ## 9. 命名约定速查
 

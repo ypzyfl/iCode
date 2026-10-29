@@ -11,6 +11,12 @@ from typing import Protocol
 
 from textual.content import Content
 
+from chrys.app.aixcoding.tui.login_actions import (  # AIxCoding tui: /login /logout texts
+    DESCRIPTION_LOGIN,
+    DESCRIPTION_LOGOUT,
+    MAN_LOGIN_BODY,
+    MAN_LOGOUT_BODY,
+)
 from chrys.app.tui.screens.dialogs.approval.mode import MODE_AUTO_DESCRIPTION, MODE_BYPASS_DESCRIPTION
 from chrys.app.tui.screens.main.buddy_command import BuddyCommandController
 from chrys.app.tui.widgets.chrome.commands import (
@@ -464,6 +470,8 @@ class SlashCommandActionPort(Protocol):
         title: MessageRef | str = INVALID_COMMAND_TITLE_REF,
         timeout: float | None = 3,
     ) -> None: ...
+    def open_login_dialog(self) -> None: ...  # AIxCoding tui: /login /logout
+    def perform_logout(self) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -504,6 +512,8 @@ class SlashCommandActions:
     configure_settings: Callable[[str], None]
     show_manual_pages: Callable[[list[ManPageSpec], int], None]
     warn: Callable[[MessageRef | str, MessageRef | str, float | None], None]
+    open_login: Callable[[], None]  # AIxCoding tui: /login /logout
+    perform_account_logout: Callable[[], None]
 
     def open_workflows(self) -> None:
         self.workflow_selection()
@@ -540,6 +550,12 @@ class SlashCommandActions:
 
     def create_new_session(self) -> None:
         self.new_session()
+
+    def open_login_dialog(self) -> None:  # AIxCoding tui: /login /logout
+        self.open_login()
+
+    def perform_logout(self) -> None:
+        self.perform_account_logout()
 
     def clear_current_session(self) -> None:
         self.clear_session()
@@ -887,6 +903,20 @@ class MainSlashCommandRegistry:
                 _DESCRIPTION_SESSIONS.bind(),
                 action=lambda _: actions.browse_sessions(),
                 man_page=_MAN_SESSIONS_BODY.bind(),
+            ),
+            SlashCommandDef(  # AIxCoding tui: /login /logout
+                "login",
+                DESCRIPTION_LOGIN.bind(),
+                action=lambda _arg: actions.open_login_dialog(),
+                allow_while_running=True,
+                man_page=MAN_LOGIN_BODY.bind(),
+            ),
+            SlashCommandDef(
+                "logout",
+                DESCRIPTION_LOGOUT.bind(),
+                action=lambda _arg: actions.perform_logout(),
+                allow_while_running=True,
+                man_page=MAN_LOGOUT_BODY.bind(),
             ),
             SlashCommandDef(
                 "theme",

@@ -58,6 +58,21 @@ MARKER_EXEMPTIONS = (
         "生成产物：wait 节点清单随模块路径刷新（`uv run python -m tests.support.trajectory_wait_inventory`）",
         "aixcoding/docs/tier-migration/design.md",
     ),
+    (
+        "locales/chrys.pot",
+        "生成产物：i18n extract 条目（借壳 key 随 msg 定义处生成，R2 表 7 号）",
+        "aixcoding/docs/tui/design.md",
+    ),
+    (
+        "locales/zh-Hans/LC_MESSAGES/chrys.po",
+        "登记产物：po 中文条目（msgstr=fallback 复制，ADR-0010 细则 2，R2 表 8 号）",
+        "aixcoding/docs/tui/design.md",
+    ),
+    (
+        "src/chrys/foundation/i18n/_catalogs/zh-Hans/LC_MESSAGES/chrys.mo",
+        "编译产物：随 po 重编（i18n compile，R2 表 9 号）",
+        "aixcoding/docs/tui/design.md",
+    ),
 )
 
 EXCLUDED_DIRS = {
