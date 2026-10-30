@@ -172,6 +172,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     """Dispatch ``chrys`` entrypoint modes."""
+    from chrys.app.aixcoding.startup import aixcoding_startup
+
+    aixcoding_startup()  # AIxCoding customizations: startup hooks on every icode invocation (src/chrys/app/aixcoding/startup.py)
     argv = sys.argv[1:]
     if argv and argv[0] == _TUI_SUBPROCESS_COMMAND:
         return _run_tui(argv[1:])
