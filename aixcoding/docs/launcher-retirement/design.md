@@ -37,7 +37,7 @@ diagnostics/                                    diagnostics/
 
 | 文件 | 改什么 | 预估行数 | 标记注释位置 |
 |---|---|---|---|
-| `tests/architecture/test_layering.py` | 回滚 `_DAG_EDGE_ALLOWLIST` 机制，**精确到行**（评审 Blocker 修正：`:220` 的 `observed_private_import_exemptions` 是上游原状——服务 kernel-private 豁免的 stale 检测，不得触碰）：字典 `:87-93`（7 行）、观察集合声明 `:221`（1 行，fork 新增的 `observed_dag_edge_exemptions`）、收集点 `:242-244`（3 行）、stale 检测 `:257-262`（6 行），含两处 AIxCoding marker 注释；**另含 `:233` 挂靠形状恢复**（d diagnostics 批次曾把上游独立 `if _is_violation` 改为 elif 挂链，回滚时误恢复——CI R3 与 peer review C1 双路径抓获后改回，文件相对上游基线 diff 归零） | -19（净删除；numstat +1/−20，勘误记录见 verification 勘误段） | 无新增 marker |
+| `tests/architecture/test_layering.py` | 回滚 `_DAG_EDGE_ALLOWLIST` 机制，**精确到行**（评审 Blocker 修正：`:220` 的 `observed_private_import_exemptions` 是上游原状——服务 kernel-private 豁免的 stale 检测，不得触碰）：字典 `:87-93`（7 行）、观察集合声明 `:221`（1 行，fork 新增的 `observed_dag_edge_exemptions`）、收集点 `:242-244`（3 行）、stale 检测 `:257-262`（6 行），含两处 AIxCoding marker 注释；**另含 `:233` 挂靠形状恢复**（diagnostics 批次曾把上游独立 `if _is_violation` 改为 elif 挂链，回滚时误恢复——CI R3 与 peer review C1 双路径抓获后改回，文件相对上游基线 diff 归零） | -19（净删除；numstat +1/−20，勘误记录见 verification 勘误段） | 无新增 marker |
 
 R1 自查：纯删除性回滚，无新增接线；上游产品代码零接触（此前亦为零）。**实施前按 R2 流程向负责人确认本表（批准落盘 = 签认本文档）。**
 

@@ -30,4 +30,5 @@
 
 - **C1（elif 未恢复上游原状）已修**——与 CI `check_r3_markers` 红**双路径交叉验证**同一行：peer review 以 `git show 7bd6d45a~1` 实证上游原状为独立 `if` 并做破坏性实验（行为等价 223 passed）；CI 按上游 merge-base diff 抓获。修复：改回独立 `if`，文件相对上游基线 diff 归零，`tests/architecture` 1238 passed。教训留痕 verification：**恢复原状的完成标准 = 上游基线零差异**（fork 内视角的两轮评审均未发现，属评审盲区）；
 - **C2（requirements.md 合并顺序"硬前置"与终裁冲突）已修**——同步漏改的 requirements:37 口径 + 行数两处旧值（~18→19）+ plan:14 残留（17 行→净删除 19 + 形状恢复）；design R2 表补形状恢复记录；
-- **非缺陷项确认**：评审副本的 1 failed（test_mock_launcher 端口 10048）根因为本机演示用 mock auth server（PID 3044）占用端口，与本批无关（该进程现已不存在）；历史文档 launcher 引用（快照性质不改写）、conftest aix_logger_state 保留（5 用例在用）等 7 项核验通过。
+- **非缺陷项确认**：评审副本的 1 failed（test_mock_launcher 端口 10048）与本批无关（mock 模块不在 PR 文件内）；**根因勘误（第 2 轮 peer review 实测修正）**：占用 7778（update mock 端口）的是本机常驻系统服务 ArmouryCrateControlInterface（华硕，PID 5488）——非演示用 auth server（其用 7777，PID 3044 已退出，初版归因错误）；该用例在本机将因 7778 被占而持续红（环境性），CI 干净环境无此问题。历史文档 launcher 引用（快照性质不改写）、conftest aix_logger_state 保留（5 用例在用）等 7 项核验通过。
+- **第 2 轮新增候选处置**：C1/C2 复核闭环（双基准零差异实测 + 口径统一实测）；**C4（Upstream CI linux/core attempt 1 红）定论 flaky**——attempt 2 同代码全绿（PR checks 全绿，2026-10-30），与评审倾向一致（elif→if 平台无关、windows/core 两次均绿）；**C3 根因勘误**（见上条）+ design.md 笔误（"d diagnostics"多字）已修。
