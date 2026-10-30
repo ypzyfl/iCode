@@ -1,41 +1,41 @@
 # Install and use skills
 
-A skill is a reusable set of instructions that can include reference materials and scripts to extend an agent's ability to handle specific tasks. This guide explains how to install skills for agents of the "Built-in" type, confirm that they have loaded, and use them. Support for skills and their configuration in external ACP agents is determined by the external agent.
+A skill is a reusable set of instructions that can include reference materials and scripts to extend an agent's ability to handle specific tasks. This guide explains how to install skills for agents of the "Built-in" type, confirm that they have loaded, and use them.
 
-## Skill installation locations
+## 1. Skill installation locations
 
 Choose an installation location based on where the skill should be available and whether it needs to be shared:
 
-| Location | When to use it | How AIxCoding loads it |
+| Location | When to use it | How AIxCoding-CLI loads it |
 | --- | --- | --- |
-| AIxCoding user skills directory | Make skills available to all agents of the "Built-in" type in AIxCoding | Always loaded automatically |
-| AIxCoding shared user directory (`~/.aixcoding/skills`) | Share skills between the AIxCoding CLI and AIxCoding desktop clients | Loaded automatically by default; can be disabled per agent |
-| Agent Skills shared directory | Share skills between AIxCoding and other tools that support Agent Skills | Loaded automatically by default; can be disabled per agent |
-| `<working-directory>/.aixcoding/skills` | AIxCoding-specific skills for the current working directory | Loaded automatically by default; can be disabled per agent |
+| AIxCoding-CLI user skills directory | Make skills available to all agents of the "Built-in" type in AIxCoding-CLI | Always loaded automatically |
+| AIxCoding-CLI shared user directory (`~/.aixcoding/skills`) | Share skills between the AIxCoding-CLI CLI and AIxCoding-CLI desktop clients | Loaded automatically by default; can be disabled per agent |
+| Agent Skills shared directory | Share skills between AIxCoding-CLI and other tools that support Agent Skills | Loaded automatically by default; can be disabled per agent |
+| `<working-directory>/.aixcoding/skills` | AIxCoding-CLI-specific skills for the current working directory | Loaded automatically by default; can be disabled per agent |
 | `<working-directory>/.agents/skills` | Make skills available only in the current working directory | Loaded automatically by default; can be disabled per agent |
 | Custom directory | Load skills from a specific location | Must be added manually to the corresponding agent's configuration |
 
-Here, `<working-directory>` is the current working directory. When you switch working directories, AIxCoding reloads the skills from the new working directory.
+Here, `<working-directory>` is the current working directory. When you switch working directories, AIxCoding-CLI reloads the skills from the new working directory.
 
 The user-level skills directories have the following paths on each platform:
 
 | Directory | macOS and Linux | Windows |
 | --- | --- | --- |
-| AIxCoding user skills directory | `~/.chrys/skills` | `%APPDATA%\chrys\skills` |
-| AIxCoding shared user directory | `~/.aixcoding/skills` | `%USERPROFILE%\.aixcoding\skills` |
+| AIxCoding-CLI user skills directory | `~/.chrys/skills` | `%APPDATA%\chrys\skills` |
+| AIxCoding-CLI shared user directory | `~/.aixcoding/skills` | `%USERPROFILE%\.aixcoding\skills` |
 | Agent Skills shared directory | `~/.agents/skills` | `%USERPROFILE%\.agents\skills` |
 
-When multiple directories contain skills with the same name, the AIxCoding-specific directories take precedence over the corresponding Agent Skills directories: `~/.aixcoding/skills` wins over `~/.agents/skills`, and `<working-directory>/.aixcoding/skills` wins over `<working-directory>/.agents/skills`.
+When multiple directories contain skills with the same name, the AIxCoding-CLI-specific directories take precedence over the corresponding Agent Skills directories: `~/.aixcoding/skills` wins over `~/.agents/skills`, and `<working-directory>/.aixcoding/skills` wins over `<working-directory>/.agents/skills`.
 
 For the first three installation locations, copy or move the skill directory to the corresponding location. For a custom directory, there is no need to move the skill; add its directory to the corresponding agent's configuration.
 
-AIxCoding searches for `SKILL.md` files in configured skills directories and up to two levels of subdirectories. Once it finds a `SKILL.md`, it recognizes the containing directory as a skill directory and stops searching for nested skills within it.
+AIxCoding-CLI searches for `SKILL.md` files in configured skills directories and up to two levels of subdirectories. Once it finds a `SKILL.md`, it recognizes the containing directory as a skill directory and stops searching for nested skills within it.
 
-## Install and enable skills
+## 2. Install and enable skills
 
-The AIxCoding user skills directory is always loaded automatically. The Agent Skills shared directory and the current working directory's skills directory are also loaded automatically by default. If a source has been disabled in the agent's configuration, enable it again. For a custom directory, add it to the corresponding agent's configuration.
+The AIxCoding-CLI user skills directory is always loaded automatically. The Agent Skills shared directory and the current working directory's skills directory are also loaded automatically by default. If a source has been disabled in the agent's configuration, enable it again. For a custom directory, add it to the corresponding agent's configuration.
 
-To define an inline skill without files directly in an agent's YAML, see [Agent profile reference](../../reference/agent-profile.md#skillsinline).
+To define an inline skill without files directly in an agent's YAML, see [Agent profile reference](../../reference/agent-profile.md#1-skillsinline).
 
 To check or adjust an agent's skill configuration:
 
@@ -54,11 +54,11 @@ To check or adjust an agent's skill configuration:
 5. To adjust the maximum runtime for skill scripts, enter a positive integer in "Script Execution Timeout (seconds)".
 6. Click "Save".
 
-> **Note**: Skill scripts run as local processes without sandbox isolation. Before installing a third-party skill, inspect its `SKILL.md`, scripts, and other related files, and install skills only from trusted sources. AIxCoding runs skill scripts through the `run_skill_script` tool. Whether this tool requires confirmation depends on the agent's approval rules and the [current approval mode](../configuration/approval.md).
+> **Note**: Skill scripts run as local processes without sandbox isolation. Before installing a third-party skill, inspect its `SKILL.md`, scripts, and other related files, and install skills only from trusted sources. AIxCoding-CLI runs skill scripts through the `run_skill_script` tool. Whether this tool requires confirmation depends on the agent's approval rules and the [current approval mode](../configuration/approval.md).
 
-## Confirm that skills have loaded
+## 3. Confirm that skills have loaded
 
-After you save the agent's configuration and return to the session, AIxCoding reloads its skills. If you add skill directories or change their files directly on disk, AIxCoding does not monitor those changes in real time. The next time you send a message, AIxCoding rescans the current agent's enabled skills directories before processing the message.
+After you save the agent's configuration and return to the session, AIxCoding-CLI reloads its skills. If you add skill directories or change their files directly on disk, AIxCoding-CLI does not monitor those changes in real time. The next time you send a message, AIxCoding-CLI rescans the current agent's enabled skills directories before processing the message.
 
 Use either of the following methods to confirm that a skill has loaded:
 
@@ -69,9 +69,9 @@ If the skill does not appear, check the following in order:
 
 * For the Agent Skills shared directory or working directory skills directory, confirm that the corresponding option is enabled. For a custom directory, confirm that it has been added to the current agent.
 * Confirm that the skill directory is at the selected location or within at most two levels of subdirectories.
-* Confirm that the skill meets the [basic requirements for creating skills](#basic-requirements-for-creating-skills).
+* Confirm that the skill meets the [basic requirements for creating skills](None#1-basic-requirements-for-creating-skills).
 
-## Use skills
+## 4. Use skills
 
 Skills usually do not need to be invoked manually. When a task matches a skill's description, the agent automatically loads its full instructions and follows them to complete the task. For example:
 
@@ -85,7 +85,7 @@ You can also explicitly invoke a loaded skill by starting a message with `/skill
 /release-notes Draft release notes based on the changes in the current repository since the previous release.
 ```
 
-If the skill name matches a built-in AIxCoding slash command, you cannot invoke it explicitly with `/skill-name`. In that case, name the skill directly in your message, for example:
+If the skill name matches a built-in AIxCoding-CLI slash command, you cannot invoke it explicitly with `/skill-name`. In that case, name the skill directly in your message, for example:
 
 ```text
 Use the release-notes skill to draft release notes based on the changes in the current repository since the previous release.
@@ -93,25 +93,25 @@ Use the release-notes skill to draft release notes based on the changes in the c
 
 The first time the skill loads in the current session, a `load_skill` tool call card appears with the skill name `release-notes`. The agent then follows the skill's instructions to complete the task.
 
-## Priority for skills with the same name
+## 5. Priority for skills with the same name
 
-Skills loaded from the [installation locations](#skill-installation-locations) listed earlier are directory-based skills, each containing a `SKILL.md`. AIxCoding also supports inline skills defined directly in an agent profile. These do not require a skill directory or `SKILL.md`.
+Skills loaded from the [installation locations](None#1-skill-installation-locations) listed earlier are directory-based skills, each containing a `SKILL.md`. AIxCoding-CLI also supports inline skills defined directly in an agent profile. These do not require a skill directory or `SKILL.md`.
 
-If multiple skills have the same name, AIxCoding loads only the one with the highest priority. Priority, from highest to lowest, is:
+If multiple skills have the same name, AIxCoding-CLI loads only the one with the highest priority. Priority, from highest to lowest, is:
 
 1. Directories added manually in the agent's "Skills" tab, with those higher in the list taking priority (new directories are added at the top).
-2. The AIxCoding user skills directory.
+2. The AIxCoding-CLI user skills directory.
 3. The Agent Skills shared directory.
 4. Skills in the current working directory.
 5. Inline skills in the agent profile, in their definition order.
 
 If multiple skills with the same name exist within one installation location or custom directory, their discovery order is unspecified. To ensure that a particular version loads, keep only that version.
 
-## Appendix
+## 6. Appendix
 
-### Basic requirements for creating skills
+### 1. Basic requirements for creating skills
 
-Each skill uses its own directory with a `SKILL.md` at the directory root. The following is a minimal skill that AIxCoding can load:
+Each skill uses its own directory with a `SKILL.md` at the directory root. The following is a minimal skill that AIxCoding-CLI can load:
 
 ```markdown
 ---
@@ -128,7 +128,7 @@ description: Draft user-facing release notes from commit history
 
 #### Write `SKILL.md`
 
-`SKILL.md` must use UTF-8 encoding. It starts with a YAML configuration block enclosed by `---`, also called frontmatter, followed by instructions for the agent. The frontmatter should be a valid YAML mapping; if it is not valid YAML, AIxCoding tries to read it line by line and logs a warning. AIxCoding validates the file as follows:
+`SKILL.md` must use UTF-8 encoding. It starts with a YAML configuration block enclosed by `---`, also called frontmatter, followed by instructions for the agent. The frontmatter should be a valid YAML mapping; if it is not valid YAML, AIxCoding-CLI tries to read it line by line and logs a warning. AIxCoding-CLI validates the file as follows:
 
 | Content | Loading requirements |
 | --- | --- |
@@ -136,19 +136,19 @@ description: Draft user-facing release notes from commit history
 | `name` | Required; must exactly match the skill directory name; 1-64 characters long; may contain only lowercase letters, digits, and hyphens (`-`). Uppercase letters, underscores (`_`), and other characters are not allowed. Must not start or end with a hyphen or contain consecutive hyphens |
 | `description` | Required; at most 1,024 characters. Describe both the skill's purpose and when to use it to help the agent decide when to load it |
 | `compatibility` | Optional; at most 500 characters |
-| `license`, `allowed-tools` | Optional; AIxCoding reads their values without further validation |
-| `metadata` | Optional; must be a YAML mapping, otherwise AIxCoding does not retain this field |
-| Body | AIxCoding imposes no additional length or structure restrictions |
+| `license`, `allowed-tools` | Optional; AIxCoding-CLI reads their values without further validation |
+| `metadata` | Optional; must be a YAML mapping, otherwise AIxCoding-CLI does not retain this field |
+| Body | AIxCoding-CLI imposes no additional length or structure restrictions |
 
-Use valid YAML for the frontmatter to ensure that the skill loads reliably. AIxCoding does not load a skill if its frontmatter, `name`, or `description` is missing, or if field values fail the validation rules above.
+Use valid YAML for the frontmatter to ensure that the skill loads reliably. AIxCoding-CLI does not load a skill if its frontmatter, `name`, or `description` is missing, or if field values fail the validation rules above.
 
 The optional fields serve the following purposes:
 
 * `compatibility`: Describes the runtime environment the skill depends on, such as supported products, required system packages, or network access requirements.
 * `license`: Declares the skill's license. This can be a license name or the name of a license file in the skill directory.
-* `allowed-tools`: Declares tools that may be approved in advance under the Agent Skills specification. This field is still experimental. AIxCoding currently only reads and retains its value; it does not automatically grant tool permissions based on it.
+* `allowed-tools`: Declares tools that may be approved in advance under the Agent Skills specification. This field is still experimental. AIxCoding-CLI currently only reads and retains its value; it does not automatically grant tool permissions based on it.
 
-AIxCoding skill directories and the `SKILL.md` format follow the common Agent Skills specification. For details on these fields and the complete skill specification, see the [official Agent Skills specification](https://agentskills.io/specification).
+AIxCoding-CLI skill directories and the `SKILL.md` format follow the common Agent Skills specification. For details on these fields and the complete skill specification, see the [official Agent Skills specification](https://agentskills.io/specification).
 
 #### Add scripts and resources
 
@@ -167,12 +167,12 @@ release-notes/
     └── template.html
 ```
 
-AIxCoding recognizes text files as skill resources only if they have one of these extensions: `.md`, `.txt`, `.rst`, `.html`, `.htm`, `.xml`, `.svg`, `.json`, `.jsonl`, `.yaml`, `.yml`, `.toml`, `.csv`, `.tsv`, `.ini`, `.cfg`, `.css`.
+AIxCoding-CLI recognizes text files as skill resources only if they have one of these extensions: `.md`, `.txt`, `.rst`, `.html`, `.htm`, `.xml`, `.svg`, `.json`, `.jsonl`, `.yaml`, `.yml`, `.toml`, `.csv`, `.tsv`, `.ini`, `.cfg`, `.css`.
 
 Resource files must use UTF-8 encoding. In addition:
 
 * Script extensions must be listed in the agent configuration's "Allowed Script Extensions".
-* AIxCoding reads only files at the skill directory root and in its immediate subdirectories. For example, it discovers `guide.md` and `references/guide.md`, but ignores `references/api/guide.md`.
-* Within a skill directory, AIxCoding skips files and directories accessed through symbolic links or Windows directory junctions. Both point to other locations on disk. To use their contents, place the actual files in the skill directory.
+* AIxCoding-CLI reads only files at the skill directory root and in its immediate subdirectories. For example, it discovers `guide.md` and `references/guide.md`, but ignores `references/api/guide.md`.
+* Within a skill directory, AIxCoding-CLI skips files and directories accessed through symbolic links or Windows directory junctions. Both point to other locations on disk. To use their contents, place the actual files in the skill directory.
 
 Files that do not meet the extension, directory depth, or link rules do not appear in the skill's resource or script list. Reading a resource fails if it is not valid UTF-8 text. These issues do not prevent an otherwise valid `SKILL.md` from loading.

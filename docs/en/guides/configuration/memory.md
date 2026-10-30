@@ -2,7 +2,7 @@
 
 This guide explains how to configure memory for the main agent.
 
-## Prepare memory content
+## 1. Prepare memory content
 
 **Memory is added to the system prompt when the main agent loads.** AIxCoding reads the memory files configured for the current main agent and provides their content to the agent as reference material. Memory content uses part of the model's context window and is sent to the model service with requests. Avoid including sensitive information such as secret keys or access tokens in memory.
 
@@ -12,7 +12,7 @@ This guide explains how to configure memory for the main agent.
 
 **The default agents already use AGENTS.md as memory.** The main agents included with AIxCoding, such as Code Agent, load `AGENTS.md` from the working directory. To add general project instructions, start by maintaining this file. If it is not needed, remove its entry from the "Memory" tab.
 
-## Add a memory file
+## 2. Add a memory file
 
 1. Enter `/agents memory` in the input field to open the current agent's "Memory" tab. To configure another main agent, select it from the list on the left.
 2. Click "+ Add File" in the "Files" section.
@@ -21,13 +21,13 @@ This guide explains how to configure memory for the main agent.
     > **Note:** Relative paths are resolved against the current working directory when memory loads, rather than the directory where the agent profile was created. This lets the same agent load each project's own `AGENTS.md`. Relative paths must stay inside the working directory; use an absolute path for files outside it.
 4. Click "Save", then close the agent configuration window.
 
-## Add a memory folder
+## 3. Add a memory folder
 
 To load a set of reference files, click "+ Add Folder" in the "Folders" section. With "Workspace relative" selected, enter a relative path; otherwise, enter an absolute path. When finished, click "Save", then close the agent configuration window.
 
 AIxCoding first loads the `.md` and `.txt` files directly in the folder, then scans subfolders one level at a time. For each configured folder, it scans at most two levels of subfolders and loads at most 100 files. If an important file may fall outside these limits, add it separately in the "Files" section.
 
-## Load and reload memory
+## 4. Load and reload memory
 
 If the same file is both added individually and discovered in a folder, it is loaded only once. The combined content from all memory sources is limited to 35,000 tokens. Individually added files load first, then folders. Once a file would exceed the limit, that file and all remaining files are skipped, and AIxCoding displays a warning.
 
@@ -35,7 +35,7 @@ After switching working directories or changing the current agent profile, AIxCo
 
 AIxCoding does not monitor loaded memory files for changes. After editing a file directly on disk, reload the main agent for the changes to take effect. For example, restart AIxCoding, switch working directories, modify and save the current agent profile, or switch to another main agent and then switch back.
 
-## Verify that memory is loaded
+## 5. Verify that memory is loaded
 
 Enter `/runtime` in the input field, or click the file count at the right end of the status bar above the input field, to open "Runtime Details". Switch to the "Files" tab. This page lists the files actually loaded, grouped by their configured source. If the expected files appear in the list, memory has loaded.
 

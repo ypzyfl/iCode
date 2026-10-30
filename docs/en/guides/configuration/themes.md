@@ -4,7 +4,7 @@ Use the theme editor to adjust colors in the terminal user interface (TUI) and p
 
 Color changes are previewed live but are not saved automatically. Save your changes through the editor's “Save” dialog to write them to a theme file and keep them for the next launch. To write YAML files directly or look up color fields, see the [Theme file reference](../../reference/themes.md).
 
-## Open the editor
+## 1. Open the editor
 
 1. Press **F9**, or click `f9 Themes` in the footer, to open the theme list.
 2. Select “Edit themes…” at the bottom of the list to open the theme editor beside the main interface.
@@ -14,7 +14,7 @@ The current conversation remains visible beside the editor, so you can see how c
 
 While the editor is open, switching the applied theme through F9, `/theme`, or the settings window is restricted. Use the editor's dropdown to choose another theme to edit. To change the theme for everyday use, close the editor first.
 
-## Adjust and preview colors
+## 2. Adjust and preview colors
 
 The editor groups colors under headings such as `Colors`, `Buttons`, and `Borders`. Each color is identified by its field name, such as `primary` (the main color) or `background` (the overall background).
 
@@ -24,7 +24,7 @@ The editor groups colors under headings such as `Colors`, `Buttons`, and `Border
 
 Background and panel colors (`background`, `surface`, `panel`, and `boost`) must remain opaque, so the color picker does not offer transparency controls for these fields.
 
-## Undo and reset
+## 3. Undo and reset
 
 Choose an action based on how much you want to undo:
 
@@ -35,7 +35,7 @@ Choose an action based on how much you want to undo:
 | The “↺” reset button beside a changed field | Restores that field to its value when the theme was loaded into the editor |
 | “Reset all” | Restores all fields to their values when the theme was loaded into the editor |
 
-## Save a theme
+## 4. Save a theme
 
 1. Click “Save” in the editor.
 2. Enter a theme name in the “Save theme” dialog.
@@ -48,13 +48,13 @@ Theme names must follow these rules:
 * When editing a built-in theme, save under a new name. When editing a user theme, an exact match with the original name (including letter case) overwrites the original file; a new name saves a separate file. Duplicate-name checks are case-insensitive.
 * Do not use Windows device names such as `CON`, `NUL`, `COM1`–`COM9`, or `LPT1`–`LPT9`. Names formed by adding a dot and suffix to these names, such as `CON.dark`, are also prohibited.
 
-## Close the editor or switch editing targets
+## 5. Close the editor or switch editing targets
 
 If there are unsaved changes when you select another theme to edit or click “Close”, you will be asked whether to discard them. Choose “Discard” to discard the changes and continue, or “Cancel” to keep editing.
 
 When the editor closes, the interface returns to the currently applied theme.
 
-## Delete a user theme
+## 6. Delete a user theme
 
 “Delete” removes the theme file and any unsaved changes to that theme. Built-in themes cannot be deleted.
 

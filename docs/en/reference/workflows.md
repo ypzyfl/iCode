@@ -2,9 +2,9 @@
 
 This page provides workflow authors with the Python API, data and scheduling rules, execution environments, interaction behavior, and run records.
 
-## Workflow files
+## 1. Workflow files
 
-### File definition and validation
+### 1. File definition and validation
 
 Workflows are defined in `.py` files. This is a minimal complete example that returns its input unchanged:
 
@@ -28,19 +28,19 @@ The module must define a top-level variable named `workflow` containing the `Wor
 
 Syntax errors, exceptions in top-level code, build validation failures, or a missing valid `workflow` object prevent loading. For structural validation rules, see [`WorkflowBuilder.build()`](#workflowbuilderbuild).
 
-### File discovery
+### 2. File discovery
 
 A workflow's ID is its filename without `.py`, independent of the `WorkflowBuilder` title. Files with the same name override each other in this priority order:
 
 | Priority | Location | Source |
 | --- | --- | --- |
 | 1 | `.chrys/workflows/` in the current working directory | `project` |
-| 2 | Under AIxCoding configuration directory: `%APPDATA%\chrys\workflows\` on Windows; `~/.chrys/workflows/` on Linux and macOS | `global` |
-| 3 | Built-in examples shipped with AIxCoding | `builtin` |
+| 2 | Under AIxCoding-CLI configuration directory: `%APPDATA%\chrys\workflows\` on Windows; `~/.chrys/workflows/` on Linux and macOS | `global` |
+| 3 | Built-in examples shipped with AIxCoding-CLI | `builtin` |
 
 Project workflows are discovered only in `.chrys/workflows/` under the current working directory; parent directories are not searched. Each source directory is scanned only for its immediate `.py` files, without recursion. Names starting with `.` or `_` are ignored. User workflow files cannot be symbolic links, must pass ownership checks, and have a source size limit of 4 MiB. Unreadable files are skipped with a reported reason.
 
-### Trust confirmation
+### 3. Trust confirmation
 
 Loading a custom workflow for the first time requires trust confirmation:
 
@@ -51,11 +51,11 @@ Loading a custom workflow for the first time requires trust confirmation:
 aixcoding-cli workflow run echo --trust --input "Hello"
 ```
 
-The confirmation is saved, so later runs can omit `--trust`. Confirmation is required again if the entry file's source, the built workflow definition, or environment information changes, including the selected interpreter's path, version, platform, or the workflow SDK supplied by AIxCoding. This check does not cover changes to installed dependencies or inspect every imported Python file.
+The confirmation is saved, so later runs can omit `--trust`. Confirmation is required again if the entry file's source, the built workflow definition, or environment information changes, including the selected interpreter's path, version, platform, or the workflow SDK supplied by AIxCoding-CLI. This check does not cover changes to installed dependencies or inspect every imported Python file.
 
 Review the source before confirming trust. Workflow code can read and write files or start programs with your user permissions. Previewing a trusted workflow executes its top-level code, and running it loads the module again. Top-level operations such as file writes or network requests can therefore occur before any node starts and can occur more than once. Put task operations inside node functions, leaving only imports, function definitions, and workflow construction at the top level.
 
-## Python API
+## 2. Python API
 
 `chrys.workflows` provides these APIs:
 
@@ -73,7 +73,7 @@ Review the source before confirming trust. Workflow code can read and write file
 | `Answer` | The user's answer to one `Question` |
 | `Retry` | Node retry count and interval |
 
-### `WorkflowBuilder`
+### 1. `WorkflowBuilder`
 
 Create a top-level workflow:
 
@@ -101,7 +101,7 @@ output(node: NodeHandle) -> None
 
 Collect the result of `node` as a workflow output. `node` must be a top-level node handle created by this builder. Call this method multiple times to collect results from different nodes; the same node cannot be declared twice.
 
-Declaring a node as an output does not stop further execution. Its downstream nodes and other runnable branches continue, and the workflow waits for those paths to finish. For collection order and skipped nodes, see [Input scheduling and output collection](#input-scheduling-and-output-collection).
+Declaring a node as an output does not stop further execution. Its downstream nodes and other runnable branches continue, and the workflow waits for those paths to finish. For collection order and skipped nodes, see [Input scheduling and output collection](None#2-input-scheduling-and-output-collection).
 
 #### `WorkflowBuilder.build`
 
@@ -137,7 +137,7 @@ loop(name, body, until, max_iterations, on_exhausted="continue") -> NodeHandle
 
 `body` runs once when `loop()` is called. The returned entry and exit must belong to that loop body and may be the same node.
 
-`body` creates nodes and edges through the supplied [`BuilderScope`](#builderscope) instance. A loop body cannot contain another loop.
+`body` creates nodes and edges through the supplied [`BuilderScope`](None#2-builderscope) instance. A loop body cannot contain another loop.
 
 **Execution and stopping rules**
 
@@ -154,7 +154,7 @@ At runtime, each iteration executes the previously built body:
 | `"continue"` | End the loop, use the last iteration's exit value as its output, and continue downstream |
 | `"fail"` | End the workflow run with `loop_exhausted` |
 
-### `BuilderScope`
+### 2. `BuilderScope`
 
 `BuilderScope` provides instance methods for creating nodes and edges, inherited by `WorkflowBuilder`. At the top level, use the `WorkflowBuilder` instance. Inside a loop body, use the `BuilderScope` instance supplied to the `body` callback of `loop()`; you do not need to construct one yourself.
 
@@ -173,11 +173,11 @@ python(name, fn, *, timeout=300.0, retry=None) -> NodeHandle
 | `name` | Node name |
 | `fn` | Python function to execute; see signature and return value requirements below |
 | `timeout` | Maximum seconds per attempt, default 300; a finite positive number or `None`, where `None` means no deadline |
-| `retry` | A [`Retry`](#retry) instance; when omitted, the node runs only once |
+| `retry` | A [`Retry`](None#11-retry) instance; when omitted, the node runs only once |
 
 `fn` can be synchronous or asynchronous, defined with `async def`.
 
-`fn` takes one or two positional arguments. The first is the node input, a [`WorkflowValue`](#workflowvalue). The optional second argument is a [`NodeContext`](#nodecontext), used to report progress or ask the user a question. Examples of both signatures:
+`fn` takes one or two positional arguments. The first is the node input, a [`WorkflowValue`](None#5-workflowvalue). The optional second argument is a [`NodeContext`](None#7-nodecontext), used to report progress or ask the user a question. Examples of both signatures:
 
 ```python
 def transform(value: WorkflowValue) -> str:
@@ -191,7 +191,7 @@ def report(value: WorkflowValue, ctx: NodeContext) -> WorkflowValue:
 
 The positional parameters of `fn` cannot have default values. `fn` also cannot declare `*args`, `**kwargs`, or required keyword-only parameters.
 
-`fn` must return a string or a `WorkflowValue`. AIxCoding converts a returned string to `WorkflowValue(text=returned_string, data=None)`.
+`fn` must return a string or a `WorkflowValue`. AIxCoding-CLI converts a returned string to `WorkflowValue(text=returned_string, data=None)`.
 
 Relative file paths in Python nodes are resolved against the workflow session's working directory.
 
@@ -215,7 +215,7 @@ agent(
 | --- | --- |
 | `name` | Node name |
 | `profile` | Required ID, name, or display name of an existing agent profile; using the ID is recommended. List profiles with `aixcoding-cli agents` |
-| `model` | Optional AIxCoding model profile ID or name, listed by `aixcoding-cli models`; when omitted, the model selection rules below apply |
+| `model` | Optional AIxCoding-CLI model ID or name, listed by `aixcoding-cli models`; when omitted, the model selection rules below apply |
 | `instructions_suffix` | Optional string with additional instructions for this node |
 | `timeout` | Maximum seconds per attempt, unlimited by default; a finite positive number or `None` |
 | `retry` | When omitted, at most three attempts with zero backoff; not all errors are retried automatically |
@@ -234,7 +234,7 @@ A unique match at any step selects that profile. No match proceeds to the next s
 
 ##### Model selection
 
-`model` is matched against AIxCoding model profiles in this order:
+`model` is matched against AIxCoding-CLI models in this order:
 
 1. Exact ID.
 2. Exact name.
@@ -242,11 +242,11 @@ A unique match at any step selects that profile. No match proceeds to the next s
 
 A unique match at any step selects that profile. No match proceeds to the next step; multiple matches cause an immediate error. If all steps fail to match, an error is also reported.
 
-Regular AIxCoding agents select a model in this priority order:
+Regular AIxCoding-CLI agents select a model in this priority order:
 
 1. The `model` argument to `agent()`.
 2. The model bound to the agent profile.
-3. The workflow's default model. In the TUI, select it under “Run Settings”. In the CLI, loading an existing workflow session with `aixcoding-cli workflow run <workflow-id> --session <session-id>` retains that session's saved model selection. If no workflow default has been selected, the [default model configured in AIxCoding](settings.md#agents-models-and-requests) is used.
+3. The workflow's default model. In the TUI, select it under “Run Settings”. In the CLI, loading an existing workflow session with `aixcoding-cli workflow run <workflow-id> --session <session-id>` retains that session's saved model selection. If no workflow default has been selected, the default model configured in AIxCoding-CLI is used.
 
 An explicit `model` that does not exist or is unavailable causes an error. If the agent's bound model does not exist, selection falls back to the workflow default. The workflow cannot start without an available model.
 
@@ -254,11 +254,11 @@ An explicit `model` that does not exist or is unavailable causes an error. If th
 
 The agent uses the upstream `WorkflowValue.text` as its task input. `WorkflowValue.data` is not automatically added to the prompt.
 
-The node returns a `WorkflowValue` with the agent's response text in `text` and `None` in `data`. Regular AIxCoding agents prefer the final response text. If the final response has no text, the text emitted during this execution is concatenated in order as the node output, which may include commentary around tool calls.
+The node returns a `WorkflowValue` with the agent's response text in `text` and `None` in `data`. Regular AIxCoding-CLI agents prefer the final response text. If the final response has no text, the text emitted during this execution is concatenated in order as the node output, which may include commentary around tool calls.
 
 ##### Agent profile support
 
-Regular AIxCoding agent nodes support profile settings as follows (✓ supported, ✗ unsupported). For field formats and configuration rules, see the [Agent profile reference](agent-profile.md).
+Regular AIxCoding-CLI agent nodes support profile settings as follows (✓ supported, ✗ unsupported). For field formats and configuration rules, see the [Agent profile reference](agent-profile.md).
 
 | Setting | Supported | Behavior in a node |
 | --- | :---: | --- |
@@ -274,18 +274,6 @@ Regular AIxCoding agent nodes support profile settings as follows (✓ supported
 | `memory` | ✓ | Loads the configured memory files and directories |
 
 Each agent node has its own context. Edges pass only node outputs, not the full conversation history or tool-call records.
-
-##### External ACP agents
-
-`profile` can directly reference a configured ACP agent, even one marked as sub-agent-only. [Configure an external ACP agent in the TUI](../guides/extensions/external-acp-agents.md), or [create an agent YAML file containing an `acp` configuration](agent-profile.md#acp).
-
-ACP nodes differ in these ways:
-
-- Omitting `model` uses the remote model settings in the ACP profile, not the workflow default.
-- An explicit `model` takes an AIxCoding model profile ID or name. AIxCoding uses only its `model_id` to request a remote model switch over ACP; the profile's other fields do not apply. If the remote agent does not list the model, or rejects the switch because the method is unsupported or the parameters are invalid, execution continues with the remote default model.
-- `instructions_suffix` is appended to the user prompt sent to the external agent.
-- The node output is determined by “Result” in the external agent profile ([`acp.result_mode`](agent-profile.md#acp)), with options “Last message segment” and “Full transcript”. See [Set the result and timeouts](../guides/extensions/external-acp-agents.md#set-the-result-and-timeouts).
-- The external agent executes its own tools. Only operations for which it sends ACP permission requests enter AIxCoding's approval process.
 
 #### `BuilderScope.edge`
 
@@ -354,13 +342,13 @@ join(
 
 Every node in `sources` and `dst` must be created by the instance on which `join()` is called.
 
-Without `combine`, the [default merge rules](#input-scheduling-and-output-collection) apply.
+Without `combine`, the [default merge rules](None#2-input-scheduling-and-output-collection) apply.
 
 If supplied, `combine` must be a synchronous single-argument function taking `list[SourceValue]` and returning a string or `WorkflowValue`. The list follows the declaration order of `sources`, not completion order. Skipped sources or sources not selected by a condition do not appear in it.
 
 The supplied `combine` is called whenever at least one source provides input, including when there is only one input. If no source provides input, both the join node and the destination are skipped, and `combine` is not called.
 
-### `NodeHandle`
+### 3. `NodeHandle`
 
 ```python
 class NodeHandle:
@@ -371,18 +359,18 @@ A node reference used to declare the start, outputs, and edges. Use handles retu
 
 The sole public attribute, `node_id`, is the node name and cannot be modified.
 
-### `Workflow`
+### 4. `Workflow`
 
 ```python
 class Workflow:
     definition: WorkflowDefinition  # Read-only property
 ```
 
-A built workflow returned by `WorkflowBuilder.build()`. Assign it to the workflow file's top-level `workflow` variable for AIxCoding to load and run.
+A built workflow returned by `WorkflowBuilder.build()`. Assign it to the workflow file's top-level `workflow` variable for AIxCoding-CLI to load and run.
 
 Its `definition` attribute holds the built workflow definition, including the title, description, start, output nodes, nodes, and edges. This `WorkflowDefinition` instance is created automatically by `build()`; you do not need to define it yourself.
 
-### `WorkflowValue`
+### 5. `WorkflowValue`
 
 ```python
 class WorkflowValue:
@@ -395,11 +383,11 @@ A value passed between nodes. `text` holds text content; `data` holds structured
 - Strings (`str`), integers (`int`), finite floating-point numbers (`float`), Booleans (`bool`), and `None`.
 - Lists (`list`) and dictionaries (`dict`) with string keys. Nesting is allowed, but list elements and dictionary values must also meet these type requirements.
 
-Non-JSON types such as sets (`set`, `frozenset`), tuples (`tuple`), and bytes (`bytes`, `bytearray`) are unsupported, as are ordinary custom objects, non-string dictionary keys, `NaN`, and positive or negative infinity. For size limits, see [Data and output limits](#data-and-output-limits).
+Non-JSON types such as sets (`set`, `frozenset`), tuples (`tuple`), and bytes (`bytes`, `bytearray`) are unsupported, as are ordinary custom objects, non-string dictionary keys, `NaN`, and positive or negative infinity. For size limits, see [Data and output limits](None#1-data-and-output-limits).
 
 The framework supplies each node's input. When a Python node or `combine` returns a string, it is automatically converted to a `WorkflowValue`. To return structured data, construct `WorkflowValue(text="...", data=...)` yourself; `text` is required.
 
-### `SourceValue`
+### 6. `SourceValue`
 
 ```python
 class SourceValue:
@@ -414,7 +402,7 @@ A source item received by the `combine` function. The framework creates it; you 
 - `activation_id`: The identifier for this execution of the source node within the workflow run. A loop-body node has a different identifier in each iteration.
 - `value`: The `WorkflowValue` produced by that execution.
 
-### `NodeContext`
+### 7. `NodeContext`
 
 A Python node function can receive a `NodeContext` as its second positional argument to send text messages or ask the user questions.
 
@@ -439,7 +427,7 @@ async ask(prompt: list[Question] | tuple[Question, ...]) -> tuple[Answer, ...]
 Ask the user and wait for the answer. Call it only from an asynchronous node function, using `await ctx.ask(...)`. The return value follows the argument:
 
 - A string, which must not be blank, asks one open question and returns the typed answer as text.
-- A [`Question`](#question) can offer options to pick one or several from, and returns one [`Answer`](#answer).
+- A [`Question`](None#8-question) can offer options to pick one or several from, and returns one [`Answer`](None#10-answer).
 - A list or tuple of 1 to 5 questions shows them together in one dialog, one tab per question, and returns a tuple of answers in question order. A one-element list also returns a tuple.
 
 Any other argument raises `TypeError`; an empty list or more than five questions raise `ValueError`.
@@ -448,9 +436,9 @@ The TUI displays the questions in the same dialog as the agent question tool. Th
 
 Time spent waiting for an answer counts toward the node timeout. `ask()` does not use the agent question tool's timeout setting. To wait indefinitely for the user, set `timeout=None` when registering the Python node to remove its deadline.
 
-The run's `workflows/<run_id>/events.jsonl` under the [session directory](../guides/daily-use/sessions.md#find-the-session-id-and-storage-location) keeps a text summary of the questions and the answers, cut to 512 characters, rather than the full questions.
+The run's `workflows/<run_id>/events.jsonl` under the [session directory](../guides/daily-use/sessions.md#5-find-the-session-id-and-storage-location) keeps a text summary of the questions and the answers, cut to 512 characters, rather than the full questions.
 
-### `Question`
+### 8. `Question`
 
 ```python
 Question(
@@ -472,7 +460,7 @@ Option labels have surrounding whitespace removed and must be unique within a qu
 
 Whether or not a question has options, the user can type an answer of their own, or add a note to a selection.
 
-### `Option`
+### 9. `Option`
 
 ```python
 Option(label: str, description: str = "")
@@ -481,7 +469,7 @@ Option(label: str, description: str = "")
 - `label`: What the user picks, and what comes back in `Answer.selected`. At most 200 characters.
 - `description`: One line shown under the label. At most 500 characters.
 
-### `Answer`
+### 10. `Answer`
 
 ```python
 class Answer:
@@ -521,7 +509,7 @@ async def pick_areas(value: WorkflowValue, ctx: NodeContext) -> WorkflowValue:
     return WorkflowValue(text=text, data={"selected": list(answer.selected), "text": answer.text})
 ```
 
-### `Retry`
+### 11. `Retry`
 
 ```python
 Retry(max_attempts: int, backoff: float = 0.0)
@@ -529,11 +517,11 @@ Retry(max_attempts: int, backoff: float = 0.0)
 
 `max_attempts` is the total number of attempts including the first, and must be at least 1. `backoff` is a fixed, finite, nonnegative interval in seconds.
 
-Pass it through the `retry` argument of `python()` or `agent()`. Whether an error is retried also depends on its type; see [Timeouts and retries](#timeouts-and-retries).
+Pass it through the `retry` argument of `python()` or `agent()`. Whether an error is retried also depends on its type; see [Timeouts and retries](None#3-timeouts-and-retries).
 
-## Data and scheduling rules
+## 3. Data and scheduling rules
 
-### Data and output limits
+### 1. Data and output limits
 
 Workflows are intended to pass task text and bounded JSON data. Exceeding the limits below causes failure; values are not automatically truncated before being passed downstream. Depth, value count, and string length limits apply to Python node and custom `combine` return values. Return values that cannot be serialized also cause failure.
 
@@ -565,7 +553,7 @@ Progress messages and diagnostic output have separate limits. An “attempt” b
 
 CLI text mode displays received `ctx.emit()` messages on stderr, but these still count toward the separate `ctx.emit()` limits, not the node's 64 KiB output allowance.
 
-### Input scheduling and output collection
+### 2. Input scheduling and output collection
 
 Multiple `wf.edge()` calls can connect multiple upstream nodes to the same node. The destination waits until every incoming edge has determined whether it will pass a result, then runs or skips based on the results actually received.
 
@@ -591,7 +579,7 @@ Ready branches can be scheduled in parallel. Each run currently permits at most 
 
 The workflow collects output nodes in `output()` declaration order, including only completed nodes that have a result. Skipped outputs do not produce empty placeholders, so a workflow can complete without any final outputs.
 
-### Timeouts and retries
+### 3. Timeouts and retries
 
 For Python and agent nodes, `timeout` limits each attempt's duration, including time spent waiting for questions or approvals. The timer resets for each retry.
 
@@ -602,14 +590,13 @@ Automatic retry after a node failure depends on the error type and the node's `R
 | Situation | Automatic retry condition |
 | --- | --- |
 | A Python node's function raises an exception or times out | `Retry.max_attempts` has not been reached |
-| A non-ACP agent node's model request hits a temporary error, such as a dropped connection, a rate limit or a request timeout | The request is first retried within the attempt, as in chat. If it still fails, the node is retried while `Retry.max_attempts` has not been reached |
-| A non-ACP agent node reaches its `timeout` | `Retry.max_attempts` has not been reached |
-| An external ACP agent node loses its connection, stops responding, reports an error, or reaches its `timeout` | `Retry.max_attempts` has not been reached. AIxCoding cannot tell which errors an external agent reports are permanent, so it retries them all. It does not retry an agent that cannot be started, one that still cannot be reached after the attempt retried the connection several times, a rejected configuration, or an answer the agent refuses, cuts short or leaves empty |
-| Errors that retrying cannot fix, such as an exhausted quota or plan, a conversation too long for the model, or an external agent that needs you to log in; also failed condition or combine calculations, unserializable or oversized return values, user questions in an environment that does not support them, and similar errors | Not retried automatically |
+| An agent node's model request hits a temporary error, such as a dropped connection, a rate limit or a request timeout | The request is first retried within the attempt, as in chat. If it still fails, the node is retried while `Retry.max_attempts` has not been reached |
+| An agent node reaches its `timeout` | `Retry.max_attempts` has not been reached |
+| Errors that retrying cannot fix, such as an exhausted quota or plan, or a conversation too long for the model; also failed condition or combine calculations, unserializable or oversized return values, user questions in an environment that does not support them, and similar errors | Not retried automatically |
 
-If retrying could make the model provider run one of its own tools a second time, such as an MCP server or shell the provider runs, the node is not retried automatically. Provider-run search and code execution are safe to repeat and don't stop retries; neither do AIxCoding's own file, Shell or MCP tools.
+If retrying could make the model provider run one of its own tools a second time, such as an MCP server or shell the provider runs, the node is not retried automatically. Provider-run search and code execution are safe to repeat and don't stop retries; neither do AIxCoding-CLI's own file, Shell or MCP tools.
 
-When a non-ACP agent's attempt fails or times out, the retry continues from its conversation so far: tool calls that already finished do not run again, and node details show the new attempt's transcript continuing the previous one. An external ACP agent starts a new session with the same input, and the new attempt's transcript shows only that session. If the agent finished and a later step of the node failed, such as an outgoing condition, a retry runs the agent again from its input.
+When an attempt fails or times out, the retry continues from its conversation so far: tool calls that already finished do not run again, and node details show the new attempt's transcript continuing the previous one. If the agent finished and a later step of the node failed, such as an outgoing condition, a retry runs the agent again from its input.
 
 `Retry(max_attempts=1)` turns off node retries only: a failed model request is still retried within the attempt.
 
@@ -621,9 +608,9 @@ Retrying a Python node reruns the entire function, including when it failed whil
 
 Retries can repeat file writes, external requests, and other operations, so ensure these operations can safely be repeated. A timeout or cancellation does not undo operations that have already occurred, nor does it guarantee that a running synchronous Python function stops immediately.
 
-## Execution environment
+## 4. Execution environment
 
-By default, workflows use the Python interpreter running AIxCoding. You can instead specify an existing virtual environment or Python executable in the workflow file. Python 3.9 and later are supported.
+By default, workflows use the Python interpreter running AIxCoding-CLI. You can instead specify an existing virtual environment or Python executable in the workflow file. Python 3.9 and later are supported.
 
 This example uses an existing `.venv` in the project root, with the workflow file in the project's `.chrys/workflows/` directory:
 
@@ -634,18 +621,18 @@ This example uses an existing `.venv` in the project root, with the workflow fil
 # ///
 ```
 
-Keep the `#` prefixes and `# ///` markers: AIxCoding reads the configuration from these comments. `[tool.chrys]` is the AIxCoding-specific configuration section. Relative `python` paths are resolved against the directory containing the workflow file.
+Keep the `#` prefixes and `# ///` markers: AIxCoding-CLI reads the configuration from these comments. `[tool.chrys]` is the AIxCoding-CLI-specific configuration section. Relative `python` paths are resolved against the directory containing the workflow file.
 
-`python` can also point directly to a Python executable, such as `"/opt/homebrew/bin/python3.12"`. AIxCoding does not search `PATH` for commands. For an environment created with uv, point to its `.venv`.
+`python` can also point directly to a Python executable, such as `"/opt/homebrew/bin/python3.12"`. AIxCoding-CLI does not search `PATH` for commands. For an environment created with uv, point to its `.venv`.
 
-AIxCoding does not install dependencies automatically. Install the workflow's third-party packages in the selected environment beforehand. AIxCoding supplies `chrys.workflows` at runtime, so it needs no separate installation.
+AIxCoding-CLI does not install dependencies automatically. Install the workflow's third-party packages in the selected environment beforehand. AIxCoding-CLI supplies `chrys.workflows` at runtime, so it needs no separate installation.
 
 Script metadata also supports these two top-level fields, placed before `[tool.chrys]`:
 
 | Field | Rules |
 | --- | --- |
-| `requires-python` | Optional Python version constraint string, such as `">=3.10,<3.13"`. AIxCoding checks the selected interpreter against it and refuses to load if it does not match; it does not find or install another version automatically. Only comma-separated `~=`, `==`, `!=`, `<=`, `>=`, `<`, and `>` clauses with numeric release versions are supported: `.*` works only with `==` and `!=`, and `~=` needs at least two version components. Any other clause also refuses loading |
-| `dependencies` | Optional array of dependency strings. A nonempty array requires `[tool.chrys] python`, otherwise loading is refused even if the default environment already has those packages. With a user-supplied interpreter, AIxCoding neither installs these dependencies nor verifies that installed versions match the declaration |
+| `requires-python` | Optional Python version constraint string, such as `">=3.10,<3.13"`. AIxCoding-CLI checks the selected interpreter against it and refuses to load if it does not match; it does not find or install another version automatically. Only comma-separated `~=`, `==`, `!=`, `<=`, `>=`, `<`, and `>` clauses with numeric release versions are supported: `.*` works only with `==` and `!=`, and `~=` needs at least two version components. Any other clause also refuses loading |
+| `dependencies` | Optional array of dependency strings. A nonempty array requires `[tool.chrys] python`, otherwise loading is refused even if the default environment already has those packages. With a user-supplied interpreter, AIxCoding-CLI neither installs these dependencies nor verifies that installed versions match the declaration |
 
 For example, this declaration requires a project virtual environment using Python 3.10 through 3.12, with `requests` installed beforehand by the author:
 
@@ -658,11 +645,11 @@ For example, this declaration requires a project virtual environment using Pytho
 # ///
 ```
 
-## Sessions, runs, and records
+## 5. Sessions, runs, and records
 
 Workflow sessions are separate from chat sessions and save multiple runs of the same workflow in the same workspace. Each start creates a new `run_id` using the input supplied for that run; previous conversations are not automatically included.
 
-### Session settings
+### 1. Session settings
 
 The TUI's “Start Workflow” dialog provides “Run Settings”. Whether the working directory can change depends on whether the session has any runs and on the workflow's source:
 
@@ -672,15 +659,15 @@ The TUI's “Start Workflow” dialog provides “Run Settings”. Whether the w
 | New session with no runs, using a project workflow | Fixed to the project directory where the workflow was discovered: the directory containing `.chrys/workflows/` |
 | Session with existing runs | The workspace is fixed; create a new session to change directories or workflows |
 
-Run Settings also offers a default model selector when the workflow contains AIxCoding agent nodes.
+Run Settings also offers a default model selector when the workflow contains AIxCoding-CLI agent nodes.
 
 Workflow sessions do not save their own approval mode. They share the TUI's current approval mode with Chat mode, including sessions reopened later. CLI runs always use `bypass`.
 
-### Run outcomes and recovery
+### 2. Run outcomes and recovery
 
-Reopening a session lets you view history or start a new run, but does not resume from the last interrupted node. Cancelled or interrupted runs must start over. For nodes awaiting manual retry in the current run, see [Timeouts and retries](#timeouts-and-retries).
+Reopening a session lets you view history or start a new run, but does not resume from the last interrupted node. Cancelled or interrupted runs must start over. For nodes awaiting manual retry in the current run, see [Timeouts and retries](None#3-timeouts-and-retries).
 
-In the result object from `aixcoding-cli workflow run --json`, `outcome` indicates the run outcome. Local records also store it in the run-end event in `workflows/<run_id>/events.jsonl` under the [session directory](../guides/daily-use/sessions.md#find-the-session-id-and-storage-location).
+In the result object from `aixcoding-cli workflow run --json`, `outcome` indicates the run outcome. Local records also store it in the run-end event in `workflows/<run_id>/events.jsonl` under the [session directory](../guides/daily-use/sessions.md#5-find-the-session-id-and-storage-location).
 
 If the process terminates abnormally before finalizing a run, restoring the session records `outcome=orphaned` for that run. The workflow run view displays “orphaned”.
 
@@ -696,13 +683,13 @@ If the process terminates abnormally before finalizing a run, restoring the sess
 
 File changes made by tool calls are recorded against the run, but do not assume that all side effects of arbitrary Python code or external programs can be tracked or undone. Cancellation, node retries, and new runs do not automatically roll back files.
 
-### View and export records
+### 3. View and export records
 
 Use the run tabs in the TUI to switch between records within a session; after quitting, switch to Workflow mode and reopen it from the session list. Node details retain separate loop iterations and retry attempts. Viewing history does not execute workflow source code.
 
-The `workflows/<run_id>/` directory under the [session directory](../guides/daily-use/sessions.md#find-the-session-id-and-storage-location) stores the source snapshot, graph definition, input, final outputs, run events, and node records. Agent transcripts also belong to that run. These files preserve records; they do not support resuming a workflow run.
+The `workflows/<run_id>/` directory under the [session directory](../guides/daily-use/sessions.md#5-find-the-session-id-and-storage-location) stores the source snapshot, graph definition, input, final outputs, run events, and node records. Agent transcripts also belong to that run. These files preserve records; they do not support resuming a workflow run.
 
-Run and node usage and elapsed time help assess costs; ACP usage depends on what the remote agent reports. To export analysis data, use:
+Run and node usage and elapsed time help assess costs. To export analysis data, use:
 
 ```shell
 aixcoding-cli trajectory export --session <session-id> --format json --out workflow.json
@@ -711,7 +698,7 @@ aixcoding-cli trajectory export --session <session-id> --format perfetto --out w
 
 Replace `<session-id>` with the workflow session ID. Analysis exports for workflow sessions support only JSON and Perfetto.
 
-## Lifecycle hooks
+## 6. Lifecycle hooks
 
 Workflows use configured external hooks; see the [Hooks reference](hooks.md) for the configuration format. A workflow session can contain multiple runs. `session_*` events mark the session's first use for execution, its first run after restoration, or the end of its use. `workflow_run_*` events mark the start and end of each run. Node executions do not independently trigger the session events below.
 
@@ -720,22 +707,22 @@ A run must first pass startup checks for source code, execution environment, age
 | Event | When it fires | Additional fields |
 | --- | --- | --- |
 | `session_start` | When a new session starts its first run, before `workflow_run_start` | None |
-| `session_restored` | When a session loaded from saved records starts its first new run in the current AIxCoding process, before `workflow_run_start` | `restored_session_id`: ID of the restored session |
-| `session_end` | When a session that has started a run in the current AIxCoding process is deleted, AIxCoding closes normally, or the CLI run command ends normally | None |
+| `session_restored` | When a session loaded from saved records starts its first new run in the current AIxCoding-CLI process, before `workflow_run_start` | `restored_session_id`: ID of the restored session |
+| `session_end` | When a session that has started a run in the current AIxCoding-CLI process is deleted, AIxCoding-CLI closes normally, or the CLI run command ends normally | None |
 | `workflow_run_start` | After each run passes startup checks, before nodes execute | `run_id`, `input_text` |
 | `workflow_run_end` | After each run is finalized and its final outcome is determined, including failure and cancellation | `run_id`, `outcome`, `reason` |
 
-Within each AIxCoding process, a session triggers `session_start` or `session_restored` only on its first run. Each accepted run triggers one `workflow_run_start` and one `workflow_run_end`; node retries do not trigger them again. End events are not guaranteed if the process crashes or is forcibly terminated.
+Within each AIxCoding-CLI process, a session triggers `session_start` or `session_restored` only on its first run. Each accepted run triggers one `workflow_run_start` and one `workflow_run_end`; node retries do not trigger them again. End events are not guaranteed if the process crashes or is forcibly terminated.
 
-All these events include `session_kind: "workflow"`, `workflow_id`, `session_id`, and `cwd`. `profile` is an empty string because a workflow session is not bound to a single agent. For other shared fields, see [Hook base fields](hooks.md#base-fields).
+All these events include `session_kind: "workflow"`, `workflow_id`, `session_id`, and `cwd`. `profile` is an empty string because a workflow session is not bound to a single agent. For other shared fields, see [Hook base fields](hooks.md#1-base-fields).
 
-`workflow_run_start` and `workflow_run_end` are for notifications and recording. If a hook is configured as blocking, AIxCoding waits for it to finish but does not use its returned action to prevent the run or grant tool permissions. `action: block` is ignored, and `on_error: block` is treated as a warning on hook failure.
+`workflow_run_start` and `workflow_run_end` are for notifications and recording. If a hook is configured as blocking, AIxCoding-CLI waits for it to finish but does not use its returned action to prevent the run or grant tool permissions. `action: block` is ignored, and `on_error: block` is treated as a warning on hook failure.
 
-## Command line
+## 7. Command line
 
-### `aixcoding-cli workflow list`
+### 1. `aixcoding-cli workflow list`
 
-List workflows according to the [file discovery](#file-discovery) rules without executing workflow code. Custom workflow titles come from previously saved trust confirmations.
+List workflows according to the [file discovery](None#2-file-discovery) rules without executing workflow code. Custom workflow titles come from previously saved trust confirmations.
 
 ```shell
 aixcoding-cli workflow list [--json]
@@ -743,7 +730,7 @@ aixcoding-cli workflow list [--json]
 
 Text mode shows `ID`, `Source`, `Title`, and `Path`, using `-` for an unknown title. With `--json`, the output is an object with a `workflows` array; each entry contains `id`, `source`, `title`, and `path`, with an empty string for an unknown title. In either mode, warnings about skipped files go to stderr. Use `-h` / `--help` for help.
 
-### `aixcoding-cli workflow run`
+### 2. `aixcoding-cli workflow run`
 
 Run the specified workflow and output its results when it finishes.
 
@@ -776,7 +763,7 @@ JSON mode suppresses node states, `ctx.emit()` progress, and loop iteration mess
 | --- | --- |
 | `session_id` | String or `null`: session identifier, or `null` if unavailable |
 | `run_id` | String: identifier for this run |
-| `outcome` | String: run outcome; see [Run outcomes and recovery](#run-outcomes-and-recovery) |
+| `outcome` | String: run outcome; see [Run outcomes and recovery](None#2-run-outcomes-and-recovery) |
 | `reason` | String: outcome reason code, or an empty string if none |
 | `node_id` | String: relevant failed node, or an empty string if none |
 | `error` | String: error description, or an empty string if none |
@@ -826,7 +813,7 @@ Each item in `outputs` is an object containing these fields:
 
 Both text and JSON modes save node diagnostic records. `print()` output inside a node goes only to those records, not to CLI stderr or the result JSON's `diagnostics` field.
 
-Node diagnostic records are stored in `workflows/<run_id>/nodes/` under the [session directory](../guides/daily-use/sessions.md#find-the-session-id-and-storage-location). Filenames typically follow `<activation_id>.<attempt>.diagnostics.<hash>.json`, containing the activation identifier, attempt number, and an 8-character hash of the record identity that keeps names distinct after sanitizing. `phases[].stdout.text` holds the captured text; `phases[].stdout.truncated` indicates truncation due to the capture limit. No file is created if there is no diagnostic content. In the TUI, you can also inspect an attempt's diagnostics on the “Output” tab in node details.
+Node diagnostic records are stored in `workflows/<run_id>/nodes/` under the [session directory](../guides/daily-use/sessions.md#5-find-the-session-id-and-storage-location). Filenames typically follow `<activation_id>.<attempt>.diagnostics.<hash>.json`, containing the activation identifier, attempt number, and an 8-character hash of the record identity that keeps names distinct after sanitizing. `phases[].stdout.text` holds the captured text; `phases[].stdout.truncated` indicates truncation due to the capture limit. No file is created if there is no diagnostic content. In the TUI, you can also inspect an attempt's diagnostics on the “Output” tab in node details.
 
 #### Error handling and exit codes
 

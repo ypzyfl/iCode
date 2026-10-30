@@ -17,6 +17,8 @@ topics:
         path: start/what-is-aixcoding.md
       - id: getting_started
         path: start/getting-started.md
+      - id: login
+        path: start/login.md
   - id: daily_use
     labels:
       zh-Hans: 日常使用
@@ -35,8 +37,6 @@ topics:
     children:
       - id: icode_run
         path: guides/running/aixcoding-run.md
-      - id: icode_acp
-        path: guides/running/aixcoding-acp.md
       - id: icode_serve
         path: guides/running/aixcoding-serve.md
       - id: workflows
@@ -75,8 +75,6 @@ topics:
         path: guides/extensions/mcp.md
       - id: hooks
         path: guides/extensions/hooks.md
-      - id: external_acp_agents
-        path: guides/extensions/external-acp-agents.md
   - id: reference
     labels:
       zh-Hans: 参考
@@ -92,9 +90,14 @@ topics:
         path: reference/agent-profile.md
       - id: settings_reference
         path: reference/settings.md
-      - id: opentelemetry_reference
-        path: reference/opentelemetry.md
       - id: hooks_reference
         path: reference/hooks.md
       - id: themes_reference
         path: reference/themes.md
+  - id: faq
+    labels:
+      zh-Hans: 常见问题
+      en: Troubleshooting
+    children:
+      - id: faq
+        path: guides/faq.md

@@ -1,8 +1,8 @@
 # 主题文件参考
 
-AIxCoding 支持通过主题文件自定义终端用户界面（Terminal User Interface，TUI）的外观。本页介绍主题文件的格式、常用配色字段和加载规则。通过界面修改并保存主题，请参阅[自定义主题](../guides/configuration/themes.md)。
+AIxCoding-CLI 支持通过主题文件自定义终端用户界面（Terminal User Interface，TUI）的外观。本页介绍主题文件的格式、常用配色字段和加载规则。通过界面修改并保存主题，请参阅[自定义主题](../guides/configuration/themes.md)。
 
-## 文件位置与命名
+## 1. 文件位置与命名
 
 主题文件保存在以下目录中；目录不存在时先创建。
 
@@ -11,7 +11,7 @@ AIxCoding 支持通过主题文件自定义终端用户界面（Terminal User In
 | macOS / Linux | `~/.chrys/themes/` |
 | Windows | `%APPDATA%\chrys\themes\` |
 
-主题文件使用 UTF-8 编码，扩展名必须为 `.yaml` 或 `.yml`，直接存放在上述目录中。AIxCoding 不读取子目录中的主题文件。
+主题文件使用 UTF-8 编码，扩展名必须为 `.yaml` 或 `.yml`，直接存放在上述目录中。AIxCoding-CLI 不读取子目录中的主题文件。
 
 主题名称为文件名去除 `.yaml` 或 `.yml` 扩展名后的部分。主题名称须满足以下要求：
 
@@ -21,9 +21,9 @@ AIxCoding 支持通过主题文件自定义终端用户界面（Terminal User In
 
 `.yaml` 和 `.yml` 文件名称相同时，优先使用 `.yaml`；如果 `.yaml` 文件无效，仍会尝试使用 `.yml`。同名主题只保留一个。
 
-新增或修改主题文件后，重启 AIxCoding 加载，再按 **F9** 在主题列表中选择对应主题即可应用。
+新增或修改主题文件后，重启 AIxCoding-CLI 加载，再按 **F9** 在主题列表中选择对应主题即可应用。
 
-## 文件格式
+## 2. 文件格式
 
 以下是自定义深色主题 `aixcoding-cli-ocean.yaml` 的示例：
 
@@ -49,9 +49,9 @@ variables:
   markdown-block-background: "#202c38"
 ```
 
-`primary` 是唯一必填字段，其余字段均可按需设置。未指定的颜色由 AIxCoding 自动补齐，具体规则见[默认配色规则](#默认配色规则)。
+`primary` 是唯一必填字段，其余字段均可按需设置。未指定的颜色由 AIxCoding-CLI 自动补齐，具体规则见默认配色规则。
 
-## 配置字段
+## 3. 配置字段
 
 主题文件由两部分组成：
 
@@ -119,7 +119,7 @@ variables:
 
 滚动条可通过 `scrollbar`、`scrollbar-hover`、`scrollbar-active` 配置普通、悬停和拖动状态的颜色。`scrollbar-background` 同时决定这三种状态的轨道背景；已有的 `scrollbar-background-hover` 和 `scrollbar-background-active` 可分别覆盖对应状态。
 
-## 默认配色规则
+## 4. 默认配色规则
 
 非 ANSI 主题中，未指定的字段使用以下默认值，或根据其他颜色自动计算。ANSI 模式使用终端配色，不应按下表推断最终显示颜色。
 
@@ -142,8 +142,8 @@ variables:
 
 顶层还接受 `text_alpha` 字段，须填写有限数值，但目前不会改变显示颜色。
 
-## 加载失败
+## 5. 加载失败
 
-加载时发现 YAML 格式错误、缺少 `primary`、未知顶层字段或无效字段值时，AIxCoding 会显示警告并跳过该文件。根据警告检查对应文件，修正后重启加载；其他有效主题仍可使用。
+加载时发现 YAML 格式错误、缺少 `primary`、未知顶层字段或无效字段值时，AIxCoding-CLI 会显示警告并跳过该文件。根据警告检查对应文件，修正后重启加载；其他有效主题仍可使用。
 
-主题通过加载后，如果应用时发现 `variables` 值无法用于对应的界面样式，AIxCoding 会显示警告并回退到默认主题 `chrys`。回退不会覆盖已保存的主题选择，修正文件后可重启重试。
+主题通过加载后，如果应用时发现 `variables` 值无法用于对应的界面样式，AIxCoding-CLI 会显示警告并回退到默认主题 `chrys`。回退不会覆盖已保存的主题选择，修正文件后可重启重试。

@@ -1,16 +1,16 @@
 # Configure context compaction
 
-When a long conversation approaches the model's context window, AIxCoding automatically compacts earlier content to make room for subsequent requests. This guide explains how to configure the Last Words supplement and output limit for agents of the "Built-in" type. External ACP agents manage their own context.
+When a long conversation approaches the model's context window, AIxCoding-CLI automatically compacts earlier content to make room for subsequent requests. This guide explains how to configure the Last Words supplement and output limit for agents of the "Built-in" type.
 
 New agents use defaults suited to most tasks, so adjustments are usually unnecessary.
 
-## Understand when compaction happens
+## 1. Understand when compaction happens
 
-AIxCoding automatically calculates when to start compaction based on the maximum context window, maximum output tokens, and a safety margin for the current model profile. Set the maximum context window and maximum output tokens in the [model profile](./models.md) according to the model's capabilities and your task requirements. The "Compaction" tab does not provide a separate setting for when compaction starts.
+AIxCoding-CLI automatically calculates when to start compaction based on the maximum context window, maximum output tokens, and a safety margin for the current model. The "Compaction" tab does not provide a separate setting for when compaction starts.
 
-When the context is nearly full, AIxCoding also lowers the output limit of the next request so that its input and output fit in the context window, leaving a small margin for error in its token estimate.
+When the context is nearly full, AIxCoding-CLI also lowers the output limit of the next request so that its input and output fit in the context window, leaving a small margin for error in its token estimate.
 
-During compaction, AIxCoding first summarizes older tool results and, if needed, removes older tool calls together with their results. If it still needs to free up space, it replaces completed turns in the current context with a compaction summary. If these steps are still insufficient, AIxCoding generates Last Words for the current task to preserve the information needed to continue, then removes the current turn's tool calls, tool results, and intermediate content from the context supplied to the model, keeping the user's messages.
+During compaction, AIxCoding-CLI first summarizes older tool results and, if needed, removes older tool calls together with their results. If it still needs to free up space, it replaces completed turns in the current context with a compaction summary. If these steps are still insufficient, AIxCoding-CLI generates Last Words for the current task to preserve the information needed to continue, then removes the current turn's tool calls, tool results, and intermediate content from the context supplied to the model, keeping the user's messages.
 
 These three steps serve different purposes: trimming older tool calls and results only reduces the space taken up by tool use; compaction summaries replace completed turns; Last Words help continue the current unfinished task.
 
@@ -24,10 +24,10 @@ Compacted historical turns remain in the session. The agent can look up specific
 
 Compaction reduces context usage, but summaries cannot guarantee that every original detail is preserved. Put project rules that must be retained over time without omissions in [memory files](./memory.md), and write important work results to files in the working directory instead of leaving them only in the conversation.
 
-## Adjust compaction settings
+## 2. Adjust compaction settings
 
 1. Enter `/agents compaction` in the input field to open the current agent's "Compaction" tab. To edit another agent, select it from the list on the left.
-2. Adjust "Last Words Max Output Tokens" as needed, entering an integer within the range allowed by the interface. The actual generation limit will not exceed the current model profile's maximum output tokens.
+2. Adjust "Last Words Max Output Tokens" as needed, entering an integer within the range allowed by the interface. The actual generation limit will not exceed the current model's maximum output tokens.
 3. To emphasize certain types of information in Last Words, fill in "Last Words Supplement (Optional emphasis)".
 4. Click "Save". The new settings take effect the next time this agent needs compaction.
 

@@ -2,7 +2,7 @@
 
 The working directory is the default directory AIxCoding uses for file operations and command execution. Before asking the agent to modify files, save any unsaved content to disk and record existing changes with a Git commit. This makes it easier to distinguish the agent's changes and restore the previous state if needed.
 
-## Choose a working directory at startup
+## 1. Choose a working directory at startup
 
 In a terminal, enter the project directory and start AIxCoding:
 
@@ -19,7 +19,7 @@ You can also specify a working directory with `-C` or `--workdir`, without first
 aixcoding-cli -C <project-directory>
 ```
 
-## Change the working directory during a session
+## 2. Change the working directory during a session
 
 When the agent is idle, click the current working directory path at the right end of the conversation area's bottom border, or enter `/chdir` in the input field to open the "Change Directory" dialog. Browse to and select the target directory. If you have used the target working directory recently, select it from the "Recent" group on the "Favorites" tab.
 

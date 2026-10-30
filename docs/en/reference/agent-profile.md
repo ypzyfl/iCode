@@ -4,7 +4,7 @@ An agent profile is a local YAML file that defines an agent's name, instructions
 
 To configure an agent through the terminal user interface (TUI), see [Configure agents](../guides/configuration/agents.md). Use this page as the reference when editing YAML manually.
 
-## User agent profile directory
+## 1. User agent profile directory
 
 User agent profiles are stored in the following directories:
 
@@ -13,34 +13,34 @@ User agent profiles are stored in the following directories:
 | macOS, Linux | `~/.chrys/agents/` |
 | Windows | `%APPDATA%\chrys\agents\` |
 
-AIxCoding loads only non-hidden files with the `.yaml` or `.yml` extension in this directory. Other files are ignored. Invalid profiles do not prevent other profiles from loading, but are skipped with a warning in the startup log.
+AIxCoding-CLI loads only non-hidden files with the `.yaml` or `.yml` extension in this directory. Other files are ignored. Invalid profiles do not prevent other profiles from loading, but are skipped with a warning in the startup log.
 
-AIxCoding loads these files at startup. After manually adding, editing, or deleting a profile, restart AIxCoding for the change to take effect.
+AIxCoding-CLI loads these files at startup. After manually adding, editing, or deleting a profile, restart AIxCoding-CLI for the change to take effect.
 
-## Profile naming and normalization
+## 2. Profile naming and normalization
 
 Every profile must include `name`. Because `name` is used as the filename, it must be a valid cross-platform filename: it cannot contain path separators, colons, control characters, or any of `* ? " < > |`, and cannot be `.`, `..`, or a reserved Windows device name. Leading and trailing whitespace is removed from `name` during loading.
 
-When loading user profiles, AIxCoding normalizes the files based on their contents:
+When loading user profiles, AIxCoding-CLI normalizes the files based on their contents:
 
-- If the filename is not `<name>.yaml`, AIxCoding renames it to `<name>.yaml`. This also changes the `.yml` extension to `.yaml`.
-- If the profile has no `id`, AIxCoding assigns a stable ID and rewrites the entire file. The rewrite does not preserve existing comments, field order, or formatting, and it removes unrecognized keys and fields set to their default values (except `approval`, which is always written).
-- If `sub_agents.agents` references a built-in agent that has been removed from AIxCoding, AIxCoding deletes those entries and rewrites the file in the same way. The references are kept if you have your own profile with that name, and the change waits while any profile file in the directory fails to load.
-- If another profile already occupies the target filename, the profile is not loaded. Where possible, AIxCoding renames the conflicting file with a `.conflict` marker.
+- If the filename is not `<name>.yaml`, AIxCoding-CLI renames it to `<name>.yaml`. This also changes the `.yml` extension to `.yaml`.
+- If the profile has no `id`, AIxCoding-CLI assigns a stable ID and rewrites the entire file. The rewrite does not preserve existing comments, field order, or formatting, and it removes unrecognized keys and fields set to their default values (except `approval`, which is always written).
+- If `sub_agents.agents` references a built-in agent that has been removed from AIxCoding-CLI, AIxCoding-CLI deletes those entries and rewrites the file in the same way. The references are kept if you have your own profile with that name, and the change waits while any profile file in the directory fails to load.
+- If another profile already occupies the target filename, the profile is not loaded. Where possible, AIxCoding-CLI renames the conflicting file with a `.conflict` marker.
 
 Normalization can rename or rewrite files. Back up the original files before loading them if you need to preserve them.
 
-If a conflict occurs, inspect `<name>.yaml` and the file marked with `.conflict`, and keep the profile you need. To retain both, turn one file into a separate profile: change its `name`, remove its existing `id`, and restore the `.yaml` extension. AIxCoding assigns the profile a new ID after a restart.
+If a conflict occurs, inspect `<name>.yaml` and the file marked with `.conflict`, and keep the profile you need. To retain both, turn one file into a separate profile: change its `name`, remove its existing `id`, and restore the `.yaml` extension. AIxCoding-CLI assigns the profile a new ID after a restart.
 
-Filesystem restrictions may prevent AIxCoding from adding the `.conflict` marker. In that case, the conflicting file retains its original name but is still not loaded.
+Filesystem restrictions may prevent AIxCoding-CLI from adding the `.conflict` marker. In that case, the conflicting file retains its original name but is still not loaded.
 
-## Override built-in agents
+## 3. Override built-in agents
 
-The original profiles for built-in agents are included with AIxCoding installation. When you edit and save a built-in agent through the TUI, AIxCoding creates a profile with the same name in the [user agent profile directory](#user-agent-profile-directory). For example, editing and saving the built-in agent named `Code` creates `Code.yaml`.
+The original profiles for built-in agents are included with AIxCoding-CLI installation. When you edit and save a built-in agent through the TUI, AIxCoding-CLI creates a profile with the same name in the [user agent profile directory](None#1-user-agent-profile-directory). For example, editing and saving the built-in agent named `Code` creates `Code.yaml`.
 
-The built-in agent names are `Code`, `QA`, `Explore`, and `General`. A profile manually created in the user agent profile directory with any of these `name` values also overrides the corresponding built-in agent. An override replaces the entire built-in profile; it does not inherit or merge any other fields from it. Delete the corresponding user profile and restart AIxCoding to restore the built-in profile.
+The built-in agent names are `Code`, `QA`, `Explore`, and `General`. A profile manually created in the user agent profile directory with any of these `name` values also overrides the corresponding built-in agent. An override replaces the entire built-in profile; it does not inherit or merge any other fields from it. Delete the corresponding user profile and restart AIxCoding-CLI to restore the built-in profile.
 
-## Basic profile example
+## 4. Basic profile example
 
 A profile must include the `name` field to identify it. Providing `display_name`, `description`, and `instructions` is also recommended to make the profile recognizable and specify the agent's behavior. The following example defines a code review agent:
 
@@ -57,9 +57,9 @@ tools:
     - search
 ```
 
-This example omits `id`. AIxCoding assigns a stable ID and writes it back to the file when it first loads the profile.
+This example omits `id`. AIxCoding-CLI assigns a stable ID and writes it back to the file when it first loads the profile.
 
-Save the profile as `Reviewer.yaml` in the [user agent profile directory](#user-agent-profile-directory). Run the following command to confirm that it loads:
+Save the profile as `Reviewer.yaml` in the [user agent profile directory](None#1-user-agent-profile-directory). Run the following command to confirm that it loads:
 
 ```bash
 aixcoding-cli agents
@@ -67,28 +67,27 @@ aixcoding-cli agents
 
 If "Code review" appears in the list, the profile has loaded. If it does not appear, check the YAML parsing or field validation warnings shown at startup, and confirm that the file is in the user agent profile directory.
 
-## Top-level fields
+## 5. Top-level fields
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
 | `name` | String | Required | Profile name, also used as the base of the normalized filename. Sub-agent references use this value. |
-| `id` | String | Assigned automatically | Stable identifier. If omitted or empty, AIxCoding automatically assigns a 12-character hexadecimal ID: it reuses the built-in agent's ID when the names match, or generates a new ID otherwise. You can also specify a unique ID manually; quote an ID made only of digits, such as `id: "123"`, because an unquoted one is read as a number and the profile fails to load. When copying and modifying an existing profile to create a new one, remove the `id` field so AIxCoding can assign a new ID. |
+| `id` | String | Assigned automatically | Stable identifier. If omitted or empty, AIxCoding-CLI automatically assigns a 12-character hexadecimal ID: it reuses the built-in agent's ID when the names match, or generates a new ID otherwise. You can also specify a unique ID manually; quote an ID made only of digits, such as `id: "123"`, because an unquoted one is read as a number and the profile fails to load. When copying and modifying an existing profile to create a new one, remove the `id` field so AIxCoding-CLI can assign a new ID. |
 | `display_name` | String | Empty | Display name. |
 | `description` | String | Empty | Describes the agent's purpose. Also used as the default tool description for a sub-agent when none is specified. |
-| `sub_agent_only` | Boolean | `false` | If `true`, the agent cannot be selected as the main agent and can only be called by other agents. Forced to `true` for external ACP agents. |
-| `instructions` | String | Empty | Main behavioral instructions for agents of the built-in type. External ACP profiles ignore this field. |
-| `model` | Object | `{}` | Binds a model profile. See [model](#model). |
-| `tools` | Object | `{}` | Configures built-in tools, MCP, and shell filtering. See [tools](#tools). |
-| `approval` | Object | See below | Configures which tool calls require approval. See [approval](#approval). |
-| `skills` | Object | See below | Configures skill sources and inline skills. See [skills](#skills). |
-| `memory` | Object | `{}` | Configures reference files to load automatically. See [memory](#memory). |
-| `compaction` | Object | See below | Configures context compaction. See [compaction](#compaction). |
-| `sub_agents` | Object | See below | Configures callable sub-agents. See [sub_agents](#sub_agents). |
-| `acp` | Object | Disabled | The presence of this field makes the profile an external Agent Client Protocol (ACP) agent. See [acp](#acp). An empty object (`acp: {}`) or an empty value (`acp:` or `acp: null`) also enables this type, but the agent cannot start without `command`. |
+| `sub_agent_only` | Boolean | `false` | If `true`, the agent cannot be selected as the main agent and can only be called by other agents. |
+| `instructions` | String | Empty | Main behavioral instructions for agents of the built-in type. |
+| `model` | Object | `{}` | Binds a model. See [model](None#6-model). |
+| `tools` | Object | `{}` | Configures built-in tools, MCP, and shell filtering. See [tools](None#7-tools). |
+| `approval` | Object | See below | Configures which tool calls require approval. See [approval](None#8-approval). |
+| `skills` | Object | See below | Configures skill sources and inline skills. See [skills](None#9-skills). |
+| `memory` | Object | `{}` | Configures reference files to load automatically. See [memory](None#10-memory). |
+| `compaction` | Object | See below | Configures context compaction. See [compaction](None#11-compaction). |
+| `sub_agents` | Object | See below | Configures callable sub-agents. See [sub_agents](None#12-sub_agents). |
 
-## model
+## 6. model
 
-Use `model` to bind an agent to a specific model profile.
+Use `model` to bind an agent to a specific model.
 
 ```yaml
 model:
@@ -97,13 +96,13 @@ model:
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `profile_id` | String | Empty | ID of the model profile to bind. |
+| `profile_id` | String | Empty | ID of the model to bind. |
 
-If `profile_id` is omitted, empty, or not found among the loaded model profiles, the main agent uses the model profile currently active in the session, and a sub-agent inherits the model profile actually used by its parent. AIxCoding also logs a warning when the ID cannot be found.
+If `profile_id` is omitted, empty, or not found among the loaded models, the main agent uses the model currently active in the session, and a sub-agent inherits the model actually used by its parent. AIxCoding-CLI also logs a warning when the ID cannot be found.
 
-Run `aixcoding-cli models` to find stable model profile IDs in the `ID` column. For model configuration instructions, see [Configure models](../guides/configuration/models.md).
+Run `aixcoding-cli models` to find stable model IDs in the `ID` column.
 
-## tools
+## 7. tools
 
 ```yaml
 tools:
@@ -116,13 +115,13 @@ tools:
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `builtins` | List of strings | `[]` | Built-in tool kinds to enable. For available values, see the rows marked "Yes" in the "Built-in" column of the [kinds and names overview](./tool-kinds-and-names.md#overview-of-kinds-and-names). No built-in agent includes `web_search` or `web_fetch`. |
-| `mcp` | List of objects | `[]` | Model Context Protocol (MCP) server configurations. See [tools.mcp](#toolsmcp). |
-| `shell_filter` | String or object | Not set (no shell filtering) | Restricts the commands that shell tools can execute. See [tools.shell_filter](#toolsshell_filter). |
-| `web_search` | Object | Not set (uses user settings) | Mode and search providers for the `web_search` tool. See [tools.web_search](#toolsweb_search). |
-| `web_fetch` | Object | Not set (uses user settings) | Mode and limits for the `web_fetch` tool. See [tools.web_fetch](#toolsweb_fetch). |
+| `builtins` | List of strings | `[]` | Built-in tool kinds to enable. For available values, see the rows marked "Yes" in the "Built-in" column of the [kinds and names overview](./tool-kinds-and-names.md#1-overview-of-kinds-and-names). No built-in agent includes `web_search` or `web_fetch`. |
+| `mcp` | List of objects | `[]` | Model Context Protocol (MCP) server configurations. See [tools.mcp](None#1-toolsmcp). |
+| `shell_filter` | String or object | Not set (no shell filtering) | Restricts the commands that shell tools can execute. See [tools.shell_filter](None#2-toolsshell_filter). |
+| `web_search` | Object | Not set (uses user settings) | Mode and search providers for the `web_search` tool. See [tools.web_search](None#3-toolsweb_search). |
+| `web_fetch` | Object | Not set (uses user settings) | Mode and limits for the `web_fetch` tool. See [tools.web_fetch](None#4-toolsweb_fetch). |
 
-### tools.mcp
+### 1. tools.mcp
 
 Each list entry configures one server. `name` and `transport` are required. Server names must be unique within an agent profile, ignoring case. HTTP connections require `url`; STDIO connections require `command`.
 
@@ -152,7 +151,7 @@ tools:
         Authorization: "Bearer {{MCP_API_TOKEN}}"
 ```
 
-Both `env` and `headers` are key-value mappings: enter the variable or header name on the left and its value on the right. You can specify values directly or use `{{ENV_VAR}}` to reference an environment variable set before starting AIxCoding. If a variable referenced in `env` is missing or empty, the server connection fails. For `headers`, variables are resolved and this rule applies only when `resolve_header_templates` is `true`.
+Both `env` and `headers` are key-value mappings: enter the variable or header name on the left and its value on the right. You can specify values directly or use `{{ENV_VAR}}` to reference an environment variable set before starting AIxCoding-CLI. If a variable referenced in `env` is missing or empty, the server connection fails. For `headers`, variables are resolved and this rule applies only when `resolve_header_templates` is `true`.
 
 | Field | Type | Default | Applies to | Description |
 | --- | --- | --- | --- | --- |
@@ -179,17 +178,17 @@ Both `env` and `headers` are key-value mappings: enter the variable or header na
 | `bypass_proxy` | Boolean | `false` | HTTP | Whether to bypass HTTP/HTTPS proxies configured through environment variables and connect directly to the server. |
 | `terminate_on_close` | Boolean or `null` | `null` | HTTP | Whether to request termination of the remote session when closing the connection. `null` uses the default of `true`. |
 
-Use the server's original tool names in `allowed_tools` and `always_load`. `tool_name_prefix` changes the name the agent uses to call a tool; `approval.overrides` uses that same name. See [MCP tool names](./tool-kinds-and-names.md#mcp-tool-names) for naming rules.
+Use the server's original tool names in `allowed_tools` and `always_load`. `tool_name_prefix` changes the name the agent uses to call a tool; `approval.overrides` uses that same name. See [MCP tool names](./tool-kinds-and-names.md#4-mcp-tool-names) for naming rules.
 
-When loading on demand is enabled, AIxCoding also adds control tools for listing, loading, and unloading MCP tools. Their naming rules are described in [MCP tool names](./tool-kinds-and-names.md#mcp-tool-names). In this case, `tool_name_prefix` cannot exceed 49 characters.
+When loading on demand is enabled, AIxCoding-CLI also adds control tools for listing, loading, and unloading MCP tools. Their naming rules are described in [MCP tool names](./tool-kinds-and-names.md#4-mcp-tool-names). In this case, `tool_name_prefix` cannot exceed 49 characters.
 
 For configuration instructions, connection tests, and verification of tool calls, see [Connect MCP servers](../guides/extensions/mcp.md).
 
-### tools.shell_filter
+### 2. tools.shell_filter
 
-`shell_filter` applies only to tools in the `shell` kind. If this field is omitted or set to `unrestricted`, AIxCoding does not filter shell commands.
+`shell_filter` applies only to tools in the `shell` kind. If this field is omitted or set to `unrestricted`, AIxCoding-CLI does not filter shell commands.
 
-Shell tool calls go through [approval](#approval) first. Once approved, `shell_filter` checks the actual command. The command runs only after both checks pass. If the filter blocks a command, AIxCoding returns a tool error indicating that the command was blocked, without starting a shell process.
+Shell tool calls go through [approval](None#8-approval) first. Once approved, `shell_filter` checks the actual command. The command runs only after both checks pass. If the filter blocks a command, AIxCoding-CLI returns a tool error indicating that the command was blocked, without starting a shell process.
 
 You can use a preset or define your own allowed or blocked commands. To use a preset, specify its name directly or select it with `preset` in an object. These two forms are equivalent:
 
@@ -211,7 +210,7 @@ Available presets:
 | `read_only` | Allows only commands in the built-in command list and blocks unquoted redirection and command substitution. Examples include `ls`, `cat`, `rg`, `git`, `python`, `curl`, and PowerShell's `Get-Content`. It does not inspect arguments, subcommands, or script contents, so it does not guarantee read-only execution and is not a security sandbox. |
 | `unrestricted` | Does not filter shell commands. Usually, you can simply omit `shell_filter`. |
 
-Only the names in this table enable presets. Unrecognized presets do not take effect: the scalar form performs no shell filtering; for the object form, AIxCoding attempts to use the custom rules in the same object. If `commands` is empty, no shell filtering occurs in that case either.
+Only the names in this table enable presets. Unrecognized presets do not take effect: the scalar form performs no shell filtering; for the object form, AIxCoding-CLI attempts to use the custom rules in the same object. If `commands` is empty, no shell filtering occurs in that case either.
 
 To specify your own allowed or blocked commands, use the object form. For example:
 
@@ -234,11 +233,11 @@ The object form supports these fields:
 | `allow_redirections` | Boolean | `true` | Whether to allow unquoted `>`, `>>`, and `<`. |
 | `allow_subshells` | Boolean | `true` | Whether to allow unquoted `$()` and backtick command substitution. |
 
-In custom rules, use executable names in `commands`, such as `[git, rg]`. Names are case-sensitive; when using an absolute path, specify the full path. For commands joined by `|`, `&&`, `||`, `;`, or similar operators, AIxCoding checks each segment separately. Execution is allowed only if every command name satisfies the rules. The example above allows `rg foo .`; it blocks `rg foo . | less` because `less`, on the right side of the pipe, is not in the allowlist.
+In custom rules, use executable names in `commands`, such as `[git, rg]`. Names are case-sensitive; when using an absolute path, specify the full path. For commands joined by `|`, `&&`, `||`, `;`, or similar operators, AIxCoding-CLI checks each segment separately. Execution is allowed only if every command name satisfies the rules. The example above allows `rg foo .`; it blocks `rg foo . | less` because `less`, on the right side of the pipe, is not in the allowlist.
 
-### tools.web_search
+### 3. tools.web_search
 
-`web_search` configures the `web_search` tool and takes effect only when `builtins` includes `web_search`. Omitted fields use the [web tool user settings](./settings.md#web-tools). For setup steps and how providers behave, see [Configure web tools](../guides/configuration/web-tools.md).
+`web_search` configures the `web_search` tool and takes effect only when `builtins` includes `web_search`. Omitted fields use the [web tool user settings](./settings.md#6-web-tools). For setup steps and how providers behave, see [Configure web tools](../guides/configuration/web-tools.md).
 
 ```yaml
 tools:
@@ -265,7 +264,7 @@ tools:
 | `num_results` | Integer | The `tools.web_search.num_results` user setting (`8`) | Results a search returns when the agent does not ask for a number, from `1` to `20`. |
 | `timeout_seconds` | Integer | The `tools.web_search.timeout_seconds` user setting (`30`) | Deadline in seconds for a whole search call, from `1` to `120`. |
 
-An out-of-range number or a malformed `providers` entry also causes the profile to be skipped. A combination that does not fit the mode, such as a `provider` mode without `provider` or a selected provider missing from `providers`, instead leaves the agent without its web tools, and AIxCoding shows a warning with the reason.
+An out-of-range number or a malformed `providers` entry also causes the profile to be skipped. A combination that does not fit the mode, such as a `provider` mode without `provider` or a selected provider missing from `providers`, instead leaves the agent without its web tools, and AIxCoding-CLI shows a warning with the reason.
 
 Each entry in `providers` supports these fields:
 
@@ -283,9 +282,9 @@ Each entry in `providers` supports these fields:
 
 `exa_mcp`, `bing_html`, and `duckduckgo_html` accept only `type`.
 
-### tools.web_fetch
+### 4. tools.web_fetch
 
-`web_fetch` configures the `web_fetch` tool and takes effect only when `builtins` includes `web_fetch`. Omitted fields use the [web tool user settings](./settings.md#web-tools).
+`web_fetch` configures the `web_fetch` tool and takes effect only when `builtins` includes `web_fetch`. Omitted fields use the [web tool user settings](./settings.md#6-web-tools).
 
 ```yaml
 tools:
@@ -302,9 +301,9 @@ tools:
 | `max_tokens` | Integer | The `tools.web_fetch.max_tokens` user setting (`16000`) | Most tokens a fetched page returns, from `1` to `64000`. The agent can ask for less, but not more. |
 | `timeout_seconds` | Integer | The `tools.web_fetch.timeout_seconds` user setting (`60`) | Deadline in seconds for a whole fetch call, from `1` to `120`. |
 
-Network access (the proxy, origin lists, and custom endpoint grants) can be set only in user settings, not in agent profiles. See [Web tools](./settings.md#web-tools) in the settings reference.
+Network access (the proxy, origin lists, and custom endpoint grants) can be set only in user settings, not in agent profiles. See [Web tools](./settings.md#6-web-tools) in the settings reference.
 
-## approval
+## 8. approval
 
 `approval` sets the **initial approval level** for tool calls. This differs from the session's **approval mode**: the approval level determines whether a tool call enters the approval process, while the approval mode determines how it is handled once it enters that process.
 
@@ -313,7 +312,7 @@ Network access (the proxy, origin lists, and custom endpoint grants) can be set 
 | `default` | `auto`, `require`, or `skip` | Approval level used when no override rule matches. |
 | `overrides` | Object | Approval levels set by tool kind or tool name. |
 
-If `approval` is not configured, AIxCoding uses these defaults:
+If `approval` is not configured, AIxCoding-CLI uses these defaults:
 
 ```yaml
 approval:
@@ -324,7 +323,7 @@ approval:
     todo: skip
 ```
 
-### Approval levels
+### 1. Approval levels
 
 Available approval levels:
 
@@ -335,14 +334,14 @@ Available approval levels:
 
 A tool call is processed as follows:
 
-1. AIxCoding determines the initial approval level from `default` and `overrides`.
-2. AIxCoding adjusts the result using safety rules:
+1. AIxCoding-CLI determines the initial approval level from `default` and `overrides`.
+2. AIxCoding-CLI adjusts the result using safety rules:
 
    * Shell commands and file reads or writes that access sensitive targets are changed to require approval.
    * Operations such as known-safe read-only shell commands and writes to non-sensitive files in the working directory's Git repository can run directly.
 3. If the call still requires approval, the current session's approval mode determines how to handle it: user confirmation, a decision by the approval judge model, or bypass approval. For details, see [Configure approval modes](../guides/configuration/approval.md).
 
-### Override rules
+### 2. Override rules
 
 For the distinction between tool kinds and names, available values, and dynamic naming rules, see [Tool kinds and names](./tool-kinds-and-names.md).
 
@@ -354,7 +353,7 @@ Keys in `overrides` can be:
 
 A key equal to a tool kind always refers to that kind. To target a tool whose name matches a kind, such as an MCP tool named `search`, use the kind and tool name together, for example `mcp.search`. `web_search` and `web_fetch` are the exception: these keys also match any tool with that name, such as an MCP tool named `web_search`, so an override written for such a tool keeps applying.
 
-When multiple rules match a tool call, AIxCoding selects one in this order of precedence:
+When multiple rules match a tool call, AIxCoding-CLI selects one in this order of precedence:
 
 1. Tool kind and tool name.
 2. Tool name.
@@ -377,13 +376,13 @@ In this example:
 * Other file-writing tools match `filesystem.write` and use the approval level `require`.
 * Other tools use the `default` value of `auto`.
 
-If `overrides` is omitted, AIxCoding uses the default overrides: `shell: require`, `filesystem.write: require`, and `todo: skip`. Explicitly setting `overrides: {}` clears these defaults, so tools that match no other rule use `default`.
+If `overrides` is omitted, AIxCoding-CLI uses the default overrides: `shell: require`, `filesystem.write: require`, and `todo: skip`. Explicitly setting `overrides: {}` clears these defaults, so tools that match no other rule use `default`.
 
 Skill scripts are an exception: `run_skill_script` requires approval by default. To change this behavior, explicitly set an approval level for `skill`, `run_skill_script`, or `skill.run_skill_script` in `overrides`.
 
 Web tools are also an exception: tools of the `web_search` and `web_fetch` kinds require approval by default, even when `default` is `auto`. This rule applies after the rules in `overrides` and before `default`. To change it, explicitly set an approval level for the kind or tool name in `overrides`, for example `web_search: auto`.
 
-## skills
+## 9. skills
 
 ```yaml
 skills:
@@ -409,22 +408,22 @@ skills:
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `paths` | List of strings | `[]` | Additional skill search roots. AIxCoding searches each directory and up to two levels of subdirectories for `SKILL.md`. Once found, it does not search inside that skill directory. Relative paths are resolved against the current [working directory](../guides/daily-use/workspaces.md). AIxCoding expands a leading `~` to the current user's home directory. |
+| `paths` | List of strings | `[]` | Additional skill search roots. AIxCoding-CLI searches each directory and up to two levels of subdirectories for `SKILL.md`. Once found, it does not search inside that skill directory. Relative paths are resolved against the current [working directory](../guides/daily-use/workspaces.md). AIxCoding-CLI expands a leading `~` to the current user's home directory. |
 | `inline` | List of objects | `[]` | Skills written directly in the profile. See below. |
 | `script_timeout` | Positive integer | `300` | Maximum runtime for a skill script, in seconds. |
 | `script_extensions` | List of strings | `[.py, .sh, .ps1]` | Extensions allowed for skill scripts. The required interpreters must already be installed. |
 | `auto_load_user_agents_skills` | Boolean | `true` | Whether to load the user-level shared Agent Skills directory. |
 | `auto_load_cwd_agents_skills` | Boolean | `true` | Whether to load `.agents/skills` in the current working directory. Reloaded when switching working directories. |
-| `auto_load_aixcoding_user_skills` | Boolean | `true` | Whether to load the AIxCoding shared user skills directory (`~/.aixcoding/skills`, shared with the AIxCoding desktop clients). |
+| `auto_load_aixcoding_user_skills` | Boolean | `true` | Whether to load the AIxCoding-CLI shared user skills directory (`~/.aixcoding/skills`, shared with the AIxCoding-CLI desktop clients). |
 | `auto_load_aixcoding_cwd_skills` | Boolean | `true` | Whether to load `.aixcoding/skills` in the current working directory. Reloaded when switching working directories. |
 
-The AIxCoding user skills directory is always loaded. The other automatically loaded directories are on by default; each can be disabled with its corresponding `auto_load_*` field. For user-level directory paths, see [Skill installation locations](../guides/extensions/skills.md#skill-installation-locations).
+The AIxCoding-CLI user skills directory is always loaded. The other automatically loaded directories are on by default; each can be disabled with its corresponding `auto_load_*` field. For user-level directory paths, see [Skill installation locations](../guides/extensions/skills.md#1-skill-installation-locations).
 
-When multiple sources contain skills with the same name, precedence from highest to lowest is: earlier directories in `paths`, AIxCoding user skills directory, the AIxCoding shared user directory (`~/.aixcoding/skills`), the user-level shared Agent Skills directory, `.aixcoding/skills` in the current working directory, `.agents/skills` in the current working directory, and earlier definitions in `inline`. If one search root contains multiple skills with the same name, discovery order is unspecified. Keep only one to ensure that the intended version loads.
+When multiple sources contain skills with the same name, precedence from highest to lowest is: earlier directories in `paths`, AIxCoding-CLI user skills directory, the AIxCoding-CLI shared user directory (`~/.aixcoding/skills`), the user-level shared Agent Skills directory, `.aixcoding/skills` in the current working directory, `.agents/skills` in the current working directory, and earlier definitions in `inline`. If one search root contains multiple skills with the same name, discovery order is unspecified. Keep only one to ensure that the intended version loads.
 
 > **Note**: Skill scripts run as local processes without security sandbox isolation. Before adding a directory to `paths` or enabling an automatically loaded source, inspect its `SKILL.md`, scripts, and other relevant files. Load only trusted skills. Allowing a script extension does not install its interpreter.
 
-### skills.inline
+### 1. skills.inline
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -443,7 +442,7 @@ Inline skills do not support file resources or scripts. To reference files or ru
 
 For installation steps, directory conventions, loading verification, and usage, see [Install and use skills](../guides/extensions/skills.md).
 
-## memory
+## 10. memory
 
 ```yaml
 memory:
@@ -461,9 +460,9 @@ memory:
 
 Paths can be absolute or relative to the current working directory; relative paths cannot point outside the working directory. Memory is loaded by the main agent and by workflow agent nodes; sub-agents load neither their own memory nor their parent's memory. For directory scan depth, file count, and total token limits, see [Configure memory](../guides/configuration/memory.md).
 
-## compaction
+## 11. compaction
 
-`compaction` configures the continuation information (Last Words) that AIxCoding generates when compacting the current task. These settings do not affect compaction summaries of earlier tool results or completed conversation turns.
+`compaction` configures the continuation information (Last Words) that AIxCoding-CLI generates when compacting the current task. These settings do not affect compaction summaries of earlier tool results or completed conversation turns.
 
 ```yaml
 compaction:
@@ -475,17 +474,17 @@ compaction:
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `last_words_template` | String | Empty | Additional instructions appended to AIxCoding's fixed Last Words requirements, emphasizing information to preserve from the current task. Does not replace the fixed format. |
-| `last_words_max_output_tokens` | Integer | `20000` | Maximum output tokens for Last Words. At runtime, this cannot exceed the model profile's output limit. |
+| `last_words_template` | String | Empty | Additional instructions appended to AIxCoding-CLI's fixed Last Words requirements, emphasizing information to preserve from the current task. Does not replace the fixed format. |
+| `last_words_max_output_tokens` | Integer | `20000` | Maximum output tokens for Last Words. At runtime, this cannot exceed the model's output limit. |
 | `phase4_side_call_token_budget` | Integer or `null` | `-1` | Total estimated input token budget for additional model requests that generate Last Words, from the user's message submission until the agent completes its reply. `-1` or `null` means unlimited; `0` disables Last Words requests; a positive integer sets the cumulative limit. Cannot be less than `-1`. |
 
-`last_words_max_output_tokens` limits output, while `phase4_side_call_token_budget` limits cumulative input. The latter is mainly intended for strict control of additional model usage and can usually be left at its default. If the budget is insufficient, AIxCoding preserves the current task's content. If the context is still too large, the task may be unable to continue.
+`last_words_max_output_tokens` limits output, while `phase4_side_call_token_budget` limits cumulative input. The latter is mainly intended for strict control of additional model usage and can usually be left at its default. If the budget is insufficient, AIxCoding-CLI preserves the current task's content. If the context is still too large, the task may be unable to continue.
 
-`compaction` does not provide a setting for the compaction trigger threshold. AIxCoding automatically determines when to compact based on the current model's context window, maximum output tokens, and safety margin.
+`compaction` does not provide a setting for the compaction trigger threshold. AIxCoding-CLI automatically determines when to compact based on the current model's context window, maximum output tokens, and safety margin.
 
 For the compaction process and visible behavior, see [Configure context compaction](../guides/configuration/compaction.md).
 
-## sub_agents
+## 12. sub_agents
 
 ```yaml
 sub_agents:
@@ -506,47 +505,11 @@ sub_agents:
 | `agents[].tool_description` | String | Sub-agent's `description` | Helps the parent agent decide when to call this sub-agent. |
 | `agents[].max_concurrency` | Positive integer | `3` | Maximum concurrent calls to this sub-agent. |
 
-The **Agent Configuration** window in the TUI checks the concurrency values and the `tool_name` format when saving; AIxCoding does not check them when loading a YAML file you edited by hand. A concurrency value of `0` or less makes every call to the affected sub-agents fail.
+The **Agent Configuration** window in the TUI checks the concurrency values and the `tool_name` format when saving; AIxCoding-CLI does not check them when loading a YAML file you edited by hand. A concurrency value of `0` or less makes every call to the affected sub-agents fail.
 
-Tool calls within non-ACP sub-agents use the parent agent's `approval` configuration. The sub-agent's own `approval` configuration does not affect these calls.
+Tool calls within sub-agents use the parent agent's `approval` configuration. The sub-agent's own `approval` configuration does not affect these calls.
 
-A non-ACP sub-agent returns its final reply to the parent agent, without the text it wrote between tool calls. If the final reply has no text, it returns all the text it wrote, in order. An ACP sub-agent returns what [`result_mode`](#acp) selects.
+A sub-agent returns its final reply to the parent agent, without the text it wrote between tool calls. If the final reply has no text, it returns all the text it wrote, in order.
 
-For configuration instructions and call verification, see [Configure agents](../guides/configuration/agents.md#configure-sub-agents-for-an-agent).
+For configuration instructions and call verification, see [Configure agents](../guides/configuration/agents.md#3-configure-sub-agents-for-an-agent).
 
-## acp
-
-When `acp` appears at the top level, the profile becomes an external ACP agent and is forced to be available only as a sub-agent. The external process determines its task instructions, model, and tools.
-
-External ACP agents do not use `instructions`, `model.profile_id`, `tools`, `skills`, `memory`, `compaction`, `approval`, or `sub_agents` from the current profile. These settings do not affect the external agent's behavior.
-
-```yaml
-name: ExternalReviewer
-display_name: External review agent
-description: Call an external review program through ACP
-acp:
-  command: example-agent
-  args: [acp]
-  env:
-    API_KEY: "{{EXAMPLE_API_KEY}}"
-  result_mode: last_segment
-```
-
-| Field | Type | Default | Description |
-| --- | --- | --- | --- |
-| `command` | String | Empty | Executable name or path. Required to start the external agent. An empty value can be loaded but cannot be started. Cannot contain NUL. Do not append arguments to this field. |
-| `args` | List of strings | `[]` | Arguments passed individually to the process. Cannot contain NUL. |
-| `env` | String-valued object | `{}` | Environment variables passed to the process. Names must follow environment variable naming rules and be unique ignoring case. `CHRYS_ACP_SUBAGENT_DEPTH` is reserved for AIxCoding. |
-| `cwd` | String | Empty | The external agent's working directory. If empty, uses the current AIxCoding session's working directory. Relative paths are resolved against that session directory. |
-| `allow_external_cwd` | Boolean | `false` | Whether to allow the external agent to run outside the current session's working directory and its subdirectories. Defaults to `false`: a `cwd` outside the allowed directory scope causes an error and prevents startup; AIxCoding does not fall back to the default directory. This option only controls startup directory validation, not the external agent's file access permissions. |
-| `session_mode` | String | Empty | Session mode ID to request from the external agent. |
-| `model_id` | String | Empty | Model ID to request from the external agent on a best-effort basis. |
-| `config_options` | Object | `{}` | External agent configuration options. Keys must be non-empty strings; values can only be strings or booleans. |
-| `best_effort_options` | Boolean | `false` | Whether to ignore session modes and configuration options that the external agent does not support and continue connecting. |
-| `result_mode` | `last_segment` or `transcript` | `last_segment` | Returns the last message segment or the full transcript to the parent agent. |
-| `handshake_timeout_seconds` | Number | `30.0` | Timeout in seconds for starting, initializing, and opening a session. Must be greater than `0`. Invalid YAML values fall back to the default with a warning. |
-| `idle_timeout_seconds` | Number | `600.0` | Timeout in seconds for inactivity during a call. `0` means no timeout; cannot be negative. Invalid YAML values fall back to the default with a warning. |
-
-**Directory scope for `allow_external_cwd`**: If an ACP client creates AIxCoding session and supplies additional working directories, the external agent can run in those directories and their subdirectories even when `allow_external_cwd` is `false`.
-
-`command`, `args`, values in `env`, and `cwd` can use `{{ENV_VAR}}` to reference environment variables from AIxCoding process. Missing or empty variables cause startup to fail. For connection tests, working directory security boundaries, and how configuration options are applied, see [Configure external ACP agents](../guides/extensions/external-acp-agents.md).

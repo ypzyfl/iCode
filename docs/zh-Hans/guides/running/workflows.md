@@ -4,9 +4,9 @@
 
 本教程首先通过内置示例介绍工作流的终端用户界面（Terminal User Interface，TUI）和基本操作，再通过六个可独立运行的 Python 示例介绍如何编写工作流。完整参数说明和运行规则见[工作流参考](../../reference/workflows.md)。
 
-## 在 TUI 中运行内置工作流
+## 1. 在 TUI 中运行内置工作流
 
-先[配置可用模型](../../start/getting-started.md#3-配置模型)，并准备一个本地项目目录。接下来运行的内置示例会让智能体读取该目录中的文件，生成项目介绍，并产生模型调用费用。
+先配置可用模型，并准备一个本地项目目录。接下来运行的内置示例会让智能体读取该目录中的文件，生成项目介绍，并产生模型调用费用。
 
 ### 选择工作流
 
@@ -41,9 +41,9 @@
 
 运行结束并产生结果后，点击“■ 取消”右侧的“结果”查看最终输出。工作流有多个输出时，每个输出单独一个页签，页签名为对应的输出节点名称。“输出”页仍保留完整记录，包括节点状态和进度日志。再次点击“▶ 开始”，可填写新的输入并重新运行。
 
-同一工作流会话可以保存多次运行。在“工作流”“信息”等页签上方，点击“运行 1”“运行 2”等运行页签，可切换查看各次记录。退出并重新打开 AIxCoding 后，先通过左上角的应用模式选择器切换到“工作流”。按 `F1` 或点击界面底部的 `f1 会话`，在会话列表中选择工作流会话，可查看历史输入、输出和节点记录。
+同一工作流会话可以保存多次运行。在“工作流”“信息”等页签上方，点击“运行 1”“运行 2”等运行页签，可切换查看各次记录。退出并重新打开 AIxCoding-CLI 后，先通过左上角的应用模式选择器切换到“工作流”。按 `F1` 或点击界面底部的 `f1 会话`，在会话列表中选择工作流会话，可查看历史输入、输出和节点记录。
 
-## 创建第一个工作流
+## 2. 创建第一个工作流
 
 接下来介绍如何编写自己的工作流。先在项目目录下创建 `.chrys/workflows/` 目录（如果尚不存在），后续工作流文件都保存在这个目录下。
 
@@ -80,19 +80,19 @@ workflow = wf.build()
 输入 → hello 节点 → 工作流输出
 ```
 
-最后，`wf.build()` 检查并生成工作流。**文件必须将生成的对象赋给模块顶层的 `workflow` 变量，供 AIxCoding 加载。**
+最后，`wf.build()` 检查并生成工作流。**文件必须将生成的对象赋给模块顶层的 `workflow` 变量，供 AIxCoding-CLI 加载。**
 
-保存文件后无需重启 AIxCoding。点击“新建会话”，打开工作流选择器，选择 `greeting`。
+保存文件后无需重启 AIxCoding-CLI。点击“新建会话”，打开工作流选择器，选择 `greeting`。
 
 自定义文件首次加载或发生变化时，TUI 会要求检查源码并确认信任：工作流是可执行 Python，加载时就可能执行文件顶层代码。
 
 确认信任后，点击“▶ 开始”，输入 `Alex` 后运行，最终应得到 `Hello, Alex!`；不填输入则得到 `Hello, friend!`。
 
-## 使用其他 Python 环境
+## 3. 使用其他 Python 环境
 
-默认使用运行 AIxCoding 的 Python 解释器。工作流需要第三方库时，可以通过文件内的脚本元数据指定自备 Python 解释器或虚拟环境；依赖需自行安装，AIxCoding 不会自动安装。配置方式见[工作流参考：执行环境](../../reference/workflows.md#执行环境)。本教程的 Python 示例仅使用标准库，无需额外准备环境。
+默认使用运行 AIxCoding-CLI 的 Python 解释器。工作流需要第三方库时，可以通过文件内的脚本元数据指定自备 Python 解释器或虚拟环境；依赖需自行安装，AIxCoding-CLI 不会自动安装。配置方式见[工作流参考：执行环境](../../reference/workflows.md)。本教程的 Python 示例仅使用标准库，无需额外准备环境。
 
-## 传递数据与询问用户
+## 4. 传递数据与询问用户
 
 ### 在两个节点之间传递数据
 
@@ -136,7 +136,7 @@ workflow = wf.build()
 
 节点通过 `return` 返回处理结果，返回值决定向下游传递的内容：
 
-- 返回字符串时，AIxCoding 将字符串放入 `WorkflowValue.text`，并将 `data` 设为 `None`。本例中的 `describe()` 只需要输出说明，因此返回字符串。
+- 返回字符串时，AIxCoding-CLI 将字符串放入 `WorkflowValue.text`，并将 `data` 设为 `None`。本例中的 `describe()` 只需要输出说明，因此返回字符串。
 - 返回 `WorkflowValue` 时，可以同时传递文本和结构化数据，如本例中的 `parse_items()`。
 
 Python 节点函数可以接收一个或两个参数：`parse_items(value)` 接收 `WorkflowValue`；`describe(value, ctx)` 除了接收 `WorkflowValue`，还通过第二个参数接收执行上下文 `NodeContext`。`NodeContext` 提供与当前节点执行相关的操作。本例通过 `ctx.emit()` 向 TUI 报告当前节点的进度。
@@ -185,9 +185,9 @@ async def describe(value: WorkflowValue, ctx: NodeContext) -> str:
 
 传入问题列表时，按顺序为每个问题返回一个 `Answer`：`selected` 是用户选中的选项标签，`text` 是用户输入的内容。使用相同的输入运行。对话框为每个问题显示一个标签页：在“标题”页输入 `Shopping List` 并点击“回答并继续”，在“追加”页勾选 `milk` 和 `eggs` 并点击“回答并检查”，最后点击“提交回答”。输出应为 `Shopping List: 5 items: apple, banana, pear, milk, eggs`。
 
-单选问题、回答包含的内容以及如何把选择结果传给下游，请参阅[工作流参考：`NodeContext.ask`](../../reference/workflows.md#nodecontextask)。
+单选问题、回答包含的内容以及如何把选择结果传给下游，请参阅[工作流参考：`NodeContext.ask`](../../reference/workflows.md)。
 
-## 定义智能体节点
+## 5. 定义智能体节点
 
 ### 使用 AIxCoding-CLI 智能体
 
@@ -229,13 +229,13 @@ aixcoding-cli agents
 aixcoding-cli models
 ```
 
-`profile` 填写 `aixcoding-cli agents` 输出中的 `Name`，可选参数 `model` 填写 `aixcoding-cli models` 输出中的 `Name`。需要为该节点指定模型时，替换注册语句，并将 `My model` 换成实际的模型配置名称：
+`profile` 填写 `aixcoding-cli agents` 输出中的 `Name`，可选参数 `model` 填写 `aixcoding-cli models` 输出中的 `Name`。需要为该节点指定模型时，替换注册语句，并将 `My model` 换成实际的模型名称：
 
 ```python
 plan = wf.agent("plan", profile="QA", model="My model")
 ```
 
-`model` 为该节点指定模型，优先于智能体绑定的模型配置。省略时，优先使用智能体绑定的模型配置，否则使用工作流默认模型。
+`model` 为该节点指定模型，优先于智能体绑定的模型。省略时，优先使用智能体绑定的模型，否则使用工作流默认模型。
 
 智能体节点只读取上游节点传递的 `WorkflowValue.text` 作为用户消息，不会读取 `data`。如果模型需要使用 `data` 中的信息，应在上游 Python 节点中将相关内容整理到 `text` 中。智能体生成的回答保存在返回的 `WorkflowValue.text` 中，传给下游节点。
 
@@ -253,23 +253,10 @@ plan = wf.agent(
 )
 ```
 
-对普通 AIxCoding 智能体，`instructions_suffix` 追加在配置原有的 `instructions` 后，作为系统提示词的一部分；上游传入的 `text` 仍作为用户消息。
+对普通 AIxCoding-CLI 智能体，`instructions_suffix` 追加在配置原有的 `instructions` 后，作为系统提示词的一部分；上游传入的 `text` 仍作为用户消息。
 
-### 使用 ACP 智能体
 
-已经[配置外部智能体客户端协议（Agent Client Protocol，ACP）智能体](../extensions/external-acp-agents.md#创建配置并测试连接)时，可用其配置名称替换 `QA`：
-
-```python
-plan = wf.agent("plan", profile="My ACP agent")
-```
-
-将 `My ACP agent` 替换为 `aixcoding-cli agents` 中已有的 ACP 配置名称，并确保该配置指定的外部程序可以启动。
-
-ACP 节点默认使用外部智能体配置中的模型，不使用工作流默认模型。
-
-ACP 节点也可以设置 `instructions_suffix`，但它会追加到发送给远端的用户提示末尾，不修改远端智能体的系统提示词。
-
-## 设置超时与重试
+## 6. 设置超时与重试
 
 Python 节点和智能体节点都可以设置超时和重试：`timeout` 限制节点每次执行的时间，`retry` 设置包含首次执行在内的最多尝试次数及重试间隔。
 
@@ -295,9 +282,9 @@ plan = wf.agent(
 
 设置 `timeout=None` 表示不限制执行时间。等待人工回答或工具审批也会计时，因此前面的问答示例使用了 `timeout=None`。
 
-重试可能重复调用模型、写入文件，或重复外部 ACP 智能体的工具调用。非 ACP 智能体的尝试失败或超时后，重试会接着已有的对话继续执行，已完成的工具调用不会再次执行。已经发生的操作不会自动撤销。并非所有错误都会自动重试，具体规则见[工作流参考：超时与重试](../../reference/workflows.md#超时与重试)。
+重试可能重复调用模型或写入文件。尝试失败或超时后，重试会接着已有的对话继续执行，已完成的工具调用不会再次执行。已经发生的操作不会自动撤销。并非所有错误都会自动重试，具体规则见[工作流参考：超时与重试](../../reference/workflows.md)。
 
-## 定义条件分支
+## 7. 定义条件分支
 
 ### 使用 switch() 选择一条分支
 
@@ -397,7 +384,7 @@ medium
 Medium text: hello
 ```
 
-## 并行处理并汇总结果
+## 8. 并行处理并汇总结果
 
 新建 `.chrys/workflows/text_stats.py`：
 
@@ -487,7 +474,7 @@ Done. ## chars
 
 其中，`Done.` 由 `format_report()` 添加。默认合并适合将多份智能体分析交给下游总结，无需自行编写合并函数。
 
-## 循环执行直到满足条件
+## 9. 循环执行直到满足条件
 
 新建 `.chrys/workflows/count_up.py`：
 
@@ -555,7 +542,7 @@ workflow = wf.build()
 
 在 TUI 中新建会话，选择 `count_up` 工作流，输入 `0` 并运行。三轮结果依次为 `1`、`2`、`3`，最终输出为 `3`。可打开循环体节点，查看不同轮次的输入、输出和进度消息。再输入 `-10` 运行，观察达到五轮上限后工作流失败的结果。
 
-## 从命令行运行
+## 10. 从命令行运行
 
 CLI 适合无需人工交互的工作流：不支持 `ctx.ask()` 用户问答，工具审批模式固定为 `bypass`，即跳过工具审批。
 
@@ -611,4 +598,4 @@ aixcoding-cli workflow run WORKFLOW_ID --input "输入文本" > result.txt
 aixcoding-cli workflow run WORKFLOW_ID --input "输入文本" --json
 ```
 
-完整 JSON 字段和退出码见[工作流参考](../../reference/workflows.md#命令行)。
+完整 JSON 字段和退出码见[工作流参考](../../reference/workflows.md)。
