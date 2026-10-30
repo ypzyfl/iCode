@@ -1,4 +1,6 @@
-# ruff: noqa: S101, S106
+# ruff: noqa: S101, S106, RUF001
+# (asserts are pytest idiom; fake creds carry secrets; frozen Chinese log
+#  messages keep full-width punctuation by design, same as session.py)
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 
 """Session logging tests: 12 state-transition records under ``aixcoding.auth``.
@@ -17,7 +19,6 @@ from collections.abc import Iterator
 
 import httpx
 import pytest
-
 from test_auth_session import MockServer, make_session
 
 from chrys.kernel.aixcoding.auth import Environment, LoginSession, StoredCredential
@@ -223,9 +224,8 @@ async def test_11_login_failed_denied(tmp_path, caplog) -> None:
             http=http,
         )
         code = await session.request_device_code()
-        with caplog.at_level(logging.INFO, logger="aixcoding.auth"):
-            with pytest.raises(DevicePollDenied):
-                await session.complete_login(code)  # re-raise semantics: the error escapes
+        with caplog.at_level(logging.INFO, logger="aixcoding.auth"), pytest.raises(DevicePollDenied):
+            await session.complete_login(code)  # re-raise semantics: the error escapes
         records = auth_records(caplog)
         assert len(records) == 1
         assert records[0].levelname == "ERROR"
@@ -241,9 +241,8 @@ async def test_12_login_cancelled(tmp_path, caplog) -> None:
         code = await session.request_device_code()
         cancel = asyncio.Event()
         cancel.set()
-        with caplog.at_level(logging.INFO, logger="aixcoding.auth"):
-            with pytest.raises(DevicePollCancelled):
-                await session.complete_login(code, cancel_event=cancel)
+        with caplog.at_level(logging.INFO, logger="aixcoding.auth"), pytest.raises(DevicePollCancelled):
+            await session.complete_login(code, cancel_event=cancel)
         records = auth_records(caplog)
         assert len(records) == 1
         assert records[0].levelname == "INFO"
