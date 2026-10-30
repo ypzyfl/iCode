@@ -4,13 +4,13 @@
 
 ## 背景与问题
 
-auth-logging 批次确立全模式落盘接线（`app.py main()` 调 `ensure_file_sink()`）后，launcher 的落盘职责被取代。launcher 及其独占组件（crash 捕获、环境快照）在上游 `test_layering.py` 留有约 18 行 DAG 豁免机制登记——是定制层在上游测试文件的**唯一**足迹。责任人价值取向：**最小上游足迹优先于可选能力**（2026-10-30 裁决），选择退役 launcher 换取足迹清零。
+auth-logging 批次确立全模式落盘接线（`app.py main()` 调 `ensure_file_sink()`）后，launcher 的落盘职责被取代。launcher 及其独占组件（crash 捕获、环境快照）在上游 `test_layering.py` 留有约 19 行 DAG 豁免机制登记——是定制层在上游测试文件的**唯一**足迹。责任人价值取向：**最小上游足迹优先于可选能力**（2026-10-30 裁决），选择退役 launcher 换取足迹清零。
 
 ## 目标与非目标
 
 - 目标：
   - 删除 `launcher.py` / `crash.py` / `snapshot.py` 及其测试（定制层 ~220 行产品代码）；
-  - 回滚 `test_layering.py` 的 `_DAG_EDGE_ALLOWLIST` 豁免机制（~18 行）——上游足迹清零；
+  - 回滚 `test_layering.py` 的 `_DAG_EDGE_ALLOWLIST` 豁免机制（净删除 19 行 = 代码 17 + 空行 2，另含一处挂靠形状恢复上游原状——见 design R2 表）——上游足迹清零；
   - 规范与文档联动（DIRECTORY / UPGRADE-RUNBOOK / ADR-0011 处置 / diagnostics design 重签 / CUSTOMIZATIONS）。
 - 非目标：
   - 不删 `config.py` / `logging_support.py` / `test_config.py` / `test_logging_support.py` / `test_panel_anchor.py`（落盘与面板基建，全模式接线依赖）；
@@ -34,4 +34,4 @@ auth-logging 批次确立全模式落盘接线（`app.py main()` 调 `ensure_fil
 
 ## 开放问题
 
-- 无（合并顺序已定为**硬前置**：本批次实施与合并均须在 auth-logging（含全模式接线）落地之后——退役后落盘唯一来源是入口接线）。
+- 无（合并顺序终裁 2026-10-30：**本批次先行合并，空窗期接受**——auth 埋点从未进主干、无用户可见影响；auth-logging（含全模式接线）尽快跟进，其合并后全模式落盘就位。演化链：初版"实施与合并均硬前置" → 实施独立先行 → 终裁先行合并，详见 design §风险与最坏情况）。

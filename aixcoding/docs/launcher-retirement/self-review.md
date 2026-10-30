@@ -25,3 +25,9 @@
   - Nit UPGRADE-RUNBOOK:53 失效描述——修。
 - 验证命令与结果：见 verification.md（架构 1238 passed / 定制 276 passed / 入口消亡 / 生成器幂等 27 点 / 残留净 / ruff+format+ty 全过 / C005 收敛）。
 - 未修项：无。
+
+## 2026-10-30 PR #69 peer review 处置（评审 AI：Deepseek-V4-Pro，worktree 副本独立取证）
+
+- **C1（elif 未恢复上游原状）已修**——与 CI `check_r3_markers` 红**双路径交叉验证**同一行：peer review 以 `git show 7bd6d45a~1` 实证上游原状为独立 `if` 并做破坏性实验（行为等价 223 passed）；CI 按上游 merge-base diff 抓获。修复：改回独立 `if`，文件相对上游基线 diff 归零，`tests/architecture` 1238 passed。教训留痕 verification：**恢复原状的完成标准 = 上游基线零差异**（fork 内视角的两轮评审均未发现，属评审盲区）；
+- **C2（requirements.md 合并顺序"硬前置"与终裁冲突）已修**——同步漏改的 requirements:37 口径 + 行数两处旧值（~18→19）+ plan:14 残留（17 行→净删除 19 + 形状恢复）；design R2 表补形状恢复记录；
+- **非缺陷项确认**：评审副本的 1 failed（test_mock_launcher 端口 10048）根因为本机演示用 mock auth server（PID 3044）占用端口，与本批无关（该进程现已不存在）；历史文档 launcher 引用（快照性质不改写）、conftest aix_logger_state 保留（5 用例在用）等 7 项核验通过。

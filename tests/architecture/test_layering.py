@@ -230,7 +230,7 @@ def test_first_party_imports_follow_layer_dag() -> None:
                 violations.append(problem)
             elif _is_kernel_private_edge(path, edge):
                 observed_private_import_exemptions.add((source, edge.target))
-            elif _is_violation(edge):
+            if _is_violation(edge):
                 violations.append(_format_violation(edge))
 
     for source, target in sorted(_KERNEL_PRIVATE_IMPORT_ALLOWLIST.keys() - observed_private_import_exemptions):

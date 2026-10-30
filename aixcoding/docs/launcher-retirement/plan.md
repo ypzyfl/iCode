@@ -11,12 +11,12 @@
 - [x] design.md + ADR-0013 签认（2026-10-30）
 - [x] test-plan.md 起草
 - [x] 实施：删三件 + 三测试 + conftest 孤儿 fixture + docstring 更新
-- [x] 实施：test_layering.py 豁免机制回滚（17 行，评审 Blocker 行号口径）
+- [x] 实施：test_layering.py 豁免机制回滚（净删除 19 行 + 挂靠形状恢复上游独立 if——CI R3 抓获后彻底化，见 verification 勘误段）
 - [x] 规范联动：DIRECTORY §1/§3、UPGRADE-RUNBOOK:51、ADR-0011 导航注记
 - [x] diagnostics/design.md 登记表删三行 + 退役注记（**重签待责任人**）
 - [x] 验证：架构 1238 绿 / 定制 276 绿 / 入口消亡 / 生成器幂等（27 点）/ 残留净 / ruff+ty 过
-- [ ] design.md 确认日期补填（check_docs 报空日期）
-- [ ] self-review.md（双 AI 评审）
+- [x] design.md 确认日期补填（check_docs 报空日期 → 已补填，校验 OK）
+- [x] self-review.md（双 AI 评审；peer review C1/C2 处置已追加记录，已签认）
 - [ ] git 提交链（add → commit → push → PR，逐条请示）；合并顺序：**本批次先行合并（责任人 2026-10-30 终裁，空窗期接受）→ auth-logging 尽快跟进**
 
 ## 挂起与备忘

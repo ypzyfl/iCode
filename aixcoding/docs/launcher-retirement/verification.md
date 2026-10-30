@@ -80,3 +80,19 @@ ty check --error-on-warning --python-platform win32 src/chrys → All checks pas
 - **Suggestion 2（C026/C027 tui 登记混入）接受**——两个 marker（`test_catalog_oracle.py:26`、`tui_helpers.py:1172`）在 HEAD 源码已存在但基线 CUSTOMIZATIONS.md 漏登记（tui 批次遗留 freshness 缺口），本批次 gen_customizations 被动补齐（不补则 CI freshness 门禁红）。混入接受，随本批次 PR 一并提交，PR 描述说明；
 - **Suggestion 3（行数勘误）已修**——test_layering.py 实测净删除 19 行（含 2 空行），design R2 表已勘误；
 - **Nit 4（UPGRADE-RUNBOOK:53 失效描述）已修**——stale 检测核对豁免边句改为"豁免通道已随 launcher 退役移除（ADR-0013），现存仅 kernel-private allowlist 为上游自有机制"。
+
+## 2026-10-30（二）CI R3 抓获与修复：elif 误恢复
+
+CI（PR）`check_r3_markers` 红：`test_layering.py: upstream diff adds 1 content line(s) with no AIxCoding marker`。根因复盘：
+
+- **恢复不彻底**：diagnostics 批次当年除插入豁免块外，还把上游的**独立 `if _is_violation(edge):`** 改成了 `elif` 挂链（豁免边跳过 violation 判定所需）；本批次回滚时误恢复为 elif——两轮评审与开发 AI 均从 fork 内视角确认"elif 链恢复正确"，**无人对上游 merge-base 做零差异验证**（评审盲区，如实留痕）；
+- **语义偏离**：挂链版使 kernel-private 豁免边短路 violation 判定，偏离上游"先观察、后独立判定"的双判结构；
+- **R3 检查器的价值实证**：它按上游 merge-base diff 工作，恰好抓住 fork 内视角看不到的最后一行；"恢复原状彻底化"（diff 归零）是其天然放行条件——**检查规则无需修改**（责任人质询"是否改规则放行"的结论：不改，抓到的恰是恢复不彻底）。
+
+修复：`elif _is_violation(edge):` → `if _is_violation(edge):`（恢复上游原状）。验证：
+
+```
+git diff 3104004947f87c6f5e10cc56824f8c265adc193b -- tests/architecture/test_layering.py
+→ 零输出（文件相对上游基线完全一致）
+uv run pytest tests/architecture -n0 -q → 1238 passed, 3 skipped in 147.20s
+```
