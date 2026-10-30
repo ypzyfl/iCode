@@ -213,12 +213,14 @@ class LoginSession:
         try:
             account = await self._make_client().fetch_user_info(credential.token)
         except AuthServerError as exc:
+            # AIxCoding auth logging: clear first, then record — a record claiming
+            # "cleared" must never precede the clear itself (peer review C1).
+            self._store.clear(self.environment)
             _log.error(
                 "本机保存的登录已失效，已自动清除，请重新登录；env=%s %s",
                 self.environment.value,
                 _reason(exc, with_cause=False),
             )
-            self._store.clear(self.environment)
             return None
         except AuthError as exc:
             _log.error(

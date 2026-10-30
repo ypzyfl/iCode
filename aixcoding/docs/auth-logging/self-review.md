@@ -50,3 +50,9 @@
   - N3 `rc == 0` 耦合 `--version` 语义（不修：smoke 级耦合可接受）。
 - 修复后复跑：`uv run pytest aixcoding/tests/diagnostics/test_entry_wiring.py -n0 -q` → **6 passed**；ruff/format 过。
 - 本批次评审全史：10-29 两轮（design + 实施）+ 增量复审 + 10-30 恢复期文档收敛轮（外部 AI，M1/M2/M3①）+ 本接线轮——blocker 始终为零，全部 findings 处置闭环。
+
+## 2026-10-30 PR #70 CI 修复轮 + peer review 轮：通过（4 候选处置闭环）
+
+- **CI 事件**：run #61 ruff 全目录门禁拦截 `test_session_logging.py` RUF001×30（原实施期单文件 ruff 的验证缺口，测试文件漏豁免）；修复 commit 691c185（noqa 补 RUF001 + ruff 自动修复 3 处等价改动）；本地逐条预跑 CI 门禁后 push，run #62 全绿（16/16）。目录级 per-file-ignores 结构性改进已记 `fork/temp/aixcoding-todos/`。
+- **Peer review**（外部 AI，head 691c185）：无 blocker；R2/R11 机器 + 人工双清、幻觉 API 未发现、破坏性实验 A/B 双红、freshness 字节级一致。候选 4 条处置（责任人拍板"按开发 AI 建议"）：C1 `#6` 记录先于 `clear()` → **修复**（调序为先清除后记录，误导性记录比丢失更糟；消息全文/级别不变无需重签）；C2 `--version` 全形态建空目录副作用 → **接受**（design 自然推论，无害）；C3 CI 事件与本轮处置 → **补记**（verification.md 新节）；C4 mock 7778 固定端口存量 → **记 temp 待办**不随本批。
+- C1 修复后复跑：见 verification.md 同日新节。

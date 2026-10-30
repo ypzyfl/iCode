@@ -190,4 +190,19 @@ uv run ty check --error-on-warning --python-platform win32 src/chrys → All che
 ?? aixcoding/tests/diagnostics/test_entry_wiring.py         （6 用例）
  M aixcoding/docs/CUSTOMIZATIONS.md                         （C003 纳入产物，随提交）
 ```
+
+## 2026-10-30 PR #70 CI 事件与 peer review 处置（head a8dd631 → 691c185 及后续）
+
+### 1. CI 拦截与修复（commit 691c185）
+
+PR #70 首跑 AIxCoding Tests run #61 step 6（`ruff check aixcoding/`）拦截：`test_session_logging.py` **RUF001×30**（断言冻结口径中文消息的全角标点）+ ruff 自动修复 3 处（I001/SIM117 等价改动）。根因：10-29 实施期 ruff 仅跑 `session.py` 单文件，测试文件从未被扫描——上文门禁清单口径真实但不完整（peer review C3 指出）。修复：文件头 noqa 补 `RUF001`（session.py 同款先例，附理由注释）。本地全量预跑 CI 各门禁（吸收教训逐条预跑）：ruff/format/check_docs/check_import_boundaries/gen 幂等全绿；pytest 293 passed + 1 环境性失败（`test_mock_launcher`，本机 7777/7778 被 mock 窗口与 ArmouryCrate 常驻服务占用，CI Linux 无此问题）。修复后 CI **run #62 全绿（16/16 步骤）**；Upstream CI run #37（a8dd631）成功，#38（691c185）复验。
+
+### 2. Peer review（外部 AI，head 691c185）四候选处置
+
+无 blocker；R2/R11 机器（merge-base 口径）+ 人工双清、幻觉 API 未发现、破坏性实验 A/B 双红（锚定测试有效）、gen freshness 字节级一致。处置（责任人 2026-10-30 拍板"按开发 AI 建议"）：
+
+- **C1** `#6` 记录先于 `clear()` → 调序为"先清除后记录"（误导性记录比丢失更糟——宁缺毋错；消息全文/级别不变，冻结口径冻结的是文本非时序，无需重签）；
+- **C2** `--version` 等全形态入口建空目录副作用 → **接受**（design E 方案"全部运行形态"自然推论，`delay=True` 不建文件，无害）；
+- **C3** 本节补记（CI 事件 + 本轮处置回写文档链，合并前闭环）；
+- **C4** mock 7778 固定端口存量环境项 → 不随本批，记 `fork/temp/aixcoding-todos/` 待办。
 ```
