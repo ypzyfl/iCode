@@ -2,7 +2,7 @@
 
 A session contains conversation history and related data, such as rollback snapshots and diagnostic logs. AIxCoding saves sessions automatically so you can resume a conversation or look up past tasks later. This guide explains how to switch, name, find, resume, and delete sessions in the terminal user interface (TUI), and how to migrate existing sessions when changing their storage location.
 
-## Switch to a new session
+## 1. Switch to a new session
 
 When the agent is idle, enter the appropriate command in the input field, depending on whether you want to keep the current session:
 
@@ -11,7 +11,7 @@ When the agent is idle, enter the appropriate command in the input field, depend
 | Start a new session and keep the current session available to resume later | `/new` | Kept; you can resume it from the session list |
 | Start a new session without keeping the current session | `/clear` | Opens a confirmation dialog; once confirmed, the session is permanently deleted and cannot be recovered |
 
-## Change the session title
+## 2. Change the session title
 
 You can change the current session's title in any of these ways:
 
@@ -19,15 +19,15 @@ You can change the current session's title in any of these ways:
 - Enter `/rename` in the input field to open the "Session Title" dialog, enter a title, and click "Save".
 - Enter a title directly after `/rename`, for example, `/rename Fix the login issue`.
 
-After you set a title manually, the new title appears in the session list and on the main screen, and AIxCoding stops updating that session's title automatically. If [automatic session titles](../configuration/settings.md#sessions) are enabled, clearing the "Session Title" dialog and saving restores the existing automatic title and lets AIxCoding continue updating it automatically during subsequent tasks.
+After you set a title manually, the new title appears in the session list and on the main screen, and AIxCoding stops updating that session's title automatically. If [automatic session titles](../configuration/settings.md#4-sessions) are enabled, clearing the "Session Title" dialog and saving restores the existing automatic title and lets AIxCoding continue updating it automatically during subsequent tasks.
 
-## Resume an existing session
+## 3. Resume an existing session
 
 When the agent is idle, enter `/resume` in the input field to resume the most recent chat session.
 
 To find and resume another session, press **F1**, click `f1 Sessions`, or enter `/sessions` in the input field to open the "Chat Sessions" window. It lists each session's ID, title, directory, last active time, number of conversation turns, and session data size. Each page shows up to 100 sessions, most recently active first.
 
-- **Filter by where a session was last used**: The "TUI", "CLI", and "ACP" checkboxes above the search field show sessions last used in the TUI, in [`aixcoding-cli run`](../running/aixcoding-run.md), or in an editor or other client connected through [`aixcoding-cli acp`](../running/aixcoding-acp.md). Only "TUI" is checked at first. Sessions from earlier AIxCoding versions count as TUI. AIxCoding remembers your choice until you quit it. Hover over a session to see where it was last used.
+- **Filter by where a session was last used**: The "TUI" and "CLI" checkboxes above the search field show sessions last used in the TUI or through `aixcoding-cli run`. Only "TUI" is checked at first. Sessions saved by earlier AIxCoding-CLI versions count as TUI. The choice is remembered until you quit AIxCoding-CLI. Hover over a session to see where it was last used.
 - **Switch pages**: Click "Previous" or "Next" on the right, next to the checkboxes.
 - **Sort sessions**: Sessions are sorted by last active time, newest first. Click a column header to sort the current page by that column: "Last Active", "Turns", and "Size" start in descending order, and the other columns in ascending order. Click the same header again to reverse the order.
 - **Search sessions**: Enter a session ID, title, directory, or a prompt you previously entered in the search field at the bottom. The search covers only the current page.
@@ -35,7 +35,7 @@ To find and resume another session, press **F1**, click `f1 Sessions`, or enter 
 
 When you resume a long conversation, AIxCoding shows its most recent part first so you can continue right away; earlier messages keep loading above it for a few seconds.
 
-## Delete old sessions
+## 4. Delete old sessions
 
 Open the "Chat Sessions" window and first check the session ID, directory, and last active time. If you are unsure, resume the session to check its contents, then return to the "Chat Sessions" window. Select a session you no longer need and click "Delete".
 
@@ -43,7 +43,7 @@ Once you confirm deletion, the session's conversation history, rollback snapshot
 
 Deleting the current session also starts a new session, like `/clear`. A session open in another AIxCoding instance cannot be deleted; close that instance first.
 
-## Find the session ID and storage location
+## 5. Find the session ID and storage location
 
 The current session ID appears in the "Session: ..." area in the upper-left corner of the main screen. IDs for past sessions appear in the list in the "Chat Sessions" window.
 
@@ -51,7 +51,7 @@ Enter `/settings sessions`, or press **F10** and select the "Sessions" tab. The 
 
 If you have not customized the session storage root, the `sessions` directory defaults to `~/.chrys/sessions` on macOS and Linux, and `%APPDATA%\chrys\sessions` on Windows.
 
-## Migrate session storage
+## 6. Migrate session storage
 
 To change where sessions are stored, set a new session storage root and migrate existing sessions to it. The new location takes effect after a restart; changing the storage location alone does not migrate existing sessions automatically.
 

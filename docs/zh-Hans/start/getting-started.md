@@ -1,6 +1,6 @@
 # 开始使用 AIxCoding-CLI
 
-本教程介绍如何安装 AIxCoding-CLI、配置模型，并在项目中使用智能体完成一次开发任务。
+本教程介绍如何安装 AIxCoding-CLI，并在项目中使用智能体完成一次开发任务。
 
 ## 1. 安装 AIxCoding-CLI
 
@@ -30,24 +30,24 @@ chmod +x ./aixcoding-cli
 
 Linux x86-64 安装包要求 glibc 2.17 或更高版本，ARM64 安装包要求 glibc 2.18 或更高版本。Alpine Linux 等只提供 musl 的发行版不在预构建包的支持范围内。
 
-HTTP 下载根地址为 `http://82.187.34.98/aixcoding/file/aixcoding`，对应服务器目录 `/homepage/aixcoding/`。根目录放 `install.sh` 和 `install.ps1`；`channels/cli/prod.txt`、`channels/cli/test.txt` 各存一行完整版本号，安装包放在 `releases/cli/<完整版本号>/`。无需 FTP 凭据。Linux 与 macOS 用户可执行同一条命令；脚本会自动识别平台，并创建 `aixcoding` 启动命令：
+HTTP 下载根地址为 `http://22.189.54.139/aixcoding/file/aixcoding`，对应服务器目录 `/homepage/aixcoding/`。根目录放 `install.sh` 和 `install.ps1`；`channels/cli/prod.txt`、`channels/cli/test.txt` 各存一行完整版本号，安装包放在 `releases/cli/<完整版本号>/`。无需 FTP 凭据。Linux 与 macOS 用户可执行同一条命令；脚本会自动识别平台，并创建 `aixcoding` 启动命令：
 
 ```bash
-curl -fsSL -o install.sh 'http://82.187.34.98/aixcoding/file/aixcoding/install.sh' && bash install.sh
+curl -fsSL -o install.sh 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' && bash install.sh
 ```
 
-默认安装生产包；安装测试包时运行 `bash install.sh --channel test`。CD 流水线分别上传各平台二进制 Artifact，不打包安装脚本。手动把两个安装脚本放在 HTTP 根目录、对应平台的 Artifact ZIP 放在 `releases/cli/<完整版本号>/`，再将完整版本号写入对应频道文件；构建用 wheel 无需上传到 HTTP 镜像。只构建 Linux 时产物中只有 Linux 二进制包。五种平台包名见 [README 安装表](../../../README.zh.md#从内网镜像安装)。
-对于 Linux/macOS，此前已上传的 `icode-<平台>-v<版本>-offline.tar.gz` 或 `.zip` 也可用 `install.sh` 安装，包内根目录需有 `icode` 可执行文件。
+默认安装生产包；安装测试包时运行 `bash install.sh --channel test`。CD 流水线分别上传各平台二进制 Artifact，不打包安装脚本。手动把两个安装脚本放在 HTTP 根目录、对应平台的 Artifact ZIP 放在 `releases/cli/<完整版本号>/`，再将完整版本号写入对应频道文件；构建用 wheel 无需上传到 HTTP 镜像。只构建 Linux 时产物中只有 Linux 二进制包。五种平台包名见 README 安装表。
+
 
 ### Windows
 
 在 PowerShell 中执行以下命令，安装生产频道当前版本的 Windows x86-64 包：
 
 ```powershell
-irm 'http://82.187.34.98/aixcoding/file/aixcoding/install.ps1' | iex
+irm 'http://22.189.54.139/aixcoding/file/aixcoding/install.ps1' | iex
 ```
 
-安装测试包时，先执行 `$env:ICODE_CHANNEL='test'`，再运行上述命令。安装器会尝试将 AIxCoding-CLI 加入当前用户的 `PATH`。安装完成后，请打开一个新终端。
+安装测试包时，先执行 `$env:ICODE_CHANNEL='test'`（该环境变量沿用历史名），再运行上述命令。安装器会尝试将 AIxCoding-CLI 加入当前用户的 `PATH`。安装完成后，请打开一个新终端。
 
 ### 验证安装
 
@@ -56,6 +56,9 @@ aixcoding-cli --version
 ```
 
 命令应输出 AIxCoding-CLI 的版本号。在 macOS 或 Linux 上，如果系统找不到 `aixcoding-cli`，请按安装器的提示将 `~/.local/bin` 加入 `PATH`；如果安装器提示 `~/.local/bin/aixcoding-cli` 已存在，该命令会启动其他程序，请改用 `chrys` 命令。在 Windows 上请打开新的终端；如果安装器提示更新用户 PATH 失败，请手动将 `%LOCALAPPDATA%\chrys\bin` 加入用户 `PATH`。
+
+
+> **启动命令说明**：`aixcoding-cli` 是本工具的标准启动命令；`aixcoding`（由安装脚本自动创建）和 `chrys`（历史命令名）与它完全等价，输入任意一个都会启动同一程序。本手册统一使用 `aixcoding-cli`。
 
 ## 2. 在项目中启动 AIxCoding-CLI
 
@@ -70,31 +73,8 @@ aixcoding-cli
 
 将 `<project-directory>` 替换为项目目录的实际路径。启动后如需切换目录，请参阅[工作目录](../guides/daily-use/workspaces.md)。
 
-## 3. 配置模型
 
-1. 按 **F4** 或点击屏幕底部的 `f4 模型`，打开“模型配置”窗口。
-2. 点击“新建”。
-3. 填写自定义的配置名称，例如 `我的模型`。
-4. 在模型选项区域，选择模型提供商和 API 样式。仅 OpenAI 和 DeepSeek（OpenAI）提供 API 样式选项。配置前，请根据模型服务商的文档确认其支持的 API，并按文档建议选择 `Chat Completions` 或 `Responses`。如果服务商仅支持其中一种 API，请选择对应的 API 样式；如果两种 API 均支持，则根据服务商的建议或实际使用需求选择。
-5. 填写模型 ID，并根据模型服务的要求填写服务地址和 API 密钥。这些字段名称以所选提供商开头，例如“OpenAI 模型”。
-6. 根据模型提供商的说明，填写最大上下文窗口和最大输出词元数。
-7. 保存配置并关闭配置窗口。若此前没有可用的模型配置，该配置将自动成为当前使用的模型配置。
-
-> **提示**
->
-> 直接填写的 API 密钥会随模型配置文件保存在本机。若不希望将密钥写入配置文件，请[通过环境变量提供 API 密钥](../guides/configuration/models.md#通过环境变量提供-api-密钥)。
-
-### 验证模型连接
-
-在输入栏中提交：
-
-```text
-你好
-```
-
-AIxCoding-CLI 应正常返回问候回复。若模型服务返回错误，请重新检查模型 ID、服务地址、API 密钥等模型配置。
-
-## 4. 使用智能体
+## 3. 使用智能体
 
 ### 选择智能体
 
@@ -132,18 +112,17 @@ Q&A Agent 给出实现方案后，可以在同一会话中切换到 **Code Agent
 
 任务完成后，检查智能体的最终回复，并通过 `/diff` 浏览当前会话记录的文件修改。随后使用 Git 等版本控制工具检查工作目录的完整变更，并确认功能正确、必要的测试已经通过且不包含无关改动。确认无误后，可以提交这些变更。
 
-## 5. 结束本次使用
+## 4. 结束本次使用
 
 若要结束本次使用，输入 `/exit` 或按 `Ctrl+Q` 退出 AIxCoding-CLI。
 
-## 下一步
+## 5. 下一步
 
-至此，已经完成 AIxCoding-CLI 的安装和模型配置，并了解了 Q&A Agent 和 Code Agent 的基本使用方式，以及如何在同一会话中配合完成开发任务。
+至此，已经完成 AIxCoding-CLI 的安装，并了解了 Q&A Agent 和 Code Agent 的基本使用方式，以及如何在同一会话中配合完成开发任务。
 
 接下来，可以继续探索：
 
 - [配置智能体](../guides/configuration/agents.md)，创建或修改智能体，并设置其指令、模型、工具和子智能体
-- [配置模型](../guides/configuration/models.md)，连接并切换不同的模型服务
 - [工作目录](../guides/daily-use/workspaces.md)
 - [配置审批模式](../guides/configuration/approval.md)
-- 通过 [Skills](../guides/extensions/skills.md) 和 [MCP](../guides/extensions/mcp.md) 扩展 AIxCoding-CLI
+- 通过 Skills 和 MCP 扩展 AIxCoding-CLI

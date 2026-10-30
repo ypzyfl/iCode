@@ -225,7 +225,8 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         localized_binding("ctrl+b", "interrupt", _BREAK_BINDING, show=False),
         localized_binding("f1", "sessions", _SESSIONS_BINDING, priority=True),
         localized_binding("f2", "agents_config", _AGENTS_BINDING, priority=True),
-        localized_binding("f4", "models_config", _MODELS_BINDING, priority=True),
+        # AIxCoding: F4 model-management entry disabled — hidden from the footer.
+        # localized_binding("f4", "models_config", _MODELS_BINDING, priority=True),
         localized_binding("f6", "show_log_viewer", _LOGS_BINDING, priority=True),
         localized_binding("f8", "open_guide", _HELP_BINDING, priority=True),
         Binding("ctrl+r", "prompt_history", show=False, priority=True),

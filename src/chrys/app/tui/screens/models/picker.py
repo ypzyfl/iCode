@@ -115,8 +115,9 @@ class ModelsScreen(BaseDialog[ModelPickerResult]):
 
     def on_mount(self) -> None:
         ol = self.query_one(OptionList)
+        # AIxCoding: "Manage models…" entry disabled — the picker lists profiles only.
         # Estimate usable width: container width - border(2) - padding(1) - scrollbar(1)
-        content_width = ol.size.width or 54
+        # content_width = ol.size.width or 54
         profiles = self._registry.list_profiles()
         selectable_profiles = sorted(
             (profile for profile in profiles if is_model_profile_selectable(profile)),
@@ -137,19 +138,19 @@ class ModelsScreen(BaseDialog[ModelPickerResult]):
                 )
             )
 
-        if selectable_profiles:
-            ol.add_option(None)
-        localizer = widget_localizer(self)
-        hidden_count = len(profiles) - len(selectable_profiles)
-        desc = ""
-        if hidden_count:
-            hidden_text = render_str(localizer, _HIDDEN_PROFILES.bind(count=hidden_count))
-            desc = _wrap_description(hidden_text, content_width)
-        manage_content = Content.assemble(
-            (render_str(localizer, _MANAGE_MODELS.bind()), "bold"),
-            f"\n{desc}" if desc else "",
-        )
-        ol.add_option(Option(manage_content, id=_MANAGE_OPTION_ID))
+        # if selectable_profiles:
+        #     ol.add_option(None)
+        # localizer = widget_localizer(self)
+        # hidden_count = len(profiles) - len(selectable_profiles)
+        # desc = ""
+        # if hidden_count:
+        #     hidden_text = render_str(localizer, _HIDDEN_PROFILES.bind(count=hidden_count))
+        #     desc = _wrap_description(hidden_text, content_width)
+        # manage_content = Content.assemble(
+        #     (render_str(localizer, _MANAGE_MODELS.bind()), "bold"),
+        #     f"\n{desc}" if desc else "",
+        # )
+        # ol.add_option(Option(manage_content, id=_MANAGE_OPTION_ID))
 
     @on(OptionList.OptionSelected)
     def _on_selected(self, event: OptionList.OptionSelected) -> None:

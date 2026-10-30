@@ -1,24 +1,24 @@
-# 在浏览器中运行 AIxCoding
+# 在浏览器中运行 AIxCoding-CLI
 
-`aixcoding-cli serve` 在浏览器中显示 AIxCoding 的终端用户界面（Terminal User Interface，TUI），支持对话、审批工具调用和修改配置。
+`aixcoding-cli serve` 在浏览器中显示 AIxCoding-CLI 的终端用户界面（Terminal User Interface，TUI），支持对话、审批工具调用和修改配置。
 
 启动选项可通过 `aixcoding-cli serve --help` 查看。
 
-本文将运行浏览器的设备称为“本机”，将运行 AIxCoding 服务的机器称为“服务端”。服务端可以是本机，也可以是通过网络访问的远程服务器。
+本文将运行浏览器的设备称为“本机”，将运行 AIxCoding-CLI 服务的机器称为“服务端”。服务端可以是本机，也可以是通过网络访问的远程服务器。
 
-开始前，服务端应已[安装 AIxCoding](../../start/getting-started.md#1-安装-aixcoding-cli)。浏览器提供操作界面，AIxCoding 则使用服务端的配置，以启动服务的系统用户权限读取、修改文件和执行命令。这些操作均发生在服务端，所有访问者共享服务端的配置、文件和会话，不会获得独立账户。
+开始前，服务端应已安装 AIxCoding-CLI。浏览器提供操作界面，AIxCoding-CLI 则使用服务端的配置，以启动服务的系统用户权限读取、修改文件和执行命令。这些操作均发生在服务端，所有访问者共享服务端的配置、文件和会话，不会获得独立账户。
 
-首次登录后，如果尚未配置模型，需要先在浏览器界面中[配置模型](../../start/getting-started.md#3-配置模型)，然后才能开始对话。任务运行期间应保持页面连接；关闭、刷新页面或断线都会中断该页面中正在执行的任务。
+首次登录后即可开始对话。任务运行期间应保持页面连接；关闭、刷新页面或断线都会中断该页面中正在执行的任务。
 
 根据服务端的位置和访问方式，参阅对应章节：
 
 | 使用场景 | 操作章节 |
 | --- | --- |
-| 本机运行和访问 | [在本机启动 AIxCoding](#在本机启动-aixcoding-cli) |
-| 通过 SSH 访问远程服务器上的 AIxCoding | [从本机访问远程 AIxCoding](#从本机访问远程-aixcoding-cli) |
-| 通过固定的 HTTPS 域名访问 | [通过固定的 HTTPS 域名访问](#通过固定的-https-域名访问) |
+| 本机运行和访问 | [在本机启动 AIxCoding-CLI](#1-在本机启动-aixcoding-cli) |
+| 通过 SSH 访问远程服务器上的 AIxCoding-CLI | [从本机访问远程 AIxCoding-CLI](#2-从本机访问远程-aixcoding-cli) |
+| 通过固定的 HTTPS 域名访问 | [通过固定的 HTTPS 域名访问](#3-通过固定的-https-域名访问) |
 
-## 在本机启动 AIxCoding
+## 1. 在本机启动 AIxCoding-CLI
 
 ### 1. 启动服务
 
@@ -36,23 +36,23 @@ aixcoding-cli serve --auth-required
 
 在本机浏览器中打开 `http://localhost:7777`，输入启动时设置的密码。`localhost` 表示本机，`7777` 是服务端口。
 
-登录后应显示 AIxCoding 界面，服务端已有的模型配置会继续使用。确认模型已配置后，发送“你好”，检查是否能收到回复。
+登录后应显示 AIxCoding-CLI 界面，发送“你好”，检查是否能收到回复。
 
-启动时所在目录即为初始工作目录。点击对话区底部边框右侧的目录路径可[切换工作目录](../daily-use/workspaces.md#在会话中切换工作目录)。`aixcoding-cli serve` 不接受 TUI 的 `--workdir`、`--agent`、`--model` 或 `--session` 参数；更换智能体、模型和恢复会话均在页面中操作。
+启动时所在目录即为初始工作目录。点击对话区底部边框右侧的目录路径可切换工作目录。`aixcoding-cli serve` 不接受 TUI 的 `--workdir`、`--agent`、`--model` 或 `--session` 参数；更换智能体、模型和恢复会话均在页面中操作。
 
 ### 3. 结束使用
 
 使用期间应保持服务终端运行。任务结束后，在该终端按 `Ctrl+C` 停止服务。
 
-每次打开页面并建立连接，服务端都会启动一个独立的 AIxCoding 实例。对话记录保存在服务端，重新打开页面后，可[恢复已保存的会话](../daily-use/sessions.md#恢复已有会话)。
+每次打开页面并建立连接，服务端都会启动一个独立的 AIxCoding-CLI 实例。对话记录保存在服务端，重新打开页面后，可恢复已保存的会话。
 
 浏览器登录状态有效期为 12 小时，服务重启后需重新登录。同一客户端地址连续 5 次输入错误密码后会被锁定，只能通过重启服务解除。重启会断开所有已连接的页面。
 
-## 从本机访问远程 AIxCoding
+## 2. 从本机访问远程 AIxCoding-CLI
 
-如果已能通过 SSH 登录远程服务器，可以建立 SSH 隧道，将本机浏览器的连接通过加密通道转发到远程 AIxCoding，无需配置域名。以下步骤需要在本机打开两个终端窗口。
+如果已能通过 SSH 登录远程服务器，可以建立 SSH 隧道，将本机浏览器的连接通过加密通道转发到远程 AIxCoding-CLI，无需配置域名。以下步骤需要在本机打开两个终端窗口。
 
-### 1. 在第一个终端中登录远程服务器并启动 AIxCoding
+### 1. 在第一个终端中登录远程服务器并启动 AIxCoding-CLI
 
 ```shell
 ssh <user>@<server>
@@ -60,7 +60,7 @@ ssh <user>@<server>
 
 将 `<user>` 替换为服务器的 SSH 用户名，`<server>` 替换为其 IP 地址或主机名，使用 SSH 密钥或密码登录。
 
-登录后，在该终端中执行的命令会运行在远程服务器上。进入远程工作目录，然后启动 AIxCoding：
+登录后，在该终端中执行的命令会运行在远程服务器上。进入远程工作目录，然后启动 AIxCoding-CLI：
 
 ```shell
 aixcoding-cli serve --auth-required
@@ -82,49 +82,49 @@ ssh -N -o ExitOnForwardFailure=yes -L 7777:localhost:7777 <user>@<server>
 
 ### 3. 在本机浏览器中访问
 
-访问 `http://localhost:7777`，输入第一步设置的 AIxCoding 浏览器登录密码。
+访问 `http://localhost:7777`，输入第一步设置的 AIxCoding-CLI 浏览器登录密码。
 
-浏览器访问本机的 `localhost:7777` 后，SSH 隧道会将连接转发到远程 AIxCoding。因此，本例中的浏览器地址应保持为 `localhost`，不能改为远程 IP。
+浏览器访问本机的 `localhost:7777` 后，SSH 隧道会将连接转发到远程 AIxCoding-CLI。因此，本例中的浏览器地址应保持为 `localhost`，不能改为远程 IP。
 
-任务结束后，在第一个终端按 `Ctrl+C` 停止 AIxCoding，在第二个终端按 `Ctrl+C` 关闭 SSH 隧道。
+任务结束后，在第一个终端按 `Ctrl+C` 停止 AIxCoding-CLI，在第二个终端按 `Ctrl+C` 关闭 SSH 隧道。
 
-## 通过固定的 HTTPS 域名访问
+## 3. 通过固定的 HTTPS 域名访问
 
-通过 `https://aixcoding-cli.example.com` 等固定地址访问时，需部署反向代理：浏览器与代理建立加密连接，代理再将请求转发至 AIxCoding。
+通过 `https://aixcoding-cli.example.com` 等固定地址访问时，需部署反向代理：浏览器与代理建立加密连接，代理再将请求转发至 AIxCoding-CLI。
 
-本节适用于已有 HTTPS 代理的环境。域名和证书需要在代理侧配置，AIxCoding 本身不提供 HTTPS 服务。
+本节适用于已有 HTTPS 代理的环境。域名和证书需要在代理侧配置，AIxCoding-CLI 本身不提供 HTTPS 服务。
 
-### 1. 启动 AIxCoding
+### 1. 启动 AIxCoding-CLI
 
-以下示例要求代理与 AIxCoding 运行在同一台服务器上。在服务器终端中进入工作目录，将 `aixcoding-cli.example.com` 替换为实际域名，然后运行：
+以下示例要求代理与 AIxCoding-CLI 运行在同一台服务器上。在服务器终端中进入工作目录，将 `aixcoding-cli.example.com` 替换为实际域名，然后运行：
 
 ```shell
 aixcoding-cli serve --host 127.0.0.1 --port 7777 --public-url https://aixcoding-cli.example.com --auth-required
 ```
 
-设置浏览器登录密码，并保持终端运行。此命令让 AIxCoding 只接受同一台服务器上的连接，浏览器则通过代理访问 `--public-url` 指定的地址。
+设置浏览器登录密码，并保持终端运行。此命令让 AIxCoding-CLI 只接受同一台服务器上的连接，浏览器则通过代理访问 `--public-url` 指定的地址。
 
 ### 2. 配置代理连接
 
 代理需满足以下要求：
 
 - 将该域名的请求转发至 `http://127.0.0.1:7777`。
-- 保留浏览器请求中的原始 `Host` 头，使 AIxCoding 能核对访问域名。
+- 保留浏览器请求中的原始 `Host` 头，使 AIxCoding-CLI 能核对访问域名。
 - 支持 WebSocket 连接，供页面持续传输输入和回复。
 
-默认情况下，AIxCoding 按代理地址累计密码错误次数，多个访问者可能共享失败计数。若代理可信且会正确重写 `X-Forwarded-For`（客户端地址请求头），可在 AIxCoding 启动命令中添加 `--auth-trust-forwarded-for`，改为按代理提供的访问者地址计数。
+默认情况下，AIxCoding-CLI 按代理地址累计密码错误次数，多个访问者可能共享失败计数。若代理可信且会正确重写 `X-Forwarded-For`（客户端地址请求头），可在 AIxCoding-CLI 启动命令中添加 `--auth-trust-forwarded-for`，改为按代理提供的访问者地址计数。
 
 ### 3. 验证访问
 
-将 `aixcoding-cli.example.com` 替换为实际域名，在本机浏览器中打开对应的 HTTPS 地址，例如 `https://aixcoding-cli.example.com`，无需添加 AIxCoding 的端口 `:7777`。浏览器应显示 AIxCoding 登录页面，且没有证书警告。登录后发送一条消息，确认能收到回复。
+将 `aixcoding-cli.example.com` 替换为实际域名，在本机浏览器中打开对应的 HTTPS 地址，例如 `https://aixcoding-cli.example.com`，无需添加 AIxCoding-CLI 的端口 `:7777`。浏览器应显示 AIxCoding-CLI 登录页面，且没有证书警告。登录后发送一条消息，确认能收到回复。
 
-浏览器到代理的连接已加密；代理到 AIxCoding 仍使用服务器内部的 HTTP 连接。
+浏览器到代理的连接已加密；代理到 AIxCoding-CLI 仍使用服务器内部的 HTTP 连接。
 
 ### 其他部署方式
 
-代理位于其他服务器或独立容器中时，`127.0.0.1` 可能无法连接 AIxCoding。调整监听地址后，应通过防火墙或容器网络规则限制后端端口仅供可信代理访问，避免绕过 HTTPS 代理直接连接。设置 HTTPS `--public-url` 不会加密代理到 AIxCoding 的 HTTP 连接。
+代理位于其他服务器或独立容器中时，`127.0.0.1` 可能无法连接 AIxCoding-CLI。调整监听地址后，应通过防火墙或容器网络规则限制后端端口仅供可信代理访问，避免绕过 HTTPS 代理直接连接。设置 HTTPS `--public-url` 不会加密代理到 AIxCoding-CLI 的 HTTP 连接。
 
-## 从文件或环境变量读取密码
+## 4. 从文件或环境变量读取密码
 
 无法在终端交互输入密码时，可通过文件或环境变量提供。两种方式均自动启用认证，无需添加 `--auth-required`，且不能同时使用。
 
@@ -142,7 +142,7 @@ aixcoding-cli serve --auth-password-file "<password-file>"
 
 ### 使用环境变量
 
-在服务端为 AIxCoding 启动进程设置环境变量，例如 `CHRYS_SERVE_PASSWORD`，并将变量值设为非空的登录密码。然后运行：
+在服务端为 AIxCoding-CLI 启动进程设置环境变量，例如 `CHRYS_SERVE_PASSWORD`，并将变量值设为非空的登录密码。然后运行：
 
 ```shell
 aixcoding-cli serve --auth-password-env CHRYS_SERVE_PASSWORD
@@ -150,7 +150,7 @@ aixcoding-cli serve --auth-password-env CHRYS_SERVE_PASSWORD
 
 `--auth-password-env` 的参数为环境变量名称。启动时不再提示输入密码，浏览器使用该变量的值登录。
 
-## 直接通过局域网 IP 访问
+## 5. 直接通过局域网 IP 访问
 
 直接通过局域网 IP 访问会以明文传输登录密码和对话内容，仅适用于明确接受此风险的网络环境。
 
@@ -160,15 +160,15 @@ aixcoding-cli serve --auth-password-env CHRYS_SERVE_PASSWORD
 aixcoding-cli serve --host 0.0.0.0 --public-url http://192.168.1.20:7777 --auth-required --allow-insecure-auth
 ```
 
-`--host 0.0.0.0` 允许其他设备连接 AIxCoding。`--allow-insecure-auth` 显式允许通过网络进行明文密码登录；本例未指定该选项时，AIxCoding 会拒绝启动。
+`--host 0.0.0.0` 允许其他设备连接 AIxCoding-CLI。`--allow-insecure-auth` 显式允许通过网络进行明文密码登录；本例未指定该选项时，AIxCoding-CLI 会拒绝启动。
 
 在本机浏览器中使用服务端的实际局域网 IP 访问，例如 `http://192.168.1.20:7777`，然后登录。若无法连接，检查本机与服务端是否互通，以及服务端防火墙是否允许客户端访问 TCP 端口 `7777`。
 
-## 故障排查
+## 6. 故障排查
 
 ### 提示找不到 `aixcoding-cli` 命令
 
-确认服务端已安装 AIxCoding，且安装目录已加入 `PATH`。若刚完成安装，重新打开终端后运行以下命令验证：
+确认服务端已安装 AIxCoding-CLI，且安装目录已加入 `PATH`。若刚完成安装，重新打开终端后运行以下命令验证：
 
 ```shell
 aixcoding-cli --version
@@ -186,13 +186,13 @@ aixcoding-cli serve --port 8888 --auth-required
 
 ### SSH 隧道提示本地端口被占用
 
-将 `-L` 后的第一个端口改为本机空闲端口，最后一个端口保持为远程 AIxCoding 的监听端口。例如，远程 AIxCoding 使用 `7777`，且本机的 `8888` 端口空闲时，可在本机运行：
+将 `-L` 后的第一个端口改为本机空闲端口，最后一个端口保持为远程 AIxCoding-CLI 的监听端口。例如，远程 AIxCoding-CLI 使用 `7777`，且本机的 `8888` 端口空闲时，可在本机运行：
 
 ```shell
 ssh -N -o ExitOnForwardFailure=yes -L 8888:localhost:7777 <user>@<server>
 ```
 
-将 `<user>` 和 `<server>` 替换为 SSH 用户名和服务器地址。同时在远程服务器上重新启动 AIxCoding，指定新的浏览器访问地址：
+将 `<user>` 和 `<server>` 替换为 SSH 用户名和服务器地址。同时在远程服务器上重新启动 AIxCoding-CLI，指定新的浏览器访问地址：
 
 ```shell
 aixcoding-cli serve --public-url http://localhost:8888 --auth-required
@@ -202,7 +202,7 @@ aixcoding-cli serve --public-url http://localhost:8888 --auth-required
 
 ### 浏览器提示无法访问
 
-先确认 AIxCoding 服务仍在运行，再核对浏览器地址是否与所用方式一致：按本机或 SSH 示例访问时使用 `localhost`，通过 HTTPS 访问时使用配置的域名，通过局域网直连时使用服务端 IP。
+先确认 AIxCoding-CLI 服务仍在运行，再核对浏览器地址是否与所用方式一致：按本机或 SSH 示例访问时使用 `localhost`，通过 HTTPS 访问时使用配置的域名，通过局域网直连时使用服务端 IP。
 
 如果地址正确但仍无法访问，SSH 方式还需检查隧道是否运行，HTTPS 方式则需检查域名解析和代理服务。
 
@@ -212,27 +212,27 @@ aixcoding-cli serve --public-url http://localhost:8888 --auth-required
 
 ### HTTPS 页面返回 `502`
 
-检查 AIxCoding 是否仍在运行、代理转发的地址和端口是否与 AIxCoding 的监听配置一致，以及代理是否能连接该地址；具体原因可查看代理日志。
+检查 AIxCoding-CLI 是否仍在运行、代理转发的地址和端口是否与 AIxCoding-CLI 的监听配置一致，以及代理是否能连接该地址；具体原因可查看代理日志。
 
 ### 页面返回 `421`
 
-使用 AIxCoding 启动时显示的域名或 IP 及端口访问。经代理访问时，检查代理是否保留了原始 `Host` 头。
+使用 AIxCoding-CLI 启动时显示的域名或 IP 及端口访问。经代理访问时，检查代理是否保留了原始 `Host` 头。
 
 ### WebSocket 连接返回 `403`
 
-核对浏览器地址是否与 `--public-url` 指定的地址一致，包括协议（`http` 或 `https`）、域名和端口。AIxCoding 会拒绝来源地址不匹配的连接。
+核对浏览器地址是否与 `--public-url` 指定的地址一致，包括协议（`http` 或 `https`）、域名和端口。AIxCoding-CLI 会拒绝来源地址不匹配的连接。
 
 ### 登录时返回 `403`
 
-若提示 `Invalid login token`，重新打开登录页面后输入密码；若提示 `Invalid login origin`，核对浏览器地址是否与 AIxCoding 配置的访问地址一致。
+若提示 `Invalid login token`，重新打开登录页面后输入密码；若提示 `Invalid login origin`，核对浏览器地址是否与 AIxCoding-CLI 配置的访问地址一致。
 
 ### 提示密码尝试次数过多
 
-该客户端地址已锁定。先确认其他页面没有正在执行的任务，再在 AIxCoding 终端按 `Ctrl+C` 并重新启动。多个代理访问者同时被锁定时，按 HTTPS 章节中的条件检查是否适合启用 `--auth-trust-forwarded-for`。
+该客户端地址已锁定。先确认其他页面没有正在执行的任务，再在 AIxCoding-CLI 终端按 `Ctrl+C` 并重新启动。多个代理访问者同时被锁定时，按 HTTPS 章节中的条件检查是否适合启用 `--auth-trust-forwarded-for`。
 
 ### 页面刷新或断线后未显示原对话
 
-页面重新连接后，服务端会启动新的 AIxCoding 实例。可按“恢复已保存的会话”中的步骤恢复对话记录，但中断的任务不会自动继续。
+页面重新连接后，服务端会启动新的 AIxCoding-CLI 实例。可按“恢复已保存的会话”中的步骤恢复对话记录，但中断的任务不会自动继续。
 
 ### 复制失败
 

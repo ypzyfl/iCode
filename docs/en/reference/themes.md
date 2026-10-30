@@ -2,7 +2,7 @@
 
 AIxCoding supports theme files for customizing the appearance of the terminal user interface (TUI). This page describes the file format, common color fields, and loading rules. To edit and save themes through the interface, see [Customize themes](../guides/configuration/themes.md).
 
-## File Location and Naming
+## 1. File Location and Naming
 
 Store theme files in the following directory. Create it first if it does not exist.
 
@@ -23,7 +23,7 @@ When a `.yaml` file and a `.yml` file have the same theme name, AIxCoding prefer
 
 After adding or editing a theme file, restart AIxCoding to load it, then press **F9** and select the corresponding theme from the theme list to apply it.
 
-## File Format
+## 2. File Format
 
 The following example defines a custom dark theme in `aixcoding-cli-ocean.yaml`:
 
@@ -49,9 +49,9 @@ variables:
   markdown-block-background: "#202c38"
 ```
 
-`primary` is the only required field. All other fields are optional. AIxCoding fills in omitted colors automatically; see [Default Color Rules](#default-color-rules).
+`primary` is the only required field. All other fields are optional. AIxCoding fills in omitted colors automatically; see [Default Color Rules](None#4-default-color-rules).
 
-## Configuration Fields
+## 3. Configuration Fields
 
 A theme file has two parts:
 
@@ -60,7 +60,7 @@ A theme file has two parts:
 
 `variables` must be a mapping from strings to strings. Unknown top-level fields cause the theme to be skipped.
 
-### Overall Palette
+### 1. Overall Palette
 
 The following fields set the theme's base colors.
 
@@ -83,7 +83,7 @@ Top-level color fields can use `"rgba(92, 157, 237, 0.35)"` for 35% opacity. Per
 
 Do not leave fields empty or set them to `null`. Omit fields you do not need to configure.
 
-### Buttons, Footer, Selection, and Cursor
+### 2. Buttons, Footer, Selection, and Cursor
 
 Place the following fields under `variables`. Each affects only the corresponding interface element. Color values under `variables` support percentage suffixes. For example, `input-selection-background: "#5c9ded 35%"` blends the color at 35% opacity. Percentage blending applies to RGB colors; `ansi_*` colors ignore opacity.
 
@@ -102,7 +102,7 @@ Omitted button colors use the theme's default palette.
 
 `block-cursor-text-style` accepts a Textual text style such as `"bold"` (the default), `"italic"`, `"underline"`, `"reverse"`, or `"none"` (no text styling).
 
-### Borders, Widgets, and Content Areas
+### 3. Borders, Widgets, and Content Areas
 
 Place the following fields under `variables` as well. Omitted fields use the default colors listed below.
 
@@ -119,7 +119,7 @@ Place the following fields under `variables` as well. Omitted fields use the def
 
 Use `scrollbar`, `scrollbar-hover`, and `scrollbar-active` to configure scrollbar colors in normal, hover, and drag states. `scrollbar-background` sets the track background for all three states; existing `scrollbar-background-hover` and `scrollbar-background-active` values can override the corresponding states individually.
 
-## Default Color Rules
+## 4. Default Color Rules
 
 For non-ANSI themes, omitted fields use the following defaults or are calculated from other colors. ANSI mode uses terminal colors, so do not use this table to infer its final displayed colors.
 
@@ -142,7 +142,7 @@ The following optional top-level fields adjust the automatically generated palet
 
 The top-level field `text_alpha` is also accepted and must be a finite number, but it currently does not change displayed colors.
 
-## Loading Failures
+## 5. Loading Failures
 
 If AIxCoding finds malformed YAML, a missing `primary` field, unknown top-level fields, or invalid field values while loading, it displays a warning and skips the file. Use the warning to check the corresponding file, correct it, and restart AIxCoding to load it again. Other valid themes remain available.
 

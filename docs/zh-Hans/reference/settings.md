@@ -1,17 +1,17 @@
 # AIxCoding-CLI 设置文件参考
 
-`settings.yaml` 保存 AIxCoding 的界面偏好、默认智能体、会话和工具设置。本文按用途列出常用设置键，并说明文件位置与格式、值的写法、多个来源并存时的优先级，以及项目文件可以覆盖的范围。
+`settings.yaml` 保存 AIxCoding-CLI 的界面偏好、默认智能体、会话和工具设置。本文按用途列出常用设置键，并说明文件位置与格式、值的写法、多个来源并存时的优先级，以及项目文件可以覆盖的范围。
 
-在终端用户界面（Terminal User Interface，TUI）中修改设置的步骤和生效时间，见[配置 AIxCoding 设置](../guides/configuration/settings.md)。
+在终端用户界面（Terminal User Interface，TUI）中修改设置的步骤和生效时间，见配置 AIxCoding-CLI 设置。
 
-## 文件位置与格式
+## 1. 文件位置与格式
 
 | 配置来源 | macOS / Linux | Windows | 用途 |
 | --- | --- | --- | --- |
 | 用户设置 | `~/.chrys/settings.yaml` | `%APPDATA%\chrys\settings.yaml` | 保存个人设置；TUI 设置窗口写入此文件 |
 | 项目设置 | 工作目录下的 `.chrys/settings.yaml` | 同左 | 覆盖该工作目录的部分设置，默认不加载 |
 
-AIxCoding 仅在当前会话的工作目录下查找 `.chrys/settings.yaml`，不向父目录或子目录查找。
+AIxCoding-CLI 仅在当前会话的工作目录下查找 `.chrys/settings.yaml`，不向父目录或子目录查找。
 
 文件使用 YAML 格式。键名以点分隔表示嵌套层级，例如 `llm.retry.max_transient` 在文件中写为：
 
@@ -21,11 +21,11 @@ llm:
     max_transient: 3
 ```
 
-手动编辑设置文件后，保存并重新启动 AIxCoding 使修改生效。
+手动编辑设置文件后，保存并重新启动 AIxCoding-CLI 使修改生效。
 
-## 设置键
+## 2. 设置键
 
-表中“无”表示没有对应环境变量，“未指定”表示该键没有保存值（未填写或留空）。通用的取值写法与无效值处理见[值的写法与无效值](#值的写法与无效值)。
+表中“无”表示没有对应环境变量，“未指定”表示该键没有保存值（未填写或留空）。通用的取值写法与无效值处理见值的写法与无效值。
 
 ### 界面与输入
 
@@ -41,16 +41,16 @@ llm:
 
 ### 智能体、模型与请求
 
-模型用途键填写已有模型配置的 ID 或唯一名称；Buddy 伙伴不选择模型配置，其键填写模型服务端的模型名称（`model_id`）。
+模型用途键填写已有模型的 ID 或唯一名称；Buddy 伙伴不选择模型，其键填写模型服务端的模型名称（`model_id`）。
 
-| YAML 键 | 环境变量 | 默认值 | 类型、取值与效果 |
-| --- | --- | --- | --- |
-| `agent.default_profile` | `CHRYS_DEFAULT_AGENT` | `Code` | 字符串；下次启动 TUI 时的默认智能体，不切换当前会话；显式 `--agent` 优先 |
-| `model.profile.active` | `CHRYS_MODEL_PROFILE` | 未指定 | 字符串；选择已有模型配置，作为智能体未指定有效 `model.profile_id` 时的后备模型。显式 `--model` 优先于此键，但仍作为后备模型；ACP 会话中显式切换模型则优先于智能体指定的模型 |
-| `model.role.approval_judge` | `CHRYS_MODEL_PROFILE_APPROVAL_JUDGE` | 未指定 | 字符串；自动审批使用的模型配置，未指定时使用当前模型 |
-| `model.role.session_title` | `CHRYS_MODEL_PROFILE_SESSION_TITLE` | 未指定 | 字符串；自动生成会话标题使用的模型配置，未指定时使用当前模型 |
-| `model.role.buddy_model_id` | `CHRYS_PET_MODEL` | 未指定 | 字符串；Buddy 伙伴使用的模型，沿用当前模型配置的连接；未指定时使用当前模型 |
-| `llm.retry.max_transient` | `CHRYS_MAX_TRANSIENT_RETRIES` | `null` | 整数或 `null`；`null` 使用当前启动入口的默认次数：TUI（含 `aixcoding-cli serve`）和 `aixcoding-cli acp` 为 `10` 次，`aixcoding-cli run` 和 `aixcoding-cli workflow run` 为 `18` 次。每次重试前的等待逐次变长，最长 10 分钟。`0` 禁用瞬时错误自动重试，负数无效，上限 `50` |
+| YAML 键                      | 环境变量                                 | 默认值    | 类型、取值与效果                                                                                                                                                                           |
+| --------------------------- | ------------------------------------ | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `agent.default_profile`     | `CHRYS_DEFAULT_AGENT`                | `Code` | 字符串；下次启动 TUI 时的默认智能体，不切换当前会话；显式 `--agent` 优先                                                                                                                                       |
+| `model.profile.active`      | `CHRYS_MODEL_PROFILE`                | 未指定    | 字符串；选择已有模型，作为智能体未指定有效 `model.profile_id` 时的后备模型。显式 `--model` 优先于此键，但仍作为后备模型                                                                                                      |
+| `model.role.approval_judge` | `CHRYS_MODEL_PROFILE_APPROVAL_JUDGE` | 未指定    | 字符串；自动审批使用的模型，未指定时使用当前模型                                                                                                                                                         |
+| `model.role.session_title`  | `CHRYS_MODEL_PROFILE_SESSION_TITLE`  | 未指定    | 字符串；自动生成会话标题使用的模型，未指定时使用当前模型                                                                                                                                                     |
+| `model.role.buddy_model_id` | `CHRYS_PET_MODEL`                    | 未指定    | 字符串；Buddy 伙伴使用的模型，沿用当前模型的连接；未指定时使用当前模型                                                                                                                                           |
+| `llm.retry.max_transient`   | `CHRYS_MAX_TRANSIENT_RETRIES`        | `null` | 整数或 `null`；`null` 使用当前启动入口的默认次数：TUI（含 `aixcoding-cli serve`）为 `10` 次，`aixcoding-cli run` 和 `aixcoding-cli workflow run` 为 `18` 次。每次重试前的等待逐次变长，最长 10 分钟。`0` 禁用瞬时错误自动重试，负数无效，上限 `50` |
 
 瞬时错误重试用于临时网络故障、请求超时、限流等可恢复错误。提高次数也会增加最终失败前的等待时间和请求次数；该数字不等于整个任务的模型请求总数。
 
@@ -64,9 +64,9 @@ llm:
 | `project.config_enabled` | 无 | `false` | 布尔值；是否加载各工作目录的项目设置，必须在用户设置中启用 |
 | `project.hooks_enabled` | 无 | `true` | 布尔值；是否加载工作目录 `.chrys/hooks` 中的项目 Hooks，不影响用户级 Hooks |
 
-手动在 YAML 或环境变量中将默认审批模式设为 `bypass`，下次按此默认值启动时就会跳过审批。在 TUI 中通过 `/approval` 切换到 `bypass` 时，AIxCoding 会将默认模式保存为 `auto`；TUI 设置窗口不提供 `bypass`。
+手动在 YAML 或环境变量中将默认审批模式设为 `bypass`，下次按此默认值启动时就会跳过审批。在 TUI 中通过 `/approval` 切换到 `bypass` 时，AIxCoding-CLI 会将默认模式保存为 `auto`；TUI 设置窗口不提供 `bypass`。
 
-Hooks 是 AIxCoding 在特定事件时运行的外部命令。项目 Hooks 与项目设置分别控制；关闭 `project.config_enabled` 不会关闭项目 Hooks。编写与配置见[配置和编写 Hooks](../guides/extensions/hooks.md)。
+Hooks 是 AIxCoding-CLI 在特定事件时运行的外部命令。项目 Hooks 与项目设置分别控制；关闭 `project.config_enabled` 不会关闭项目 Hooks。编写与配置见[配置和编写 Hooks](../guides/extensions/hooks.md)。
 
 ### 会话与文件恢复
 
@@ -78,7 +78,7 @@ Hooks 是 AIxCoding 在特定事件时运行的外部命令。项目 Hooks 与�
 | `mutations.snapshot.max_file_mb` | `CHRYS_MUTATION_SNAPSHOT_MAX_FILE_MB` | `50` | 整数；单个文件备份的大小上限，单位 MiB。`0` 或负数取消大小限制；超限文件仍记录为有改动，但不备份内容，无法据此显示差异或恢复文件 |
 | `mutations.snapshot.skip_binary` | `CHRYS_MUTATION_SNAPSHOT_SKIP_BINARY` | `true` | 布尔值；是否跳过二进制文件内容备份。设为 `false` 时仍受单文件大小上限约束 |
 
-改变会话存储根目录不会自动迁移旧会话；指定目录不可用时会提示并回退到默认位置。迁移步骤见[迁移会话存储位置](../guides/daily-use/sessions.md#迁移会话存储位置)。
+改变会话存储根目录不会自动迁移旧会话；指定目录不可用时会提示并回退到默认位置。迁移步骤见迁移会话存储位置。
 
 ### 工具与工作目录变更
 
@@ -91,7 +91,7 @@ Hooks 是 AIxCoding 在特定事件时运行的外部命令。项目 Hooks 与�
 | `workspace.change_notice.enabled` | `CHRYS_WORKSPACE_CHANGE_NOTICE` | `true` | 布尔值；开始处理新提示词时，向智能体提供自上次提交提示词以来的工作目录文件变更摘要，包含智能体造成的改动和外部改动 |
 | `workspace.change_notice.max_entries` | `CHRYS_WORKSPACE_CHANGE_NOTICE_MAX_ENTRIES` | `50` | 整数；变更摘要的最大条目数，范围 `1`–`100` |
 | `mutations.parallel_implicit_tools` | `CHRYS_PARALLEL_IMPLICIT_TOOLS` | `true` | 布尔值；允许同一会话中的 Shell、技能脚本等可能改动文件的工具并行运行。设为 `false` 更容易判断文件改动来自哪次工具调用 |
-| `mutations.coordination.enabled` | `CHRYS_MUTATION_COORDINATION` | `true` | 布尔值；协助区分共享工作目录的不同 AIxCoding 会话造成的文件改动 |
+| `mutations.coordination.enabled` | `CHRYS_MUTATION_COORDINATION` | `true` | 布尔值；协助区分共享工作目录的不同 AIxCoding-CLI 会话造成的文件改动 |
 
 工具自身还可能有独立的输出限制，例如 MCP 返回结果和技能资源的限制。将 `tools.result.ceiling_tokens` 设为 `0` 不会关闭这些限制，也不能恢复已被工具截断的内容。
 
@@ -139,7 +139,7 @@ Hooks 是 AIxCoding 在特定事件时运行的外部命令。项目 Hooks 与�
 | `notifications.enabled` | 事件通知总开关 |
 | `notifications.delivery.desktop` | 发送桌面弹窗 |
 | `notifications.delivery.sound` | 播放声音 |
-| `notifications.suppress_when_focused` | AIxCoding 获得焦点时暂停通知 |
+| `notifications.suppress_when_focused` | AIxCoding-CLI 获得焦点时暂停通知 |
 | `notifications.events.approval_required` | 需要审批时通知 |
 | `notifications.events.ask_user` | 智能体需要输入时通知 |
 | `notifications.events.turn_complete` | 智能体完成任务时通知 |
@@ -149,20 +149,16 @@ Hooks 是 AIxCoding 在特定事件时运行的外部命令。项目 Hooks 与�
 
 ### 诊断与遥测
 
-**原始 HTTP 日志可能包含明文 API 密钥、完整提示词和模型回复。** 仅在明确数据去向和访问权限后启用，排查结束后关闭不再需要的诊断选项并重启 AIxCoding。
+**原始 HTTP 日志可能包含明文 API 密钥、完整提示词和模型回复。** 仅在明确数据去向和访问权限后启用，排查结束后关闭不再需要的诊断选项并重启 AIxCoding-CLI。
 
 | YAML 键 | 环境变量 | 默认值 | 类型、取值与效果 |
 | --- | --- | --- | --- |
 | `log.raw_http_capture` | `CHRYS_DEBUG_LLM_RAW_HTTP_LOG` | `false` | 布尔值；将模型原始 HTTP 请求和响应写入当前会话目录的 `llm_raw_http.jsonl` |
-| `otel.enabled` | `CHRYS_OTEL` | `false` | 布尔值；启用 OpenTelemetry 导出 |
-| `otel.endpoint` | `CHRYS_OTEL_ENDPOINT` | 未指定 | 字符串；遥测收集器端点。未配置任何端点时仅在本地保存追踪和日志；标准 OTLP 端点环境变量优先于此设置。配置端点后停止本地保存，发送失败时不回退 |
-| `otel.sensitive_data` | `CHRYS_OTEL_SENSITIVE_DATA` | `false` | 布尔值；额外记录提示词、模型回复、工具参数和工具结果，可能包含私密信息；仅在明确数据去向和访问权限后启用 |
 
-数据保存位置、收集器连接、认证和指标查询见 [OpenTelemetry 参考](./opentelemetry.md)。
 
-## 来源优先级
+## 3. 来源优先级
 
-每个键独立按以下优先级取值，使用靠前的有效值。项目设置还必须符合[项目级设置](#项目级设置)的限制。
+每个键独立按以下优先级取值，使用靠前的有效值。项目设置还必须符合项目级设置的限制。
 
 | 优先级 | 来源 |
 | --- | --- |
@@ -173,21 +169,21 @@ Hooks 是 AIxCoding 在特定事件时运行的外部命令。项目 Hooks 与�
 | 5 | 用户设置 |
 | 6 | 内置默认值 |
 
-启动时，AIxCoding 会尝试将旧版用户 `.env` 中的 AIxCoding 设置迁入用户 `settings.yaml`，并清理已迁移的设置行。合并时 `settings.yaml` 中已有的同名键优先保留，不会被覆盖；尚未完成迁移的设置行仍按上表第 3 级来源生效。迁移失败时会提示，并在下次启动时重试。模型服务的 API 密钥等环境变量保留在 `.env` 中。
+启动时，AIxCoding-CLI 会尝试将旧版用户 `.env` 中的 AIxCoding-CLI 设置迁入用户 `settings.yaml`，并清理已迁移的设置行。合并时 `settings.yaml` 中已有的同名键优先保留，不会被覆盖；尚未完成迁移的设置行仍按上表第 3 级来源生效。迁移失败时会提示，并在下次启动时重试。模型服务的 API 密钥等环境变量保留在 `.env` 中。
 
-工作目录 `.env` 中的 AIxCoding 设置不生效。项目设置应写入 `.chrys/settings.yaml`。
+工作目录 `.env` 中的 AIxCoding-CLI 设置不生效。项目设置应写入 `.chrys/settings.yaml`。
 
-## 值的写法与无效值
+## 4. 值的写法与无效值
 
-下面说明向设置文件与环境变量填值的通用规则；单个键的上下限、`null` 的含义等约束，见[设置键](#设置键)各键行的“类型、取值与效果”列。
+下面说明向设置文件与环境变量填值的通用规则；单个键的上下限、`null` 的含义等约束，见设置键各键行的“类型、取值与效果”列。
 
 - 布尔值在 YAML 中写 `true` 或 `false`。对应的环境变量接受 `1`、`true`、`yes`、`on` 和 `0`、`false`、`no`、`off`，不区分大小写。个别环境变量的含义与名称相反或只接受特定拼写，已在对应键行注明。
 - 整数直接写数字。标明上下限的键，超界值会被调整到边界；明确禁止负数的键会拒绝负值。`0` 或负数的特殊含义（禁用、取消限制等）以各键行说明为准。
-- 未填写的键和空字符串通常不提供覆盖。要撤销某个文件中的设置，删除该键；删除后仍可能使用其他来源的值（见[来源优先级](#来源优先级)）。
-- 类型列为“整数或 `null`”的键可写 `null`，其含义已在对应键行说明；用户设置与项目文件对 `null` 的处理不同，见[项目级设置](#项目级设置)。
-- 未知键会被报告且不生效。多数无效值会被忽略并报告，取值继续向较低优先级查找——例如，环境变量中的值无效而用户设置中已有有效值时，使用用户设置的值。`approval.default_mode`、`tools.result.ceiling_tokens`、`log.raw_http_capture`、`otel.sensitive_data`、`mutations.trace.fsatrace_path` 五个键不同：一旦在查找中遇到无效值，就直接采用内置默认值并停止查找，不回退到较低优先级。例如，无法识别的审批模式会采用默认值 `manual`。
+- 未填写的键和空字符串通常不提供覆盖。要撤销某个文件中的设置，删除该键；删除后仍可能使用其他来源的值（见来源优先级）。
+- 类型列为“整数或 `null`”的键可写 `null`，其含义已在对应键行说明；用户设置与项目文件对 `null` 的处理不同，见项目级设置。
+- 未知键会被报告且不生效。多数无效值会被忽略并报告，取值继续向较低优先级查找——例如，环境变量中的值无效而用户设置中已有有效值时，使用用户设置的值。`approval.default_mode`、`tools.result.ceiling_tokens`、`log.raw_http_capture`、`mutations.trace.fsatrace_path` 四个键不同：一旦在查找中遇到无效值，就直接采用内置默认值并停止查找，不回退到较低优先级。例如，无法识别的审批模式会采用默认值 `manual`。
 
-## 项目级设置
+## 5. 项目级设置
 
 项目设置默认不加载。先在用户 `settings.yaml` 中启用，或在 TUI 的“设置 → 安全”中打开“加载项目设置”：
 
@@ -224,20 +220,19 @@ llm:
 
 启用项目设置并重新启动后，若用户未设置重试次数，则使用项目的 `3` 次；若用户 YAML 已设为 `1`，项目中的 `3` 会被拒绝，仍使用 `1`。启动环境中的有效值始终优先。
 
-AIxCoding 会提示并忽略项目中不允许的键、超出覆盖限制的值和未知键，继续应用其他有效设置。
+AIxCoding-CLI 会提示并忽略项目中不允许的键、超出覆盖限制的值和未知键，继续应用其他有效设置。
 
-## 启动入口的差异
+## 6. 启动入口的差异
 
 | 入口 | 与设置文件有关的行为 |
 | --- | --- |
 | `aixcoding-cli`（TUI） | 使用界面、输入、通知设置；默认智能体取自 `agent.default_profile` |
 | `aixcoding-cli run` | 固定跳过审批，不等待用户回答；默认审批模式和提问超时设置不改变这些行为 |
-| `aixcoding-cli acp` | 智能体客户端协议（Agent Client Protocol，ACP）服务；初始智能体和审批模式由 `--agent`、`--approval` 决定，默认分别为 `Code`、`manual`；提问默认无限等待，由 `--ask-user-timeout` 指定超时 |
-| `aixcoding-cli serve` | 在浏览器中承载 TUI；配置文件和环境变量来自运行 AIxCoding 服务的机器 |
+| `aixcoding-cli serve` | 在浏览器中承载 TUI；配置文件和环境变量来自运行 AIxCoding-CLI 服务的机器 |
 
-## 设置未生效时
+## 7. 设置未生效时
 
-1. 确认设置文件的位置正确，保存后已重新启动 AIxCoding。
+1. 确认设置文件的位置正确，保存后已重新启动 AIxCoding-CLI。
 2. 检查是否存在更高优先级的来源；删除 YAML 中的键不会清除其他来源的值。
 3. 对项目设置，确认用户已启用加载，且键名和覆盖方向符合限制。
-4. 查看 AIxCoding 启动时报告的消息：无效值或未知键的处理规则见[值的写法与无效值](#值的写法与无效值)；目录相关提示对照[文件位置与格式](#文件位置与格式)检查。
+4. 查看 AIxCoding-CLI 启动时报告的消息：无效值或未知键的处理规则见值的写法与无效值；目录相关提示对照文件位置与格式检查。

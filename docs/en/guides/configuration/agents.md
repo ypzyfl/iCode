@@ -1,8 +1,8 @@
 # Configure agents
 
-AIxCoding uses agent profiles to define an agent's name, instructions, model, available tools, sub-agents, and other settings. This guide explains how to create, clone, edit, reset, switch, and delete agent profiles in the terminal user interface (TUI), and how to configure models and sub-agents for an agent.
+AIxCoding-CLI uses agent profiles to define an agent's name, instructions, model, available tools, sub-agents, and other settings. This guide explains how to create, clone, edit, reset, switch, and delete agent profiles in the terminal user interface (TUI), and how to configure models and sub-agents for an agent.
 
-## Open the agent configuration window
+## 1. Open the agent configuration window
 
 Open the **Agent Configuration** window in any of these ways:
 
@@ -27,24 +27,24 @@ Add a tab name after `/agents` to open that tab directly:
 
 While a task is running, the **Agent Configuration** window opens in read-only mode. You cannot edit or save profiles. Wait for the task to finish before changing the configuration.
 
-## Manage agent profiles
+## 2. Manage agent profiles
 
-### Create an agent profile
+### 1. Create an agent profile
 
-The following steps create an agent of the **Built-in** type. To connect an external program as a sub-agent, see [Configure external ACP agents](../extensions/external-acp-agents.md).
+The following steps create an agent of the **Built-in** type.
 
 1. Click **New**.
 
 2. Configure the agent's basic information on the **Basic** tab:
     - Enter a name, display name, and description. All three fields are required. **Name** identifies the agent profile; **Display Name** appears in agent selection lists and the main interface. **Name** must start with a letter or digit and contain only English letters, digits, hyphens (`-`), and underscores (`_`); it must be unique, ignoring case.
-    - Select **Sub-Agent only** if appropriate for your use case. For the distinction between main agents and sub-agents, see [Main agents and sub-agents](#main-agents-and-sub-agents).
-    - Set the model the agent uses as needed. By default, it uses the active model profile. To bind a specific model profile, see [Set the model an agent uses](#set-the-model-an-agent-uses).
+    - Select **Sub-Agent only** if appropriate for your use case. For the distinction between main agents and sub-agents, see [Main agents and sub-agents](None#2-main-agents-and-sub-agents).
+    - Set the model the agent uses as needed. By default, it follows the currently used model. To bind a specific model, see [Set the model an agent uses](None#1-set-the-model-an-agent-uses).
 
 3. On the **Instructions** tab, enter system instructions to define the agent's behavior. System instructions cannot be empty.
 
 4. Configure the other tabs as needed:
     - **Tools**: Select the built-in tools the agent can call. See [Configure tools](./tools.md).
-    - **Sub-Agents**: Add sub-agents this agent can call. See [Configure sub-agents for an agent](#configure-sub-agents-for-an-agent).
+    - **Sub-Agents**: Add sub-agents this agent can call. See [Configure sub-agents for an agent](None#3-configure-sub-agents-for-an-agent).
     - **Skills**: Configure where the agent loads skills from. See [Install and use skills](../extensions/skills.md).
     - **MCP**: Connect MCP servers and configure the MCP tools the agent can use. See [Connect MCP servers](../extensions/mcp.md).
     - **Memory**: Add files or folders to load into context automatically. See [Configure memory](./memory.md).
@@ -52,13 +52,13 @@ The following steps create an agent of the **Built-in** type. To connect an exte
 
 5. Click **Save**.
 
-### Clone an agent profile
+### 2. Clone an agent profile
 
-Use cloning to create a new profile based on an existing agent. Cloning creates an independent copy without changing the original profile. When you clone a built-in agent, AIxCoding creates a custom agent copy that you can edit independently.
+Use cloning to create a new profile based on an existing agent. Cloning creates an independent copy without changing the original profile. When you clone a built-in agent, AIxCoding-CLI creates a custom agent copy that you can edit independently.
 
 1. Select the agent to clone in the list on the left.
 2. Click **Clone**.
-3. AIxCoding copies the agent's configuration, generates unique values for its name and display name, and selects the new copy.
+3. AIxCoding-CLI copies the agent's configuration, generates unique values for its name and display name, and selects the new copy.
 4. Review and adjust the copy's name, display name, and other settings as needed.
 5. Click **Save** to finish creating it.
 
@@ -67,7 +67,7 @@ Use cloning to create a new profile based on an existing agent. Cloning creates 
 - Clicking **Clone** creates a temporary copy for editing in the current configuration window. The profile is only created and retained when you click **Save**.
 - After editing a profile, click **Save** to apply the changes. Changes left unsaved when you close the agent configuration window do not take effect.
 
-### Edit an agent profile
+### 3. Edit an agent profile
 
 1. Select the agent to edit in the list on the left.
 2. Adjust its settings on the relevant tabs.
@@ -75,13 +75,13 @@ Use cloning to create a new profile based on an existing agent. Cloning creates 
 
 **Notes:**
 
-- You cannot change **Name** or **Agent Type** for the built-in agents included with AIxCoding, such as Code Agent and Q&A Agent. Other settings can be adjusted as needed.
+- You cannot change **Name** or **Agent Type** for the built-in agents included with AIxCoding-CLI, such as Code Agent and Q&A Agent. Other settings can be adjusted as needed.
 - After editing a profile, click **Save** to apply the changes. Changes left unsaved when you close the agent configuration window do not take effect.
 - If you edit the agent used by the current session, the saved configuration takes effect for subsequent requests.
 
-### Delete a custom agent profile
+### 4. Delete a custom agent profile
 
-Deleting a custom agent also removes its configuration stored on your machine. This cannot be undone in AIxCoding. Built-in agents cannot be deleted.
+Deleting a custom agent also removes its configuration stored on your machine. This cannot be undone in AIxCoding-CLI. Built-in agents cannot be deleted.
 
 Before deleting a custom agent, ensure that:
 
@@ -94,15 +94,15 @@ To delete a custom agent:
 2. Click **Delete**.
 3. Check the agent name in the confirmation window, then confirm deletion.
 
-If you delete the agent currently in use, AIxCoding automatically switches to another available main agent when you close the configuration window.
+If you delete the agent currently in use, AIxCoding-CLI automatically switches to another available main agent when you close the configuration window.
 
-### Reset a built-in agent profile
+### 5. Reset a built-in agent profile
 
-The built-in agents included with AIxCoding cannot be deleted.
+The built-in agents included with AIxCoding-CLI cannot be deleted.
 
-When you edit and save a built-in agent, AIxCoding creates a user profile file with the same name, such as `Code.yaml`, in the [user agent profile directory](../../reference/agent-profile.md#user-agent-profile-directory). This file stores both your changes and the other settings in effect at that time. For example, if you only add an MCP server, the saved profile contains that server and retains the current values of the other settings.
+When you edit and save a built-in agent, AIxCoding-CLI creates a user profile file with the same name, such as `Code.yaml`, in the [user agent profile directory](../../reference/agent-profile.md#1-user-agent-profile-directory). This file stores both your changes and the other settings in effect at that time. For example, if you only add an MCP server, the saved profile contains that server and retains the current values of the other settings.
 
-At startup, AIxCoding gives precedence to the user profile file with the same name, instead of merging user and built-in settings field by field. As a result, after an AIxCoding upgrade, updates to built-in defaults such as agent instructions are not automatically applied to that agent.
+At startup, AIxCoding-CLI gives precedence to the user profile file with the same name, instead of merging user and built-in settings field by field. As a result, after an AIxCoding-CLI upgrade, updates to built-in defaults such as agent instructions are not automatically applied to that agent.
 
 To adopt the built-in defaults from the current version, reset the built-in agent. Resetting preserves only skills, MCP server, and memory settings. Instructions, compaction, and all other settings return to the current version's built-in defaults.
 
@@ -116,32 +116,32 @@ Reset changes remain pending in the configuration window until saved. Closing th
 
 After a reset, if the user profile file with the same name no longer exists, future upgrades use the new built-in configuration directly. If the file remains because it preserves custom skills, MCP server, or memory settings, you still need to reset the agent again after future upgrades to adopt updated built-in defaults.
 
-## Configure models and sub-agents
+## 3. Models and sub-agents
 
-### Set the model an agent uses
+### 1. Set the model an agent uses
 
-New agents use the active model profile by default. When you switch the active model, the agent's model changes with it.
+New agents follow the currently used model by default. When you switch the current model, the agent's model changes with it.
 
-To make an agent always use a specific model profile:
+To make an agent always use a specific model:
 
 1. Select the agent in the list on the left, then open the **Basic** tab.
-2. Clear **Use active model profile** (the label also shows the current profile).
-3. Select the model profile to bind from the dropdown. To add or edit a model profile, see [Configure models](./models.md).
+2. Clear **Use the currently active model** (the label also shows the current model).
+3. Select the model to bind from the dropdown.
 4. Click **Save**, then close the configuration window.
 
-If the current main agent is bound to a specific model profile, the model profile name in the status bar is grayed out and cannot be clicked to switch models.
+If the current main agent is bound to a specific model, the model name in the status bar is grayed out and cannot be clicked to switch models.
 
-To switch models through the status bar again, select **Use active model profile** on the agent's **Basic** tab, click **Save**, then close the configuration window.
+To switch models through the status bar again, select **Use the currently active model** on the agent's **Basic** tab, click **Save**, then close the configuration window.
 
-### Main agents and sub-agents
+### 2. Main agents and sub-agents
 
 A main agent interacts directly with the user. A sub-agent is called by another agent to handle delegated tasks.
 
 An agent profile can be used both as a main agent and as a sub-agent called by other agents. Selecting **Sub-Agent only** prevents the agent from being selected as a main agent; it can only be called by other agents.
 
-The Code Agent and Q&A Agent included with AIxCoding can serve as main agents. Explore and General are sub-agents only. External ACP agents are also sub-agents only. To configure them, see [Configure external ACP agents](../extensions/external-acp-agents.md).
+The Code Agent and Q&A Agent included with AIxCoding-CLI can serve as main agents. Explore and General are sub-agents only.
 
-### Configure sub-agents for an agent
+### 3. Configure sub-agents for an agent
 
 After you add sub-agents to an agent, it can call them as needed to handle parts of a task.
 
@@ -161,18 +161,18 @@ These settings work as follows:
 
 During a task, the agent uses each sub-agent's tool name and description to decide whether to delegate work to it. You can also request a specific sub-agent in the input field, for example: `Call <tool name> to complete <task>`. A successful result from the corresponding sub-agent tool confirms that the configuration has taken effect.
 
-A sub-agent returns its final reply to the agent that called it. Text it writes between tool calls appears on its card but is not returned. If the final reply has no text, all the text the sub-agent wrote is returned, in order. If the sub-agent fails, its card shows the reason. An external ACP agent returns what its **Result** setting selects; see [Set the result and timeouts](../extensions/external-acp-agents.md#set-the-result-and-timeouts).
+A sub-agent returns its final reply to the agent that called it. Text it writes between tool calls appears on its card but is not returned. If the final reply has no text, all the text the sub-agent wrote is returned, in order. If the sub-agent fails, its card shows the reason.
 
 **Notes:**
 
 - After adding, removing, or editing sub-agent settings, you must click **Save** for the changes to take effect. Closing the agent configuration window without saving discards the changes.
 - An agent cannot list itself as a sub-agent, and the same sub-agent cannot be added more than once to a profile.
 
-## Switch the current agent
+## 4. Switch the current agent
 
 You can switch the current agent through the input field or the status bar:
 
 - **Through the input field**: Enter `#` to display a list of available agents above the input field. Click an agent, or select one with the up and down arrow keys and press **Enter** to confirm.
 - **Through the status bar**: Click the agent name in the status bar above the input field to open the agent picker, then select the agent to use.
 
-After switching, AIxCoding immediately uses the selected agent for subsequent requests. The current agent is grayed out in the list, with a hollow circle before its name. The list shows only profiles that can serve as main agents.
+After switching, AIxCoding-CLI immediately uses the selected agent for subsequent requests. The current agent is grayed out in the list, with a hollow circle before its name. The list shows only profiles that can serve as main agents.

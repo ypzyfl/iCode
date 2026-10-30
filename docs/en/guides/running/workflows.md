@@ -4,17 +4,17 @@ A workflow splits a task into nodes, with edges defining the execution order and
 
 This tutorial first introduces the terminal user interface (TUI) and basic operations through a built-in example, then shows how to write workflows through six standalone Python examples. For complete parameter descriptions and runtime rules, see the [Workflow reference](../../reference/workflows.md).
 
-## Run the built-in workflow in the TUI
+## 1. Run the built-in workflow in the TUI
 
-First, [configure a working model](../../start/getting-started.md#3-configure-a-model) and choose a local project directory. The built-in example below asks agents to read files in that directory and generate a project introduction, incurring model usage costs.
+First, make sure a working model is available, and choose a local project directory. The built-in example below asks agents to read files in that directory and generate a project introduction, incurring model usage costs.
 
-### Select a workflow
+### 1. Select a workflow
 
 In a terminal, change to the chosen project directory and run `aixcoding-cli` to open the TUI. Enter `/workflow` in the input box to open the workflow picker, then select `demo-workflow` with the `builtin` source.
 
 Alternatively, click “APP MODE: Chat” in the upper left and select “Workflow” to switch modes, then click “New Session” and select a workflow.
 
-### Explore the workflow interface
+### 2. Explore the workflow interface
 
 After selecting the example, explore these tabs:
 
@@ -24,7 +24,7 @@ After selecting the example, explore these tabs:
 - **Input**: Shows the input submitted for the run after it starts, with Markdown formatting. Click “copy” to copy the input exactly as it was submitted.
 - **Output**: Updates node states and progress messages during execution, and shows the final output.
 
-### Run and observe the workflow
+### 3. Run and observe the workflow
 
 Agents in a workflow use the same tool approval process as Chat mode. Before running, adjust the mode through “APPROVAL MODE: …” in the upper right if needed, then respond to approval requests as they appear.
 
@@ -41,9 +41,9 @@ After generating a project introduction, the example includes the draft in a que
 
 When the run ends with a result, click “Result” to the right of “■ Cancel” to read the final output. If the workflow has several outputs, each one gets its own tab, named after its output node. “Output” still shows the full record, including node states and progress messages. Click “▶ Start” again to enter new input and run again.
 
-A workflow session can save multiple runs. Click the “Run 1”, “Run 2”, and subsequent run tabs above “Workflow”, “Info”, and the other tabs to browse each run. After quitting and reopening AIxCoding, first switch to “Workflow” through the app mode selector in the upper left. Press `F1` or click `f1 Sessions` at the bottom of the interface, then select a workflow session to view its historical inputs, outputs, and node records.
+A workflow session can save multiple runs. Click the “Run 1”, “Run 2”, and subsequent run tabs above “Workflow”, “Info”, and the other tabs to browse each run. After quitting and reopening AIxCoding-CLI, first switch to “Workflow” through the app mode selector in the upper left. Press `F1` or click `f1 Sessions` at the bottom of the interface, then select a workflow session to view its historical inputs, outputs, and node records.
 
-## Create your first workflow
+## 2. Create your first workflow
 
 Next, write your own workflow. Create a `.chrys/workflows/` directory in your project if it does not already exist. Save all the workflow files below in this directory.
 
@@ -80,21 +80,21 @@ A node is an execution step in a workflow. Here, `greet()` defines the processin
 Input → hello node → Workflow output
 ```
 
-Finally, `wf.build()` validates and builds the workflow. **The file must assign the result to a module-level variable named `workflow` so AIxCoding can load it.**
+Finally, `wf.build()` validates and builds the workflow. **The file must assign the result to a module-level variable named `workflow` so AIxCoding-CLI can load it.**
 
-You do not need to restart AIxCoding after saving the file. Click “New Session” to open the workflow picker and select `greeting`.
+You do not need to restart AIxCoding-CLI after saving the file. Click “New Session” to open the workflow picker and select `greeting`.
 
 When a custom file is first loaded or has changed, the TUI asks you to review its source and confirm trust. A workflow is executable Python, and loading it can execute code at the top level of the file.
 
 After confirming trust, click “▶ Start”, enter `Alex`, and run. The final result should be `Hello, Alex!`; leaving the input empty produces `Hello, friend!`.
 
-## Use another Python environment
+## 3. Use another Python environment
 
-By default, workflows use the Python interpreter running AIxCoding. If a workflow needs third-party libraries, use inline script metadata to specify your own Python interpreter or virtual environment. Install dependencies yourself; AIxCoding does not install them automatically. See [Workflow reference: Execution environment](../../reference/workflows.md#execution-environment) for configuration details. The Python examples in this tutorial use only the standard library and need no additional environment setup.
+By default, workflows use the Python interpreter running AIxCoding-CLI. If a workflow needs third-party libraries, use inline script metadata to specify your own Python interpreter or virtual environment. Install dependencies yourself; AIxCoding-CLI does not install them automatically. See [Workflow reference: Execution environment](../../reference/workflows.md#4-execution-environment) for configuration details. The Python examples in this tutorial use only the standard library and need no additional environment setup.
 
-## Pass data and ask the user
+## 4. Pass data and ask the user
 
-### Pass data between two nodes
+### 1. Pass data between two nodes
 
 Create `.chrys/workflows/fruit_list.py`:
 
@@ -136,7 +136,7 @@ Nodes pass data through `WorkflowValue`. Its `text` field holds text; the option
 
 A node returns its result with `return`, which determines what it passes downstream:
 
-- When a node returns a string, AIxCoding places it in `WorkflowValue.text` and sets `data` to `None`. Here, `describe()` only needs to output a description, so it returns a string.
+- When a node returns a string, AIxCoding-CLI places it in `WorkflowValue.text` and sets `data` to `None`. Here, `describe()` only needs to output a description, so it returns a string.
 - Returning a `WorkflowValue` passes both text and structured data, as in `parse_items()`.
 
 A Python node function can take one or two parameters. `parse_items(value)` receives a `WorkflowValue`; `describe(value, ctx)` also receives a `NodeContext` as its second parameter. `NodeContext` provides operations for the current node execution. Here, `ctx.emit()` reports progress to the TUI.
@@ -148,7 +148,7 @@ report
 3 items: apple, banana, pear
 ```
 
-### Wait for a user response during execution
+### 2. Wait for a user response during execution
 
 In addition to receiving upstream data, a node can ask the user a question during execution and continue based on the answer.
 
@@ -160,8 +160,7 @@ async def describe(value: WorkflowValue, ctx: NodeContext) -> str:
     items = value.data["items"]
     return f"{title}: {len(items)} items: {value.text}"
 
-
-# Do not set a node deadline while waiting for a user response.
+## Do not set a node deadline while waiting for a user response.
 report = wf.python("report", describe, timeout=None)
 ```
 
@@ -187,9 +186,9 @@ A list of questions returns one `Answer` per question, in order. `selected` hold
 
 For single-select questions, what an answer contains, and how to pass a selection downstream, see [Workflow reference: `NodeContext.ask`](../../reference/workflows.md#nodecontextask).
 
-## Define agent nodes
+## 5. Define agent nodes
 
-### Use an AIxCoding-CLI agent
+### 1. Use an AIxCoding-CLI agent
 
 Create `.chrys/workflows/learning_plan.py`:
 
@@ -229,7 +228,7 @@ aixcoding-cli agents
 aixcoding-cli models
 ```
 
-For `profile`, use a `Name` from `aixcoding-cli agents`; for the optional `model` parameter, use a `Name` from `aixcoding-cli models`. To specify a model for this node, replace the registration below, substituting an actual model profile name for `My model`:
+For `profile`, use a `Name` from `aixcoding-cli agents`; for the optional `model` parameter, use a `Name` from `aixcoding-cli models`. To specify a model for this node, replace the registration below, substituting an actual model name for `My model`:
 
 ```python
 plan = wf.agent("plan", profile="QA", model="My model")
@@ -253,23 +252,9 @@ plan = wf.agent(
 )
 ```
 
-For a regular AIxCoding agent, `instructions_suffix` is appended to the profile's existing `instructions` as part of the system prompt. The upstream `text` remains the user message.
+For a regular AIxCoding-CLI agent, `instructions_suffix` is appended to the profile's existing `instructions` as part of the system prompt. The upstream `text` remains the user message.
 
-### Use an ACP agent
-
-If you have [configured an external Agent Client Protocol (ACP) agent](../extensions/external-acp-agents.md#create-a-profile-and-test-the-connection), replace `QA` with its profile name:
-
-```python
-plan = wf.agent("plan", profile="My ACP agent")
-```
-
-Replace `My ACP agent` with an existing ACP profile name from `aixcoding-cli agents`, and make sure the external program specified in that profile can start.
-
-By default, ACP nodes use the model configured for the external agent, not the workflow's default model.
-
-ACP nodes also support `instructions_suffix`, but append it to the user prompt sent to the remote agent without changing that agent's system prompt.
-
-## Set timeouts and retries
+## 6. Set timeouts and retries
 
 Both Python and agent nodes support timeouts and retries: `timeout` limits the duration of each attempt, and `retry` sets the maximum number of attempts and the interval between retries.
 
@@ -295,11 +280,11 @@ Each attempt is limited to 120 seconds, with at most three attempts including th
 
 Set `timeout=None` for no execution deadline. Time spent waiting for user answers or tool approval counts toward the timeout, which is why the earlier question example uses `timeout=None`.
 
-Retrying may repeat model calls, file writes, or an external ACP agent's tool calls. When a non-ACP agent's attempt fails or times out, the retry continues its conversation, so tool calls that already finished do not run again. Operations that have already occurred are not automatically undone. Not every error is retried automatically; see [Workflow reference: Timeouts and retries](../../reference/workflows.md#timeouts-and-retries).
+Retrying may repeat model calls or file writes. When an attempt fails or times out, the retry continues the conversation, so tool calls that already finished do not run again. Operations that have already occurred are not automatically undone. Not every error is retried automatically; see [Workflow reference: Timeouts and retries](../../reference/workflows.md).
 
-## Define conditional branches
+## 7. Define conditional branches
 
-### Select one branch with switch()
+### 1. Select one branch with switch()
 
 Create `.chrys/workflows/route_text.py`:
 
@@ -375,7 +360,7 @@ Create a new session in the TUI and select `route_text`. Run it with each input 
 | `hello workflow` | `Medium text: hello workflow` |
 | `hello workflow tutorial` | `Long text: 23 characters` |
 
-### Run multiple branches with conditional edge() calls
+### 2. Run multiple branches with conditional edge() calls
 
 `wf.edge(source_node, destination_node, when=condition_function)` connects two nodes. The `when` function receives the source node's output as a `WorkflowValue`. If it returns `True`, that output is passed to the destination. Omitting `when` passes the output unconditionally.
 
@@ -397,7 +382,7 @@ medium
 Medium text: hello
 ```
 
-## Process in parallel and combine results
+## 8. Process in parallel and combine results
 
 Create `.chrys/workflows/text_stats.py`:
 
@@ -487,7 +472,7 @@ Done. ## chars
 
 `Done.` is added by `format_report()`. The default merge is useful for passing multiple agent analyses to a downstream summary node without writing a combine function.
 
-## Loop until a condition is met
+## 9. Loop until a condition is met
 
 Create `.chrys/workflows/count_up.py`:
 
@@ -555,11 +540,11 @@ The loop node is the start of this workflow, so the first iteration's entry node
 
 Create a new session in the TUI, select `count_up`, enter `0`, and run. The three iterations produce `1`, `2`, and `3`, with `3` as the final output. Open nodes inside the loop to inspect their inputs, outputs, and progress messages across iterations. Then run with `-10` to see the workflow fail after reaching the five-iteration limit.
 
-## Run from the command line
+## 10. Run from the command line
 
 The CLI is suitable for workflows that need no human interaction. It does not support `ctx.ask()`, and its tool approval mode is fixed to `bypass`, which skips tool approval.
 
-### List and run workflows
+### 1. List and run workflows
 
 Run this command in the project directory to list available workflows:
 
@@ -575,11 +560,11 @@ aixcoding-cli workflow run WORKFLOW_ID --input "Input text" --trust
 
 `--input` sets the `WorkflowValue.text` received by the start node and defaults to an empty string. The initial `data` is `None` and cannot be set directly through CLI arguments. Even a JSON string is still text; the workflow must parse it itself.
 
-After creating or changing a workflow file, `--trust` confirms trust in the current source and execution environment, just as clicking “Trust” does in the TUI. It can be omitted if the previously trusted content has not changed. See [Trust confirmation](../../reference/workflows.md#trust-confirmation) for the scope of these checks and what happens during loading.
+After creating or changing a workflow file, `--trust` confirms trust in the current source and execution environment, just as clicking “Trust” does in the TUI. It can be omitted if the previously trusted content has not changed. See [Trust confirmation](../../reference/workflows.md#3-trust-confirmation) for the scope of these checks and what happens during loading.
 
 To view a run started from the command line in the TUI, open the "Workflow Sessions" window and check "CLI".
 
-### Save text results
+### 2. Save text results
 
 By default, the CLI outputs each output node's `text`, with a blank line between results. Final results go to stdout (standard output). While the workflow runs, its progress goes to stderr (standard error): each node's state, what an agent node does (its tool calls and the notes it writes between them), and messages sent by `ctx.emit()`. For example:
 
@@ -603,7 +588,7 @@ aixcoding-cli workflow run WORKFLOW_ID --input "Input text" > result.txt
 
 To see only warnings, errors and the final results, add `-q` or `--quiet`.
 
-### Get JSON results
+### 3. Get JSON results
 
 With `--json`, the CLI suppresses node states and progress messages and writes a JSON result to stdout when the run ends. It includes the run outcome, output node names, and each result's `text` and `data`:
 
@@ -611,4 +596,4 @@ With `--json`, the CLI suppresses node states and progress messages and writes a
 aixcoding-cli workflow run WORKFLOW_ID --input "Input text" --json
 ```
 
-For the complete JSON fields and exit codes, see the [Workflow reference](../../reference/workflows.md#command-line).
+For the complete JSON fields and exit codes, see the [Workflow reference](../../reference/workflows.md#7-command-line).

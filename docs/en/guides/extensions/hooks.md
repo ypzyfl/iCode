@@ -10,7 +10,7 @@ This guide uses a simple example to introduce writing and configuring hooks, fol
 >
 > Hooks may receive conversation content, tool arguments, and tool results. If a hook sends this data to an external service, check whether it contains sensitive information.
 
-## Create your first hook
+## 1. Create your first hook
 
 The following steps create a project hook in the working directory of the current AIxCoding session. It applies only to this working directory and appends the turn status to `hook-events.log` in that directory after each turn ends.
 
@@ -59,7 +59,7 @@ In the terminal user interface (TUI), enter `/runtime` and open the **Hooks** ta
 turn=1 status=ok
 ```
 
-## Example: block an operation based on tool arguments
+## 2. Example: block an operation based on tool arguments
 
 To check or reject an operation before a tool runs, use the `before_tool_call` event with blocking execution. This example prevents file-writing tools from modifying files named `.env`.
 
@@ -104,7 +104,7 @@ The script returns `action: block` and the rejection reason through the result f
 
 After switching sessions or restarting AIxCoding, create a dedicated test file, `hook-demo/.env`, with known content such as `HOOK_TEST=unchanged`. Ask the agent to attempt one modification using only `write_file` or `edit_file`, then stop after rejection without using the shell or another method. Check that the tool call is rejected before execution and displays the reason provided by the script. Then confirm that the file content is unchanged. You can delete `hook-demo/.env` after verification.
 
-## Example: add a system reminder for the model
+## 3. Example: add a system reminder for the model
 
 A `user_prompt_submit` hook can add instructions or hints for the model when a user submits a message. This example applies only to the Code agent and reminds it to run project tests after modifying Python files.
 
@@ -139,11 +139,11 @@ with open(os.environ["CHRYS_HOOK_RESULT"], "w", encoding="utf-8") as result_file
 
 Switch sessions or restart AIxCoding to apply the configuration. The system reminder takes effect only after the blocking hook finishes successfully. AIxCoding wraps the reminder in `<system-reminder>` tags and sends it to the model along with the user's submitted message. The reminder does not appear in the TUI conversation and is not saved in session data.
 
-To confirm that a `user_prompt_submit` hook is working, or to inspect the actual system reminder sent to the model, check the raw HTTP log of model requests. This log contains unredacted API keys and full conversation content, so enable it only temporarily for troubleshooting. In the TUI, press **F10**, go to **Security** > **Diagnostics**, enable **Capture raw HTTP traffic**, and restart AIxCoding. Submit a message using the Code agent, then search for the reminder text "After modifying Python files" in `llm_raw_http.jsonl` in the current session directory. For its location, see [Find the session ID and storage location](../daily-use/sessions.md#find-the-session-id-and-storage-location). After verification, disable raw HTTP traffic capture and restart AIxCoding again.
+To confirm that a `user_prompt_submit` hook is working, or to inspect the actual system reminder sent to the model, check the raw HTTP log of model requests. This log contains unredacted API keys and full conversation content, so enable it only temporarily for troubleshooting. In the TUI, press **F10**, go to **Security** > **Diagnostics**, enable **Capture raw HTTP traffic**, and restart AIxCoding. Submit a message using the Code agent, then search for the reminder text "After modifying Python files" in `llm_raw_http.jsonl` in the current session directory. For its location, see [Find the session ID and storage location](../daily-use/sessions.md#5-find-the-session-id-and-storage-location). After verification, disable raw HTTP traffic capture and restart AIxCoding again.
 
 To add a reminder only for certain tasks, have the script read `text` (the message the user just submitted) from `CHRYS_HOOK_PAYLOAD_FILE` and write `system_reminder` to `CHRYS_HOOK_RESULT` only when the message meets your conditions.
 
-## Choose an execution mode
+## 4. Choose an execution mode
 
 For most hooks, choose an execution mode based on whether the current operation must wait for the result:
 
@@ -153,9 +153,9 @@ For most hooks, choose an execution mode based on whether the current operation 
 | Continue the current operation immediately, but let AIxCoding wait for a limited time when the current turn or session ends | `async` | AIxCoding continues immediately, then waits for the hook to finish at applicable events, within the wait limit |
 | Send ordinary notifications or record information in a task that can be interrupted by exit | `fire_and_forget` | AIxCoding continues immediately and does not wait when the current turn or session ends; this is the default mode |
 
-An asynchronous hook (`async`) does not delay the event that triggered it or the current operation. When the current turn or session ends, if an applicable asynchronous hook is still running, AIxCoding waits for it to finish before ending the turn or session. AIxCoding does not wait for asynchronous hooks triggered by `user_interrupt`. The wait limit at session end is configurable in [Global settings](../../reference/hooks.md#global-settings). To retry unfinished tasks after AIxCoding exits, also configure `delivery: durable`.
+An asynchronous hook (`async`) does not delay the event that triggered it or the current operation. When the current turn or session ends, if an applicable asynchronous hook is still running, AIxCoding waits for it to finish before ending the turn or session. AIxCoding does not wait for asynchronous hooks triggered by `user_interrupt`. The wait limit at session end is configurable in [Global settings](../../reference/hooks.md#1-global-settings). To retry unfinished tasks after AIxCoding exits, also configure `delivery: durable`.
 
-## Use global hooks
+## 5. Use global hooks
 
 The examples above all live in `.chrys/hooks` in the current working directory and apply only to that working directory. To use the same hook across all working directories, use global configuration:
 
@@ -164,4 +164,4 @@ The examples above all live in `.chrys/hooks` in the current working directory a
 | macOS and Linux | `~/.chrys/hooks/hooks.yaml` |
 | Windows | `%APPDATA%\chrys\hooks\hooks.yaml` |
 
-Project and global configurations can be loaded together. For execution order across both locations, duplicate IDs, and `settings` merge rules, see [Execution order and configuration merging for multiple hooks](../../reference/hooks.md#execution-order-and-configuration-merging-for-multiple-hooks).
+Project and global configurations can be loaded together. For execution order across both locations, duplicate IDs, and `settings` merge rules, see [Execution order and configuration merging for multiple hooks](../../reference/hooks.md#11-execution-order-and-configuration-merging-for-multiple-hooks).
