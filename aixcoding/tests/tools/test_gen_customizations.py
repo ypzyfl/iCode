@@ -1,4 +1,3 @@
-# ruff: noqa: S101, RUF001
 # (tests — asserts are pytest idiom, Chinese prose is the data)
 """Unit tests for aixcoding/tools/gen_customizations.py (generate + archaeology)."""
 

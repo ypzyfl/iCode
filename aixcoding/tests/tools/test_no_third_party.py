@@ -1,4 +1,3 @@
-# ruff: noqa: S101
 # (tests — asserts are pytest idiom, Chinese prose is the data)
 """The governance tools themselves must stay stdlib-only (devtools design)."""
 

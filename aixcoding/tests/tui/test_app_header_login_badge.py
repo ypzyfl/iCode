@@ -1,5 +1,4 @@
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
-# ruff: noqa: S101, RUF001
 
 """AppHeader login badge: visibility, state classes, tooltip."""
 

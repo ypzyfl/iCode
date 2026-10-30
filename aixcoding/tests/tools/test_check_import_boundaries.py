@@ -1,4 +1,4 @@
-# ruff: noqa: S101, RUF002
+# ruff: noqa: RUF002
 # (tests — asserts are pytest idiom, Chinese prose is the data)
 """Unit tests for aixcoding/tools/check_import_boundaries.py (rules B1–B4)."""
 

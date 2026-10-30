@@ -1,5 +1,4 @@
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
-# ruff: noqa: S101
 
 """LoginDialog tests: success flow, cancel stops without storing, failure UI."""
 

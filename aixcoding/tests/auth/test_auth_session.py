@@ -1,4 +1,3 @@
-# ruff: noqa: S101, S106
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 
 """LoginSession tests: silent check, complete login, logout, hand-off token."""
