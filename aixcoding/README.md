@@ -25,7 +25,7 @@ aixcoding/
 | 新增 mock | `aixcoding/mock/<服务名>/`（步骤见 `mock/README.md`；必须配契约测试） |
 | 跑定制测试 | `uv run --extra all pytest aixcoding/tests -m "not integration and not gc_calibration"` |
 | 查三阶段路线（规范→基础工程→功能迁入） | `docs/ROADMAP.md` |
-| 查硬规则（R1–R11） | `docs/standards/DEVELOPMENT.md` |
+| 查硬规则（R1–R13） | `docs/standards/DEVELOPMENT.md` |
 | 判定本次改动走全管线还是微改动豁免 | `docs/standards/DEVELOPMENT.md` §6（三条件全满足即豁免） |
 | 查人机工作流（责任人五个检查点 + AI 执行流） | `docs/standards/DEVELOPMENT.md` §4 |
 | **团队成员必读（我要做什么·一页）** | `docs/standards/TEAM-GUIDE.md` |
