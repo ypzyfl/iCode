@@ -4,8 +4,6 @@
 from __future__ import annotations
 
 import logging
-import sys
-import threading
 
 import pytest
 
@@ -21,11 +19,3 @@ def aix_logger_state():
     yield logger
     logger.handlers[:] = saved[0]
     logger.propagate, logger.level = saved[1], saved[2]
-
-
-@pytest.fixture
-def restore_hooks():
-    """Restore interpreter/thread excepthooks around tests that install ours."""
-    saved = (sys.excepthook, threading.excepthook)
-    yield
-    sys.excepthook, threading.excepthook = saved

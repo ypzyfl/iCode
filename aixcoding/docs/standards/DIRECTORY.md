@@ -14,7 +14,7 @@ iCode-fork/
 │   │                              #   （按需建、foundation 档不设；下图仅示现有/预告档，非穷举）
 │   ├── kernel/aixcoding/          #   kernel 档 = 默认最低档（零依赖与仅 foundation 依赖均落此）
 │   │   ├── auth/                  #     仅 foundation 依赖（get_platform，lazy）（待回迁）
-│   │   ├── diagnostics/           #     ≤kernel 依赖（launcher 挂接边走豁免登记）（待回迁）
+│   │   ├── diagnostics/           #     ≤kernel 依赖（launcher/crash/snapshot 已退役，ADR-0013）（待回迁）
 │   │   └── telemetry/ 等          #     适配层模块（批次待迁，进度见 restructure/plan.md）
 │   └── app/aixcoding/             #   app 档（引用宿主 UI 设施的定制界面）
 │       └── tui/                   #     产品 UI（被 app 接线点同层调用；批次待迁）
@@ -55,12 +55,12 @@ iCode-fork/
 
 | 档位 | tier | 现有/预告子包 | 判定标准 |
 |---|---|---|---|
-| `kernel/aixcoding/`（默认最低档） | 1 | `auth/`（仅 foundation 依赖：`get_platform` lazy）、`diagnostics/`（≤kernel；launcher 挂接边豁免登记）、`telemetry/` 等适配层（批次待迁） | 零依赖或仅依赖 foundation/kernel |
+| `kernel/aixcoding/`（默认最低档） | 1 | `auth/`（仅 foundation 依赖：`get_platform` lazy）、`diagnostics/`（≤kernel；launcher/crash/snapshot 已退役见 ADR-0013）、`telemetry/` 等适配层（批次待迁） | 零依赖或仅依赖 foundation/kernel |
 | `app/aixcoding/` | 4 | `tui/`（批次待迁） | 引用宿主 UI 基础设施，被 app 接线点同层调用 |
 
 - **档位判据**：依赖做硬判据、语义做参考——落位档 = 四档（kernel/service/orchestration/app，按需建）中能容纳其全部依赖的**最低档**；kernel 档兜底零依赖与仅 foundation 依赖；foundation 档不设（考量见 ADR-0011 否决备选）。
 - tier 的机器执行者是 `tests/architecture/test_layering.py` 的 DAG（`_source_top`/`_target_top` 按第一级包名归层——定制按 tier 落位后天然合法，无 fork 特判键）；kernel 档内互引必须**相对导入**（kernel 层硬约束）。
-- **例外（结构性挂接边）**：包内个别模块对宿主的向上挂接（进程入口、钩子注册，非业务库依赖）不改变整包档位，走 `_DAG_EDGE_ALLOWLIST` 豁免 + 定制清单登记（ADR-0011 决策 2/5；现存仅 diagnostics launcher → `chrys.app.cli.app` 一条）。
+- **例外（结构性挂接边）**：包内个别模块对宿主的向上挂接（进程入口、钩子注册，非业务库依赖）不改变整包档位——历史上经 `_DAG_EDGE_ALLOWLIST` 豁免（ADR-0011 决策 2/5），**该通道已随 launcher 退役整体移除（ADR-0013）；将来此类需求出现时重建机制（git 历史可得），重建前任何向上 import 均为架构违规**。
 - 依赖上涨 → test_layering 红 → 挪档（反馈回路闭环）；`tui` 的依赖边界：仅限宿主 UI 基础设施（对话框基类、控件、绑定展示、主题），**不得**引用 service / orchestration 业务逻辑。
 
 ## 4. 根 `aixcoding/`（纯开发资产）

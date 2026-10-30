@@ -11,7 +11,7 @@ lets records bubble further to the root logger where the upstream
 ``_TuiLogHandler`` picks them up (its whitelist derives from ``MODULE_ORDER``
 in ``app/tui/screens/logs/screen.py``); ``panel=false`` keeps records off the
 UI while the file sink stays active. Anyone importing this module gets the
-feature; the launcher is not required.
+feature.
 """
 
 from __future__ import annotations
