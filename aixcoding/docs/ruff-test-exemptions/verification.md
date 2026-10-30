@@ -20,3 +20,11 @@
 ## 待 CI 验证
 
 - PR 创建后 AIxCoding Tests（含 step `ruff check aixcoding/` / `format --check aixcoding/` / pytest）+ Upstream CI 双绿——CI 证据归属 PR checks 本身（DEVELOPMENT.md §7），不回写。
+
+## 2026-10-30 peer review（PR #71）处置追记
+
+评审侧副本复现全部门禁 + 破坏性实验（注释目录行 → 恰 29 文件 772 处违规，恢复复绿——"删头即内建回归锚"实证）+ CI 实况（18 run 全属 head `bcba89a7`，17 success / 1 in_progress）。三项数字候选处置（责任人均裁决按建议）：
+
+- **C1**（表 #2 `154 files` vs head 树 165）：154 为实施时点工作区计数（当时 `ruff-test-exemptions/` 仅 4 件 md、verification/self-review 未落盘）；ruff format 的 files 计数含 md（include 规则），head 树 165 = 52 py + 113 md。时点性文件集差异，exit 0 结论评审已独立复核成立，非结论缺陷。
+- **C2**（self-review F2 孤儿注释 10 vs 16）：16 成立（17 个带理由注释文件 − `diagnostics/conftest.py` 无 noqa 头非孤儿；首轮评审 AI 列举不全）——口径修正见 self-review 追加记录。
+- **C3**（表 #7 `10 self-review` vs 11）：时序性——#7 落盘时本批 self-review.md 未产出；最新计数 `check_docs: scanned 13 ADR(s), 13 design(s), 11 self-review(s)`，OK（R7 追加机制内，旧计数留痕）。

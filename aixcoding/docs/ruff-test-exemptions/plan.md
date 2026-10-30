@@ -12,7 +12,8 @@
 - [x] 验证四件套（ruff aixcoding 双命令绿 / ruff src tests 绿 / pytest 293 passed+2 skipped+1 环境性失败[7777 占用在案] / gen 幂等 29 点）
 - [x] verification.md 落盘
 - [x] 双 AI 自审（评审 AI：Deepseek-V4-Pro，无 blocker，F1 重签/F3 补注已修、F2 留档不修）→ self-review.md 已产出（待责任人签认）
-- [ ] PR（feat 分支 feat/ruff_test_exemptions 已建 → add → commit → push，git 操作逐条授权）
+- [x] PR #71 已建（feat/ruff_test_exemptions，commit bcba89a）；peer review 3 数字候选（C1/C3 verification 追记、C2 F2 口径 10→16）处置完成
+- 终态收口（随本修复 commit 定稿，其后零更新）：CI 双门禁结果以 PR #71 checks 为证（§7 CI 证据归属，不回写仓库；peer review 取证时 in_progress 的 Windows shard 以最终 head 的 run 为准）；双绿后责任人合并即批次终结
 
 ## 续接入口
 
