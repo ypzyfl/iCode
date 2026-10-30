@@ -47,6 +47,20 @@
 |---|---|---|
 | 11 | TUI（`uv run icode`，UV_PYTHON=3.14.3）按 F6 | **aixcoding tab 存在（chrys 之后），空态渲染正常**——MODULE_ORDER 白名单接线目视通过；空态符合预期（无业务消费者，与 httpx 空请求时空 tab 行为一致；内容链路由 test_tui_handler_buffers_aixcoding_record 行为锚定机检覆盖，阶段三 telemetry 接入后自动有实时日志）。运行环境注记：uv 0.13.x 下载清单无 3.14.8，本机以 UV_PYTHON=3.14.3 等价运行。 |
 
+## 2026-10-29 tier 回迁后重验（PR #64 合并后）
+
+环境：Windows，`PYTHONPATH=`、`PYTHONUTF8=1`、`UV_PYTHON=3.14.3`。模块路径已随 ADR-0011 迁至 `chrys.kernel.aixcoding.diagnostics.*`（旧 `chrys.aixcoding.*` 已删），按 #1/#9/#10 口径重跑。
+
+| # | 命令 | 结果摘要 |
+|---|---|---|
+| 12 | `uv run pytest aixcoding/tests/diagnostics -n0 -q` | **29 passed**（1.01s）——回迁后用例全绿 |
+| 13 | `uv run python -m chrys.kernel.aixcoding.diagnostics.launcher --version` | 输出 `0.31.0`，干净退出——新模块路径下钩子安装→上游入口 dispatch 全链路正常 |
+| 14 | 产物核验 | `%APPDATA%\chrys\aixcoding-diagnostics\20261029T012516Z-31628\` 产生 `faulthandler.txt` + `snapshot.txt`；snapshot 含 python=3.14.3 / Windows 11 / `diagnostics_panel=True`（来自本机 `aixcoding.toml` `panel=true`，launcher extras 字段生效） |
+| 15 | 日志落盘触发 | `setup_logging(load_config())` + `get_logger('smoke').info(...)` → `%APPDATA%\chrys\aixcoding-logs\aixcoding.log` 写入 `2026-10-29 09:25:27,627 INFO aixcoding.smoke: diagnostics log smoke 2026-10-29`，格式与 FMT 一致 |
+| 16 | 目视核验 | 责任人 TUI 实测，目视 aixcoding tab 存在，在 chrys tab 右侧， 空态。本机 `aixcoding.toml` 已配置 `panel = true`；行为链路（propagate 冒泡 + MODULE_ORDER 白名单）已由 #12 机检覆盖，目视仅确认接线。 |
+
+> 补录注记（2026-10-30，随 auth-logging 批次 PR 独立 commit 落盘）：本章节原随 ai-gates 批次（`43f05a9`）提交、PR #68 合并时按裁决剔除待补——#13/#14 所涉 launcher 已于 2026-10-30 退役（ADR-0013），表中记录为当时事实。
+
 ## 未验证事项
 
-- （清零——阶段二全部验证项闭环。）
+- 无

@@ -23,7 +23,8 @@
 - [ ] F6 评审处置已随本批次改 DIRECTORY.md §3（相对导入语义澄清；2026-10-30 复核再修正为死锁结论）
 - [ ] 新 diff 双 AI 评审（接线四文件）→ self-review.md 更新
 - [ ] self-review.md 签认
-- [ ] PR（分支 feat/auth_logging，已建）；#12-16 补录随本 PR 独立 commit（已裁决，内容在 git 43f05a9 可找回）——git 写操作逐条请示
+- [x] #12-16 补录随本 PR 独立 commit（已裁决，内容从 git 43f05a9 找回，落 diagnostics/verification.md，含退役注记）
+- [ ] PR（分支 feat/auth_logging，已建；commit 1 a0260250 + 补录 commit）——git 写操作逐条请示
 
 ## 挂起与备忘
 
