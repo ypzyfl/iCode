@@ -89,7 +89,7 @@ R1 自查（迁移批次）：
 | 落点 | anchor（依赖的上游符号） | 风险等级 |
 |---|---|---|
 | `src/chrys/kernel/aixcoding/auth/` | `chrys.foundation.platform`（storage lazy import）+ httpx + **kernel 门面导入链**（peer review C1：`chrys.kernel/__init__` 包级导入，冷导入 206ms/354 模块，一次性） | 低（tier 1 自治包；~~升级零耦合~~ 勘误 C1：回迁后新增 kernel 门面健康度耦合边，触发窗口窄——仅门面导入期异常时崩溃钩子未装） |
-| `src/chrys/kernel/aixcoding/diagnostics/` | `chrys.app.cli.app:main` 入口签名（launcher 结构性挂接边，`_DAG_EDGE_ALLOWLIST` 豁免登记）+ `MODULE_ORDER` | 低（面板）/中（上游入口重构时需跟） |
+| `src/chrys/kernel/aixcoding/diagnostics/` | （2026-10-30 事实同步：launcher 挂接边已随 ADR-0013 退役，anchor 收敛至 `MODULE_ORDER`，登记以 diagnostics design 为准） | 低（面板）/零（落盘） |
 
 ## 联动清单（非上游部分）
 

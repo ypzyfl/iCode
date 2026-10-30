@@ -40,7 +40,7 @@ git merge origin/main_iCode
   |---|---|---|
   | C001 | `AGENTS.md` | 上游重写 AGENTS.md 时入口段冲突——保留我们的段，合入上游正文 |
   | C002 | `src/chrys/app/tui/screens/logs/screen.py` | MODULE_ORDER 行——保留 `"aixcoding"` 项，合入上游新增模块项 |
-  | C003–C005 | `tests/architecture/test_layering.py` | 上游重构架构测试时登记区冲突——保留 tier 注册与 `_DAG_EDGE_ALLOWLIST`，合入上游规则变化 |
+  | C003–C005 | `tests/architecture/test_layering.py` | 上游重构架构测试时登记区冲突——保留 tier 注册（`_DAG_EDGE_ALLOWLIST` 豁免通道已随 ADR-0013 移除，无定制登记残留），合入上游规则变化 |
 - 坑：git 冲突输出对中文文件名默认八进制转义，人工核对用 `git -c core.quotepath=off ...`；
 - 坑：`except A, B:`（PEP 758，py3.14）是本仓 ruff format 强制输出，**不要**被编辑器/linter"修复"。
 
@@ -48,9 +48,9 @@ git merge origin/main_iCode
 
 清单 `anchor` 列逐项核对上游是否仍存在、签名/语义是否变化：
 
-- 当前锚点速查：`MODULE_ORDER`/`MODULE_WHITELIST`/`_TuiLogHandler`（C002）、`TIER_ORDER` 注册制与 DAG 采集器（C003–C005）、`chrys.app.cli.app:main` 入口签名（launcher，登记预告在 diagnostics design）、`get_platform().config_dir`；
+- 当前锚点速查：`MODULE_ORDER`/`MODULE_WHITELIST`/`_TuiLogHandler`（C002）、`TIER_ORDER` 注册制与 DAG 采集器（C003–C005）、`get_platform().config_dir`；
 - **行为锚定测试是机检手段**：`uv run pytest aixcoding/tests/diagnostics/test_panel_anchor.py -n0 -q` 红 = 上游行为变化，定制需跟随；
-- DAG 白名单制：上游新增/重命名**自己的**子包不影响定制；上游若重构 `test_layering.py` 本体，登记区人工合并后 stale 检测会自动核对豁免边仍有真实 import。
+- DAG 白名单制：上游新增/重命名**自己的**子包不影响定制；上游若重构 `test_layering.py` 本体，登记区人工合并（定制豁免通道已随 launcher 退役移除，ADR-0013——现存仅 kernel-private allowlist 为上游自有机制）。
 
 ## 4. 语义层（全量验证）
 

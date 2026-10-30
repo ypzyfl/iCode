@@ -130,3 +130,12 @@ OTel 遥测框架（opt-in）与 trajectory 会话回放——这些定制化直
   双分支候选路线的服役分支实现，数据口径规格不变），迁入-撤销成本为主要顾虑，迁入路线
   待两个调研定夺（见 §2 阶段三）；
   DoD 拆两档（部分/完整验收），旧分支归档挂完整验收并补 telemetry 现网缺陷冻结例外（见 §3）。
+- 2026-10-30：**diagnostics launcher 退役**（ADR-0013，批次 `launcher-retirement/`）——crash /
+  snapshot / launcher 三模块删除、`test_layering.py` 豁免机制回滚，阶段二诊断包由五模块收敛为
+  config + logging_support 两模块；上游测试文件足迹归零。
+  **补做义务（登记勿遗忘，责任人 2026-10-30 要求明确记录）**：
+  ① **gen_customizations 登记源单一化**——现行 anchor 从所有 design 登记表聚合，"历史快照/现行登记"
+  混淆（本批次治标：`tier-migration/design.md:92` 事实同步改写），**将来 devtools 小批次改为单一
+  现行登记源**；
+  ② crash 捕获 / 环境快照能力已按 ADR-0013 退役（价值取舍：足迹清零优先），将来需要时按 ADR-0013
+  记录的**内联接线替代路径**实现或从 git 历史复原。
