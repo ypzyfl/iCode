@@ -1,4 +1,3 @@
-# ruff: noqa: S101
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 
 """Endpoint resolution tests: tier selection and origin override."""

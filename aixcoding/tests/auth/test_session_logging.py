@@ -1,4 +1,3 @@
-# ruff: noqa: S101, S106, RUF001
 # (asserts are pytest idiom; fake creds carry secrets; frozen Chinese log
 #  messages keep full-width punctuation by design, same as session.py)
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.

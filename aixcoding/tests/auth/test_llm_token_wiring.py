@@ -1,4 +1,3 @@
-# ruff: noqa: S101
 """Behavior-anchor tests for the LLM login-token header wiring (auth migration).
 
 Design: aixcoding/docs/auth/design.md (signed off 2026-10-26).

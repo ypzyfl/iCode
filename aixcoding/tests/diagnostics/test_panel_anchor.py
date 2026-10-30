@@ -1,4 +1,3 @@
-# ruff: noqa: S101
 # (tests — asserts are pytest idiom, Chinese prose is the data)
 """Behavior anchor tests: the F6 panel really accepts aixcoding records.
 

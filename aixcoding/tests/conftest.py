@@ -1,4 +1,3 @@
-# ruff: noqa: S101, S603, S607
 # (test fixture — asserts are pytest idiom, git subprocess builds mini repos,
 #  Chinese prose is the data)
 """aixcoding/tests conftest — self-built fixtures, no upstream tests/support reuse.

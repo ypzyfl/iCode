@@ -1,4 +1,3 @@
-# ruff: noqa: S101, S106, S107
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 
 """Credential store tests: envelope shape, atomicity, corruption, isolation."""

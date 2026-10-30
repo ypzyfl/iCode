@@ -1,4 +1,3 @@
-# ruff: noqa: S101
 # (unit test — asserts are pytest idiom; urllib opens only the loopback mock under test)
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 """Unit tests for the mock launcher (aixcoding/mock/__main__.py).

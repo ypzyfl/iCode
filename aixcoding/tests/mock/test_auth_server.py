@@ -1,4 +1,3 @@
-# ruff: noqa: S101, S310
 # (contract test — asserts are pytest idiom; urllib opens only the loopback mock under test)
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 """Minimal wire-contract tests for the auth mock (aixcoding/mock/auth).

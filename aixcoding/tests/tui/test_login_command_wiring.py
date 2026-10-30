@@ -1,5 +1,4 @@
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
-# ruff: noqa: S101, S106, RUF001
 
 """MainScreen wiring for /login and /logout: dialog push, result toasts, startup hook."""
 

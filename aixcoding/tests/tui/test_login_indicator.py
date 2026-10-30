@@ -1,5 +1,4 @@
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
-# ruff: noqa: S101, S106, RUF001
 
 """Tests for the header login indicator state computation (Chinese constants)."""
 
