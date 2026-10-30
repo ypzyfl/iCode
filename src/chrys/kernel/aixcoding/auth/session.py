@@ -1,3 +1,6 @@
+# ruff: noqa: RUF001
+# (Chinese log messages keep full-width punctuation by design,
+#  aixcoding/docs/auth-logging/design.md signed off 2026-10-29)
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 
 """Login session: the boundary between the login feature and everything after.
@@ -30,6 +33,7 @@ one session or "logged in" state would fragment.
 from __future__ import annotations
 
 import asyncio
+import logging
 from pathlib import Path
 
 import httpx
@@ -38,7 +42,7 @@ from .client import AuthClient
 from .crypto import ProtectBackend
 from .delegation import DelegatedCredential, detect_delegation
 from .environments import resolve_endpoints, resolve_environment
-from .errors import AuthError, AuthServerError
+from .errors import AuthError, AuthServerError, DevicePollCancelled
 from .storage import CredentialStore, default_config_dir
 from .types import (
     AccountInfo,
@@ -46,6 +50,22 @@ from .types import (
     Environment,
     StoredCredential,
 )
+
+# AIxCoding auth logging: state-transition records on the "aixcoding.auth" logger
+# (the aixcoding.* subtree sinks/panel switch live in kernel/aixcoding/diagnostics),
+# design aixcoding/docs/auth-logging/design.md (signed off 2026-10-29; decoupled
+# 2026-10-30: plain getLogger, no diagnostics import -- kernel cross-subpackage
+# imports are architecturally dead-ended, see design).
+_log = logging.getLogger("aixcoding.auth")
+
+
+def _reason(exc: BaseException, *, with_cause: bool = True) -> str:
+    """Render the failure reason: class names only, never message/traceback."""
+    text = f"exc={type(exc).__name__}"
+    if with_cause and exc.__cause__ is not None:
+        text += f" cause={type(exc.__cause__).__name__}"
+    return text
+
 
 #: Fixed poll cadence: the production reference ignores the server-sent
 #: ``result.interval`` and repolls every second.
@@ -168,22 +188,49 @@ class LoginSession:
         delegated = self._active_delegated
         if delegated is not None:
             try:
-                return await self._make_client().fetch_user_info(delegated.token)
-            except AuthServerError:
+                account = await self._make_client().fetch_user_info(delegated.token)
+            except AuthServerError as exc:
+                _log.error(
+                    "桌面端传入的登录已失效，改用本机登录；env=%s %s",
+                    self.environment.value,
+                    _reason(exc, with_cause=False),
+                )
                 self._delegated_rejected = True
                 return None
-            except AuthError:
+            except AuthError as exc:
+                _log.error(
+                    "登录检查未完成（网络不通），登录状态保留；env=%s %s",
+                    self.environment.value,
+                    _reason(exc),
+                )
                 return None
+            _log.info("已登录（桌面端登录）；ehr=%s env=%s", account.ehr, self.environment.value)
+            return account
         credential = self._store.load(self.environment)
         if credential is None or credential.is_expired or not credential.token:
+            _log.info("未登录（首次使用或登录已过期）；env=%s", self.environment.value)
             return None
         try:
-            return await self._make_client().fetch_user_info(credential.token)
-        except AuthServerError:
+            account = await self._make_client().fetch_user_info(credential.token)
+        except AuthServerError as exc:
+            # AIxCoding auth logging: clear first, then record — a record claiming
+            # "cleared" must never precede the clear itself (peer review C1).
             self._store.clear(self.environment)
+            _log.error(
+                "本机保存的登录已失效，已自动清除，请重新登录；env=%s %s",
+                self.environment.value,
+                _reason(exc, with_cause=False),
+            )
             return None
-        except AuthError:
+        except AuthError as exc:
+            _log.error(
+                "登录检查未完成（网络不通），登录信息保留；env=%s %s",
+                self.environment.value,
+                _reason(exc),
+            )
             return None
+        _log.info("已登录（本机保存的登录）；ehr=%s env=%s", account.ehr, self.environment.value)
+        return account
 
     async def request_device_code(self) -> DeviceCode:
         """Start a device authorization (the UI shows the returned code)."""
@@ -203,12 +250,19 @@ class LoginSession:
         until the delegated token is rejected -- the parent's session wins.
         """
         client = self._make_client()
-        token = await client.poll_token(
-            device_code.device_code,
-            interval=DEFAULT_POLL_INTERVAL,
-            cancel_event=cancel_event,
-        )
-        account = await client.fetch_user_info(token.token)
+        try:
+            token = await client.poll_token(
+                device_code.device_code,
+                interval=DEFAULT_POLL_INTERVAL,
+                cancel_event=cancel_event,
+            )
+            account = await client.fetch_user_info(token.token)
+        except DevicePollCancelled:
+            _log.info("取消登录；env=%s", self.environment.value)
+            raise
+        except AuthError as exc:
+            _log.error("登录失败；env=%s %s", self.environment.value, _reason(exc))
+            raise
         self._store.store(
             self.environment,
             StoredCredential.issued_now(
@@ -219,6 +273,7 @@ class LoginSession:
                 ehr=account.ehr,
             ),
         )
+        _log.info("登录成功；ehr=%s env=%s", account.ehr, self.environment.value)
         return account
 
     def logout(self) -> None:
@@ -229,8 +284,10 @@ class LoginSession:
         cannot revoke the token server-side anyway.
         """
         if self._active_delegated is not None:
+            _log.info("跳过登出（当前使用桌面端登录，由桌面端管理）；env=%s", self.environment.value)
             return
         self._store.clear(self.environment)
+        _log.info("已登出；env=%s", self.environment.value)
 
 
 _default_session: LoginSession | None = None

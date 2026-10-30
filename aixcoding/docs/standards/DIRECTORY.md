@@ -59,7 +59,7 @@ iCode-fork/
 | `app/aixcoding/` | 4 | `tui/`（批次待迁） | 引用宿主 UI 基础设施，被 app 接线点同层调用 |
 
 - **档位判据**：依赖做硬判据、语义做参考——落位档 = 四档（kernel/service/orchestration/app，按需建）中能容纳其全部依赖的**最低档**；kernel 档兜底零依赖与仅 foundation 依赖；foundation 档不设（考量见 ADR-0011 否决备选）。
-- tier 的机器执行者是 `tests/architecture/test_layering.py` 的 DAG（`_source_top`/`_target_top` 按第一级包名归层——定制按 tier 落位后天然合法，无 fork 特判键）；kernel 档内互引必须**相对导入**（kernel 层硬约束）。
+- tier 的机器执行者是 `tests/architecture/test_layering.py` 的 DAG（`_source_top`/`_target_top` 按第一级包名归层——定制按 tier 落位后天然合法，无 fork 特判键）；kernel 档内互引必须**相对导入**（kernel 层硬约束；语义指**同包子模块** `.` 相对——kernel 内跨子包互引应避免：`..` 父级相对被 ruff TID252 禁止，包内绝对导入又被 test_layering 的 kernel↔kernel 必须相对规则禁止，二者皆死路，跨子包需求须解耦处理——auth-logging 批次实证 2026-10-29/30）。
 - **例外（结构性挂接边）**：包内个别模块对宿主的向上挂接（进程入口、钩子注册，非业务库依赖）不改变整包档位——历史上经 `_DAG_EDGE_ALLOWLIST` 豁免（ADR-0011 决策 2/5），**该通道已随 launcher 退役整体移除（ADR-0013）；将来此类需求出现时重建机制（git 历史可得），重建前任何向上 import 均为架构违规**。
 - 依赖上涨 → test_layering 红 → 挪档（反馈回路闭环）；`tui` 的依赖边界：仅限宿主 UI 基础设施（对话框基类、控件、绑定展示、主题），**不得**引用 service / orchestration 业务逻辑。
 
