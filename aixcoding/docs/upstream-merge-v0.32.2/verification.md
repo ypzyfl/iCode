@@ -43,3 +43,10 @@ C027 `_catalog_oracle_ids.py` 351→352；C029 `tui_helpers.py` 1172→1220。
 ### 环境
 
 Windows 11 / CodeBuddy；配方：清 `PYTHONPATH` + `PYTHONUTF8=1` + 大写盘符启动；本地 Python 3.14.8（未设 `UV_PYTHON`）。
+
+## 2026-10-31 TUI 冒烟补验（责任人手工执行，通过）
+
+- 环境：`uv run python -m aixcoding.mock`（组合服务 ：7777 catalog+内嵌 auth / :7778 update，进程 19736）+ 独立窗口 `uv run icode`（`AIXCODING_AUTH_ENVIRONMENT=local` 接 mock 认证）。
+- 结果：**8 项全部通过**（责任人 2026-10-31 确认"全部通过"）——启动正常；账号徽标登录态切换（C005/C018–C020）；`/login` 登录对话框与设备码流程（C008–C012）；`/logout` 生效；F6 日志面板 `aixcoding` tab（C007）；`/man` 索引含 `/login` `/logout`（C024）；中文文案（ADR-0010）；上游 0.32.2 新特性正常呈现。
+- 验证矩阵至此 **11/12** 完成，余 PR 双 CI（push 后 PR checks）。
+
