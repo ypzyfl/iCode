@@ -4,7 +4,7 @@
 > 读者：全体定制开发成员与 AI 编码代理。修订本文视同修订规范。
 > 决策理由与被否决的备选方案见 `adr/` 下对应记录，本文只写结论与规则。
 > 升级流程（追上游版本）的操作展开见 `UPGRADE-RUNBOOK.md`（活文档，不签认）。
-> **过渡期声明**：本文描述目录重组完成后的目标状态；执行进度与现状差距见 `../../restructure/plan.md`。
+> **过渡期声明**：本文描述目录重组完成后的目标状态；执行进度与现状差距见 `../batches/restructure/plan.md`。
 
 ## 1. 总蓝图
 
@@ -16,12 +16,12 @@ iCode-fork/
 │   ├── kernel/aixcoding/          #   kernel 档 = 默认最低档（零依赖与仅 foundation 依赖均落此）
 │   │   ├── auth/                  #     仅 foundation 依赖（get_platform，lazy）（待回迁）
 │   │   ├── diagnostics/           #     ≤kernel 依赖（launcher/crash/snapshot 已退役，ADR-0013）（待回迁）
-│   │   └── telemetry/ 等          #     适配层模块（批次待迁，进度见 restructure/plan.md）
+│   │   └── telemetry/ 等          #     适配层模块（批次待迁，进度见 batches/restructure/plan.md）
 │   └── app/aixcoding/             #   app 档（引用宿主 UI 设施的定制界面）
 │       └── tui/                   #     产品 UI（被 app 接线点同层调用；批次待迁）
 ├── aixcoding/                    # 纯开发资产，不进 wheel
-│   ├── docs/                     #   活文档：standards/（规范族+全局 ADR+模板+评审清单）、restructure/（重组专项）、
-│   │                             #   <feature>/（功能文档管线，见 DEVELOPMENT.md §6）
+│   ├── docs/                     #   standards/（规范族+全局 ADR+模板+评审清单）、INDEX.md（目录导航）、
+│   │                             #   batches/<name>/（全部批次/专项目录平铺，见 DEVELOPMENT.md §6 与 ADR-0016）
 │   ├── tests/                    #   【唯一】定制测试落点（显式运行）
 │   ├── mock/                     #   【唯一】自建 mock 专区（纯实现，契约测试在 tests/mock/）
 │   ├── tools/                    #   开发工具脚本（校验/脚手架等，如 check_docs.py）
@@ -31,7 +31,7 @@ iCode-fork/
 ├── .github/workflows/
 │   ├── ci.yml                    # 上游 CI（仅 PR 至 main 触发；发布链路 CD 经 workflow_call 复用）
 │   ├── aixcoding-tests.yml       # 定制质量门（lint + 定制测试 + mock 契约测试 + 文档签认校验）
-│   └── aixcoding-upstream-ci.yml # 上游 CI 桥接（PR 至 main_aixcoding_cli 经 workflow_call 跑上游全套，见 docs/upstream-ci/）
+│   └── aixcoding-upstream-ci.yml # 上游 CI 桥接（PR 至 main_aixcoding_cli 经 workflow_call 跑上游全套，见 docs/batches/upstream-ci/）
 └── pyproject.toml                # packages 仅 ["src/chrys"]（上游原状）
 ```
 
@@ -44,7 +44,7 @@ iCode-fork/
 | 会进发布包（被产品运行时用到）？ | `src/chrys/{tier}/aixcoding/`（按依赖落位，档位判据见 §3；ADR-0011） |
 | 是测试？ | `aixcoding/tests/` |
 | 是 mock（模拟外部后端服务）？ | `aixcoding/mock/` |
-| 是文档？ | `aixcoding/docs/`（规范族进 `standards/`，功能文档进 `<feature>/`，改造专项进 `restructure/`） |
+| 是文档？ | `aixcoding/docs/`（规范族进 `standards/`，其余一律 `batches/<name>/`，见 ADR-0016） |
 | 是开发工具脚本（校验、脚手架等）？ | `aixcoding/tools/` |
 | 以上都不是 | 停下：先在方案中论证归属，必要时修订本文 |
 
@@ -88,12 +88,12 @@ iCode-fork/
 
 模拟定制所依赖的内部后端服务。**判断标准是"谁建谁维护"**——被测功能归上游还是归定制不影响资产归属（`model_catalog` 模拟的后端主要服务上游的模型目录功能，仍在此）。
 
-**形态语义（2026-10-25 决策澄清）**：目录名描述职责域（mock 专区），实现形态由子包内文件表达——当前全部为 HTTP server 形态（即每子包 `server.py`），不因形态更名目录（曾议 `mock_server/`，维持 `mock/`，详见 `docs/mock/design.md` 决策记录）。进程内替身不属本专区：测试专用 fake/stub 归 `aixcoding/tests/`（§5），产品内可注入测试挂钩归 `src/chrys/{tier}/aixcoding/`（按 §3 落位）；非 server 形态 mock 资产出现时按 §2 判定树重新论证落点。
+**形态语义（2026-10-25 决策澄清）**：目录名描述职责域（mock 专区），实现形态由子包内文件表达——当前全部为 HTTP server 形态（即每子包 `server.py`），不因形态更名目录（曾议 `mock_server/`，维持 `mock/`，详见 `docs/batches/mock/design.md` 决策记录）。进程内替身不属本专区：测试专用 fake/stub 归 `aixcoding/tests/`（§5），产品内可注入测试挂钩归 `src/chrys/{tier}/aixcoding/`（按 §3 落位）；非 server 形态 mock 资产出现时按 §2 判定树重新论证落点。
 
 **包根编排层（2026-10-25 登记）**：`__main__.py` 为组合启动器——`python -m aixcoding.mock`
 一键起基础组合（默认 `model_catalog` :7777 含内嵌 auth + `update` :7778；`--all` /
 `--only` / `--list`），仅编排各子包既有 `create_server(...)`，不承载 mock 实现；端口
-fail-fast 不静默换。设计依据 `docs/mock/design.md`。
+fail-fast 不静默换。设计依据 `docs/batches/mock/design.md`。
 
 每个子包统一结构：
 
@@ -114,7 +114,7 @@ aixcoding/mock/<name>/            # 命名：无前缀服务名（auth / update 
 
 ## 7. CI 质量门
 
-> 过渡期：`aixcoding-tests.yml` 待建（`restructure/plan.md` U3）；本节描述建成后状态。
+> 过渡期：`aixcoding-tests.yml` 待建（`batches/restructure/plan.md` U3）；本节描述建成后状态。
 
 | 代码 | 门禁 |
 |---|---|
@@ -136,9 +136,9 @@ aixcoding/mock/<name>/            # 命名：无前缀服务名（auth / update 
 | 对象 | 约定 |
 |---|---|
 | 定制目录/包名 | 全小写 `aixcoding`（上游标记注释用 `AIxCoding`，见 R3） |
-| fork 新增环境变量 | 统一 `AIXCODING_` 前缀；例外：挂上游 settings 声明体系的沿用 `CHRYS_` 并在特性 design 登记（首次决策 2026-10-25：`CHRYS_AUTH_*` 随 auth 迁入更名 `AIXCODING_AUTH_*`，详见 `docs/mock/design.md` 决策记录） |
+| fork 新增环境变量 | 统一 `AIXCODING_` 前缀；例外：挂上游 settings 声明体系的沿用 `CHRYS_` 并在特性 design 登记（首次决策 2026-10-25：`CHRYS_AUTH_*` 随 auth 迁入更名 `AIXCODING_AUTH_*`，详见 `docs/batches/mock/design.md` 决策记录） |
 | mock 子包 | 无前缀服务名：`auth`、`update`、`model_catalog`、`telemetry` |
 | 测试文件 | `test_*.py`；契约测试随被测 mock 命名（`test_<name>_server.py`） |
 | mock 公开 API | `create_server(...)`（factory）/ `main()`（CLI）；配置状态类 `Mock*Config` / `Mock*State` |
-| 功能文档目录 | 小写中划线 `<feature-name>/`；文档文件名固定（requirements/design/test-plan/plan/verification.md，见 DEVELOPMENT.md §6） |
+| 功能文档目录 | `batches/` 下小写中划线 `<feature-name>/`；文档文件名固定（requirements/design/test-plan/plan/verification.md，见 DEVELOPMENT.md §6） |
 | 文档 | 中文（团队工作语言）；规范族与 ADR 在 `docs/standards/` |

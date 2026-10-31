@@ -7,7 +7,7 @@ name: AIxCoding Upstream CI
 # workflow_call trigger (the same mechanism cd.yml uses) instead of editing
 # the upstream file; PR-triggered only, matching upstream's own convention
 # (upstream ci.yml has no push trigger either).
-# Design & sign-off: aixcoding/docs/upstream-ci/design.md
+# Design & sign-off: aixcoding/docs/batches/upstream-ci/design.md
 
 on:
   pull_request:

@@ -4,7 +4,7 @@
 
 """Startup aggregation entry for AIxCoding customizations.
 
-Design: aixcoding/docs/auth-logging/design.md (signed off 2026-10-30).
+Design: aixcoding/docs/batches/auth-logging/design.md (signed off 2026-10-30).
 
 ``app/aixcoding`` is the host-seam package (``tui`` sibling, ADR-0011
 placement): startup wiring is a seam with the host CLI, and the app tier is

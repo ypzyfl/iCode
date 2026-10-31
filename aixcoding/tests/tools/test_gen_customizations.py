@@ -1,7 +1,7 @@
 # (tests — asserts are pytest idiom, Chinese prose is the data)
 """Unit tests for aixcoding/tools/gen_customizations.py (check / report / archaeology).
 
-Error-injection matrix from aixcoding/docs/customization-registry/test-plan.md
+Error-injection matrix from aixcoding/docs/batches/customization-registry/test-plan.md
 (marked \"注入\") plus the drift-regression pair and the zero-write guarantee.
 """
 
@@ -48,7 +48,7 @@ def test_check_ok(file_tree):
     repo = file_tree(
         {
             "src/chrys/app/up.py": MARKER_SINGLE,
-            "aixcoding/docs/demo/design.md": signed_design(ROW_SINGLE),
+            "aixcoding/docs/batches/demo/design.md": signed_design(ROW_SINGLE),
         }
     )
     assert gc.run_check(repo) == 0
@@ -58,7 +58,7 @@ def test_check_zero_writes(file_tree, capsys):
     repo = file_tree(
         {
             "src/chrys/app/up.py": MARKER_SINGLE,
-            "aixcoding/docs/demo/design.md": signed_design(ROW_SINGLE),
+            "aixcoding/docs/batches/demo/design.md": signed_design(ROW_SINGLE),
         }
     )
     before = snapshot(repo)
@@ -72,7 +72,7 @@ def test_twin_group_count_ok(file_tree):
     repo = file_tree(
         {
             "src/chrys/app/tw.py": MARKER_TWIN + "T2 = 1\n" + MARKER_TWIN,
-            "aixcoding/docs/demo/design.md": signed_design(ROW_TWIN),
+            "aixcoding/docs/batches/demo/design.md": signed_design(ROW_TWIN),
         }
     )
     assert gc.run_check(repo) == 0
@@ -83,7 +83,7 @@ def test_twin_id_range_ok_and_rendered(file_tree, capsys):
     repo = file_tree(
         {
             "src/chrys/app/tw.py": MARKER_TWIN + "T2 = 1\n" + MARKER_TWIN,
-            "aixcoding/docs/demo/design.md": signed_design(row),
+            "aixcoding/docs/batches/demo/design.md": signed_design(row),
         }
     )
     assert gc.run_check(repo) == 0  # 区间 2 个 id == 预期计数 2
@@ -97,7 +97,7 @@ def test_twin_id_range_count_mismatch_errors(file_tree, capsys):
     repo = file_tree(
         {
             "src/chrys/app/tw.py": MARKER_TWIN + "T2 = 1\n" + MARKER_TWIN,
-            "aixcoding/docs/demo/design.md": signed_design(mismatch),
+            "aixcoding/docs/batches/demo/design.md": signed_design(mismatch),
         }
     )
     assert gc.run_check(repo) == 1  # 区间 2 id ≠ 计数 1
@@ -114,7 +114,7 @@ def test_longest_anchor_first_resolves_prefix_overlap(file_tree):
     repo = file_tree(
         {
             "src/chrys/app/tw.py": MARKER_TWIN + MARKER_TWIN_LONG + MARKER_TWIN,
-            "aixcoding/docs/demo/design.md": signed_design(rows),
+            "aixcoding/docs/batches/demo/design.md": signed_design(rows),
         }
     )
     assert gc.run_check(repo) == 0
@@ -139,7 +139,7 @@ def test_unsigned_design_does_not_authorize(file_tree):
     repo = file_tree(
         {
             "src/chrys/app/up.py": MARKER_SINGLE,
-            "aixcoding/docs/demo/design.md": UNSIGNED,
+            "aixcoding/docs/batches/demo/design.md": UNSIGNED,
         }
     )
     assert gc.run_check(repo) == 1  # 注入:未签认 → marker 视为未登记
@@ -149,7 +149,7 @@ def test_orphan_registration_warns_not_fails(file_tree, capsys):
     repo = file_tree(
         {
             "src/chrys/app/up.py": "X = 1\n",  # 注入:登记未实施
-            "aixcoding/docs/demo/design.md": signed_design(ROW_SINGLE),
+            "aixcoding/docs/batches/demo/design.md": signed_design(ROW_SINGLE),
         }
     )
     assert gc.run_check(repo) == 0
@@ -160,7 +160,7 @@ def test_orphan_registration_fails_strict(file_tree, capsys):
     repo = file_tree(
         {
             "src/chrys/app/up.py": "X = 1\n",
-            "aixcoding/docs/demo/design.md": signed_design(ROW_SINGLE),
+            "aixcoding/docs/batches/demo/design.md": signed_design(ROW_SINGLE),
         }
     )
     assert gc.run_check(repo, strict=True) == 1  # 注入:strict 孤儿升级
@@ -173,8 +173,8 @@ def test_id_duplicate_across_designs_errors(file_tree, capsys):
         {
             "src/chrys/app/up.py": MARKER_SINGLE,
             "src/chrys/app/tw.py": MARKER_TWIN,
-            "aixcoding/docs/demo/design.md": signed_design(ROW_SINGLE),
-            "aixcoding/docs/other/design.md": signed_design(twin_as_c001),
+            "aixcoding/docs/batches/demo/design.md": signed_design(ROW_SINGLE),
+            "aixcoding/docs/batches/other/design.md": signed_design(twin_as_c001),
         }
     )
     assert gc.run_check(repo) == 1  # 注入:跨 design id 重复(区间成员也参与唯一性)
@@ -186,7 +186,7 @@ def test_id_malformed_errors(file_tree, capsys):
     repo = file_tree(
         {
             "src/chrys/app/up.py": MARKER_SINGLE,
-            "aixcoding/docs/demo/design.md": bad,
+            "aixcoding/docs/batches/demo/design.md": bad,
         }
     )
     assert gc.run_check(repo) == 1  # 注入:id 格式
@@ -201,7 +201,7 @@ def test_retired_id_reuse_errors(file_tree, capsys):
     repo = file_tree(
         {
             "src/chrys/app/up.py": MARKER_SINGLE,
-            "aixcoding/docs/demo/design.md": signed_design(ROW_SINGLE, retired=retired),
+            "aixcoding/docs/batches/demo/design.md": signed_design(ROW_SINGLE, retired=retired),
         }
     )
     assert gc.run_check(repo) == 1  # 注入:退役号复用(高水位唯一性)
@@ -217,7 +217,7 @@ def test_retired_id_highwater_coexists(file_tree):
     repo = file_tree(
         {
             "src/chrys/app/up.py": MARKER_SINGLE,
-            "aixcoding/docs/demo/design.md": signed_design(rows, retired=retired),
+            "aixcoding/docs/batches/demo/design.md": signed_design(rows, retired=retired),
         }
     )
     assert gc.run_check(repo) == 0  # 退役号占坑、新行用新号 → 各自合法
@@ -234,7 +234,7 @@ def test_retired_strict_coexists(file_tree, capsys):
     repo = file_tree(
         {
             "src/chrys/app/up.py": MARKER_SINGLE,
-            "aixcoding/docs/demo/design.md": signed_design(rows, retired=retired),
+            "aixcoding/docs/batches/demo/design.md": signed_design(rows, retired=retired),
         }
     )
     assert gc.run_check(repo, strict=True) == 0
@@ -252,7 +252,7 @@ def test_retired_malformed_id_noted(file_tree, capsys):
     repo = file_tree(
         {
             "src/chrys/app/up.py": MARKER_SINGLE,
-            "aixcoding/docs/demo/design.md": signed_design(ROW_SINGLE, retired=retired),
+            "aixcoding/docs/batches/demo/design.md": signed_design(ROW_SINGLE, retired=retired),
         }
     )
     assert gc.run_check(repo, strict=True) == 1
@@ -270,7 +270,7 @@ def test_retired_parser_scoped_to_section(file_tree, capsys):
     repo = file_tree(
         {
             "src/chrys/app/up.py": MARKER_SINGLE,
-            "aixcoding/docs/demo/design.md": design,
+            "aixcoding/docs/batches/demo/design.md": design,
         }
     )
     assert gc.run_check(repo, strict=True) == 0
@@ -285,7 +285,7 @@ def test_design_unreadable_fails_closed(file_tree, monkeypatch, capsys):
     repo = file_tree(
         {
             "src/chrys/app/up.py": MARKER_SINGLE,
-            "aixcoding/docs/demo/design.md": signed_design(ROW_SINGLE),
+            "aixcoding/docs/batches/demo/design.md": signed_design(ROW_SINGLE),
         }
     )
 
@@ -303,15 +303,17 @@ def test_main_exit_codes(file_tree, monkeypatch, tmp_path):
     ok_repo = file_tree(
         {
             "src/chrys/app/up.py": MARKER_SINGLE,
-            "aixcoding/docs/demo/design.md": signed_design(ROW_SINGLE),
+            "aixcoding/docs/batches/demo/design.md": signed_design(ROW_SINGLE),
         }
     )
     monkeypatch.setattr(gc.common, "REPO_ROOT", ok_repo)
     assert gc.main([]) == 0
     assert gc.main(["--strict"]) == 0
     orphan = tmp_path / "orphan_repo"
-    (orphan / "aixcoding" / "docs" / "demo").mkdir(parents=True)
-    (orphan / "aixcoding" / "docs" / "demo" / "design.md").write_text(signed_design(ROW_SINGLE), encoding="utf-8")
+    (orphan / "aixcoding" / "docs" / "batches" / "demo").mkdir(parents=True)
+    (orphan / "aixcoding" / "docs" / "batches" / "demo" / "design.md").write_text(
+        signed_design(ROW_SINGLE), encoding="utf-8"
+    )
     monkeypatch.setattr(gc.common, "REPO_ROOT", orphan)
     assert gc.main(["--strict"]) == 1  # orphan registration fails under the CI posture
     empty = tmp_path / "empty"
@@ -326,7 +328,7 @@ def test_anchor_too_short_count_overflow_errors(file_tree, capsys):
     repo = file_tree(
         {
             "src/chrys/app/up.py": MARKER_SINGLE + "X = 2  # AIxCoding demo: other\n",
-            "aixcoding/docs/demo/design.md": signed_design(short),
+            "aixcoding/docs/batches/demo/design.md": signed_design(short),
         }
     )
     assert gc.run_check(repo) == 1  # 注入:锚过短命中 2 marker
@@ -337,7 +339,7 @@ def test_twin_count_short_errors(file_tree, capsys):
     repo = file_tree(
         {
             "src/chrys/app/tw.py": MARKER_TWIN,  # 登记预期 2,实有 1
-            "aixcoding/docs/demo/design.md": signed_design(ROW_TWIN),
+            "aixcoding/docs/batches/demo/design.md": signed_design(ROW_TWIN),
         }
     )
     assert gc.run_check(repo) == 1  # 注入:孪生计数少
@@ -351,7 +353,7 @@ def test_twin_count_overflow_direction_errors(file_tree, capsys):
     repo = file_tree(
         {
             "src/chrys/app/tw.py": MARKER_TWIN + "T2 = 1\n" + MARKER_TWIN + "T3 = 1\n" + MARKER_TWIN,
-            "aixcoding/docs/demo/design.md": signed_design(row),
+            "aixcoding/docs/batches/demo/design.md": signed_design(row),
         }
     )
     assert gc.run_check(repo) == 1  # 3 markers vs expected 2 → unregistered direction
@@ -362,7 +364,7 @@ def test_twin_count_overflow_direction_errors(file_tree, capsys):
 def test_landing_missing_errors(file_tree, capsys):
     repo = file_tree(
         {
-            "aixcoding/docs/demo/design.md": signed_design(ROW_SINGLE),
+            "aixcoding/docs/batches/demo/design.md": signed_design(ROW_SINGLE),
             # src/chrys/app/up.py 不存在 → 注入:落点缺失(同时孤儿)
         }
     )
@@ -387,7 +389,7 @@ def test_fenced_example_tables_not_parsed(file_tree, capsys):
     repo = file_tree(
         {
             "src/chrys/app/up.py": MARKER_SINGLE,
-            "aixcoding/docs/demo/design.md": design,
+            "aixcoding/docs/batches/demo/design.md": design,
         }
     )
     assert gc.run_check(repo) == 1  # marker 无真实登记(围栏内 C099 不算数)
@@ -401,7 +403,7 @@ def test_header_drift_fail_closed(file_tree, capsys):
     repo = file_tree(
         {
             "src/chrys/app/up.py": MARKER_SINGLE,
-            "aixcoding/docs/demo/design.md": drifted,
+            "aixcoding/docs/batches/demo/design.md": drifted,
         }
     )
     assert gc.run_check(repo) == 1  # 注入:表头损坏 → 行不可识别 → marker 视为未登记
@@ -421,7 +423,7 @@ def _two_point_tree(file_tree) -> Path:
         {
             "src/chrys/app/up.py": MARKER_SINGLE,
             "src/chrys/app/tw.py": MARKER_TWIN,
-            "aixcoding/docs/demo/design.md": signed_design(rows),
+            "aixcoding/docs/batches/demo/design.md": signed_design(rows),
         }
     )
 
@@ -453,7 +455,9 @@ def test_drift_insert_earlier_file_keeps_ids(file_tree, capsys):
     (repo / "src" / "chrys" / "app" / "aa.py").write_text(
         "A = 1  # AIxCoding demo: earlier file\n", encoding="utf-8"
     )  # 字典序更前的新文件
-    (repo / "aixcoding" / "docs" / "demo" / "design.md").write_text(signed_design(rows_extra), encoding="utf-8")
+    (repo / "aixcoding" / "docs" / "batches" / "demo" / "design.md").write_text(
+        signed_design(rows_extra), encoding="utf-8"
+    )
     assert gc.run_report(repo) == 0
     after = capsys.readouterr().out
     # 防漂移 B:扫描排序位次变化不影响存量 id(id 住登记行)
@@ -470,7 +474,7 @@ def test_report_renders_full_view(file_tree, capsys):
     repo = file_tree(
         {
             "src/chrys/app/up.py": MARKER_SINGLE,
-            "aixcoding/docs/demo/design.md": signed_design(ROW_SINGLE),
+            "aixcoding/docs/batches/demo/design.md": signed_design(ROW_SINGLE),
         }
     )
     assert gc.run_report(repo) == 0
@@ -478,7 +482,7 @@ def test_report_renders_full_view(file_tree, capsys):
     assert "| id | 落点 | marker 行 |" in out
     assert "| C001 | src/chrys/app/up.py | 1 |" in out
     assert "〔常驻〕demo" in out  # removal_condition semantics from the row
-    assert "aixcoding/docs/demo/design.md" in out
+    assert "aixcoding/docs/batches/demo/design.md" in out
     assert "标记豁免" in out  # exemption table from _common.MARKER_EXEMPTIONS
     assert "chrys.mo" in out
     assert "勿编辑" in out  # derived-view banner
@@ -488,7 +492,7 @@ def test_report_twin_group_row(file_tree, capsys):
     repo = file_tree(
         {
             "src/chrys/app/tw.py": MARKER_TWIN + "T2 = 1\n" + MARKER_TWIN,
-            "aixcoding/docs/demo/design.md": signed_design(ROW_TWIN),
+            "aixcoding/docs/batches/demo/design.md": signed_design(ROW_TWIN),
         }
     )
     assert gc.run_report(repo) == 0
@@ -501,7 +505,7 @@ def test_report_orphan_section(file_tree, capsys):
     repo = file_tree(
         {
             "src/chrys/app/up.py": "X = 1\n",
-            "aixcoding/docs/demo/design.md": signed_design(ROW_SINGLE),
+            "aixcoding/docs/batches/demo/design.md": signed_design(ROW_SINGLE),
         }
     )
     assert gc.run_report(repo) == 0
@@ -513,7 +517,7 @@ def test_report_flags_reconciliation_errors(file_tree, capsys):
     repo = file_tree(
         {
             "src/chrys/app/up.py": MARKER_SINGLE + "X = 2  # AIxCoding demo: unregistered\n",
-            "aixcoding/docs/demo/design.md": signed_design(ROW_SINGLE),  # 第二个 marker 无登记
+            "aixcoding/docs/batches/demo/design.md": signed_design(ROW_SINGLE),  # 第二个 marker 无登记
         }
     )
     assert gc.run_report(repo) == 0

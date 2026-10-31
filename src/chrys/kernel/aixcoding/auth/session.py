@@ -1,6 +1,6 @@
 # ruff: noqa: RUF001
 # (Chinese log messages keep full-width punctuation by design,
-#  aixcoding/docs/auth-logging/design.md signed off 2026-10-29)
+#  aixcoding/docs/batches/auth-logging/design.md signed off 2026-10-29)
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 
 """Login session: the boundary between the login feature and everything after.
@@ -53,7 +53,7 @@ from .types import (
 
 # AIxCoding auth logging: state-transition records on the "aixcoding.auth" logger
 # (the aixcoding.* subtree sinks/panel switch live in kernel/aixcoding/diagnostics),
-# design aixcoding/docs/auth-logging/design.md (signed off 2026-10-29; decoupled
+# design aixcoding/docs/batches/auth-logging/design.md (signed off 2026-10-29; decoupled
 # 2026-10-30: plain getLogger, no diagnostics import -- kernel cross-subpackage
 # imports are architecturally dead-ended, see design).
 _log = logging.getLogger("aixcoding.auth")

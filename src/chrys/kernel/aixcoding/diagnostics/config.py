@@ -2,7 +2,7 @@
 # (stderr notes are the observable-degradation channel, DEVELOPMENT.md §9)
 """Reader for ``~/.chrys/aixcoding.toml`` — the customization-layer config base.
 
-Design: aixcoding/docs/diagnostics/design.md (signed off 2026-10-25).
+Design: aixcoding/docs/batches/diagnostics/design.md (signed off 2026-10-25).
 
 Read-only via :mod:`tomllib`; a missing file, missing keys or invalid syntax
 all fall back to built-in defaults — the diagnostics layer must never break

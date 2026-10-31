@@ -11,7 +11,7 @@ inline Chinese.
 ``LoginDialog`` resolves lazily (PEP 562): importing ``login_actions`` for
 the startup silent check must not load the dialog's Textual widget tree.
 
-Design: aixcoding/docs/tui/design.md
+Design: aixcoding/docs/batches/tui/design.md
 """
 
 from __future__ import annotations

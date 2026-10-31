@@ -2,7 +2,7 @@
 # (stderr notes are the observable-degradation channel, DEVELOPMENT.md §9)
 """``aixcoding.*`` logger factory: rotating file sink always on, panel bubble opt-in.
 
-Design: aixcoding/docs/diagnostics/design.md (signed off 2026-10-25).
+Design: aixcoding/docs/batches/diagnostics/design.md (signed off 2026-10-25).
 
 Layout: handlers attach to the top-level ``aixcoding`` logger only — child
 loggers (``aixcoding.telemetry``…) propagate to it by standard logging rules.

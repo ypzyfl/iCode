@@ -1,7 +1,7 @@
 # (tests — asserts are pytest idiom, Chinese prose is the data)
 """Entry wiring: app.py main() -> aixcoding_startup() -> ensure_file_sink.
 
-Design: aixcoding/docs/auth-logging/design.md §验证方式 2 (signed off
+Design: aixcoding/docs/batches/auth-logging/design.md §验证方式 2 (signed off
 2026-10-30). The main() anchor test is an architecture-level regression
 guard: an upstream refactor that drops the wiring call turns it red.
 """

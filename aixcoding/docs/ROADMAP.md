@@ -2,7 +2,7 @@
 
 > 定位：三阶段路线的唯一权威描述——阶段边界、各阶段完成标准（DoD）、双轨期管理。
 > 文档分工：`standards/DEVELOPMENT.md` 管"怎么做"（规范）；本文管"按什么顺序做"（路线）；
-> `restructure/plan.md` 是阶段三的迁入考古参考（旧分支资产映射与验收骨架）。
+> `batches/restructure/plan.md` 是阶段三的迁入考古参考（旧分支资产映射与验收骨架）。
 > 制定：2026-10-25。
 
 ## 1. 背景与动机
@@ -20,12 +20,12 @@
 
 - **开发过程类**——服务于开发活动：规范落地校验（四工具）、定制测试 CI 门禁、上游升级 runbook。→ 阶段二主体；
 - **产品运行时类**——服务于运行中的产品。其中**本地诊断包**（定制日志落盘、崩溃现场、环境快照；
-  设计基线见 `diagnostics/design.md`）为上游空白且零/极小上游改动，**划入阶段二**；遥测上报为旧分支
+  设计基线见 `batches/diagnostics/design.md`）为上游空白且零/极小上游改动，**划入阶段二**；遥测上报为旧分支
   既有功能，随阶段三迁入；企业后端对接等按真实痛点排阶段三之后——**是位置安排，不是从清单里删除**。
 
 ### 阶段一：定制规范 —— 已就位（2026-10-25）
 
-- 产出：`standards/`（R1–R11 + 8 篇 ADR + 文档模板 + 评审 HOWTO）、`tools/check_docs.py`、`restructure/plan.md`。
+- 产出：`standards/`（R1–R11 + 8 篇 ADR + 文档模板 + 评审 HOWTO）、`tools/check_docs.py`、`batches/restructure/plan.md`。
 - DoD：规范族签认齐全、check_docs.py 通过。
 
 ### 阶段二：基础工程 —— **已完成（2026-10-25，DoD 达成）**
@@ -37,12 +37,12 @@ OTel 遥测框架（opt-in）与 trajectory 会话回放——这些定制化直
 
 内容清单（2026-10-25 与负责人确认，**不扩大**）——完成状态：
 
-1. ✅ **本地诊断包**（`diagnostics/`，design 签认+R2 扩表重签 2026-10-25）：五模块（config /
+1. ✅ **本地诊断包**（`batches/diagnostics/`，design 签认+R2 扩表重签 2026-10-25）：五模块（config /
    logging_support / crash / snapshot / launcher）+ screen.py MODULE_ORDER 一行 +
    test_layering.py DAG 登记（tier=1 + 边豁免含 stale 检测）；29 定制测试含行为锚定；
-   清单 C002–C005；试运行期遗留人工项（F6 实测、launcher 冒烟）见 diagnostics/verification；
-2. ✅ **规范落地四工具**（`devtools/`）：清单生成（含考古模式，报告
-   `devtools/archaeology-report-0.28.0.md` 即 §4 盘点输入）/ R2 比对 / R3 校验 / import 边界；
+   清单 C002–C005；试运行期遗留人工项（F6 实测、launcher 冒烟）见 batches/diagnostics/verification；
+2. ✅ **规范落地四工具**（`batches/devtools/`）：清单生成（含考古模式，报告
+   `batches/devtools/archaeology-report-0.28.0.md` 即 §4 盘点输入）/ R2 比对 / R3 校验 / import 边界；
    双 AI 评审两轮收敛；
 3. ✅ **定制 CI 门禁** `aixcoding-tests.yml`（ADR-0004 四步 + 四工具挂入；base=merge-base
    origin/main_iCode；多次运行全绿；实施副产修复 git core.quotepath 中文路径 bug）；
@@ -60,7 +60,7 @@ OTel 遥测框架（opt-in）与 trajectory 会话回放——这些定制化直
 
 ### 阶段三：旧功能迁入 —— 当前阶段（阶段二 DoD 达成 2026-10-25 起算）
 
-- 输入：§4 盘点清单（工具①落地的首次实战即产出考古扫描）+ `restructure/plan.md` 考古映射
+- 输入：§4 盘点清单（工具①落地的首次实战即产出考古扫描）+ `batches/restructure/plan.md` 考古映射
   （其 §3 顺序 / §4 验收骨架仍有效）。
 - 原则：
   - 逐特性迁入，每个特性独立走 design + R2 审批 + 验收，迁入是规范的第一次大规模实战；
@@ -121,7 +121,7 @@ OTel 遥测框架（opt-in）与 trajectory 会话回放——这些定制化直
 
 - 2026-10-25：制定；三阶段顺序经负责人与 AI 评审确认。
 - 2026-10-25（二）：阶段二内容重构——确立"新建基础工程与旧功能迁移分离"框架；本地诊断包
-  划入阶段二（设计基线 `diagnostics/design.md`）；CI 门禁、升级 runbook 入清单；盘点清单
+  划入阶段二（设计基线 `batches/diagnostics/design.md`）；CI 门禁、升级 runbook 入清单；盘点清单
   剥离回阶段三语境。
 - 2026-10-25（三）：**阶段二完成**——五项清单全部落地（四工具 / 诊断包 / CI 门禁 /
   升级 runbook `standards/UPGRADE-RUNBOOK.md` / 版本策略）；DoD 全项核验通过；

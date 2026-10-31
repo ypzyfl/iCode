@@ -74,5 +74,5 @@ mock design 审阅中负责人质询"为什么用 CHRYS 开头，是否为培养
 - auth 特性迁入 design 须引用本 ADR 执行更名（模块 + 测试 + 文档联调配方 + mock README
   配方同步更新），mock 基建期间行为锚定不改名；
 - 此后所有特性的新增环境变量命名受本决策约束（后来者问"为什么是 AIXCODING_"时指本文）；
-- 首个决策出处：`docs/mock/design.md` 决策记录（一）——负责人 2026-10-25 结构化问答
+- 首个决策出处：`docs/batches/mock/design.md` 决策记录（一）——负责人 2026-10-25 结构化问答
   拍板后补正为正式 ADR。

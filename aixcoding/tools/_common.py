@@ -4,7 +4,7 @@
 """Shared library for the aixcoding governance tools.
 
 Consumed by gen_customizations.py / check_r2_diff.py / check_r3_markers.py /
-check_import_boundaries.py — see aixcoding/docs/devtools/design.md.
+check_import_boundaries.py — see aixcoding/docs/batches/devtools/design.md.
 
 Three concerns live here so the four entry scripts stay thin:
 
@@ -84,22 +84,22 @@ MARKER_EXEMPTIONS: tuple[tuple[str, str, str], ...] = (
     (
         "tests/architecture/trajectory_wait_manifest.json",
         "生成产物：wait 节点清单随模块路径刷新（`uv run python -m tests.support.trajectory_wait_inventory`）",
-        "aixcoding/docs/tier-migration/design.md",
+        "aixcoding/docs/batches/tier-migration/design.md",
     ),
     (
         "locales/chrys.pot",
         "生成产物：i18n extract 条目（借壳 key 随 msg 定义处生成，R2 表 7 号）",
-        "aixcoding/docs/tui/design.md",
+        "aixcoding/docs/batches/tui/design.md",
     ),
     (
         "locales/zh-Hans/LC_MESSAGES/chrys.po",
         "登记产物：po 中文条目（msgstr=fallback 复制，ADR-0010 细则 2，R2 表 8 号）",
-        "aixcoding/docs/tui/design.md",
+        "aixcoding/docs/batches/tui/design.md",
     ),
     (
         "src/chrys/foundation/i18n/_catalogs/zh-Hans/LC_MESSAGES/chrys.mo",
         "编译产物：随 po 重编（i18n compile，R2 表 9 号）",
-        "aixcoding/docs/tui/design.md",
+        "aixcoding/docs/batches/tui/design.md",
     ),
 )
 
@@ -355,8 +355,11 @@ def parse_table_section(doc_text: str, section_title: str) -> list[dict[str, str
 
 
 def find_design_docs(docs_root: Path) -> list[Path]:
-    """All feature design.md files (templates excluded by location)."""
-    return sorted(p for p in docs_root.glob("*/design.md") if p.is_file())
+    """All batch design.md files (aixcoding/docs/batches/<feature>/, docs-reorg batch).
+
+    Single-level glob under batches/ by design: exact scan surface, no recursion.
+    """
+    return sorted(p for p in docs_root.glob("batches/*/design.md") if p.is_file())
 
 
 def r2_approved_upstream_files(docs_root: Path) -> tuple[set[str], list[str]]:

@@ -11,7 +11,7 @@ description/man constants are the single D2 exception: ``MessageRef``'s
 strong typing forces the ``msg(key, fallback=中文)`` shell, registered in the
 command table via ``.bind()`` (pot/po/oracle obligations apply, see design).
 
-Design: aixcoding/docs/tui/design.md
+Design: aixcoding/docs/batches/tui/design.md
 """
 
 from __future__ import annotations
