@@ -19,6 +19,7 @@ from chrys.app.tui.screens.main.dialog_controllers import (
     ApprovalDialogHandle,
     ApprovalQueueController,
     ApprovalResponseWorker,
+    HookConfirmationQueueController,
     ImageCompressionDialogController,
     QuestionDialogHandle,
     QuestionQueueController,
@@ -76,6 +77,8 @@ from chrys.foundation.events.types import (
     CompactionStarted,
     ContextCompressed,
     Error,
+    HookConfirmationRequest,
+    HookConfirmationWithdrawn,
     HookExecutionsChanged,
     HookRunsChanged,
     ImageAttachmentCompressionFinished,
@@ -86,6 +89,7 @@ from chrys.foundation.events.types import (
     InvocationCompactionCommitted,
     InvocationCompactionFinished,
     InvocationCompactionStarted,
+    InvocationContentAbandoned,
     InvocationContentDelta,
     InvocationContentFinished,
     InvocationContextPressure,
@@ -114,6 +118,7 @@ from chrys.foundation.i18n import DisplayBlock, MessageRef, msg
 from chrys.foundation.i18n.formatting import format_message
 from chrys.foundation.models.approval_reuse import ReuseChoice
 from chrys.foundation.models.ask_user import AskUserAnswer
+from chrys.foundation.models.hook_confirmations import HookConfirmationAnswer
 from chrys.foundation.tool_result_metadata import canonical_tool_result_status
 from chrys.orchestration.engine.run.attachments import replace_image_mentions_with_paths
 from chrys.service.approval.policy import ApprovalMode
@@ -213,6 +218,7 @@ class BackendEventCallbacks:
         [str, bool, str, dict[str, object] | None, ReuseChoice], ApprovalResponseWorker | None
     ]
     handle_ask_user_response: Callable[[str, tuple[AskUserAnswer, ...]], object]
+    publish_hook_confirmation_answer: Callable[[str | None, str, HookConfirmationAnswer], object]
     question_inline_preferred: Callable[[], bool]
     approval_defer_while_judging: Callable[[], bool]
     approval_timeout_seconds: Callable[[], float]
@@ -300,6 +306,7 @@ class BackendEventHandler:
                 handle_approval_response=callbacks.handle_approval_response,
                 publish_auto_fulfill_blocked=self._publish_auto_fulfill_blocked,
                 handle_ask_user_response=callbacks.handle_ask_user_response,
+                publish_hook_confirmation_answer=callbacks.publish_hook_confirmation_answer,
                 question_inline_preferred=callbacks.question_inline_preferred,
                 approval_defer_while_judging=callbacks.approval_defer_while_judging,
                 set_agent_loading=self.set_agent_loading,
@@ -311,6 +318,7 @@ class BackendEventHandler:
             timeout_seconds=callbacks.approval_timeout_seconds,
         )
         self._question_controller = QuestionQueueController(self._dialog_gateway)
+        self._hook_confirmations = HookConfirmationQueueController(self._dialog_gateway)
         self._agent_load_controller = AgentLoadDialogController(self._dialog_gateway)
         self._image_compression_controller = ImageCompressionDialogController(self._dialog_gateway)
         self._presenter = MainScreenPresenter(view, state)
@@ -327,7 +335,11 @@ class BackendEventHandler:
         # past its chat run, a pause no longer waits.
         if self._paused_sub_agents and self.agent_running:
             return RETRY_MARK
-        if self._approval_controller.awaiting_user or self._question_controller.awaiting_user:
+        if (
+            self._approval_controller.awaiting_user
+            or self._question_controller.awaiting_user
+            or self._hook_confirmations.awaiting_user
+        ):
             return QUESTION_MARK
         return ""
 
@@ -374,7 +386,12 @@ class BackendEventHandler:
         return self._image_compression_controller
 
     def _predates_active_run(
-        self, event: InvocationMessage | InvocationContentDelta | InvocationContentFinished | Error
+        self,
+        event: InvocationMessage
+        | InvocationContentDelta
+        | InvocationContentFinished
+        | InvocationContentAbandoned
+        | Error,
     ) -> bool:
         """Return whether *event* was sourced before the current UI run."""
         started_at = self._state.run.started_at
@@ -510,13 +527,19 @@ class BackendEventHandler:
         return self._state.submit.text
 
     def defers_turn_event(
-        self, event: InvocationMessage | InvocationContentDelta | InvocationContentFinished | Error
+        self,
+        event: InvocationMessage
+        | InvocationContentDelta
+        | InvocationContentFinished
+        | InvocationContentAbandoned
+        | Error,
     ) -> bool:
         """Whether *event* waits for the user bubble: it mounts, or earlier events are still replaying."""
         return self._state.render_gate.defers(event)
 
     def defer_agent_message(
-        self, event: InvocationMessage | InvocationContentDelta | InvocationContentFinished
+        self,
+        event: InvocationMessage | InvocationContentDelta | InvocationContentFinished | InvocationContentAbandoned,
     ) -> None:
         self._state.render_gate.defer(event)
 
@@ -1027,7 +1050,9 @@ class BackendEventHandler:
         s.debug("AgentThinking")
 
     def _admits_turn_render(
-        self, event: InvocationMessage | InvocationContentDelta | InvocationContentFinished, name: str
+        self,
+        event: InvocationMessage | InvocationContentDelta | InvocationContentFinished | InvocationContentAbandoned,
+        name: str,
     ) -> bool:
         """Whether a main-turn output event renders now; one that arrives while the user bubble mounts is deferred."""
         if self._predates_active_run(event):
@@ -1038,8 +1063,14 @@ class BackendEventHandler:
             return False
         return self.agent_running
 
-    async def on_agent_content(self, event: InvocationContentDelta | InvocationContentFinished) -> None:
-        """Stream the turn's answer text; reasoning is not shown but keeps the thinking status."""
+    async def on_agent_content(
+        self, event: InvocationContentDelta | InvocationContentFinished | InvocationContentAbandoned
+    ) -> None:
+        """Stream the turn's answer and thinking text; thinking whose response a retry gave up goes from view."""
+        if isinstance(event, InvocationContentAbandoned):
+            if event.origin.kind == "turn" and self._admits_turn_render(event, "InvocationContentAbandoned"):
+                await self._ui().abandon_thinking(event.segment_ids)
+            return
         if event.origin.kind == "sub_agent":
             await self.on_sub_agent_content(event)
             return
@@ -1049,11 +1080,14 @@ class BackendEventHandler:
         if isinstance(event, InvocationContentFinished):
             if event.channel == "answer":
                 ui.finish_answer_segment(event.segment_id, completed=event.status == "completed")
+            else:
+                ui.finish_thinking_segment(event.segment_id)
         elif event.channel == "answer":
             ui.show_status(STATUS_STREAMING.bind())
             await ui.add_answer_delta(event.segment_id, event.text)
         else:
             ui.show_status(STATUS_THINKING.bind())
+            await ui.add_thinking_delta(event.segment_id, event.channel, event.text)
 
     async def on_agent_message(self, event: InvocationMessage) -> None:
         """Complete the turn: its answer already streamed, so this only finalizes it."""
@@ -1074,6 +1108,8 @@ class BackendEventHandler:
                 event.text,
                 structured_output_completed=event.structured_output_completed,
                 created_at=event.timestamp,
+                # Sent, Continue or Retry: the backend keeps this instant on the turn, for replay to time it alike.
+                turn_started_at=self._state.run.started_at,
             )
         finally:
             if self._state.run.generation == terminal_generation and s.agent_running:
@@ -1616,6 +1652,14 @@ class BackendEventHandler:
             mode_label = self._render_display(APPROVAL_MODE_MESSAGES[mode].bind())
             s.notify(_APPROVAL_MODE_CHANGED.bind(mode=mode_label), title=_APPROVAL_TITLE.bind(), timeout=2)
         s.debug("ApprovalMode", label)
+
+    async def on_hook_confirmation_request(self, event: HookConfirmationRequest) -> None:
+        """Claim a hook's question and show it (or queue it behind the one open); never wait for the answer."""
+        self._hook_confirmations.on_request(event)
+
+    async def on_hook_confirmation_withdrawn(self, event: HookConfirmationWithdrawn) -> None:
+        """A shown or queued hook question ended without the user: drop it, answering nothing."""
+        self._hook_confirmations.on_withdrawn(event)
 
     async def on_question_to_user(self, event: QuestionToUser) -> None:
         await self._questions().on_question(event)

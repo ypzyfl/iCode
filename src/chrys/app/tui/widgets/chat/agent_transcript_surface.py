@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+import time
 from collections import deque
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field, replace
@@ -17,7 +18,9 @@ from textual.scrollbar import ScrollTo
 from textual.widget import Widget
 
 from chrys.app.tui.i18n import render_str, widget_localizer
+from chrys.app.tui.util.bottom_follow import BottomFollow
 from chrys.app.tui.util.removal import remove_shielded
+from chrys.app.tui.widgets.chat.fold_gap import show_fold_gaps
 from chrys.app.tui.widgets.chat.messages import (
     AgentMessage,
     ErrorMessage,
@@ -36,6 +39,8 @@ from chrys.foundation.i18n import MessageRef
 from chrys.foundation.patches.textual_precompose import precompose_tree
 
 if TYPE_CHECKING:
+    from textual.layout import Layout
+
     from chrys.foundation.events.types import InvocationContentFinished
     from chrys.service.session.sub_agent_transcript import PersistedSubAgentTranscript
 
@@ -77,6 +82,9 @@ class TranscriptToolStartOp:
     provider_item_type: str = ""
     provider_status: str = ""
     provider_call_id: str = ""
+    started_at: float = field(default_factory=time.monotonic)
+    """When the call started, as ``time.monotonic()`` read as the start was recorded: a view built later counts a
+    running sleep's time left from it."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +103,9 @@ class TranscriptToolStatusOp:
     status: str
     provider_status: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
+    stopped_at: float = field(default_factory=time.monotonic)
+    """When it was recorded, as ``time.monotonic()``: a status that ends a running call ends it then, and a view built
+    later counts how long the call ran up to it."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,6 +158,9 @@ class TranscriptInterruptedOp:
     """Close an invocation's transcript and settle its unfinished activity."""
 
     reason: MessageRef
+    stopped_at: float = field(default_factory=time.monotonic)
+    """When it stopped the calls still running, as ``time.monotonic()`` read as it was recorded: a view built later
+    counts how long they ran up to it."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -154,6 +168,9 @@ class TranscriptErrorOp:
     """Settle failed activity and show the shared chat error card."""
 
     reason: str | MessageRef
+    stopped_at: float = field(default_factory=time.monotonic)
+    """When it stopped the calls still running, as ``time.monotonic()`` read as it was recorded: a view built later
+    counts how long they ran up to it."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,6 +181,10 @@ class TranscriptPausedOp:
 @dataclass(frozen=True, slots=True)
 class TranscriptResumedOp:
     """Clear a failed attempt's status before accepting the next attempt."""
+
+    stopped_at: float = field(default_factory=time.monotonic)
+    """When it stopped the calls still running, as ``time.monotonic()`` read as it was recorded: a view built later
+    counts how long they ran up to it."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -484,7 +505,11 @@ class _TranscriptLocalization:
 
 
 class AgentTranscriptSurface(VerticalScroll, can_focus=True):
-    """A nested transcript using the main live renderer and tool registry."""
+    """A nested transcript using the main live renderer and tool registry.
+
+    It opens at its newest content and, as the chat does, keeps up with what
+    lands below while the user leaves it at the bottom.
+    """
 
     DEFAULT_CSS = """
     AgentTranscriptSurface {
@@ -514,6 +539,7 @@ class AgentTranscriptSurface(VerticalScroll, can_focus=True):
 
         super().__init__(**kwargs)
         self._scroll_gc_guard = ManualScrollGcGuard(self)
+        self._bottom_follow = BottomFollow(self)
         self._journal = journal
         self._profile_name = profile_name
         self._opening_prompt = opening_prompt
@@ -632,11 +658,37 @@ class AgentTranscriptSurface(VerticalScroll, can_focus=True):
     def _on_scrollbar_grabbed_changed(self, grabbed: object) -> None:
         self._scroll_gc_guard.set_scrollbar_grabbed(grabbed is not None)
 
+    def scroll_to(self, x: float | None = None, y: float | None = None, **kwargs: Any) -> None:
+        """Let the bottom follow wait for a scroll Textual runs after the next refresh.
+
+        A key's or the scrollbar's scroll heads for a row worked out from where
+        the view is now: were the follow to take the view to new content first,
+        Down at the bottom would scroll back up.
+        """
+        deferred = y is not None and not kwargs.get("immediate", False)
+        if deferred:
+            self._bottom_follow.defer()
+        super().scroll_to(x, y, **kwargs)
+        # Posted after Textual's own deferred scroll, so it runs once that has.
+        if deferred and not self.call_after_refresh(self._bottom_follow.deferred_ran):
+            self._bottom_follow.deferred_ran()
+
+    def _scroll_to(self, x: float | None = None, y: float | None = None, **kwargs: Any) -> bool:
+        with self._bottom_follow.scroll(y):
+            return super()._scroll_to(x, y, **kwargs)
+
     def watch_scroll_y(self, old_value: float, new_value: float) -> None:
-        """Keep cyclic GC out of manual and animated scroll frames."""
+        """Keep cyclic GC out of manual and animated scroll frames, but for the moves that follow the bottom."""
         super().watch_scroll_y(old_value, new_value)
-        if round(old_value) != round(new_value):
+        self._bottom_follow.scrolled(old_value, new_value)
+        if round(old_value) != round(new_value) and not self._bottom_follow.pinning:
             self._scroll_gc_guard.pause()
+
+    def watch_virtual_size(self) -> None:
+        self._bottom_follow.resized()
+
+    def on_resize(self) -> None:
+        self._bottom_follow.resized()
 
     def _on_mouse_scroll_up(self, event: textual_events.MouseScrollUp) -> None:
         """Pause GC before Textual starts the wheel scroll."""
@@ -712,6 +764,7 @@ class AgentTranscriptSurface(VerticalScroll, can_focus=True):
                 provider_item_type=operation.provider_item_type,
                 provider_status=operation.provider_status,
                 provider_call_id=operation.provider_call_id,
+                started_at=operation.started_at,
                 # A running call's start can come again (ACP: when what it shows changes), after later output
                 # ended its group: it updates the card where it is and never opens another.
                 running_in_place=True,
@@ -724,6 +777,7 @@ class AgentTranscriptSurface(VerticalScroll, can_focus=True):
                 operation.status,
                 provider_status=operation.provider_status,
                 metadata=dict(operation.metadata),
+                stopped_at=operation.stopped_at,
             )
         elif isinstance(operation, TranscriptToolProgressOp):
             self._tools.update_tool_progress(
@@ -757,16 +811,23 @@ class AgentTranscriptSurface(VerticalScroll, can_focus=True):
                 failure_reason=operation.failure_reason,
             )
         elif isinstance(operation, TranscriptInterruptedOp):
-            await self._live.add_interrupted(self._render_message(operation.reason), source="system", show_action=False)
+            await self._live.add_interrupted(
+                self._render_message(operation.reason),
+                source="system",
+                show_action=False,
+                stopped_at=operation.stopped_at,
+            )
         elif isinstance(operation, TranscriptErrorOp):
-            await self._live.add_error(self._render_message(operation.reason), action_label=None)
+            await self._live.add_error(
+                self._render_message(operation.reason), action_label=None, stopped_at=operation.stopped_at
+            )
         elif isinstance(operation, TranscriptPausedOp):
             # As the main chat's error card does; Retry then removes the text, Abort keeps it.
             self._live.stop_answer()
         elif isinstance(operation, TranscriptResumedOp):
             # Released as intermediate text: the answer the resumed attempt asks for again is withdrawn next.
             self._live.settle_answer_before_tools()
-            await self._live.prepare_retry()
+            await self._live.prepare_retry(stopped_at=operation.stopped_at)
             await self.remove_trailing_status()
         elif isinstance(operation, TranscriptAnswerWithdrawnOp):
             await remove_withdrawn_answer(self, operation.segment_ids)
@@ -791,6 +852,7 @@ class AgentTranscriptSurface(VerticalScroll, can_focus=True):
         return message if isinstance(message, str) else render_str(widget_localizer(self), message)
 
     def _settle_answer_before_tools(self) -> None:
+        # Nested transcripts fold nothing as tools start.
         self._live.settle_answer_before_tools()
 
     async def mount_transcript_widget(self, widget: Widget) -> bool:
@@ -800,7 +862,11 @@ class AgentTranscriptSurface(VerticalScroll, can_focus=True):
         await self.mount(widget)
         return widget.is_attached and not widget._closing and not widget._pruning and self._accepts_transcript_updates()
 
-    async def mount_transcript_widgets(self, widgets: list[Widget]) -> None:
+    async def mount_transcript_widgets(
+        self, widgets: list[Widget], *, process_failures_after: tuple[Widget, ...] = ()
+    ) -> None:
+        # Nested transcripts do not fold completed turns.
+        _ = process_failures_after
         if not self._accepts_transcript_updates():
             return
         precompose_tree(widgets)
@@ -840,6 +906,9 @@ class AgentTranscriptSurface(VerticalScroll, can_focus=True):
 
     def after_replay_history_mounted(self) -> None:
         self.schedule_anchor_sync()
+
+    def pre_layout(self, layout: Layout) -> None:
+        show_fold_gaps(self.displayed_children)
 
     async def remove_trailing_status(self) -> None:
         status = self.failed_turn_status()

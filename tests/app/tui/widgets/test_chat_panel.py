@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from rich.text import Text
@@ -145,13 +145,18 @@ async def test_chat_panel_replay_uses_created_at_metadata() -> None:
             "role": "assistant",
             "contents": [{"type": "text", "text": "hi"}],
             "additional_properties": {
-                MESSAGE_CREATED_AT_KEY: created_at.isoformat(),
+                MESSAGE_CREATED_AT_KEY: (created_at + timedelta(milliseconds=2345)).isoformat(),
                 TRAJECTORY_TIMING_KEY: {
                     "started_at": created_at.isoformat(),
-                    "finished_at": created_at.isoformat(),
+                    "finished_at": (created_at + timedelta(milliseconds=2345)).isoformat(),
                     "duration_ms": 2345,
                 },
             },
+        },
+        {
+            "role": "assistant",
+            "contents": [{"type": "text", "text": ""}],
+            "additional_properties": {HistoryMarkerKind.KEY: HistoryMarkerKind.TURN},
         },
     ]
 
@@ -167,7 +172,7 @@ async def test_chat_panel_replay_uses_created_at_metadata() -> None:
         assert "(0ms)" not in str(user.query_one(_UserHeader).content)
         assert agent._ts == expected
         assert agent._duration_ms == 2345
-        assert agent._header_text().plain == f"\u25c7 Code Agent {expected} (2s)"
+        assert agent._header_text().plain == f"▾ Code Agent {expected} (2s)"
 
 
 async def test_chat_panel_replay_adds_action_only_for_trailing_interruption() -> None:
@@ -373,7 +378,7 @@ async def test_chat_panel_timestamps_only_final_agent_response() -> None:
         assert [message._ts for message in agent_messages] == ["", expected]
 
 
-async def test_chat_panel_toggle_fold_all_only_toggles_tool_groups() -> None:
+async def test_chat_panel_toggle_fold_all_leaves_agent_messages() -> None:
     async with ChatPanelApp().run_test() as pilot:
         panel = pilot.app.query_one(ChatPanel)
         tool_group = ToolGroup()
