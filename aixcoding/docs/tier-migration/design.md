@@ -7,7 +7,7 @@
 
 - 责任人：周彬
 - 状态：已确认
-- 确认日期：2026-10-28
+- 确认日期：2026-10-31
 - 确认意见：无特别意见
 
 ## 方案概述
@@ -83,13 +83,8 @@ R1 自查（迁移批次）：
 
 ## 定制点登记预告
 
-> 节标题须保持标准形态（`gen_customizations.py` 全等匹配）；下表字段汇入 `CUSTOMIZATIONS.md`。
-> 包粒度两行承接回迁后新路径的登记锚（原 auth/diagnostics design 登记表路径行已同步跟改）。
-
-| 落点 | anchor（依赖的上游符号） | 风险等级 |
-|---|---|---|
-| `src/chrys/kernel/aixcoding/auth/` | `chrys.foundation.platform`（storage lazy import）+ httpx + **kernel 门面导入链**（peer review C1：`chrys.kernel/__init__` 包级导入，冷导入 206ms/354 模块，一次性） | 低（tier 1 自治包；~~升级零耦合~~ 勘误 C1：回迁后新增 kernel 门面健康度耦合边，触发窗口窄——仅门面导入期异常时崩溃钩子未装） |
-| `src/chrys/kernel/aixcoding/diagnostics/` | （2026-10-30 事实同步：launcher 挂接边已随 ADR-0013 退役，anchor 收敛至 `MODULE_ORDER`，登记以 diagnostics design 为准） | 低（面板）/零（落盘） |
+> 节标题须保持标准形态（`gen_customizations.py` 全等匹配）。
+> 点级登记已迁移（customization-registry 批次，2026-10-31）：auth 相关现行登记见 `aixcoding/docs/auth/design.md`（C021/C022，含本批次回迁勘误语义——kernel 门面耦合边与删除线勘误原文语义并入其批次锚注）；diagnostics 相关见 `aixcoding/docs/diagnostics/design.md`（C007）。本 design 登记表不再承载现行登记（原包粒度两行至此退役，历史文本见 git 历史）。
 
 ## 联动清单（非上游部分）
 

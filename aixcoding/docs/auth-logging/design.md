@@ -7,7 +7,7 @@
 
 - 责任人：周彬
 - 状态：已确认
-- 确认日期：2026-10-30
+- 确认日期：2026-10-31
 - 确认意见：全程参与讨论，所有问题已确认，含 10-30 格式适配与文案勘误。
 
 ## 方案概述
@@ -130,13 +130,13 @@ R1 自查：业务逻辑全部外置定制层（聚合入口与子任务在 app/
 
 ## 定制点登记预告
 
-新增一个定制点（R2 接线）：
+新增一个定制点（R2 接线）；点级登记（customization-registry 批次起）：
 
-| 落点 | anchor（依赖的上游符号） | 风险等级 |
-|---|---|---|
-| `src/chrys/app/aixcoding/startup.py` | `chrys.app.cli.app:main`（接线行落 `app.py` `main()` 起始 +2-3 行，R2 表；icode 唯一入口的全形态分发点，launcher 退役前曾锚定同一符号） | 低-中（上游入口重构时需跟，架构测试锚定） |
+| id | 落点 | marker 锚 | 预期计数 | anchor | risk | removal_condition |
+|---|---|---|---|---|---|---|
+| C004 | src/chrys/app/cli/app.py | AIxCoding customizations: startup hooks | | `chrys.app.cli.app:main`（接线行落 `app.py` `main()` 起始 +2-3 行，R2 表；icode 唯一入口的全形态分发点，launcher 退役前曾锚定同一符号） | 低-中（上游入口重构时需跟，架构测试锚定） | 〔消费者退役〕接线消费者全部退役，或上游提供官方插件/hook 机制可承载 |
 
-`session.py` 埋点部分无新增定制点（2026-10-30 修订后更简）：直写 `logging.getLogger("aixcoding.auth")`（标准库，名字约定仅耦合一个字符串），与 `diagnostics` 零依赖，不触发登记。实施后跑 `gen_customizations.py` 把 app.py 新 marker 纳入产物（**有 freshness 义务**，提交前必跑）。
+`session.py` 埋点部分无新增定制点（2026-10-30 修订后更简）：直写 `logging.getLogger("aixcoding.auth")`（标准库，名字约定仅耦合一个字符串），与 `diagnostics` 零依赖，不触发登记。customization-registry 批次起 freshness 义务已随 `CUSTOMIZATIONS.md` 退役（`gen_customizations.py` 改对账命令，CI 门禁为 check --strict）。
 
 ## 风险与最坏情况
 

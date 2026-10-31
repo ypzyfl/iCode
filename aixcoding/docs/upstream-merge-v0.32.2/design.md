@@ -88,6 +88,11 @@ runbook §2 预警的 C001（AGENTS.md）/ C002（logs/screen.py）高发区本�
 | i18n | C027/C028 + 豁免表 4 项 | oracle ids / 计数 2503 / pot/po/mo 重生成后 marker 与条目齐全 |
 | 机检兜底 | — | `pytest aixcoding/tests/diagnostics/test_panel_anchor.py -n0 -q` 绿 |
 
+> 2026-10-31 勘误（customization-registry 批次引用面核查）：上表"日志面板"行的编号引用系冻结前
+> 漂移的 stale 值——`logs/screen.py` 的 F6 tab 定制点现为 **C007**（diagnostics 批次），
+> **C002** 现为 `pyproject.toml` 的 ADR-0010 中文常量豁免行（tui 批次）；id 自该批次起冻结，
+> 升级定位以「文件+符号」主键为准。原文本按历史记录不改写。
+
 ## 升级决策交付物（runbook §5，2026-10-31 责任人指示）
 
 以下清单随升级产出，**最终决策全部交责任人裁决**，记录于本目录 `verification.md` 与 PR 描述：

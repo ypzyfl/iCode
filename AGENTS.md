@@ -9,7 +9,9 @@ All customization work in this fork — everything under `src/chrys/*/aixcoding/
 governed by `aixcoding/docs/standards/DEVELOPMENT.md` (hard rules + the human-AI workflow).
 Read it (and `DIRECTORY.md`) before adding or changing anything beyond pure upstream files —
 and before reviewing any diff or PR. AI agents must stop and ask for approval before editing any upstream
-file (R2) or adding a third-party dependency (R11).
+file (R2) or adding a third-party dependency (R11). Customization points are registered point-level
+in each batch's design.md and reconciled by `uv run python aixcoding/tools/gen_customizations.py`
+(`--strict` is the CI gate; `--report` prints the live registry view — ADR-0015).
 
 AI agent conduct (ADR-0012; full protocol in DEVELOPMENT.md §4.2 and §6):
 

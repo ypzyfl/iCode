@@ -7,7 +7,7 @@
 
 - 责任人：周彬
 - 状态：已确认
-- 确认日期：2026-10-29
+- 确认日期：2026-10-31
 - 确认意见：双 AI 评审多轮收敛后最终确认
 
 ## 方案概述
@@ -177,11 +177,33 @@ msg-fallback 形态的说明）。
 
 ## 定制点登记预告
 
-> 节标题须保持标准形态（`gen_customizations.py` 全等匹配）；下表字段汇入 `CUSTOMIZATIONS.md`。
+> 节标题须保持标准形态（`gen_customizations.py` 全等匹配）。点级登记（customization-registry 批次起，19 行覆盖 23 点，孪生组区间行）：匹配键＝(落点, marker 锚)，id 为沟通标识。
+>
+> **批次锚注**（本表 anchor/risk 列「（批次锚注）」均指此段）：
+> anchor＝`BaseDialog`/`DialogButtonRow/Spec`/`localized_binding`（binding_display，app.tui 基建）、`SlashCommandDef/ManPageSpec`（widgets.chrome.commands）、`AppHeader`、`MainScreen.on_mount/on_unmount`（silent check 挂点）；复用 `chrys.kernel.aixcoding.auth`——包级导出 `get_login_session`/`LoginSession`/`AccountInfo`（实例成员 `delegated_credential`/`stored_token`/`check_silent()`/`logout()`）。
+> risk＝中（上游接触 R2 表 1-16 号 16 个文件（6 源/配置 + pot/po/mo + oracle 2 + i18n 索引 1 + 测试支撑 4）但每点纯接线；Textual 时序敏感测试集中在对话框 3 用例）。
 
-| 落点 | anchor | 风险等级 |
-|---|---|---|
-| `src/chrys/app/aixcoding/tui/`（login.py / login.tcss / login_indicator.py / login_actions.py / __init__.py） | `BaseDialog`/`DialogButtonRow/Spec`/`localized_binding`（binding_display，app.tui 基建）、`SlashCommandDef/ManPageSpec`（widgets.chrome.commands）、`AppHeader`、`MainScreen.on_mount/on_unmount`（silent check 挂点，改进一）；复用 `chrys.kernel.aixcoding.auth`——包级导出 `get_login_session`/`LoginSession`/`AccountInfo`，`LoginSession` 实例成员 `delegated_credential`/`stored_token`/`check_silent()`/`logout()`（F5 分层标注） | 中（上游接触 R2 表 1-16 号 16 个文件（6 源/配置 + pot/po/mo + oracle 2 + i18n 索引 1 + 测试支撑 4）但每点纯接线；Textual 时序敏感测试集中在对话框 3 用例）；marker 词 `tui`，CUSTOMIZATIONS 汇入 R2 表 1-16 号文件行（全表） |
+| id | 落点 | marker 锚 | 预期计数 | anchor | risk | removal_condition |
+|---|---|---|---|---|---|---|
+| C002 | pyproject.toml | AIxCoding tui: user-visible text | | （批次锚注） | （批次锚注） | 〔政策变更〕ADR-0010 政策变更（定制文案回归上游 i18n 体系） |
+| C005 | src/chrys/app/tui/chrys.tcss | AIxCoding tui: account login badge | | （批次锚注） | （批次锚注） | 〔上游等价〕上游原生提供账号登录态徽标 UI，且经对比分析确认可对接内部认证体系与交互/文案需求（名似≠等价，逐点对比后提请裁决） |
+| C006 | src/chrys/app/tui/screens/diff/screen.py | AIxCoding tui: no account badge | | （批次锚注） | （批次锚注） | 〔上游等价〕随 C005 主徽标一并裁决（diff 屏无徽标特例） |
+| C008 | src/chrys/app/tui/screens/main/commands.py | AIxCoding tui: /login /logout texts | | （批次锚注） | （批次锚注） | 〔上游等价〕上游原生提供登录/登出命令（含 man 索引文案）且可对接内部认证 |
+| C009–C012 | src/chrys/app/tui/screens/main/commands.py | AIxCoding tui: /login /logout | 4 | （批次锚注） | （批次锚注） | 〔上游等价〕同 C008（注册表孪生组，随命令定制整体裁决） |
+| C013 | src/chrys/app/tui/screens/main/screen.py | AIxCoding tui: silent login check | | （批次锚注） | （批次锚注） | 〔上游等价〕上游原生提供启动期静默登录校验机制且可对接 |
+| C014–C015 | src/chrys/app/tui/screens/main/screen.py | AIxCoding tui: /login /logout | 2 | （批次锚注） | （批次锚注） | 〔上游等价〕同 C008 |
+| C016 | src/chrys/app/tui/screens/main/screen.py | AIxCoding tui: validate any stored | | （批次锚注） | （批次锚注） | 〔上游等价〕随 C013 一并裁决（凭据校验入口） |
+| C017 | src/chrys/app/tui/screens/main/screen.py | AIxCoding tui: cancel the startup | | （批次锚注） | （批次锚注） | 〔上游等价〕随 C013 一并裁决（teardown 取消登记） |
+| C018 | src/chrys/app/tui/widgets/chrome/app_header.py | AIxCoding tui: account badge toggle | | （批次锚注） | （批次锚注） | 〔上游等价〕随 C005 一并裁决 |
+| C019 | src/chrys/app/tui/widgets/chrome/app_header.py | AIxCoding tui: account badge -- | | （批次锚注） | （批次锚注） | 〔上游等价〕随 C005 一并裁决（overlay sibling 结构） |
+| C020 | src/chrys/app/tui/widgets/chrome/app_header.py | AIxCoding tui: initial badge paint | | （批次锚注） | （批次锚注） | 〔上游等价〕随 C005 一并裁决（初始绘制） |
+| C023 | tests/app/tui/behaviors/test_buddy_petting.py | AIxCoding tui: /login /logout stubs | | （批次锚注） | （批次锚注） | 〔随组〕登录 UI 定制整体淘汰获裁时一并移除（测试支撑） |
+| C024 | tests/app/tui/i18n/test_command_suggestions_i18n.py | AIxCoding tui: /man index | | （批次锚注） | （批次锚注） | 〔随组〕同 C023（/man 索引期望） |
+| C025 | tests/app/tui/i18n/test_toast_notifications.py | AIxCoding tui: /login /logout stubs | | （批次锚注） | （批次锚注） | 〔随组〕同 C023 |
+| C026 | tests/app/tui/screens/main/test_screen_lifecycle.py | AIxCoding tui: startup check | | （批次锚注） | （批次锚注） | 〔随组〕同 C023（生命周期句柄） |
+| C027 | tests/foundation/i18n/_catalog_oracle_ids.py | AIxCoding tui: /login /logout keys | | （批次锚注） | （批次锚注） | 〔机制退役〕借壳 key 机制退役（登录文案改上游 msg() 体系承载，或登录功能下线） |
+| C028 | tests/foundation/i18n/test_catalog_oracle.py | AIxCoding tui: +4 borrow-shell | | （批次锚注） | （批次锚注） | 〔机制退役〕随 C027 一并裁决（oracle 计数） |
+| C029 | tests/support/tui_helpers.py | AIxCoding tui: /login /logout stubs for | | （批次锚注） | （批次锚注） | 〔随组〕同 C023（screen double 桩） |
 
 ## 风险与最坏情况
 
@@ -199,7 +221,7 @@ msg-fallback 形态的说明）。
 
 1. 引入新的架构层次/依赖方向？——否：`chrys.app.aixcoding.tui` 按 ADR-0011 tier 落位 app 档（依赖判据：BaseDialog 等 app 基建 → 最低容纳档即 app），对 `app.tui` 基建为 tier 4 层内依赖、对 `chrys.kernel.aixcoding.auth` 为向下消费，test_layering DAG 天然合法零登记零豁免（ADR-0011 核心收益——ADR-0011 本身即诞生自本文初稿评审暴露的 ADR-0002"tui tier 4 侧特判"落地死结）。
 2. 推翻/修改既有 ADR 结论？——**是**：D2 裁定过程发现 ADR-0005"不引入 `msg()`"与上游 `MessageRef` 强类型现实冲突，且负责人裁定将口径泛化为全定制面 i18n 原则（中文单语 + 例外程序 + 最少上游改动耦合）——**触发 ADR-0010（定制面 i18n 中文单语与例外判定，取代 ADR-0005）**，本批次即其首个适用实例与借壳形态（注册表处 `msg(key, fallback=中文).bind()` + pot/po/oracle 登记义务）的首个预登记；DIRECTORY.md §8 例外表行随 ADR-0010 同步更新。ADR-0011（tier 落位）、ADR-0001（测试独立收集）照办。
-3. 影响升级冲突面基线（CUSTOMIZATIONS.md 机制）？——是，属正常登记流程：新增 `src/chrys/app/aixcoding/tui` 模块 + R2 表全表文件标记行（1-16 号），gen_customizations 自动收敛，非架构决策。
+3. 影响升级冲突面基线（定制点登记机制）？——是，属正常登记流程：新增 `src/chrys/app/aixcoding/tui` 模块 + R2 表全表文件标记行（1-16 号），登记表/check 自动收敛，非架构决策。
 4. 涉及第三方依赖/供应链？——否（R11 不触发，Textual/rich 均上游既有）。
 
 结论：无需新 ADR；DIRECTORY.md §8 例外表更新随本批次实施（`src/chrys/app/aixcoding/tui/*` 中文常量例外）。

@@ -2,6 +2,12 @@
 
 > 活文档：操作手册（DEVELOPMENT.md §8 六步的展开），随时按实战修订、不签认。
 > 适用：fork 分支 `main_aixcoding_cli` 跟随上游（iCode/chrys）新版本。
+
+## 当前基线（每次升级完成后人工更新，自 customization-registry 批次起由本节承载）
+
+- 当前所基于的上游版本：0.32.2
+- 最近一次升级完成日期：2026-10-31（upstream-merge-v0.32.2 批次）
+- 定制点全景按需视图：`uv run python aixcoding/tools/gen_customizations.py --report`（实时对账，勿编辑不落盘）
 > 升级节奏与债务控制条款见 DEVELOPMENT.md §8 正文。
 
 ## 0. 分支拓扑与铁律
@@ -17,7 +23,7 @@
 - 升级 = merge 上游内容 into `main_aixcoding_cli`（目标取 **release tag 或镜像头** `origin/main_iCode`，
   由批次 design 记录裁决；分支已发布，不 rebase）；
 - **git 写操作逐条授权**：建分支/merge/commit/push 等每条单独请示、执行后停等汇报（ADR-0012 与团队 git 纪律）；
-- 当前基线记录于 `aixcoding/docs/CUSTOMIZATIONS.md` 人工区（"当前所基于的上游版本"）。
+- 当前基线记录于本文件头部「当前基线」节（customization-registry 批次起；原 CUSTOMIZATIONS.md 人工区已随产物退役）。
 
 ## 1. 升级前（准备）
 
@@ -28,7 +34,7 @@
    uv run pytest aixcoding/tests -n0 -q -m "not integration and not gc_calibration"
    uv run python aixcoding/tools/check_docs.py
    ```
-4. 读取定制清单 `aixcoding/docs/CUSTOMIZATIONS.md`——升级期间它是地图。
+4. 取定制点全景：`uv run python aixcoding/tools/gen_customizations.py --report`——升级期间它是地图（各源 design 登记表为语义源）；
 
 ## 2. 文本层（merge 与冲突）
 
@@ -36,9 +42,9 @@
 git merge <目标ref>   # release tag（如 v0.32.2）或镜像头 origin/main_iCode，以批次 design 记录为准
 ```
 
-- 冲突点**逐个对照清单**定位定制点——以**文件路径 + 符号**为主键；`C` 编号是生成序号
-  （`gen_customizations.py` 按 `(file, line)` 排序后 `enumerate`），随定制点增删/文件排序**整体漂移**，
-  只作参考、**以当前 `CUSTOMIZATIONS.md` 为准**；不允许"整体接受一方"式解决；
+- 冲突点**逐个对照登记表**定位定制点——以**文件路径 + 符号**为主键；`C` id 已随 customization-registry
+  批次冻结（显式持有于登记行，增删/排序不再漂移），仍以文件+符号为升级定位主键、id 为沟通标识
+  （**冻结前的历史引用可能已 stale**——现行文档引用以 report 输出为准）；不允许"整体接受一方"式解决；
 - 已知冲突高发区（文件 + 符号主键）：
   | 定制点（文件 + 符号） | 冲突形态 |
   |---|---|
@@ -51,12 +57,12 @@ git merge <目标ref>   # release tag（如 v0.32.2）或镜像头 origin/main_i
 
 ## 3. 结构层（anchor 核对）
 
-清单 `anchor` 列逐项核对上游是否仍存在、签名/语义是否变化：
+各源 design「定制点登记预告」表（点级，customization-registry 批次起）的 anchor/批次锚注逐项核对上游是否仍存在、签名/语义是否变化；全景速查用 `gen_customizations.py --report`（实时视图，`CUSTOMIZATIONS.md` 已退役）：
 
-- 当前锚点速查（文件 + 符号主键，`C` 编号以当前清单为准）：`logs/screen.py` 的 `MODULE_ORDER`
+- 当前锚点速查（文件 + 符号主键，`C` id 为沟通标识——主键始终是文件+符号）：`logs/screen.py` 的 `MODULE_ORDER`
   （日志面板 tab，diagnostics 批次）、`get_platform().config_dir`（`~/.chrys` 目录约定）、
   tui 基建符号（`BaseDialog`/`localized_binding`/`AppHeader`/`MainScreen.on_mount` 等，tui 批次登记）、
-  `chrys.kernel/__init__` 包级导出（auth 批次）——完整清单以 `CUSTOMIZATIONS.md` anchor 列为准；
+  `chrys.kernel/__init__` 包级导出（auth 批次）——完整语义以各源 design 登记表（锚注段）为准；
 - **行为锚定测试是机检手段**：`uv run pytest aixcoding/tests/diagnostics/test_panel_anchor.py -n0 -q` 红 = 上游行为变化，定制需跟随；
 - DAG 白名单制：上游新增/重命名**自己的**子包不影响定制；`test_layering.py` 的定制豁免登记已随
   ADR-0013 移除，上游重构其本体时直接以上游为准（现存 kernel-private allowlist 为上游自有机制）。
@@ -71,7 +77,7 @@ uv run python scripts/chrys_test.py --full
 uv run pytest aixcoding/tests -n0 -q -m "not integration and not gc_calibration"
 uv run python aixcoding/tools/check_docs.py
 uv run python aixcoding/tools/check_import_boundaries.py
-uv run python aixcoding/tools/gen_customizations.py && git diff --exit-code aixcoding/docs/CUSTOMIZATIONS.md
+uv run python aixcoding/tools/gen_customizations.py --strict
 BASE=$(git merge-base origin/main_iCode HEAD)
 uv run python aixcoding/tools/check_r2_diff.py --base "$BASE"
 uv run python aixcoding/tools/check_r3_markers.py --base "$BASE"
@@ -79,17 +85,16 @@ uv run python aixcoding/tools/check_r3_markers.py --base "$BASE"
 uv run ty check --error-on-warning --python-platform linux src/chrys   # darwin/win32 同理
 ```
 
-- `gen_customizations` 幂等失败是**期望信号**：清单需重生成并随升级 PR 提交；
+- `gen_customizations --strict` 对账失败是**期望信号**：marker 增删/锚漂移/计数变化须同步各源 design 登记表（改登记行属 R10 重签范围；id 不随跟改漂移）；产物 freshness 义务已随 `CUSTOMIZATIONS.md` 退役（customization-registry 批次）；
 - R2/R3 以**新 merge-base** 跑：升级 PR 中上游文件改动必须 ⊆ 已签认 R2 表并集（merge 引入的上游自身变化不算"我们的改动"——merge 后 diff 区间重新从新分叉点起算）；
 - 关键链路人工验证（TUI 冒烟：`uv run icode`，F6 查看 aixcoding tab）。
 
 ## 5. 淘汰检查
 
-对照清单 `removal_condition`（当前多为"待补"——**回填属独立事项**，2026-10-31 责任人裁决与升级批次
-解耦、勿在升级中顺手回填；升级期间按本节"升级决策交付物"以人工对比分析执行）：命中条件的定制列为
+对照各源 design 登记表 `removal_condition` 列（customization-registry 批次起已**全量回填**，29 点无"待补"；判据类别语义见本节附录）：命中条件的定制列为
 **淘汰候选**，**禁止自行就地删除**——上游实现按上游一般需求做的，与我方按内部需求定制的实现
 很可能不完全一样（功能名相似 ≠ 等价），必须逐点产出对比分析与处理意见、交责任人裁决，
-获批后方可删除；删除后重跑 gen，清单自动收敛。
+获批后方可删除；删除后登记行移入该 design「退役记录」小节（id 永不复用），重跑 check 自动收敛。
 
 **升级决策交付物（每次升级必备，最终决策全部交责任人，留痕于批次目录 verification.md 与 PR 描述）**：
 
@@ -100,11 +105,27 @@ uv run ty check --error-on-warning --python-platform linux src/chrys   # darwin/
 
 （2026-10-31 责任人指示确立：淘汰与新增的最终决策必须交由人判断，不得 AI 自行处置。）
 
+### 附录：淘汰触发条件判据（8 类语义定义；逐点取值在各源 design 登记表）
+
+| 判据类别 | 语义 |
+|---|---|
+| 〔上游等价〕 | 上游出现名似功能 ≠ 等价——须逐点"上游实现 vs 我方定制需求"对比分析（对接内部认证/凭据管理/交互文案等内部约束），确认可对接后提请裁决 |
+| 〔随组〕 | 随所属功能组的整体淘汰获裁而一并移除（多为测试支撑点），不单独提请 |
+| 〔机制退役〕 | 所属机制退役时移除（如借壳 key 机制、豁免通道），机制退役本身需独立裁决 |
+| 〔政策变更〕 | 所依据 ADR/政策被推翻时提请（如 ADR-0010 中文单语口径回归上游 i18n 体系） |
+| 〔消费者退役〕 | 接线消费者全部退役，或上游提供官方扩展机制（插件/hook）可承载 |
+| 〔目录退役〕 | 所属目录整体退役时移除（如 aixcoding/tests 迁移落位变化） |
+| 〔常驻〕 | 随 fork 定制体系存续，仅改址/体系退役时提请 |
+| 〔随点迁移〕 | 语义随另一定制点一并裁决（孪生组成员、注释行随实现迁移等） |
+
+> 命中任一类别均**不是**删除许可：先对比分析 → 责任人裁决 → 获批后登记行入退役记录。
+
 ## 6. 收尾
 
-1. 重生成并提交 `CUSTOMIZATIONS.md`（生成区）；
-2. 人工区更新：`当前所基于的上游版本` → 新版本；`最近一次升级完成日期`；
-3. 各定制点 `upstream_base`/`risk` 重评（§8 第 6 步）；
+1. 定制点时点快照：`gen_customizations.py --report` 输出附入本批次 `verification.md`（标注日期的不可变证据，无 freshness 义务）；
+2. 本文件头部「当前基线」节更新：上游版本 → 新版本；升级完成日期；
+3. 各定制点 `anchor`/`risk` 重评（§8 第 6 步；上游基线由本文件头部「当前基线」节全局承载，
+   无逐点 `upstream_base`——customization-registry 批次起，ADR-0015）；
 4. 版本号按 `aixcoding/docs/versioning.md`：上游三段 + fork 第四段，**基线升级重置第四位**——
    四段机制**启用前**（versioning.md 实施后置；2026-10-31 裁决与日构建递增机制一并独立设计），
    基线升级**只随上游同步三段**（version 行变化为上游自身变更，不算我方改动）；

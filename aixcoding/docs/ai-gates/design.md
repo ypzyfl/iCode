@@ -7,7 +7,7 @@
 
 - 责任人：周彬
 - 状态：已确认
-- 确认日期：2026-10-29
+- 确认日期：2026-10-31
 - 确认意见：全程参与讨论，已知问题已分析确认。先实施，实践过程中有问题再研究。
 
 ## 方案概述
@@ -124,11 +124,7 @@ R1 自查：零上游逻辑改动，仅 1 个上游文件（AGENTS.md）且改�
 
 ## 定制点登记预告
 
-| 落点 | anchor | 风险 |
-|---|---|---|
-| aixcoding/docs/standards | AGENTS.md:5 既有 marker（C001）所在 AIxCoding 段：正文追加 AI 行为协议摘要（marker 行文本不变） | 低 |
-
-实施后必须重跑 `uv run python aixcoding/tools/gen_customizations.py` 并核对 `CUSTOMIZATIONS.md` 幂等（连跑两次 diff 稳定即幂等；本批因登记预告表触发 C001 行 anchor/来源列追加 ai-gates 登记——实测 1 insertion + 1 deletion——产物 diff 纳入同一提交，CI freshness 门禁铁律）。
+C001 的现行登记由 `aixcoding/docs/agents-md-note/design.md` 承载（本批次仅在 AGENTS.md AIxCoding 段正文追加 AI 行为协议摘要，marker 行文本不变，未新增定制点）；本 design 登记表不再承载现行登记（customization-registry 批次，2026-10-31；原同落点登记行退役，历史文本见 git 历史）。
 
 另：两 HOWTO 内嵌摘要——已按双 AI 评审结论（首轮 S3，责任人拍板"按建议打包执行"）在 `SELF-REVIEW-HOWTO.md` §二与 `PEER-REVIEW-HOWTO.md` §二 各补 ADR-0012 摘要一行（不升格 R 级条文，作为 ADR 摘要直接新增；本批改 §4/§6 非 R 条文，不触发 R 系列摘要同步的判定不变）。
 

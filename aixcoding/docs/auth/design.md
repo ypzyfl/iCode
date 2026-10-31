@@ -7,7 +7,7 @@
 
 - 责任人：周彬
 - 状态：已确认
-- 确认日期：2026-10-28
+- 确认日期：2026-10-31
 - 确认意见：确认变更方案——对上游源代码改动更小
 
 ## 方案概述
@@ -221,12 +221,14 @@ desktop 若走兼容通道（`AIXCODING_USER_EHR`+`OPENAI_API_KEY`）完全不�
 
 ## 定制点登记预告
 
-> 节标题须保持标准形态（`gen_customizations.py` 全等匹配）；下表字段汇入 `CUSTOMIZATIONS.md`。
+> 节标题须保持标准形态（`gen_customizations.py` 全等匹配）。点级登记（customization-registry 批次起）：匹配键＝(落点, marker 锚)，id 为沟通标识。
+>
+> **批次锚注**（anchor/risk 列「（批次锚注）」指此段）：anchor＝`chrys.foundation.platform`（storage lazy import）+ httpx + kernel 门面导入链（`chrys.kernel/__init__` 包级导入，冷导入 206ms/354 模块一次性，主程序运行时零增量；门面导入期异常时崩溃钩子未装的窄窗口——tier-migration 勘误 C1 语义并入）。risk＝低（tier 1 自治包 + 上述窄耦合边；`RequestHeaders.stamp()` 方法若上游再重构 header stamping 需重接线，对照 0.28→0.31 instrumented→wire_client 迁移史）。
 
-| 落点 | anchor | 风险等级 |
-|---|---|---|
-| `src/chrys/kernel/aixcoding/auth/`（9 文件 + `login_token_header_value` 公共函数） | `chrys.foundation.platform`（storage lazy import）+ httpx + kernel 门面导入链（ADR-0011 回迁实测补记：`chrys.kernel/__init__` 包级导入，冷导入 206ms/354 模块一次性，主程序运行时零增量） | 低（tier 1 自治包；回迁后新增 kernel 门面健康度耦合边——仅门面导入期异常时受影响，见 tier-migration/design.md 假设 3 勘误） |
-| `wire_client.py::RequestHeaders.stamp()` token 注入 | `stamp()` 方法（0.31 新结构，短期内稳定） | 中（若上游再重构 header stamping 需重接线，对照 0.28→0.31 instrumented→wire_client 迁移史） |
+| id | 落点 | marker 锚 | 预期计数 | anchor | risk | removal_condition |
+|---|---|---|---|---|---|---|
+| C021 | src/chrys/service/llm/wire_client.py | AIxCoding auth: send-time | | （批次锚注） | （批次锚注） | 〔上游等价〕上游 wire_client 原生支持从登录会话/凭据存储注入请求头，且满足内部凭据管理需求（对比确认后提请裁决） |
+| C022 | src/chrys/service/llm/wire_client.py | AIxCoding auth: helper path | | （批次锚注） | （批次锚注） | 〔上游等价〕随 C021 一并裁决（ADR-0011 路径注释行随实现迁移） |
 
 ## 实施流程约束（R2 gate 机器语义，2026-10-26 四轮评审补写）
 

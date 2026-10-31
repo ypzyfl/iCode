@@ -73,8 +73,35 @@ HASH_COMMENT_SUFFIXES = frozenset(
     {".py", ".pyi", ".tcss", ".toml", ".yaml", ".yml", ".cfg", ".ini", ".sh", ".ps1", ".txt", ".css", ".md"}
 )
 # Structured/binary formats where a marker comment is impossible (R3: those
-# custom points register an exemption in CUSTOMIZATIONS.md instead).
+# custom points register an exemption below instead).
 MARKER_EXEMPT_SUFFIXES = frozenset({".json", ".mo", ".exe", ".png", ".jpg", ".ico", ".woff", ".woff2"})
+
+# R3 marker exemptions (formats that cannot carry a comment, ADR-0007): the
+# single machine-readable source shared by gen_customizations.py (report view)
+# and check_r3_markers.py (gate). Formerly rendered into CUSTOMIZATIONS.md and
+# read back from there — retired with that file (customization-registry batch).
+MARKER_EXEMPTIONS: tuple[tuple[str, str, str], ...] = (
+    (
+        "tests/architecture/trajectory_wait_manifest.json",
+        "生成产物：wait 节点清单随模块路径刷新（`uv run python -m tests.support.trajectory_wait_inventory`）",
+        "aixcoding/docs/tier-migration/design.md",
+    ),
+    (
+        "locales/chrys.pot",
+        "生成产物：i18n extract 条目（借壳 key 随 msg 定义处生成，R2 表 7 号）",
+        "aixcoding/docs/tui/design.md",
+    ),
+    (
+        "locales/zh-Hans/LC_MESSAGES/chrys.po",
+        "登记产物：po 中文条目（msgstr=fallback 复制，ADR-0010 细则 2，R2 表 8 号）",
+        "aixcoding/docs/tui/design.md",
+    ),
+    (
+        "src/chrys/foundation/i18n/_catalogs/zh-Hans/LC_MESSAGES/chrys.mo",
+        "编译产物：随 po 重编（i18n compile，R2 表 9 号）",
+        "aixcoding/docs/tui/design.md",
+    ),
+)
 
 MODULE_PAREN_RE = re.compile(r"\(([^)]*\baixcoding[^)]*)\)")
 # Keyword must be followed by a word boundary: 'AIxCoding telemetry:' matches,
@@ -295,12 +322,20 @@ def parse_table_section(doc_text: str, section_title: str) -> list[dict[str, str
     """Parse the first markdown table under `## <section_title>`.
 
     Returns rows keyed by stripped header cell text. Missing section -> [].
+    Fenced code blocks (``` … ```) are skipped: an example table inside a
+    design.md fence must never parse as a live table (fail-closed).
     """
     lines = doc_text.splitlines()
     in_section = False
+    in_code = False
     header: list[str] | None = None
     rows: list[dict[str, str]] = []
     for line in lines:
+        if line.startswith("```"):
+            in_code = not in_code
+            continue
+        if in_code:
+            continue
         if line.startswith("## "):
             if in_section:
                 break  # next section ends the table block

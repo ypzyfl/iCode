@@ -78,7 +78,8 @@ OTel 遥测框架（opt-in）与 trajectory 会话回放——这些定制化直
   版本出服需求**（两者先到为准）即启动两个调研；telemetry design 启动以调研结论为前置
   输入。
 - DoD（2026-10-25 顺序调整后拆两档）：
-  - **部分验收**（非 telemetry 定制迁入完成）：CUSTOMIZATIONS.md 与实际代码一致（不含
+  - **部分验收**（非 telemetry 定制迁入完成）：定制点登记对账全绿（`gen_customizations.py
+    --strict`，customization-registry 批次起口径，不含
     telemetry 定制点）；定制测试全绿；上游架构测试绿；离线打包冒烟通过。
   - **完整验收**（部分验收 + telemetry）：telemetry 迁入落地，且数据管道切换验收（新旧
     对拍：同一批真实会话下新旧实现上报口径一致比对）通过。
@@ -134,8 +135,8 @@ OTel 遥测框架（opt-in）与 trajectory 会话回放——这些定制化直
   snapshot / launcher 三模块删除、`test_layering.py` 豁免机制回滚，阶段二诊断包由五模块收敛为
   config + logging_support 两模块；上游测试文件足迹归零。
   **补做义务（登记勿遗忘，责任人 2026-10-30 要求明确记录）**：
-  ① **gen_customizations 登记源单一化**——现行 anchor 从所有 design 登记表聚合，"历史快照/现行登记"
-  混淆（本批次治标：`tier-migration/design.md:92` 事实同步改写），**将来 devtools 小批次改为单一
-  现行登记源**；
+  ① ~~**gen_customizations 登记源单一化**~~ **已销项（2026-10-31，customization-registry 批次）**：
+  登记点级化 + 唯一现行登记行（每定制点唯一 design 承载，tier-migration/ai-gates 双源清空迁移）+
+  `CUSTOMIZATIONS.md` 产物退役改对账命令（ADR-0015）；
   ② crash 捕获 / 环境快照能力已按 ADR-0013 退役（价值取舍：足迹清零优先），将来需要时按 ADR-0013
   记录的**内联接线替代路径**实现或从 git 历史复原。

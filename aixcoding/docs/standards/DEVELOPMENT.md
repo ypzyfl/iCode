@@ -118,21 +118,33 @@ peer review 由另一人按 `PEER-REVIEW-HOWTO.md` 执行——**上游接触面
 
 执行中若发现需扩大改动范围（新增上游文件、超出批准行数）：停下，重新申请。
 
-## 5. 定制清单（`aixcoding/docs/CUSTOMIZATIONS.md`）
+## 5. 定制点登记（design.md 点级登记表 + 对账命令，ADR-0015）
 
-清单是升级时的地图。**由脚本扫描源码标记注释自动生成与校验，禁止手工维护代码事实**（手写台账必然漂移）。**当前状态：文件待生成**——生成脚本未建（`restructure/plan.md` §0 首批工具），落地前本节描述的是目标机制。
+登记是升级时的地图。**语义登记在各批次 design「定制点登记预告」表——点级，一行=一个定制点
+（孪生组同文件同文本 marker 合并一行：区间 id + 预期计数），可选批次锚注段共享 anchor/risk；
+代码事实来自 marker 扫描——禁止手工维护代码事实**（手写台账必然漂移）。对账工具
+`aixcoding/tools/gen_customizations.py`：默认 check（只读对账，零文件写入）、`--strict`
+（CI 姿态：孤儿登记升级为 error）、`--report`（stdout 全景视图，升级时点快照附 verification.md）。
+校验语义：marker 无登记 = error（先 design 后代码闭环）；孤儿登记本地 warning / CI strict error；
+id 全局唯一（含退役号高水位，`C###` 为沟通标识非主键，分配=历史最大号+1 永不复用）；
+匹配键=(落点, marker 锚) 前缀 + 最长锚优先。集中产物 `CUSTOMIZATIONS.md` 已随
+customization-registry 批次退役（衍生物不落盘，freshness 义务随之取消）；登记行改动属
+R10 重签范围。格式契约见 `standards/templates/design.md`。
 
-每个定制点一项：
+每个定制点一行（字段契约与 `standards/templates/design.md` 一致）：
 
 | 字段 | 说明 |
 |---|---|
-| `id` / `paths` | 标识与上游文件+符号级定位 |
-| `reason` | 为什么必须改源码（一句话） |
-| `anchor` | 依赖的上游接口/符号——升级时重点核对 |
-| `tests` | 对应回归测试入口 |
-| `upstream_base` | 开发时基于的上游版本 |
-| `removal_condition` | 何时可删除（如"上游提供等价扩展点后移除"） |
+| `id` | `C###` 沟通标识（主键=落点+marker 锚，非 id） |
+| `落点` | marker 所在上游文件 posix 路径（不含行号） |
+| `marker 锚` | marker 注释正文前缀（同文件内唯一区分） |
+| `预期计数` | 孪生组大小（同文件同文本 marker 合并行；默认 1） |
+| `anchor` | 依赖的上游接口/符号——升级时重点核对（可引用批次锚注段） |
 | `risk` | 低（独立模块）/ 中（依赖非公开行为）/ 高（改核心源码、构建配置） |
+| `removal_condition` | 淘汰裁决触发条件（判据类别见 UPGRADE-RUNBOOK §5 附录；命中 ≠ 可删） |
+
+上游基线（开发时基于的上游版本）由 `UPGRADE-RUNBOOK.md` 头部「当前基线」节全局承载，
+无逐点 `upstream_base` 字段（customization-registry 批次起，ADR-0015）。
 
 高风险定制点必须有自己的回归测试与回滚说明。
 
@@ -187,7 +199,7 @@ peer review 由另一人按 `PEER-REVIEW-HOWTO.md` 执行——**上游接触面
 
 > 操作展开版（分支拓扑与镜像纪律 / 冲突高发区对照表 / 工具命令序列 / 已知坑速查）：`aixcoding/docs/standards/UPGRADE-RUNBOOK.md`。
 
-**升级节奏（债务控制）**：每次上游发布后评估跟进；**不跟进（跳过版本）须显式记录理由与计划跟进点**——升级间隔越长，三层冲突的合并成本越高，长期不升级是需要显式决策的风险状态，不是默认态。当前所基于的上游版本（即升级 diff 区间的起点）记录于 `CUSTOMIZATIONS.md` 头部（人工维护区，清单生成脚本不触碰），随每次升级完成更新。
+**升级节奏（债务控制）**：每次上游发布后评估跟进；**不跟进（跳过版本）须显式记录理由与计划跟进点**——升级间隔越长，三层冲突的合并成本越高，长期不升级是需要显式决策的风险状态，不是默认态。当前所基于的上游版本（即升级 diff 区间的起点）记录于 `UPGRADE-RUNBOOK.md` 头部「当前基线」节（customization-registry 批次起；随每次升级完成更新）。
 
 按序执行，产出升级报告：
 
