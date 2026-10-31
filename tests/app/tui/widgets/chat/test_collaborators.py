@@ -5,7 +5,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from collections.abc import Callable
+from typing import Any, TypedDict, Unpack
 
 import pytest
 from textual.widget import Widget
@@ -42,7 +43,9 @@ class _FakeMount:
         self.widgets.append(widget)
         return True
 
-    async def mount_transcript_widgets(self, widgets: list[Widget]) -> None:
+    async def mount_transcript_widgets(
+        self, widgets: list[Widget], *, process_failures_after: tuple[Widget, ...] = ()
+    ) -> None:
         self.calls.append(f"mount_batch:{len(widgets)}")
         self.widgets.extend(widgets)
 
@@ -129,8 +132,16 @@ class _FakeQuery:
         return list(self.children)
 
 
+class _ToolGroupOptions(TypedDict, total=False):
+    """The keywords the registry builds a ``ToolGroup`` with."""
+
+    tool_widget_configurator: Callable[[Widget], None] | None
+    workspace_cwd: Callable[[], str] | None
+
+
 class _FakeToolGroup:
-    def __init__(self) -> None:
+    def __init__(self, **options: Unpack[_ToolGroupOptions]) -> None:
+        self.options = options
         self.added: list[tuple[str, str, str]] = []
         self.completed: list[str] = []
         self.progress: list[str] = []
@@ -154,6 +165,7 @@ class _FakeToolGroup:
         args_summary: str = "",
         *,
         args: dict[str, Any] | None = None,
+        started_at: float | None = None,
     ) -> None:
         self.added.append((call_id, tool_name, tool_kind))
 
@@ -205,7 +217,7 @@ class _FakeToolGroup:
         self.locked.clear()
         self.collapse_locked = False
 
-    def cancel_running(self) -> None:
+    def cancel_running(self, *, stopped_at: float | None = None) -> None:
         self.completed.append("cancel")
         self._cancelled = True
 
@@ -503,8 +515,9 @@ async def test_tool_registry_uses_status_cleanup_before_mount_and_preserves_rout
     registry.update_tool_progress("a", ["line"])
     registry.update_tool_args("a", {"cmd": "echo"})
 
-    assert calls[:3] == ["remove_status", "finalize_agent", "mount:_FakeToolGroup"]
-    assert calls[4:7] == ["remove_status", "finalize_agent", "mount:_FakeToolGroup"]
+    # The text above folds once the group is mounted: its first call shows it before anything else lays out.
+    assert calls[:3] == ["remove_status", "mount:_FakeToolGroup", "finalize_agent"]
+    assert calls[4:7] == ["remove_status", "mount:_FakeToolGroup", "finalize_agent"]
     # Result, progress, and args all route to the OWNING group: sending the
     # result to the newer current group would silently drop it, leaving the
     # call rendered as running forever.
@@ -529,6 +542,7 @@ async def test_tool_registry_end_group_during_add_keeps_stable_routing(monkeypat
             args_summary: str = "",
             *,
             args: dict[str, Any] | None = None,
+            started_at: float | None = None,
         ) -> None:
             entered_add.set()
             await asyncio.wait_for(release_add.wait(), timeout=5)
@@ -568,8 +582,8 @@ async def test_tool_registry_delayed_start_does_not_clobber_reused_call_id(
     instances: list[_FakeToolGroup] = []
 
     class _FirstAddBlocksToolGroup(_FakeToolGroup):
-        def __init__(self) -> None:
-            super().__init__()
+        def __init__(self, **options: Unpack[_ToolGroupOptions]) -> None:
+            super().__init__(**options)
             instances.append(self)
             self._blocks = len(instances) == 1
 
@@ -581,6 +595,7 @@ async def test_tool_registry_delayed_start_does_not_clobber_reused_call_id(
             args_summary: str = "",
             *,
             args: dict[str, Any] | None = None,
+            started_at: float | None = None,
         ) -> None:
             if self._blocks:
                 entered_add.set()
@@ -622,8 +637,8 @@ async def test_tool_registry_delayed_start_supersedes_older_reused_call_id_owner
     instances: list[_FakeToolGroup] = []
 
     class _SecondAddBlocksToolGroup(_FakeToolGroup):
-        def __init__(self) -> None:
-            super().__init__()
+        def __init__(self, **options: Unpack[_ToolGroupOptions]) -> None:
+            super().__init__(**options)
             instances.append(self)
             self._blocks = len(instances) == 2
 
@@ -635,6 +650,7 @@ async def test_tool_registry_delayed_start_supersedes_older_reused_call_id_owner
             args_summary: str = "",
             *,
             args: dict[str, Any] | None = None,
+            started_at: float | None = None,
         ) -> None:
             if self._blocks:
                 entered_add.set()
@@ -677,8 +693,8 @@ async def test_tool_registry_result_racing_replacement_start_routes_to_new_card(
     instances: list[_FakeToolGroup] = []
 
     class _SecondAddBlocksToolGroup(_FakeToolGroup):
-        def __init__(self) -> None:
-            super().__init__()
+        def __init__(self, **options: Unpack[_ToolGroupOptions]) -> None:
+            super().__init__(**options)
             instances.append(self)
             self._blocks = len(instances) == 2
 
@@ -690,6 +706,7 @@ async def test_tool_registry_result_racing_replacement_start_routes_to_new_card(
             args_summary: str = "",
             *,
             args: dict[str, Any] | None = None,
+            started_at: float | None = None,
         ) -> None:
             if self._blocks:
                 entered_add.set()
@@ -737,6 +754,7 @@ async def test_tool_registry_delayed_start_does_not_resurrect_cleared_routing(
             args_summary: str = "",
             *,
             args: dict[str, Any] | None = None,
+            started_at: float | None = None,
         ) -> None:
             entered_add.set()
             await asyncio.wait_for(release_add.wait(), timeout=5)
@@ -781,6 +799,7 @@ async def test_tool_registry_delayed_sub_agent_start_does_not_requeue_after_end_
             args_summary: str = "",
             *,
             args: dict[str, Any] | None = None,
+            started_at: float | None = None,
         ) -> None:
             entered_add.set()
             await asyncio.wait_for(release_add.wait(), timeout=5)
@@ -821,6 +840,7 @@ async def test_invocation_link_fallback_uses_internal_tool_name_queue(
             args_summary: str = "",
             *,
             args: dict[str, Any] | None = None,
+            started_at: float | None = None,
         ) -> None:
             await super().add_tool(call_id, tool_name, tool_kind, args_summary, args=args)
             self._tools[call_id] = SubAgentToolCall(call_id, tool_name, args=args)
@@ -1025,8 +1045,8 @@ async def test_tool_registry_concurrent_start_waits_for_group_mount(
             return mounted
 
     class _MountAwareToolGroup(_FakeToolGroup):
-        def __init__(self) -> None:
-            super().__init__()
+        def __init__(self, **options: Unpack[_ToolGroupOptions]) -> None:
+            super().__init__(**options)
             self.mount_completed = False
 
         async def add_tool(
@@ -1037,6 +1057,7 @@ async def test_tool_registry_concurrent_start_waits_for_group_mount(
             args_summary: str = "",
             *,
             args: dict[str, Any] | None = None,
+            started_at: float | None = None,
         ) -> None:
             assert self.mount_completed, "add_tool touched a group before its mount finished"
             await super().add_tool(call_id, tool_name, tool_kind, args_summary, args=args)

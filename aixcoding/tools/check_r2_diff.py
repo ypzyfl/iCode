@@ -18,8 +18,9 @@ Usage (repo root)::
     uv run python aixcoding/tools/check_r2_diff.py --base <ref>
 
 ``--base`` is explicit on purpose (design decision): local pre-commit use
-passes the PR base or merge-base; the upgrade runbook passes the upstream
-tag; CI passes the event base. No implicit guessing.
+passes the PR base or merge-base; the upgrade runbook passes the new
+merge-base (the post-merge fork point, so upstream-merged content never
+counts as ours); CI passes the event base. No implicit guessing.
 
 Exit code 0 = all upstream changes approved, 1 = unauthorized changes,
 2 = environment error (bad ref, not a git repo).
@@ -37,7 +38,7 @@ from aixcoding.tools import _common as common
 
 def main(argv: list[str] | None = None, repo: Path | None = None) -> int:
     parser = argparse.ArgumentParser(description="R2 approval diff gate")
-    parser.add_argument("--base", required=True, help="git ref to diff against (PR base / upstream tag)")
+    parser.add_argument("--base", required=True, help="git ref to diff against (PR base / new merge-base)")
     args = parser.parse_args(argv)
 
     root = (repo or common.REPO_ROOT).resolve()

@@ -127,6 +127,7 @@ from chrys.foundation.events.types import (
 from chrys.foundation.i18n import DisplaySequence, Localizer, MessageRef, msg
 from chrys.foundation.models.approval_reuse import ReuseChoice
 from chrys.foundation.models.ask_user import AskUserAnswer
+from chrys.foundation.models.hook_confirmations import HookConfirmationAnswer
 from chrys.foundation.platform import get_platform, safe_getcwd
 from chrys.service.approval.policy import ApprovalMode
 from chrys.service.profiles.models.schema import UNCONFIGURED_MODEL_ID, is_model_profile_selectable
@@ -291,6 +292,8 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         locale_controller: LocaleController | None = None,
         on_editor_keymap_changed: Callable[[str], None] | None = None,
         tool_groups_expanded: Callable[[], bool] | None = None,
+        thinking_expanded: Callable[[], bool] | None = None,
+        fold_finished_turns: Callable[[], bool] | None = None,
         approval_mode: ApprovalMode = ApprovalMode.MANUAL,
         reset_program_status: Callable[[], None] | None = None,
     ) -> None:
@@ -311,6 +314,8 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         self._trajectory_verify_commands = trajectory_verify_commands
         self._on_editor_keymap_changed = on_editor_keymap_changed
         self._tool_groups_expanded = tool_groups_expanded or (lambda: True)
+        self._thinking_expanded = thinking_expanded
+        self._fold_finished_turns = fold_finished_turns
         self._localization = localization
         self._locale_controller = locale_controller
         self._gc_freeze_participants: tuple[GcFreezeParticipant, ...] = ()
@@ -427,6 +432,7 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
                 ),
                 handle_approval_response=self._handle_approval_response,
                 handle_ask_user_response=self._handle_ask_user_response,
+                publish_hook_confirmation_answer=self._publish_hook_confirmation_answer,
                 question_inline_preferred=self._question_inline_preferred,
                 approval_defer_while_judging=self._approval_defer_while_judging,
                 approval_timeout_seconds=self._approval_timeout_seconds,
@@ -587,6 +593,14 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         """Put the choice in force; requests already waiting keep the choice they arrived under."""
         cast("ChrysApp", self.app).settings_handle.override(approval_defer_while_judging=value)
 
+    def _apply_thinking_expanded(self, value: bool) -> None:
+        """Put the choice in force; thinking already in the chat keeps its state."""
+        cast("ChrysApp", self.app).settings_handle.override(chat_thinking_expanded=value)
+
+    def _apply_fold_finished_turns(self, value: bool) -> None:
+        """Existing process headers keep the user's choice."""
+        cast("ChrysApp", self.app).settings_handle.override(chat_fold_finished_turns=value)
+
     def _approval_timeout_seconds(self) -> int:
         return cast("ChrysApp", self.app).settings_handle.settings.approval_timeout_seconds
 
@@ -621,6 +635,8 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
                 apply_trajectory_verify_commands=self._apply_trajectory_verify_commands,
                 apply_tool_groups_expanded=self._apply_tool_groups_expanded,
                 apply_approval_defer_while_judging=self._apply_approval_defer_while_judging,
+                apply_thinking_expanded=self._apply_thinking_expanded,
+                apply_fold_finished_turns=self._apply_fold_finished_turns,
                 list_themes=lambda: sorted(app.available_themes),
                 save_notifications=self._schedule_notification_settings_save,
                 notification_service=self._notification_service,
@@ -1054,6 +1070,8 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
                 localization=self._localization,
                 locale_controller=self._locale_controller,
                 tool_groups_expanded=self._tool_groups_expanded,
+                thinking_expanded=self._thinking_expanded,
+                fold_finished_turns=self._fold_finished_turns,
                 sub_agent_transcript_loader=self._load_sub_agent_transcript,
             ).data_bind(
                 agent_running=MainScreen.agent_running_state,
@@ -1925,7 +1943,7 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         self._copy_actions.copy_agent_responses(arg)
 
     def _toggle_fold(self) -> None:
-        """Handle /fold slash command — collapse or expand all tool groups."""
+        """Handle /fold slash command — collapse or expand all tool groups and thinking."""
         self._copy_actions.toggle_fold()
 
     def action_show_rollback(self, arg: str = "") -> None:
@@ -2294,6 +2312,12 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         remember_choice: ReuseChoice = "",
     ) -> None:
         await self._tool_actions.publish_approval_response(request_id, approved, reason, modified_args, remember_choice)
+
+    @work(thread=False)
+    async def _publish_hook_confirmation_answer(
+        self, session_id: str | None, request_id: str, answer: HookConfirmationAnswer
+    ) -> None:
+        await self._tool_actions.publish_hook_confirmation_answer(session_id, request_id, answer)
 
     @work(thread=False)
     async def _handle_ask_user_response(self, request_id: str, answers: tuple[AskUserAnswer, ...]) -> None:

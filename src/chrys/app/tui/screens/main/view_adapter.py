@@ -66,6 +66,7 @@ from chrys.foundation.events.types import (
     AgentRuntimeDetails,
     ApprovalRequest,
     ApprovalReviewed,
+    HookConfirmationRequest,
     QuestionToUser,
 )
 from chrys.foundation.i18n.formatting import format_message
@@ -88,6 +89,7 @@ if TYPE_CHECKING:
     from chrys.app.tui.widgets.chrome.commands import ManPageSpec
     from chrys.foundation.models.background_tasks import BackgroundTaskView
     from chrys.foundation.models.hook_executions import HookExecutionView
+    from chrys.foundation.models.invocations import ContentChannel
     from chrys.foundation.models.session_surface import SessionSurface
     from chrys.foundation.models.todos import TodoItem
     from chrys.service.approval.judge import JudgeVerdict
@@ -796,12 +798,14 @@ class MainScreenViewAdapter:
         initial_profile: str,
         file_snapshots: dict[str, list[FileSnapshotPayload]] | None,
         compressed_blocks: dict[str, CompressedBlock] | None,
+        recovered_from_sidecar: bool = False,
     ) -> None:
         await self._screen.query_one(ChatPanel).replay_history(
             messages,
             initial_profile=initial_profile,
             file_snapshots=file_snapshots,
             compressed_blocks=compressed_blocks,
+            recovered_from_sidecar=recovered_from_sidecar,
         )
 
     async def add_answer_delta(self, segment_id: str, text: str) -> None:
@@ -810,17 +814,28 @@ class MainScreenViewAdapter:
     def finish_answer_segment(self, segment_id: str, *, completed: bool) -> None:
         self._screen.query_one(ChatPanel).finish_answer_segment(segment_id, completed=completed)
 
+    async def add_thinking_delta(self, segment_id: str, channel: ContentChannel, text: str) -> None:
+        await self._screen.query_one(ChatPanel).add_thinking_delta(segment_id, channel, text)
+
+    def finish_thinking_segment(self, segment_id: str) -> None:
+        self._screen.query_one(ChatPanel).finish_thinking_segment(segment_id)
+
+    async def abandon_thinking(self, segment_ids: tuple[str, ...]) -> None:
+        await self._screen.query_one(ChatPanel).abandon_thinking(segment_ids)
+
     async def add_agent_message(
         self,
         text: str,
         *,
         structured_output_completed: bool = False,
         created_at: datetime | None = None,
+        turn_started_at: datetime | None = None,
     ) -> None:
         await self._screen.query_one(ChatPanel).add_agent_message(
             text,
             structured_output_completed=structured_output_completed,
             created_at=created_at,
+            turn_started_at=turn_started_at,
         )
 
     async def add_user_injection(self, text: str, *, created_at: datetime) -> None:
@@ -1263,6 +1278,22 @@ class MainScreenViewAdapter:
 
         if isinstance(dialog, ApprovalDialog):
             dialog.dismiss_due_to_cancellation()
+
+    def show_hook_confirmation(
+        self, event: HookConfirmationRequest, on_result: Callable[[bool | None], None]
+    ) -> object:
+        from chrys.app.tui.screens.main.hook_confirmation_dialog import hook_confirmation_dialog
+
+        dialog = hook_confirmation_dialog(event, locale_controller=self._locale_controller)
+        self._screen.app.push_screen(dialog, on_result)
+        return dialog
+
+    def dismiss_hook_confirmation(self, dialog: object) -> None:
+        """Close a withdrawn confirmation without an answer; a covered one closes once uncovered."""
+        from chrys.app.tui.screens.dialogs.confirm import ConfirmDialog
+
+        if isinstance(dialog, ConfirmDialog):
+            dialog.dismiss_when_topmost(None)
 
     def approval_dialog_tool_name(self, dialog: ApprovalDialogHandle) -> str:
         from chrys.app.tui.screens.dialogs.approval import ApprovalDialog

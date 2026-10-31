@@ -484,12 +484,16 @@ class VirtualizedMarkdown(ScrollView, can_focus=True):
         super().__init__(name=name, id=id, classes=classes)
         self._initial_markdown: str | None = markdown
         self._markdown = ""
+        self._source_requested = False
+        """``update()`` or ``append()`` set the source: newer than the text the widget was built with."""
         self._parser_factory = parser_factory
         self._table_of_contents: TableOfContentsType | None = None
         self._open_links = open_links
         self._last_parsed_line = 0
         self._pending_parse: _PendingParse | None = None
         """The scheduled parse that has not read ``_markdown`` yet; new requests join it."""
+        self._shown_source = ""
+        """The source the installed blocks were parsed from."""
 
         # Virtualization state
         self._blocks: list[MarkdownBlock] = []
@@ -592,10 +596,16 @@ class VirtualizedMarkdown(ScrollView, can_focus=True):
         """The markdown source."""
         return self._markdown or ""
 
+    @property
+    def shown_source(self) -> str:
+        """The source of the document installed so far: ``source`` once its parse has landed."""
+        return self._shown_source
+
     async def _on_mount(self, _: Mount) -> None:  # ty: ignore[invalid-method-override]  # Textual dispatch awaits async handlers.
         initial_markdown = self._initial_markdown
         self._initial_markdown = None
-        await self.update(initial_markdown or "")
+        # An update before mount is newer than the text it was built with: installing that text would hide it.
+        await self.update(self._markdown if self._source_requested else initial_markdown or "")
 
         if initial_markdown is None:
             self.post_message(
@@ -1788,7 +1798,9 @@ class VirtualizedMarkdown(ScrollView, can_focus=True):
             An optionally awaitable object that resolves once the document with
             this fragment, or newer, is installed.
         """
-        self._markdown = self.source + markdown
+        # Before mount, and before any update, the document is the text it was built with.
+        base = self.source if self._source_requested else self._initial_markdown or ""
+        self._markdown = base + markdown
         return self._request_parse(announce_contents=False)
 
     def _request_parse(self, *, announce_contents: bool) -> AwaitComplete:
@@ -1800,6 +1812,7 @@ class VirtualizedMarkdown(ScrollView, can_focus=True):
         what one of them alone would have.
         """
         self._table_of_contents = None
+        self._source_requested = True
         pending = self._pending_parse
         # A pending task is done here only when it was cancelled before it read
         # the source (loop shutdown); it can no longer parse, so it is not joinable.
@@ -1830,6 +1843,7 @@ class VirtualizedMarkdown(ScrollView, can_focus=True):
                 report.cancel()
                 watch.ended()
             self._install_blocks(blocks)
+            self._shown_source = markdown
 
             lines = markdown.splitlines()
             self._last_parsed_line = len(lines) - (1 if lines and lines[-1] else 0)

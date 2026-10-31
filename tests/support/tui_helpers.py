@@ -19,7 +19,7 @@ from rich.text import Text
 from textual import on
 from textual.app import App, ComposeResult
 from textual.errors import NoWidget
-from textual.events import Click
+from textual.events import Click, MouseScrollDown, MouseScrollUp
 from textual.message import Message
 from textual.messages import Prune
 from textual.widget import Widget
@@ -40,9 +40,11 @@ from chrys.app.tui.widgets.chat.panel import ChatPanel, _ChatBottomSpacer, _Scro
 from chrys.app.tui.widgets.chat.ports import TranscriptLocalizationPort
 from chrys.app.tui.widgets.chat.renderers.sub_agent import SubAgentToolCall
 from chrys.app.tui.widgets.chat.tool_call import BaseToolCard, ToolCardHeader, ToolGroup
+from chrys.app.tui.widgets.chat.waiting_row import WaitingRow
 from chrys.app.tui.widgets.chrome.file_scanner import ProjectPathScanResult, ProjectPathSuggestion
 from chrys.app.tui.widgets.chrome.status_bar import StatusTrail, TrailCount
 from chrys.app.tui.widgets.chrome.suggestion_list import SuggestionItem
+from chrys.app.tui.widgets.loading import RunningTitle
 from chrys.foundation.config.settings import Settings
 from chrys.foundation.events.bus import EventBus
 from chrys.foundation.i18n import MessageRef
@@ -380,6 +382,9 @@ def make_backend_handler(
             handle_ask_user_response=lambda request_id, answers: _call_screen_hook(
                 screen, "_handle_ask_user_response", request_id, answers
             ),
+            publish_hook_confirmation_answer=lambda session_id, request_id, answer: _call_screen_hook(
+                screen, "_publish_hook_confirmation_answer", session_id, request_id, answer
+            ),
             question_inline_preferred=lambda: False,
             approval_defer_while_judging=approval_defer_while_judging,
             approval_timeout_seconds=lambda: 0,
@@ -580,6 +585,23 @@ def rich_plain(renderable: RenderableType, *, width: int = 200) -> str:
     )
 
 
+_RUNNING_DOTS = ("• ", "◦ ")
+"""The dot before a running title's text: a lit ``•`` and a dim ``◦`` take turns."""
+
+
+def title_text(title: Widget) -> str:
+    """The plain text *title* shows, without the running dot that blinks before it while its work runs."""
+    plain = title.render().plain  # type: ignore[union-attr]
+    return plain[2:] if plain[:2] in _RUNNING_DOTS else plain
+
+
+def title_runs(title: RunningTitle) -> bool:
+    """Whether *title* shows its work running: the dot before its text."""
+    shown = title.render().plain[:2] in _RUNNING_DOTS  # type: ignore[attr-defined]
+    assert shown is title._work_running
+    return shown
+
+
 # ---------------------------------------------------------------------------
 # Widget harnesses — minimal apps that mount one widget under test
 # ---------------------------------------------------------------------------
@@ -636,22 +658,37 @@ class PlaceholderHostApp(App):
 
 
 class ChatPanelApp(LocalizedApp):
-    """App whose only widget is a :class:`ChatPanel` (optionally with a localization port)."""
+    """App whose only widget is a :class:`ChatPanel` (optionally with a localization port and thinking shown)."""
 
-    def __init__(self, localization: TranscriptLocalizationPort | None = None) -> None:
+    def __init__(
+        self,
+        localization: TranscriptLocalizationPort | None = None,
+        *,
+        thinking_expanded: Callable[[], bool] | None = None,
+        fold_finished_turns: Callable[[], bool] | None = None,
+        tool_groups_expanded: Callable[[], bool] | None = None,
+    ) -> None:
         self._localization = localization
+        self._thinking_expanded = thinking_expanded
+        self._fold_finished_turns = fold_finished_turns
+        self._tool_groups_expanded = tool_groups_expanded
         super().__init__()
 
     def compose(self) -> ComposeResult:
-        yield ChatPanel(localization=self._localization)
+        yield ChatPanel(
+            localization=self._localization,
+            thinking_expanded=self._thinking_expanded,
+            fold_finished_turns=self._fold_finished_turns,
+            tool_groups_expanded=self._tool_groups_expanded,
+        )
 
 
 class GcMessageChatPanelApp(ChatPanelApp):
     """:class:`ChatPanelApp` that records the GC absorb/reclaim requests it receives."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, thinking_expanded: Callable[[], bool] | None = None) -> None:
         self.gc_messages: list[GcAbsorbRequested | GcReclaimRequested] = []
-        super().__init__()
+        super().__init__(thinking_expanded=thinking_expanded)
 
     def on_gc_absorb_requested(self, message: GcAbsorbRequested) -> None:
         self.gc_messages.append(message)
@@ -662,7 +699,11 @@ class GcMessageChatPanelApp(ChatPanelApp):
 
 def chat_content_children(panel: ChatPanel) -> list[object]:
     """Return transcript children, excluding persistent chat-panel infrastructure."""
-    return [child for child in panel.children if not isinstance(child, (_ChatBottomSpacer, _ScrollToBottomButton))]
+    return [
+        child
+        for child in panel.children
+        if not isinstance(child, (WaitingRow, _ChatBottomSpacer, _ScrollToBottomButton))
+    ]
 
 
 def inline_diff_mount_state(card: Widget) -> str:
@@ -728,6 +769,13 @@ def make_click(
         ctrl=False,
         screen_x=widget.region.x + x if screen_x is None else screen_x,
         screen_y=widget.region.y + y if screen_y is None else screen_y,
+    )
+
+
+def make_wheel(widget: Widget, *, up: bool) -> MouseScrollUp | MouseScrollDown:
+    """Build one mouse-wheel notch over *widget*, scrolling it up or down."""
+    return (MouseScrollUp if up else MouseScrollDown)(
+        widget, x=1, y=1, delta_x=0, delta_y=-1 if up else 1, button=0, shift=False, meta=False, ctrl=False
     )
 
 
