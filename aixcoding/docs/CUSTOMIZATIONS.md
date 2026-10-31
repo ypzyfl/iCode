@@ -1,8 +1,8 @@
 # 定制清单（CUSTOMIZATIONS）
 
 <!-- manual-zone-start（人工维护区，生成脚本不触碰；DEVELOPMENT.md §8） -->
-- 当前所基于的上游版本：0.31.0
-- 最近一次升级完成日期：（随每次升级完成人工更新）
+- 当前所基于的上游版本：0.32.2
+- 最近一次升级完成日期：2026-10-31
 - 升级操作手册：`aixcoding/docs/standards/UPGRADE-RUNBOOK.md`（活文档，含镜像纪律/冲突高发区/验证矩阵/已知坑）
 <!-- manual-zone-end -->
 
