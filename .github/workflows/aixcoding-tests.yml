@@ -2,7 +2,7 @@ name: AIxCoding Tests
 
 # Custom-asset quality gate (ADR-0004): everything under aixcoding/ plus the
 # governance tools. Upstream ci.yml never sees these paths.
-# Design & sign-off: aixcoding/docs/ci-gate/design.md (R2 approved 2026-10-25)
+# Design & sign-off: aixcoding/docs/batches/ci-gate/design.md (R2 approved 2026-10-25)
 
 on:
   pull_request:
@@ -45,7 +45,7 @@ jobs:
       - run: uv run python aixcoding/tools/check_docs.py
       - run: uv run pytest aixcoding/tests -m "not integration and not gc_calibration"
 
-      # --- Governance tools (aixcoding/docs/devtools) ----------------------
+      # --- Governance tools (aixcoding/docs/batches/devtools) ---------------
       - run: uv run python aixcoding/tools/check_import_boundaries.py
 
       - name: Customization registry reconciliation (strict)

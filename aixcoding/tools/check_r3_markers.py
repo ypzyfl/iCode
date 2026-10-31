@@ -7,7 +7,7 @@ must be registered in ``_common.MARKER_EXEMPTIONS`` (the shared machine-
 readable exemption source, retired from CUSTOMIZATIONS.md with the
 customization-registry batch).
 
-File-level granularity by design (aixcoding/docs/devtools/design.md):
+File-level granularity by design (aixcoding/docs/batches/devtools/design.md):
 one marker per changed upstream file is the machine-checked floor; marker
 density within a file is a peer-review concern, not a gate — hunk-level
 matching would misfire on reformat/move noise.

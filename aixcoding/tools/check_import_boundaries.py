@@ -19,7 +19,7 @@ Statically scans ``.py`` files with AST and enforces four rules:
 
 Tier/R9 layering is enforced separately by the upstream architecture tests
 (``tests/architecture/test_layering.py``) and is intentionally not checked
-here (see aixcoding/docs/devtools/design.md, non-goals).
+here (see aixcoding/docs/batches/devtools/design.md, non-goals).
 
 Usage (repo root)::
 

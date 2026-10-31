@@ -2,7 +2,7 @@
 
 """Core data types for the AIxCoding device-code login.
 
-Design: aixcoding/docs/auth/design.md (signed off 2026-10-26).
+Design: aixcoding/docs/batches/auth/design.md (signed off 2026-10-26).
 """
 
 from __future__ import annotations

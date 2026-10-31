@@ -1,6 +1,6 @@
 """Shared fixtures for the auth tests (migrated + wiring).
 
-Design: aixcoding/docs/auth/design.md (signed off 2026-10-26).
+Design: aixcoding/docs/batches/auth/design.md (signed off 2026-10-26).
 """
 
 from __future__ import annotations

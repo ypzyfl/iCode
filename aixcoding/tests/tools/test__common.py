@@ -133,7 +133,7 @@ class TestDesignParsing:
     def test_r2_pool_signed_and_unsigned(self, tmp_path):
         docs = tmp_path / "docs"
         for name, text in (("signed", self.SIGNED), ("unsigned", self.UNSIGNED)):
-            d = docs / name
+            d = docs / "batches" / name
             d.mkdir(parents=True)
             (d / "design.md").write_text(text, encoding="utf-8")
         approved, notes = common.r2_approved_upstream_files(docs)
@@ -142,9 +142,31 @@ class TestDesignParsing:
 
     def test_r2_header_drift_is_loud(self, tmp_path):
         drifted = self.SIGNED.replace("| 文件 | 改什么 |", "| file | what |")
-        docs = tmp_path / "docs" / "drifted"
+        docs = tmp_path / "docs" / "batches" / "drifted"
         docs.mkdir(parents=True)
         (docs / "design.md").write_text(drifted, encoding="utf-8")
-        approved, notes = common.r2_approved_upstream_files(docs.parent)
+        approved, notes = common.r2_approved_upstream_files(docs.parents[1])
         assert approved == set()
         assert any("no recognizable '文件' column" in n for n in notes)
+
+
+class TestFindDesignDocs:
+    # AIxCoding docs-reorg batch: exact scan surface — single-level glob under
+    # batches/ only (aixcoding/docs/batches/docs-reorg/design.md).
+    def test_batches_layout_only(self, tmp_path):
+        docs = tmp_path / "docs"
+        inside = _write(docs / "batches" / "demo", "design.md", "# 设计\ndemo\n")
+        _write(docs / "topdemo", "design.md", "# 设计\ntop\n")
+        assert common.find_design_docs(docs) == [inside]
+
+    def test_no_recursion_into_nested_dirs(self, tmp_path):
+        # A recursive glob (batches/**/design.md) would pick this bait up — red then.
+        docs = tmp_path / "docs"
+        _write(docs / "batches" / "group" / "demo", "design.md", "# 设计\nnested\n")
+        assert common.find_design_docs(docs) == []
+
+    def test_empty_and_missing_docs_root(self, tmp_path):
+        empty = tmp_path / "empty-docs"
+        empty.mkdir()
+        assert common.find_design_docs(empty) == []
+        assert common.find_design_docs(tmp_path / "absent") == []

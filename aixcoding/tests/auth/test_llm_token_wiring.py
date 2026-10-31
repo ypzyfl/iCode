@@ -1,6 +1,6 @@
 """Behavior-anchor tests for the LLM login-token header wiring (auth migration).
 
-Design: aixcoding/docs/auth/design.md (signed off 2026-10-26).
+Design: aixcoding/docs/batches/auth/design.md (signed off 2026-10-26).
 
 Channel 1 anchors drive ``RequestHeaders.stamp()`` directly (unit level);
 channel 2 observes the final wire headers through a *real* openai SDK client

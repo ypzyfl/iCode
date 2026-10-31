@@ -140,20 +140,20 @@ ADR-0002（2026-10-22）决策：定制产品代码统一进 `src/chrys/aixcodin
   + `ty check`（kernel 档新路径）+ wheel 冒烟（`chrys.kernel.aixcoding` 在包内）。
 - **规范联动**（规范族文本已随本 ADR 的 PR 同步完成）：DEVELOPMENT.md §2/R1/R3/R4/R9/R11/§9
   （R9 按 tier 重写）、DIRECTORY.md §1-§8、SELF-REVIEW-HOWTO 与 PEER-REVIEW-HOWTO 的
-  R4/R9 内嵌摘要、templates/design 落点、README×2、`restructure/plan.md` §1.1 标题 +
+  R4/R9 内嵌摘要、templates/design 落点、README×2、`batches/restructure/plan.md` §1.1 标题 +
   P1/P2/P3 目标路径（P4-P6 为 0.28 钉死的源侧事实不改）与 U1（per-file-ignores 路径）/
   U2（作废留档，R8）。
-  **工具脚本路径联动（随回迁批次实施，同 `docs/devtools/design.md`"分类器随实现走"口径）**：
+  **工具脚本路径联动（随回迁批次实施，同 `docs/batches/devtools/design.md`"分类器随实现走"口径）**：
   文件分类/扫描逻辑硬编码于 **5 处**——`_common.py:37 CUSTOM_PATH_PREFIXES`、
   `gen_customizations.py:295,312`、`check_import_boundaries.py:10-13,85-86`、
-  `check_r2_diff.py:13`、`docs/devtools/design.md:28`（分类器定义）——统一改为
+  `check_r2_diff.py:13`、`docs/batches/devtools/design.md:28`（分类器定义）——统一改为
   `src/chrys/*/aixcoding/` 前缀判定（CUSTOMIZATIONS.md 本身是生成产物，无扫描规则可改）；
   **连带**：`aixcoding/tests/tools/` 的 4 个测试文件以旧路径为夹具
   （test__common / test_check_import_boundaries / test_check_r3_markers /
   test_gen_customizations），分类器改通配后须同步更新夹具路径，否则工具自检红；不改的
   后果：回迁后新路径被 `is_custom()` 误判为上游，B3 规则失效、gen_customizations 漏扫、
   check_r2_diff 误报。
-- **进行中批次联动（前瞻，非既成）**：tui design（`aixcoding/docs/tui/design.md`，**草案
+- **进行中批次联动（前瞻，非既成）**：tui design（`aixcoding/docs/batches/tui/design.md`，**草案
   在工作区尚未入库**，随 tui 批次提交）落位**将**改 `src/chrys/app/aixcoding/tui/`，R2
   表 8 号（test_layering 登记）**将**整行删除，表 7 号 per-file-ignores 路径跟改。
 - **测试侧不联动目录**：定制测试（`aixcoding/tests/`）维持按特性组织（DIRECTORY.md §5
@@ -165,7 +165,7 @@ ADR-0002（2026-10-22）决策：定制产品代码统一进 `src/chrys/aixcodin
   docstring 引用 `src/chrys/aixcoding/update_detection.py`（随 update 批次迁入时改）；
   `docs/ROADMAP.md:106-107`（旧分支资产盘点，随阶段三迁入完成度更新）；
   `adr/0005-*.md:36`（快照内待执行指令，已被 plan.md U1 新路径取代，正文按 §6 快照原则
-  不改）；`docs/auth/*`、`docs/diagnostics/*` 等签认/记录档为历史快照，不回改。
+  不改）；`docs/batches/auth/*`、`docs/batches/diagnostics/*` 等签认/记录档为历史快照，不回改。
 - **代价（如实承认，非一次性）**：定制代码位置从一处变为按 tier 分散（现在 kernel + app，
   将来 service/orchestration 若有定制再加）；找代码要记 N 个位置、升级排查遍历 N 个
   `aixcoding/` 目录、扫描规则随档位增长。以"上游原则零破坏 + 冲突面净减"换，成立。

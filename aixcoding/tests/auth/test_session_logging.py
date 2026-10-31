@@ -4,7 +4,7 @@
 
 """Session logging tests: 12 state-transition records under ``aixcoding.auth``.
 
-Design: aixcoding/docs/auth-logging/design.md (signed off 2026-10-29).
+Design: aixcoding/docs/batches/auth-logging/design.md (signed off 2026-10-29).
 Every case asserts the frozen message text, the level, and the two red
 lines: no secret ever appears in a record, and no record carries a
 traceback (``exc_info is None``).

@@ -17,7 +17,7 @@ sets the cancel event, which makes the poll loop raise
 :class:`~chrys.kernel.aixcoding.auth.errors.DevicePollCancelled` on its next
 checkpoint -- nothing is stored on an interrupted login.
 
-Design: aixcoding/docs/tui/design.md
+Design: aixcoding/docs/batches/tui/design.md
 """
 
 from __future__ import annotations

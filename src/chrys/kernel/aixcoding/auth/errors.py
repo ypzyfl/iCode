@@ -2,7 +2,7 @@
 
 """Error taxonomy for the AIxCoding device-code login.
 
-Design: aixcoding/docs/auth/design.md (signed off 2026-10-26).
+Design: aixcoding/docs/batches/auth/design.md (signed off 2026-10-26).
 
 Every failure the login flow can raise derives from :class:`AuthError`, so
 wiring code in ``src/chrys`` needs a single ``except AuthError`` to surface a

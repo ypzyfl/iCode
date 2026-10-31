@@ -35,7 +35,7 @@ def test_unapproved_upstream_change_fails(git_repo, capsys):
 
 
 def test_unsigned_design_does_not_authorize(git_repo, capsys):
-    repo = git_repo({**BASE_FILES, "aixcoding/docs/demo/design.md": UNSIGNED_R2})
+    repo = git_repo({**BASE_FILES, "aixcoding/docs/batches/demo/design.md": UNSIGNED_R2})
     (repo / "src" / "chrys" / "app" / "up.py").write_text("X = 2\n", encoding="utf-8")
     assert r2.main(["--base", "HEAD"], repo=repo) == 1
     out = capsys.readouterr().out
@@ -43,7 +43,7 @@ def test_unsigned_design_does_not_authorize(git_repo, capsys):
 
 
 def test_signed_design_approves_only_listed_files(git_repo, capsys):
-    repo = git_repo({**BASE_FILES, "aixcoding/docs/demo/design.md": SIGNED_R2})
+    repo = git_repo({**BASE_FILES, "aixcoding/docs/batches/demo/design.md": SIGNED_R2})
     (repo / "src" / "chrys" / "app" / "up.py").write_text("X = 2\n", encoding="utf-8")
     assert r2.main(["--base", "HEAD"], repo=repo) == 0
     (repo / "src" / "chrys" / "app" / "other.py").write_text("O = 1\n", encoding="utf-8")
