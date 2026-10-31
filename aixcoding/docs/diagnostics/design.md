@@ -7,7 +7,7 @@
 
 - 责任人：周彬
 - 状态：已确认
-- 确认日期：2026-10-30
+- 确认日期：2026-10-31
 - 确认意见：确认退役 launcher / crash / snapshot 三组件
 
 ## 方案概述
@@ -73,12 +73,12 @@ R1 自查：业务逻辑全部外置 `src/chrys/aixcoding/diagnostics/`；接线
 
 ## 定制点登记预告
 
-> 2026-10-30 更新：launcher / crash / snapshot 三组件已退役（ADR-0013，批次 aixcoding/docs/launcher-retirement/）——登记行删除，现存组件仅 config 与 logging_support；方案概述中的三组件描述以退役批次 design 为准。
+> 2026-10-30 更新：launcher / crash / snapshot 三组件已退役（ADR-0013，批次 aixcoding/docs/launcher-retirement/）——登记行删除，现存组件仅 config 与 logging_support。
+> 2026-10-31 点级化（customization-registry 批次）：原包内两文件行（config.py / logging_support.py）语义并入 C007 anchor；自有资产清单归 DIRECTORY.md。
 
-| 落点 | anchor（依赖的上游符号） | 风险等级 |
-|---|---|---|
-| `src/chrys/kernel/aixcoding/diagnostics/config.py` | `~/.chrys/` 目录约定（`get_platform().config_dir` 同源） | 低 |
-| `src/chrys/kernel/aixcoding/diagnostics/logging_support.py` | `logging` 标准机制 + `MODULE_ORDER`（R2 一行） | 低（面板）/零（落盘） |
+| id | 落点 | marker 锚 | 预期计数 | anchor | risk | removal_condition |
+|---|---|---|---|---|---|---|
+| C007 | src/chrys/app/tui/screens/logs/screen.py | AIxCoding diagnostics: F6 tab | | `~/.chrys/` 目录约定（`get_platform().config_dir` 同源）+ `logging` 标准机制 + `MODULE_ORDER`（R2 一行）；支撑组件 config.py / logging_support.py（ADR-0013 收敛后存续两件） | 低（面板）/零（落盘） | 〔上游等价〕上游日志面板原生支持第三方模块分层展示（MODULE_ORDER 类机制）且可承载定制层日志 |
 
 ## 风险与最坏情况
 

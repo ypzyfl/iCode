@@ -5,19 +5,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from aixcoding.tools import _common as common
 from aixcoding.tools import check_r3_markers as r3
 
 BASE_FILES = {
     "src/chrys/app/up.py": "X = 1\n",
     "src/chrys/app/data.json": '{"a": 1}\n',
 }
-
-EXEMPT_MANIFEST = (
-    "# 定制清单\n\n"
-    "## 标记豁免（无法加注释的格式）\n\n"
-    "| 文件 | 改动概述 | 依据 |\n|---|---|---|\n"
-    "| src/chrys/app/data.json | tweak | demo design |\n"
-)
 
 
 def test_marker_present_passes(git_repo):
@@ -60,15 +54,17 @@ def test_untracked_upstream_file_checked_as_whole(git_repo, capsys):
     assert r3.main(["--base", "HEAD"], repo=repo) == 1
 
 
-def test_exempt_format_requires_registration(git_repo, capsys):
+def test_exempt_format_requires_registration(git_repo, monkeypatch, capsys):
     repo = git_repo(BASE_FILES)
     (repo / "src" / "chrys" / "app" / "data.json").write_text('{"a": 2}\n', encoding="utf-8")
     assert r3.main(["--base", "HEAD"], repo=repo) == 1
     assert "exemption" in capsys.readouterr().out
 
-    m = repo / "aixcoding" / "docs" / "CUSTOMIZATIONS.md"
-    m.parent.mkdir(parents=True, exist_ok=True)
-    m.write_text(EXEMPT_MANIFEST, encoding="utf-8")
+    # The exemption source is _common.MARKER_EXEMPTIONS (shared machine-readable
+    # registry, ADR-0015) — the retired CUSTOMIZATIONS.md is no longer read.
+    monkeypatch.setattr(
+        common, "MARKER_EXEMPTIONS", (*common.MARKER_EXEMPTIONS, ("src/chrys/app/data.json", "tweak", "demo"))
+    )
     assert r3.main(["--base", "HEAD"], repo=repo) == 0
 
 

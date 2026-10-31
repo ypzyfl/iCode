@@ -1,9 +1,11 @@
-# ruff: noqa: T201, RUF001
+# ruff: noqa: T201
 # (CLI tool — print is the output channel; Chinese prose is the data)
 """R3 marker gate (ADR-0007 machine check): every changed upstream file that
 can carry a comment must carry at least one ``AIxCoding`` marker on its
 diff-added lines; formats where a comment is impossible (JSON/binary/…)
-must be registered in the CUSTOMIZATIONS.md exemption table.
+must be registered in ``_common.MARKER_EXEMPTIONS`` (the shared machine-
+readable exemption source, retired from CUSTOMIZATIONS.md with the
+customization-registry batch).
 
 File-level granularity by design (aixcoding/docs/devtools/design.md):
 one marker per changed upstream file is the machine-checked floor; marker
@@ -26,18 +28,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from aixcoding.tools import _common as common
 
-EXEMPT_SECTION = "标记豁免（无法加注释的格式）"
 
-
-def load_exempt_files(manifest: Path) -> set[str]:
-    if not manifest.exists():
-        return set()
-    text = manifest.read_text(encoding="utf-8", errors="replace")
-    return {
-        (row.get("文件") or "").strip().strip("`")
-        for row in common.parse_table_section(text, EXEMPT_SECTION)
-        if (row.get("文件") or "").strip()
-    }
+def load_exempt_files() -> set[str]:
+    return {f for f, _d, _src in common.MARKER_EXEMPTIONS}
 
 
 def main(argv: list[str] | None = None, repo: Path | None = None) -> int:
@@ -54,7 +47,7 @@ def main(argv: list[str] | None = None, repo: Path | None = None) -> int:
 
     upstream_changed = sorted(f for f in changed if common.is_upstream(f))
     untracked = set(common.untracked_files(root))
-    exempt = load_exempt_files(root / "aixcoding" / "docs" / "CUSTOMIZATIONS.md")
+    exempt = load_exempt_files()
     violations: list[str] = []
     checked = 0
 
@@ -65,7 +58,7 @@ def main(argv: list[str] | None = None, repo: Path | None = None) -> int:
         if suffix in common.MARKER_EXEMPT_SUFFIXES:
             violations.append(
                 f"{rel}: marker-exempt format ('{suffix}') changed but not in the "
-                f"CUSTOMIZATIONS.md exemption table (R3)"
+                f"_common.MARKER_EXEMPTIONS registry (R3)"
             )
             continue
         if suffix not in common.HASH_COMMENT_SUFFIXES:

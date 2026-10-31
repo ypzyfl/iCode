@@ -48,12 +48,12 @@ jobs:
       # --- Governance tools (aixcoding/docs/devtools) ----------------------
       - run: uv run python aixcoding/tools/check_import_boundaries.py
 
-      - name: Manifest regen must be a no-op (CUSTOMIZATIONS.md freshness)
-        # Precondition: CUSTOMIZATIONS.md must be git-tracked (it is, since
-        # the devtools batch) — `git diff --exit-code` sees tracked files only.
-        run: |
-          uv run python aixcoding/tools/gen_customizations.py
-          git diff --exit-code aixcoding/docs/CUSTOMIZATIONS.md
+      - name: Customization registry reconciliation (strict)
+        # Reconciles code markers against the point-level registration tables
+        # of signed-off design.md files. The CUSTOMIZATIONS.md manifest was
+        # retired with the customization-registry batch (ADR-0015): the gate
+        # is now direct reconciliation, not derived-artifact freshness.
+        run: uv run python aixcoding/tools/gen_customizations.py --strict
 
       - name: R2 / R3 gates against the upstream fork point
         run: |

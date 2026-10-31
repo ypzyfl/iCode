@@ -7,7 +7,7 @@
 
 - 责任人：周彬
 - 状态：已确认
-- 确认日期：2026-10-30
+- 确认日期：2026-10-31
 - 确认意见：确认实施期修正记录（marker 括号适配，R2 实质零变更）
 
 ## 方案概述
@@ -64,11 +64,11 @@ R1 自查：无业务逻辑，纯 lint 配置；上游接触面即 per-file-igno
 
 ## 定制点登记预告
 
-`pyproject.toml` 已是定制清单登记对象（tui 批次 per-file-ignores 行先例在库）；本批次新增 1 处 marker → `gen_customizations.py` 产物增对应条目，**freshness 义务**：提交前生成并纳入同一提交。
+`pyproject.toml` 已是登记对象（tui 批次 per-file-ignores 行先例在库）；点级登记（customization-registry 批次起）：
 
-| 落点 | anchor | 风险等级 |
-|---|---|---|
-| `aixcoding/tests/`（本行豁免的定制测试目录；marker 落 `pyproject.toml` per-file-ignores 区块 +2 行） | 无上游符号依赖（纯工具配置） | 低（升级合并冲突面 = 追加 2 行） |
+| id | 落点 | marker 锚 | 预期计数 | anchor | risk | removal_condition |
+|---|---|---|---|---|---|---|
+| C003 | pyproject.toml | AIxCoding custom tests | | 无上游符号依赖（纯工具配置；marker 落 `pyproject.toml` per-file-ignores 区块 +2 行） | 低（升级合并冲突面＝追加 2 行） | 〔目录退役〕aixcoding/tests 目录退役；或豁免迁 pyproject per-file-ignores 目录级（既有遗留待办，届时触发上游 R2 报批） |
 
 ## 风险与最坏情况
 
@@ -90,7 +90,7 @@ R1 自查：无业务逻辑，纯 lint 配置；上游接触面即 per-file-igno
 1. `uv run ruff check aixcoding/` + `uv run ruff format --check aixcoding/`（目录行生效 + 删头无新暴露；对齐 aixcoding-tests.yml 门禁）；
 2. `uv run ruff check src/ tests/`（上游豁免格局不受影响）；
 3. `uv run pytest aixcoding/tests -m "not integration and not gc_calibration"`（注释级变更，惯例全量兜底）；
-4. `uv run python aixcoding/tools/gen_customizations.py` 连跑两次幂等，产物 `CUSTOMIZATIONS.md` 变更随提交。
+4. `uv run python aixcoding/tools/gen_customizations.py --strict` 对账全绿（孤儿登记清零；customization-registry 批次起 freshness 义务已随产物退役）。
 
 ## 实施期修正记录
 

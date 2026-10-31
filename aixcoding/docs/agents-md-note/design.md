@@ -7,7 +7,7 @@
 
 - 责任人：周彬
 - 状态：已确认
-- 确认日期：2026-10-25
+- 确认日期：2026-10-31
 - 确认意见：目前方案没有大问题
 
 ## 方案概述
@@ -32,9 +32,11 @@ R1 自查：纯导航文档段，无业务逻辑可外置；上游 AGENTS.md 是
 
 ## 定制点登记预告
 
-| 落点 | anchor（依赖的上游符号） | 风险等级 |
-|---|---|---|
-| aixcoding/docs/standards | AGENTS.md 文档结构（正文段落，无符号依赖） | 低 |
+点级登记（customization-registry 批次起；C001 现行登记收敛于此——ai-gates 批次曾同落点登记，已声明迁移）：
+
+| id | 落点 | marker 锚 | 预期计数 | anchor | risk | removal_condition |
+|---|---|---|---|---|---|---|
+| C001 | AGENTS.md | AIxCoding entry point | | AGENTS.md 文档结构（正文段落，无符号依赖） | 低 | 〔常驻〕随 fork 定制体系存续，仅改址/退役时提请裁决 |
 
 ## 风险与最坏情况
 
