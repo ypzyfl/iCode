@@ -22,6 +22,8 @@ AI agent conduct (ADR-0012; full protocol in DEVELOPMENT.md §4.2 and §6):
   implementing is a signed-off design.md.
 - Git write operations are authorized one by one: after each command the AI stops and reports,
   waiting for the next explicit instruction.
+- Upstream upgrades (merging new iCode releases) follow
+  `aixcoding/docs/standards/UPGRADE-RUNBOOK.md`; read it before starting any upgrade.
 
 ## Commands
 ```bash

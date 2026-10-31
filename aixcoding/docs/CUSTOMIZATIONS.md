@@ -3,6 +3,7 @@
 <!-- manual-zone-start（人工维护区，生成脚本不触碰；DEVELOPMENT.md §8） -->
 - 当前所基于的上游版本：0.31.0
 - 最近一次升级完成日期：（随每次升级完成人工更新）
+- 升级操作手册：`aixcoding/docs/standards/UPGRADE-RUNBOOK.md`（活文档，含镜像纪律/冲突高发区/验证矩阵/已知坑）
 <!-- manual-zone-end -->
 
 > 生成区由 `aixcoding/tools/gen_customizations.py` 自动生成（DEVELOPMENT.md §5：禁止手工维护
