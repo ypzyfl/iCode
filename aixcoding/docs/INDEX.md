@@ -13,6 +13,7 @@
 | [batches/tui](batches/tui/) | 功能批次 | tui 迁入（登录对话框 + 会话徽标 + /login、/logout 命令） |
 | [batches/tier-migration](batches/tier-migration/) | 功能批次 | ADR-0011 存量定制包按 tier 回迁 kernel 档 |
 | [batches/diagnostics](batches/diagnostics/) | 功能批次 | 本地诊断包（config + logging_support；crash/snapshot/launcher 已退役） |
+| [batches/auth-isolation-mock-ports](batches/auth-isolation-mock-ports/) | 功能批次 | auth 测试默认构造隔离 + mock launcher 动态端口（local-verify 前置微改动，豁免管线） |
 | [batches/ai-gates](batches/ai-gates/) | 治理批次 | AI 流程闸门 |
 | [batches/ci-gate](batches/ci-gate/) | 治理批次 | 定制 CI 质量门（`aixcoding-tests.yml`） |
 | [batches/upstream-ci](batches/upstream-ci/) | 治理批次 | 上游 CI 桥接（`aixcoding-upstream-ci.yml`） |
@@ -20,6 +21,7 @@
 | [batches/devtools](batches/devtools/) | 治理批次 | 规范落地四工具（清单生成 / R2 比对 / R3 校验 / import 边界） |
 | [batches/exemption-governance](batches/exemption-governance/) | 治理批次 | 豁免治理（R13——豁免须理由与批准） |
 | [batches/ruff-test-exemptions](batches/ruff-test-exemptions/) | 治理批次 | `aixcoding/tests` 的 ruff 豁免切换为目录级配置 |
+| [batches/local-verify](batches/local-verify/) | 治理批次 | fork 统一本地验收入口 `verify.py`（smart 无条件双跑 + fork-full 语义） |
 | [batches/docs-reorg](batches/docs-reorg/) | 治理批次 | docs 目录分层组织（`batches/` 布局 + 本索引，ADR-0016） |
 | [batches/upstream-merge-v0.32.2](batches/upstream-merge-v0.32.2/) | 升级批次 | 追上游 v0.32.2（基线 0.31.0 → 0.32.2） |
 | [batches/launcher-retirement](batches/launcher-retirement/) | 退役批次 | 退役 diagnostics launcher（ADR-0013） |

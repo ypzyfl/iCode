@@ -131,3 +131,19 @@ async def test_get_login_session_is_a_singleton(monkeypatch) -> None:
     assert first is second
     # Leave no cached real-backend session behind for other tests.
     monkeypatch.setattr(session_module, "_default_session", None)
+
+
+def test_default_construction_is_isolated_by_conftest(tmp_path) -> None:
+    """The conftest autouse pins both defaults of a bare ``LoginSession()``.
+
+    A bare ``LoginSession()`` used to reach the real OS-backend probe (a
+    Keychain write on macOS) and the real config dir; this anchor fails if
+    the fixture stops patching ``_default_backend`` or ``default_config_dir``
+    — e.g. after an upstream rename — so the isolation cannot silently rot.
+    (``tmp_path`` here is the same instance the autouse fixture patched in.)
+    """
+    import chrys.kernel.aixcoding.auth.session as auth_session
+
+    session = LoginSession()
+    assert isinstance(session.store.backend, MemoryBackend)
+    assert auth_session.default_config_dir() == tmp_path
