@@ -23,6 +23,7 @@
 | [batches/ruff-test-exemptions](batches/ruff-test-exemptions/) | 治理批次 | `aixcoding/tests` 的 ruff 豁免切换为目录级配置 |
 | [batches/local-verify](batches/local-verify/) | 治理批次 | fork 统一本地验收入口 `verify.py`（smart 无条件双跑 + fork-full 语义） |
 | [batches/windows-matrix](batches/windows-matrix/) | 治理批次 | 定制门扩 Windows 矩阵（test/govern/gate 三层，DPAPI 平台真实用例实跑） |
+| [batches/composition-tests](batches/composition-tests/) | 治理批次 | 服务组合测试（登录→LLM 请求→登出的生产组装链路，凭据生命周期闭环） |
 | [batches/docs-reorg](batches/docs-reorg/) | 治理批次 | docs 目录分层组织（`batches/` 布局 + 本索引，ADR-0016） |
 | [batches/upstream-merge-v0.32.2](batches/upstream-merge-v0.32.2/) | 升级批次 | 追上游 v0.32.2（基线 0.31.0 → 0.32.2） |
 | [batches/launcher-retirement](batches/launcher-retirement/) | 退役批次 | 退役 diagnostics launcher（ADR-0013） |
