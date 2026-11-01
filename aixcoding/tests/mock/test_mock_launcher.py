@@ -14,6 +14,7 @@ from __future__ import annotations
 import socket
 import urllib.error
 import urllib.request
+from urllib.parse import urlparse
 
 from aixcoding.mock import __main__ as launcher
 
@@ -43,16 +44,22 @@ def test_auth_and_model_catalog_are_mutually_exclusive() -> None:
 
 
 def test_every_starter_round_trips() -> None:
-    """Start each service for real, probe it, stop it via the launcher's own
-    stop callable (must not raise — B1), then confirm the port is released.
+    """Start every registered service for real, probe it, stop it via the
+    launcher's own stop callable (must not raise — B1), then confirm the port
+    is released.
 
-    One test (not parametrized) on purpose: catalog and auth share :7777, so
-    their round trips must run sequentially inside a single worker.
+    Iterates ``_SERVICES`` so a newly registered mock joins the round trip
+    automatically (telemetry will, per its design notes). One test (not
+    parametrized) on purpose: the round trips share the launcher's daemon
+    threads and must run sequentially inside one worker. Each starter takes
+    ``port=0`` — the OS-assigned ephemeral port the server factories support
+    for tests (their base_url/origin read the bound port back) — so the round
+    trip never depends on the fixed dev ports (7777/7778), which the CLI path
+    keeps fail-fast on purpose (DIRECTORY.md §6).
     """
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    for name in ("model_catalog", "update", "auth"):
-        port, _description, starter = launcher._SERVICES[name]
-        origin, stop = starter()
+    for _port, _description, starter in launcher._SERVICES.values():
+        origin, stop = starter(port=0)
         try:
             try:
                 with opener.open(origin, timeout=5) as response:
@@ -71,6 +78,7 @@ def test_every_starter_round_trips() -> None:
             # free for a server, while Windows allows it — aligning the probe
             # makes the check mean the same thing on both platforms.
             probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            probe.bind(("127.0.0.1", port))  # released for the next round trip
+            # released for the next round trip (port actually bound above)
+            probe.bind(("127.0.0.1", urlparse(origin).port))
         finally:
             probe.close()

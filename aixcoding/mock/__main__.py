@@ -15,7 +15,11 @@ Each mock keeps its own server instance and port; this module only
 orchestrates (DIRECTORY.md §6 "package-root orchestration layer"). Ports are
 fixed on purpose — the product's LOCAL profile points at them — so a taken
 port fails fast naming the service, instead of silently moving and leaving
-the TUI talking to nothing. Ctrl+C stops everything that was started.
+the TUI talking to nothing. That contract is the CLI's dev-facing default:
+every starter also takes ``port`` (the round-trip test passes ``port=0``,
+the OS-assigned ephemeral port the server factories natively support), so
+tests never depend on :7777/:7778 being free. Ctrl+C stops everything that
+was started.
 """
 
 from __future__ import annotations
@@ -40,11 +44,13 @@ _LOGGER = logging.getLogger("chrys.mock_launcher")
 # "auth" is the standalone form; the launcher's default covers login via the
 # auth routes model_catalog mounts on :7777 (--only auth is for pure-login
 # work, hence the mutual exclusion with model_catalog below).
-_Services = dict[str, tuple[int, str, Callable[[], tuple[str, Callable[[], None]]]]]
+# The starter type is ellipsis-typed: every starter takes ``port`` with a
+# default (the CLI calls it bare, the round-trip test passes ``port=0``).
+_Services = dict[str, tuple[int, str, Callable[..., tuple[str, Callable[[], None]]]]]
 
 
-def _start_model_catalog() -> tuple[str, Callable[[], None]]:
-    running = start_catalog(port=CATALOG_PORT, auth=MockAuthConfig(mode="auto"))
+def _start_model_catalog(port: int = CATALOG_PORT) -> tuple[str, Callable[[], None]]:
+    running = start_catalog(port=port, auth=MockAuthConfig(mode="auto"))
 
     def stop() -> None:
         running.close()
@@ -52,8 +58,8 @@ def _start_model_catalog() -> tuple[str, Callable[[], None]]:
     return running.origin, stop
 
 
-def _start_update() -> tuple[str, Callable[[], None]]:
-    server = create_update_server(port=UPDATE_PORT)
+def _start_update(port: int = UPDATE_PORT) -> tuple[str, Callable[[], None]]:
+    server = create_update_server(port=port)
     threading.Thread(
         target=server.serve_forever, kwargs={"poll_interval": 0.2}, name="chrys-mock-update", daemon=True
     ).start()
@@ -65,8 +71,8 @@ def _start_update() -> tuple[str, Callable[[], None]]:
     return str(server.mock_config.base_url), stop
 
 
-def _start_auth() -> tuple[str, Callable[[], None]]:
-    server = create_auth_server(MockAuthConfig(mode="manual"), port=AUTH_PORT)
+def _start_auth(port: int = AUTH_PORT) -> tuple[str, Callable[[], None]]:
+    server = create_auth_server(MockAuthConfig(mode="manual"), port=port)
     threading.Thread(
         target=server.serve_forever, kwargs={"poll_interval": 0.2}, name="chrys-mock-auth", daemon=True
     ).start()
