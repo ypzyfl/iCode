@@ -3,6 +3,8 @@ name: AIxCoding Tests
 # Custom-asset quality gate (ADR-0004): everything under aixcoding/ plus the
 # governance tools. Upstream ci.yml never sees these paths.
 # Design & sign-off: aixcoding/docs/batches/ci-gate/design.md (R2 approved 2026-10-25)
+# Windows matrix + three-layer layout (test/govern/gate):
+# aixcoding/docs/batches/windows-matrix/design.md (confirmed 2026-11-01)
 
 on:
   pull_request:
@@ -18,10 +20,57 @@ permissions:
   contents: read
 
 jobs:
-  gate:
-    name: AIxCoding quality gate
+  test:
+    name: Custom tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Keep temporary files on the local disk (Windows)
+        # Same rationale as upstream ci.yml test_windows: TEMP defaults to C:
+        # (the runner's network-backed OS disk); D: local storage measures
+        # 6-10x faster for the suite's tmp churn. Runs before checkout.
+        if: runner.os == 'Windows'
+        run: |
+          $temp = Join-Path $env:RUNNER_TEMP "tmp"
+          New-Item -ItemType Directory -Force -Path $temp | Out-Null
+          "TEMP=$temp" >> $env:GITHUB_ENV
+          "TMP=$temp" >> $env:GITHUB_ENV
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: "0.13.1"
+          prune-cache: true
+          enable-cache: true
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version-file: .python-version
+          allow-prereleases: true
+      - name: Cache .venv (Windows)
+        # Same key as upstream ci.yml test_windows on purpose: identical
+        # `uv sync` + lockfile, so one shared cache entry per OS; uv sync
+        # re-syncs the environment exactly regardless of cache origin.
+        if: runner.os == 'Windows'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('.python-version', 'uv.lock', 'pyproject.toml') }}
+      - run: uv sync
+      - name: Custom test suite
+        # Same pytest command on both OSes (byte-identical, easy to diff);
+        # -rA goes through the env so the command text stays unchanged from
+        # the pre-matrix gate. -rA lists every PASSED/SKIPPED nodeid in the
+        # short summary — the DPAPI acceptance evidence (windows-matrix).
+        env:
+          PYTEST_ADDOPTS: "-rA"
+        run: uv run pytest aixcoding/tests -m "not integration and not gc_calibration"
+
+  govern:
     runs-on: ubuntu-latest
-    timeout-minutes: 15  # align with upstream ci.yml job convention
+    timeout-minutes: 15
     steps:
       # Full history: the R2/R3 gates diff against the fork point with
       # origin/main_iCode (the pure upstream mirror branch).
@@ -39,11 +88,10 @@ jobs:
           allow-prereleases: true
       - run: uv sync
 
-      # --- ADR-0004 quality gate, four steps -------------------------------
+      # --- ADR-0004 quality gate, lint + docs steps ------------------------
       - run: uv run ruff check aixcoding/
       - run: uv run ruff format --check aixcoding/
       - run: uv run python aixcoding/tools/check_docs.py
-      - run: uv run pytest aixcoding/tests -m "not integration and not gc_calibration"
 
       # --- Governance tools (aixcoding/docs/batches/devtools) ---------------
       - run: uv run python aixcoding/tools/check_import_boundaries.py
@@ -61,3 +109,22 @@ jobs:
           echo "upstream fork point: $BASE"
           uv run python aixcoding/tools/check_r2_diff.py --base "$BASE"
           uv run python aixcoding/tools/check_r3_markers.py --base "$BASE"
+
+  gate:
+    # One stable required-check name for the whole matrix: needs.test.result
+    # aggregates every matrix leg, so job renames or OS additions never break
+    # the branch-protection rule. (Required checks match job-level check
+    # runs, not workflow names.) Always runs and fail-closed: both results
+    # must be exactly "success" — failure, cancelled and skipped all fail.
+    name: AIxCoding quality gate
+    needs: [test, govern]
+    if: always()
+    runs-on: ubuntu-slim
+    steps:
+      - name: Verify tests and governance
+        env:
+          TEST_RESULT: ${{ needs.test.result }}
+          GOVERN_RESULT: ${{ needs.govern.result }}
+        run: |
+          test "$TEST_RESULT" = "success"
+          test "$GOVERN_RESULT" = "success"
