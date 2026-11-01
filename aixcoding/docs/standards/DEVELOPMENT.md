@@ -112,7 +112,7 @@ peer review 由另一人按 `PEER-REVIEW-HOWTO.md` 执行——**上游接触面
 1. **接任务** → 先读相关活文档（尤其 plan.md 的状态、挂起事项），确认不重复已否决或已挂起的方案。随后按**开工判定单协议**（ADR-0012）呈报并停等：**情况（分析结果）+ 建议（附理由）+ 选项（走完整管线 / 申请豁免，两条路径恒呈现，不因核对结论隐藏其一）**，责任人裁决（可推翻 AI 任一判断，含豁免三条件核对结论本身）。**免判定清单**（封闭，规范预定义；AI 只做机械匹配、不得现场判断任务归入，拿不准即停等）：① 活文档追加与常规更新（verification / plan / test-plan / requirements；design、adr/、self-review 正文修改排除）；② 只读操作（读文件、`git status/log/diff/show/fetch`、跑测试）；③ 已签认方案范围内的实施动作（匹配口径：该动作与 design 变更清单 / R2 表逐项对应，对不上即停等）——清单内任务一行报备（做什么 + 清单项编号）后直接执行，用户明确指令过的任务无需报备（指令即知情）。
 2. **方案** → 涉及上游改动时停在方案阶段等批准（R2；批准落盘 = 责任人签认 design/ADR，见 4.1②）。方案包含：目标与验收条件、非侵入式评估结论（R1）、将改/将增文件清单、验证方式。
 3. **实施** → design 未签认不得动代码（4.1 铁律）；最小变更（R5），上游改动带标记（R3）。
-4. **自检** → `git diff` 逐文件核对：无越权文件、无意外产物、标记齐全；运行验证。定制测试显式运行：`uv run pytest aixcoding/tests -m "not integration and not gc_calibration"`（新分支无 `--extra all`，勿用）；涉及上游文件时按根 AGENTS.md 用 Smart Test 并传 `--paths`。
+4. **自检** → `git diff` 逐文件核对：无越权文件、无意外产物、标记齐全；运行验证。**统一入口**（local-verify 批次）：`uv run python aixcoding/tools/verify.py --smart [--paths ...]`——委托上游 Smart Test + 无条件完整定制套件，任一失败非零退出（直接跑变体：`uv run pytest aixcoding/tests -m "not integration and not gc_calibration"`；纯上游快速反馈：`--upstream-smart`）。
 5. **双 AI 自审（强制）** → 按 `SELF-REVIEW-HOWTO.md`：**换一个与主力开发不同的 AI** 独立评审（checklist 内嵌于其指令模板），责任人逐条拍板修/不修（不吹毛求疵：blocker 必修，次要问题可不修），评审→修复→复审（只审增量）循环至主要问题清零，产出 `self-review.md`（记录评审 AI 标识、blocker 处置与未修项），责任人签认后随 PR 提交。评审模型见 ADR-0007。
 6. **交付报告**（格式见 §7）→ **登记**（更新定制清单与活文档）。
 

@@ -71,9 +71,9 @@ git merge <目标ref>   # release tag（如 v0.32.2）或镜像头 origin/main_i
 
 ```bash
 # 以下为 bash（Git Bash）语法；Windows cmd 需改写变量赋值（如 set "BASE=..."）
-# 上游侧全量：升级验证一律 --full（完整套件）；Smart Test（--smart）仅日常小改动使用，勿混
-uv run python scripts/chrys_test.py --full
-# 定制侧四门 + 测试
+# 统一入口（local-verify 批次）：fork-full = 完整定制套件 + 委托上游 --full（互不短路，任一失败非零）
+uv run python aixcoding/tools/verify.py --full
+# 定制侧求稳变体（串行）与治理门
 uv run pytest aixcoding/tests -n0 -q -m "not integration and not gc_calibration"
 uv run python aixcoding/tools/check_docs.py
 uv run python aixcoding/tools/check_import_boundaries.py

@@ -35,3 +35,15 @@
 - 定制测试须自建 conftest（已验证约 100 行实现等价 config-dir 隔离）；
 - CI 需要（并有）独立执行点；
 - 上游 `tests/support/` 设施只可阅读、复制，不可 import。（现行规则以 DEVELOPMENT.md §9 为准；本文为决策时点快照。）
+
+> **修订注记**（2026-11-01，local-verify 批次联动；四轮外部 AI 评审处置后口径校准，
+> 决策结论不变——独立收集/独立门/不 import 上游设施三条均维持）：
+> ① 本文中"唯一检测器"按规范 §1 语境理解为"专门的**自动**语义回归套件"——与治理工具
+> （R2/R3/登记器）、上游测试、升级冲突分析、人工冒烟互补，不宣称唯一覆盖能力；
+> ② 后果节"约 100 行实现等价 config-dir 隔离"表述超前于实现：实际以**测试内显式注入为主
+> 范式**（`config_dir=tmp_path` + `MemoryBackend()`），顶层 conftest 为 sys.path + 通用
+> fixtures，窄域 autouse（auth/conftest.py）为后续批次的防呆补充——隔离是有的，
+> "conftest 等价物"的归因不准确；
+> ③ 本地验收入口语义（local-verify 批次落地）：`aixcoding/tools/verify.py` 为统一入口
+> （--smart 无条件双跑 / --full fork-full），定制套件从"须记得另跑"升级为入口内与上游
+> 套件平级的执行单元——本决策"显式管道"路线的延伸，非推翻。

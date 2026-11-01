@@ -73,14 +73,17 @@ iCode-fork/
 
 ## 5. `aixcoding/tests/`（定制测试唯一落点）
 
-- **独立收集**：pytest `testpaths` 只含上游路径，本目录须显式运行：
+- **独立收集**：pytest `testpaths` 只含上游路径，本目录须显式运行。**本地统一入口**（local-verify 批次，2026-11-01 签认）：
 
   ```bash
-  uv run pytest aixcoding/tests -m "not integration and not gc_calibration"
+  uv run python aixcoding/tools/verify.py --smart   # 委托上游 Smart Test + 无条件本套件（默认推荐）
+  uv run python aixcoding/tools/verify.py --full    # fork-full：本套件 + 委托上游 --full，任一失败非零
   ```
 
+  直接跑变体（与 CI 门同构）：`uv run pytest aixcoding/tests -m "not integration and not gc_calibration"`；纯上游快速反馈：`verify.py --upstream-smart`（显式跳过定制套件）。
+
 - CI 执行点是独立的定制质量门 `.github/workflows/aixcoding-tests.yml`（见 §7），不寄生于上游 CI 分片。
-- `conftest.py` 职责：config-dir 隔离（对齐上游 `tests/conftest.py` 机制的自建等价物）、环境变量清理、`sys.path` 注入仓库根。**不继承**上游 `tests/conftest.py` 的 autouse fixture——这是有意设计（检测器不与被检测对象共享故障域，理由见 ADR-0001）。
+- `conftest.py` 职责（实测口径，2026-11-01 校准）：顶层 = `sys.path` 注入仓库根 + 通用 fixtures（file_tree/git_repo）；`auth/conftest.py` 另有窄域 autouse（委托钳制 + 默认构造隔离，marker 豁免先例，见 auth-isolation-mock-ports 批次）。**不继承**上游 `tests/conftest.py` 的 autouse fixture——有意设计（检测器不与被检测对象共享故障域，理由见 ADR-0001）；config-dir/后端隔离以**测试内显式注入为主范式**（`config_dir=tmp_path` + `MemoryBackend()`），窄域 autouse 为防呆补充。
 - 目录组织：按特性分子目录（如 `tests/auth/`、`tests/telemetry/`）；mock 的契约测试统一在 `tests/mock/`。测试**不镜像**产品代码的 tier 落位——tier 是依赖决定的技术落位（ADR-0011），测试不受 `test_layering` 分层守卫治理（其射程仅 `src/chrys`），组织跟随被测特性；文件内 import 路径则随产品落位联动（如 `chrys.kernel.aixcoding.auth`）。
 - 上游测试设施（`tests/support/` 等）可以**阅读、复制**，但不得 import——上游测试内部接口无稳定性承诺。
 
