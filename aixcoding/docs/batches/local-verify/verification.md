@@ -31,7 +31,8 @@
 
 验收标准核销（requirements.md 8 条）：AC1（步骤 2 双跑+单测）✓；AC2（单测）✓；AC3（步骤 4
 --smart 实测 + 4′ + 单测）✓；AC4（单测 6 用例：互不短路双向、双红聚合顺序、exit2/exit5
-语义；+ 步骤 4 实态）✓；AC5（单测 2 用例钉逻辑；干净树实测留 PR 后，如实登记）✓；
+语义；+ 步骤 4 实态）✓；AC5（单测 2 用例钉逻辑；干净树实测留 PR 后，如实登记→已由
+V3 核销）✓；
 AC6（R2 零上游文件——本批变更全在 aixcoding/，见 V2 评审对名）✓；AC7（=18 个单测）✓；
 AC8（文档联动四件）✓。
 
@@ -67,3 +68,28 @@ findings 4 条，责任人裁决"按处置意见"全修：
 V2 F-01**（批准记录实际落点，可解析）；②V1 标题"手工步骤全项"改"部分手工实测"（消除
 与正文口径的残留冲突）。未发现新的代码行为问题（评审 AI 独立复跑 18 passed）。blocker
 清零，评审收敛。
+
+## V3（PR 后 AC5 实态复验，2026-11-01）
+
+> PR #79 合并后主干（47a2a87a，含前置批 PR #78）复验，核销 V1 步骤 5 留的"PR 后待办"。
+> 回写方式经责任人裁决：本地追加、随下批 PR 带入主干。
+
+| # | 命令 | 结果 |
+|---|---|---|
+| 1 | `verify.py --smart --paths aixcoding/tools/verify.py`（主干 47a2a87a 干净树） | **AC5 实态核销**：委托侧 `Final execution scope: 0 targets / 0 of 35075 collected`（no applicable pytest tests）exit 0；定制 342 passed, 2 skipped（14.03s）exit 0；`Fork verify Summary: PASSED (exit 0)`，custom/upstream 两行如实 |
+
+**口径修正（V1 步骤 5 原预期）**："提交后干净树可自然复验"在 fork 仓不成立——
+`chrys_test.py` 的变更基线取 `origin/HEAD`（本仓指向上游镜像 `origin/main`，见
+`_resolve_default_branch` 与 `merge-base HEAD <default>` 逻辑），主干干净树上不带
+`--paths` 的 `--smart` 仍把自分叉点以来的全部定制算作分支变更、触发上游 full 升级——
+V1 备注"fork 分支场景"在**主干**同样成立（基线代码核实 + V1 备注分支实证同因；未实跑
+约 11 分钟全量，非必要）。"委托 0"场景须以 `--paths <与 watch 无关文件>` 构造（同 V1
+步骤 1 外部评审先例）。
+
+**AC5 三验收点**：上游 no-changes 0 ✓（0 targets / 0 tests）；定制仍跑 ✓（342 全套）；
+整体码=定制码 ✓（两套件均 0 → 整体 0；"定制红→整体非零"另一半由单测
+`test_no_changes_custom_red_fails_whole` 钉住）。
+
+**环境坑补记**：cmd 链式 `set PYTHONUTF8=1 &&` 会把尾随空格收进变量值
+（`Fatal Python error: preconfig_init_utf8_mode`），须用引号形式 `set "PYTHONUTF8=1"`、
+清空 `set "PYTHONPATH="`。

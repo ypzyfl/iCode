@@ -53,3 +53,9 @@
 - `.github/workflows/` 新增文件属上游目录内定制文件（GitHub 硬约束：workflow 必须位于此），走 R2 报批，以新文件形态落地；
 - 定制质量门与上游 CI 解耦：上游重组 CI 不影响定制门，反之亦然；
 - `check_docs.py`（文档签认校验）随本门执行，本地可先行：`uv run python aixcoding/tools/check_docs.py`。
+- **平台矩阵演进注记（2026-11-01）**：决策节"初始单 Linux 平台（定制测试大多平台无关），
+  平台敏感测试……验证后再扩矩阵"的预留条款经 windows-matrix 批次兑现——workflow 重构为
+  三层（`test` 双 OS 矩阵实际执行 DPAPI 等平台真实用例 / `govern` 单 Linux 治理 / `gate`
+  保名 `AIxCoding quality gate` fail-closed 汇总）。决策边界不变：独立 workflow、不改上游
+  `ci.yml`、质量门内容（lint/docs/pytest/治理工具）原样保留；详见
+  `aixcoding/docs/batches/windows-matrix/design.md`。
