@@ -52,3 +52,13 @@
 ## 6. 待人工项
 
 无（面板 + 双卷 + debug.log 扩散面全部验收完毕，责任人 2026-11-02 目验通过）。
+
+## 7. PR #84 peer review 处置（2026-11-02，head `090f3590`）
+
+评审（独立 AI，worktree 副本 + GitHub API 交叉验证 + 2 组破坏性实验）：**0 blocker / 0 幻觉 API / 3 缺陷候选**；CI 双门禁实查双绿（AIxCoding Tests + AIxCoding Upstream CI，head `090f3590`）；数字对名全一致（`tests/architecture` 1237 vs §1 的 1238 差 1 = `test_network_egress` integration 标记被评审方过滤口径剔除，非失败）。责任人拍板：三条均**接受记档、零代码改动**——
+
+- **C1**（`_attach_sink` 幂等重用只查 handler 类型、不校验重用 sink 落盘路径）→ 接受记档。设计前提：config 目录进程内稳定（`resolve_config_dir` 确定；生产唯一入口 `ensure_file_sink` 由 startup bootstrap 单次调用，无"同进程传不同 config_dir"的调用方）；失败方向为**明细缺失**（写旧位置、新位置无卷）而非泄漏。修路径校验需引入"同 marker 双实例双路径"新语义并重审六不变量④，代价大于收益。
+- **C2**（双 sink ensure 的 check-then-attach 竞态，多线程首次并发可双挂）→ 接受记档。存量模式平移（原 `_file_sink` 同风险，本批仅量级 ×2）；生产接线单线程（`app/aixcoding/startup.py:26-34` bootstrap）；为零现实触发场景加锁违背简洁性原则；调用时序约定（单线程 bootstrap）记为设计前提。
+- **C3**（双打两记录非原子：精简版落卷/面板与明细卷写入间存在中断窗）→ 接受记档。双打形态固有代价（design 备选表 G 行 facade 方案已隐含此权衡），失败方向为该时刻明细缺失而非泄漏，无廉价修法；显式记档避免后续批次误当已解决问题。§2 的"双打同毫秒"目验同时证明两调用相邻、窗口极窄。
+
+评审记录本体存 `aixcoding/docs/pr/`（未跟踪工作文档区，不入库、不进签认/R2 体系）。
