@@ -14,8 +14,10 @@ Two machine shapes are handled:
 * **Fresh install** — no ``hooks.yaml`` yet: the shipped template is written
   verbatim.
 * **Existing configuration** — the entries this installer owns are replaced in
-  place (matched by id) and unrelated hooks, ``settings`` and comments are
-  kept.  A configuration that cannot be parsed is backed up and replaced: a
+  place (matched by id), and the settings keys the template ships are
+  overwritten with the shipped values so every upgrade carries them;
+  unrelated hooks, other settings and comments are kept.  A configuration
+  that cannot be parsed is backed up and replaced: a
   guard that silently fails to load is worse than a hand-written hook being
   reset, and the backup keeps that hook recoverable.
 
@@ -137,6 +139,7 @@ def install_guard_hooks(*, hooks_dir: Path | None = None, asset_dir: Path | None
     template_text = (source_dir / GUARD_TEMPLATE_NAME).read_text(encoding="utf-8")
     template_text = _posix_template(template_text)
     managed_entries = parse_managed_entries(template_text)
+    template_settings = yaml.safe_load(template_text).get("settings") or {}
 
     _copy_payload(Path(source_dir), target_dir)
 
@@ -149,7 +152,7 @@ def install_guard_hooks(*, hooks_dir: Path | None = None, asset_dir: Path | None
     had_bom = raw.startswith(_BOM)
     text = raw.decode("utf-8-sig")
     try:
-        merged_text = merge_guard_entries(text, managed_entries)
+        merged_text = sync_template_settings(merge_guard_entries(text, managed_entries), template_settings)
     except yaml.YAMLError, ValueError:
         return _replace_unparsable(hooks_file, template_text, had_bom)
     try:
@@ -272,6 +275,11 @@ def _replace_unparsable(hooks_file: Path, template_text: str, had_bom: bool) -> 
 
 def _hook_section_span(text: str) -> tuple[int, int] | None:
     """Return the character span of the top-level ``hooks:`` section."""
+    return _top_level_span(text, "hooks")
+
+
+def _top_level_span(text: str, key: str) -> tuple[int, int] | None:
+    """Return the character span of one top-level mapping section."""
     offset = 0
     start: int | None = None
     for line in text.splitlines(keepends=True):
@@ -279,12 +287,72 @@ def _hook_section_span(text: str) -> tuple[int, int] | None:
         if match is not None:
             if start is not None:
                 return start, offset
-            if match.group("key") == "hooks":
+            if match.group("key") == key:
                 start = offset
         offset += len(line)
     if start is None:
         return None
     return start, len(text)
+
+
+_SETTINGS_ENTRY = re.compile(r"^(?P<indent>\s+)(?P<key>[A-Za-z_][\w-]*)\s*:(?P<value>[^\n#]*)(?P<comment>#.*)?$")
+"""One child ``key: value`` line of the ``settings:`` section, comment kept separate."""
+
+
+def sync_template_settings(config_text: str, template_settings: dict[str, object]) -> str:
+    """Overwrite the settings keys the template ships with the shipped values.
+
+    The rule pack is the source of truth for these keys, so every upgrade
+    carries their current values into existing configurations — a machine that
+    installed an older pack never keeps the stale ``shutdown_grace_seconds``
+    it was seeded with.  Keys the template does not ship, and comments, are
+    kept.  A configuration without a ``settings:`` section gains one before
+    the ``hooks:`` section.
+    """
+    if not template_settings:
+        return config_text
+    newline = "\r\n" if "\r\n" in config_text else "\n"
+    span = _top_level_span(config_text, "settings")
+    if span is None:
+        block = (
+            "settings:"
+            + newline
+            + "".join(f"  {key}: {_yaml_scalar(value)}{newline}" for key, value in template_settings.items())
+            + newline
+        )
+        hooks_span = _top_level_span(config_text, "hooks")
+        if hooks_span is None:
+            return template_literal_text(config_text + block)
+        start = hooks_span[0]
+        return template_literal_text(config_text[:start] + block + config_text[start:])
+
+    rewritten: list[str] = []
+    missing = dict(template_settings)
+    for line in config_text[span[0] : span[1]].splitlines(keepends=True):
+        stripped = line.rstrip("\r\n")
+        match = _SETTINGS_ENTRY.match(stripped) if stripped[:1] in (" ", "\t") else None
+        if match is not None and match.group("key") in missing:
+            key = match.group("key")
+            comment = match.group("comment")
+            rewritten.append(
+                f"{match.group('indent')}{key}: {_yaml_scalar(missing.pop(key))}{f' {comment}' if comment else ''}{newline}"
+            )
+        else:
+            rewritten.append(line)
+    for key, value in missing.items():
+        rewritten.append(f"  {key}: {_yaml_scalar(value)}{newline}")
+    return template_literal_text(config_text[: span[0]] + "".join(rewritten) + config_text[span[1] :])
+
+
+def _yaml_scalar(value: object) -> str:
+    """Render one settings value the way YAML writes it (plain scalars for ints).
+
+    ``safe_dump`` of a bare scalar appends the document-end marker ``...``
+    (``"30\\n...\\n"``); leaving it in would turn the following line into a
+    document boundary and make the file unparsable.
+    """
+    dumped = yaml.safe_dump(value, default_flow_style=True, width=4096)
+    return dumped.removesuffix("...\n").strip()
 
 
 def _hook_blocks(text: str) -> list[str]:
@@ -434,5 +502,6 @@ __all__ = [
     "merge_guard_entries",
     "missing_guard_assets",
     "parse_managed_entries",
+    "sync_template_settings",
     "template_literal_text",
 ]

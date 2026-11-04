@@ -61,7 +61,8 @@ def test_existing_hooks_and_settings_survive_merge(tmp_path: Path) -> None:
         "# hand written\n"
         "version: 1\n"
         "settings:\n"
-        "  max_parallel_hooks: 2\n"
+        "  shutdown_grace_seconds: 5\n"
+        "  custom_setting: keep\n"
         "hooks:\n"
         "  - id: telemetry\n"
         "    event: after_turn\n"
@@ -78,9 +79,57 @@ def test_existing_hooks_and_settings_survive_merge(tmp_path: Path) -> None:
     assert report.merged_into_existing is True
     assert report.backup is not None and report.backup.is_file()
     assert "# hand written" in text
-    assert document["settings"]["max_parallel_hooks"] == 2
+    # Template-managed settings keys follow the shipped pack; unknown keys survive.
+    assert document["settings"]["shutdown_grace_seconds"] == 30
+    assert document["settings"]["max_parallel_hooks"] == 4
+    assert document["settings"]["custom_setting"] == "keep"
     assert document["hooks"][0]["id"] == "telemetry"
     assert [entry["id"] for entry in document["hooks"]] == ["telemetry", *MANAGED_HOOK_IDS]
+
+
+def test_stale_setting_value_and_comment_are_synced_in_place(tmp_path: Path) -> None:
+    hooks_dir = tmp_path / "hooks"
+    hooks_dir.mkdir(parents=True)
+    (hooks_dir / "hooks.yaml").write_text(
+        "version: 1\n"
+        "settings:\n"
+        "  shutdown_grace_seconds: 5  # 旧值 注释应保留\n"
+        "hooks:\n"
+        "  - id: telemetry\n"
+        "    event: after_turn\n"
+        "    run:\n"
+        "      type: command\n"
+        "      argv: [echo, hi]\n",
+        encoding="utf-8",
+    )
+
+    install_guard_hooks(hooks_dir=hooks_dir)
+
+    text = (hooks_dir / "hooks.yaml").read_text(encoding="utf-8")
+    document = yaml.safe_load(text)
+    assert document["settings"]["shutdown_grace_seconds"] == 30
+    assert "旧值 注释应保留" in text
+
+
+def test_missing_settings_section_is_created_before_hooks(tmp_path: Path) -> None:
+    hooks_dir = tmp_path / "hooks"
+    hooks_dir.mkdir(parents=True)
+    (hooks_dir / "hooks.yaml").write_text(
+        "version: 1\n"
+        "hooks:\n"
+        "  - id: telemetry\n"
+        "    event: after_turn\n"
+        "    run:\n"
+        "      type: command\n"
+        "      argv: [echo, hi]\n",
+        encoding="utf-8",
+    )
+
+    install_guard_hooks(hooks_dir=hooks_dir)
+
+    document = yaml.safe_load((hooks_dir / "hooks.yaml").read_text(encoding="utf-8"))
+    assert document["settings"]["shutdown_grace_seconds"] == 30
+    assert document["settings"]["max_parallel_hooks"] == 4
 
 
 def test_stale_guard_entries_are_replaced_not_duplicated(tmp_path: Path) -> None:
@@ -140,7 +189,8 @@ def test_configuration_without_hooks_section_gains_one(tmp_path: Path) -> None:
     install_guard_hooks(hooks_dir=hooks_dir)
 
     document = yaml.safe_load((hooks_dir / "hooks.yaml").read_text(encoding="utf-8"))
-    assert document["settings"]["max_parallel_hooks"] == 3
+    # max_parallel_hooks is template-managed and synced to the shipped value.
+    assert document["settings"]["max_parallel_hooks"] == 4
     assert [entry["id"] for entry in document["hooks"]] == list(MANAGED_HOOK_IDS)
 
 
