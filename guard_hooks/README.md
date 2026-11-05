@@ -3,6 +3,10 @@
 把《拦截规则一览表.xlsx》的**提示词层**和**工具调用前**两层规则，做成两个 iCode
 阻塞式 Hook。流式输出层（STREAM_CHUNK）本次不实现。
 
+> **本版本出厂停用**：`hooks.yaml` 两个条目均为 `enabled: false`。安装器每次启动都按
+> 模板覆盖受管条目，所以升级到本版本后不再执行任何拦截；恢复方式见
+> [OPERATIONS.md 5.4](OPERATIONS.md#54-回退)。
+
 * 与主程序零耦合：不 import 任何 `chrys` 包，只用标准库，不改动 `src/chrys` 任何文件。
 * 规则与词典全部外置在 `rules.json`，改词典不需要改代码，下次 Hook 触发即生效。
 * 命中即**打断 + 一句话提示**：Hook 写 `{"action": "block", "reason": ...}`，

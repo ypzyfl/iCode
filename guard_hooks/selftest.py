@@ -636,10 +636,41 @@ class InstallerTests(unittest.TestCase):
                 self.assertNotIn("type: script", pinned)
                 self.assertTrue(target.with_name("hooks.yaml.pre-pin").exists())
             else:
-                self.assertEqual("unchanged", action)
+                self.assertEqual("synced", action)
                 self.assertIn("type: script", pinned)
+            # 旧条目没有 enabled 行：按模板补上 false，两个受管 hook 都需要。
+            self.assertEqual(2, pinned.count("enabled: false"))
+            self.assertNotIn("enabled: true", pinned)
 
             # 升级后重复执行不再改文件。
+            before = target.read_bytes()
+            self.assertEqual("unchanged", installer.merge(target, body))
+            self.assertEqual(before, target.read_bytes())
+
+    def test_merge_syncs_a_hand_flipped_switch_back_to_the_template(self) -> None:
+        # 现场把 enabled 改回 true 后重跑安装：值改回模板的 false，行尾注释保留。
+        body = installer.hook_entries(Path(__file__).resolve().parent / "hooks.yaml")
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "hooks" / "hooks.yaml"
+            target.parent.mkdir()
+            target.write_text(
+                "version: 1\n"
+                "hooks:\n"
+                "  - id: security-prompt-guard\n"
+                "    event: user_prompt_submit\n"
+                "    enabled: true  # 现场手改\n"
+                "    run:\n"
+                "      type: script\n"
+                "      path: guard/_prompt_guard.py\n",
+                encoding="utf-8",
+            )
+
+            self.assertIn(installer.merge(target, body), {"pinned", "synced"})
+
+            text = target.read_text(encoding="utf-8")
+            self.assertIn("enabled: false  # 现场手改", text)
+            self.assertNotIn("enabled: true", text)
+            # 已经和模板一致：再跑一次不再改文件。
             before = target.read_bytes()
             self.assertEqual("unchanged", installer.merge(target, body))
             self.assertEqual(before, target.read_bytes())

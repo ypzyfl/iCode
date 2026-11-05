@@ -356,6 +356,10 @@ run:
 Copy-Item $env:APPDATA\chrys\hooks\hooks.yaml.pre-guard $env:APPDATA\chrys\hooks\hooks.yaml -Force
 ```
 
+> 当前版本出厂即停用：规则包模板两个条目都带 `enabled: false`，安装器每次启动按 id 覆盖，
+> 所以升级到本版本后不再执行任何拦截。恢复时把仓库 `guard_hooks/hooks.yaml` 两处
+> `enabled` 改回 `true` 再升级即可（现场手改会被下次启动覆盖）。
+
 或只停用规则包本身：把 `hooks.yaml` 里 `security-prompt-guard` 和 `security-tool-guard` 两项的 `enabled` 改成 `false`。
 或最彻底：把 `rules.json` 的 `settings.enabled` 改成 `false`（脚本仍会加载，但不做任何检查）。
 
