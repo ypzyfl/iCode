@@ -17,16 +17,18 @@
    的占位程序，hook 就以 exit 9009 起不来，配上 ``on_error: block`` 等于把
    所有请求都拦下（见 ``OPERATIONS.md`` 5.3）；POSIX 上保持 ``type: script``。
    ``--python`` 指定解释器时则钉死成绝对路径；
-3. 若配置里还没有 ``security-prompt-guard``，就把两个 blocking hook 追加到
-   ``hooks`` 列表末尾；
-4. 写回前自动备份为 ``hooks.yaml.pre-guard``，并保留原文件的换行风格与 BOM。
-   只改写 ``run`` 块的那次升级另存 ``hooks.yaml.pre-pin``，不覆盖原始回退点。
+3. 若配置里还没有 ``security-prompt-guard``，就把两个 blocking hook 连同模板里的
+   ``enabled: false`` 一起追加到 ``hooks`` 列表末尾；
+4. 已有受管条目时，除了升级 ``run``，还把条目的 ``enabled`` 同步成模板值——现场
+   手改过的开关会被模板口径覆盖，本版本即“不拦截”；
+5. 写回前自动备份为 ``hooks.yaml.pre-guard``，并保留原文件的换行风格与 BOM。
+   改写已有条目的那次升级另存 ``hooks.yaml.pre-pin``，不覆盖原始回退点。
 
 配置文件不存在时新建一个最小骨架；``hooks: []`` 这种流式写法会先归一成块序列，
 否则追加的条目会变成非法 YAML。
 
-幂等：已存在 ``security-prompt-guard`` 时不重复追加，只在 ``run`` 还没升级时补
-一次改写，可重复执行。
+幂等：已存在 ``security-prompt-guard`` 时不重复追加，只在 ``run`` 或 ``enabled``
+与模板不一致时改一次，可重复执行。
 
 用法::
 
@@ -56,6 +58,17 @@ SEED = "version: 1\n\nhooks:\n"
 
 _HOOKS_KEY = re.compile(r"^[ \t]*hooks[ \t]*:", re.MULTILINE)
 _EMPTY_HOOKS_KEY = re.compile(r"^(?P<indent>[ \t]*)hooks[ \t]*:[ \t]*\[[ \t]*\][ \t]*$", re.MULTILINE)
+
+_HOOK_ITEM_ID = re.compile(r"^(?P<indent>[ \t]*)-[ \t]+id[ \t]*:[ \t]*(?P<id>[^\s#]+)", re.MULTILINE)
+"""一个 hook 列表项的起始行；块从这一行到下一个同级条目或顶层键为止。"""
+
+_ENABLED_LINE = re.compile(r"^(?P<indent>[ \t]*)enabled[ \t]*:[ \t]*(?P<value>[^\s#]+)(?P<rest>[^\n]*)$", re.MULTILINE)
+"""条目自己的开关行；``rest`` 留着行尾注释，改写时原样带回去。"""
+
+_HOOK_EVENT_LINE = re.compile(r"^(?P<indent>[ \t]*)event[ \t]*:", re.MULTILINE)
+
+_TOP_LEVEL_KEY = re.compile(r"^[A-Za-z_][\w-]*[ \t]*:", re.MULTILINE)
+"""顶格键（``settings:`` / ``hooks:``）；块扫描遇到它即截止，不越出列表项。"""
 
 
 def hooks_dir() -> Path:
@@ -343,6 +356,86 @@ def pinned_interpreters(text: str) -> list[str]:
     return seen
 
 
+def _hook_block_spans(text: str) -> list[tuple[str, int, int, str]]:
+    """返回每个 hook 条目的 ``(id, 起始偏移, 结束偏移, 缩进)``。
+
+    结束位置是下一个条目的起始行、或列表后的第一个顶层键、或文本末尾。注释与
+    空行留在所属块内，所以按块改写不会把别人的内容卷进来。
+    """
+    items = list(_HOOK_ITEM_ID.finditer(text))
+    spans: list[tuple[str, int, int, str]] = []
+    for index, item in enumerate(items):
+        end = items[index + 1].start() if index + 1 < len(items) else len(text)
+        top_level = _TOP_LEVEL_KEY.search(text, item.end())
+        if top_level is not None and top_level.start() < end:
+            end = top_level.start()
+        spans.append((item.group("id"), item.start(), end, item.group("indent")))
+    return spans
+
+
+def _as_bool(raw: str) -> bool:
+    """把 YAML 布尔字面量读成 bool（只有 ``true`` 算开，其余按关处理）。"""
+    return raw.strip().lower() == "true"
+
+
+def _template_switches(template_body: str) -> dict[str, bool]:
+    """模板里每个 hook 条目的 ``enabled`` 值（没写该行按 ``true`` 记）。"""
+    switches: dict[str, bool] = {}
+    for hook_id, start, end, _indent in _hook_block_spans(template_body):
+        match = _ENABLED_LINE.search(template_body, start, end)
+        switches[hook_id] = _as_bool(match.group("value")) if match is not None else True
+    return switches
+
+
+def managed_enabled_states(text: str, template_body: str) -> dict[str, bool]:
+    """配置里模板受管条目的 ``enabled`` 现状；缺失的行按 ``true`` 记。"""
+    managed = _template_switches(template_body)
+    states: dict[str, bool] = {}
+    for hook_id, start, end, _indent in _hook_block_spans(text):
+        if hook_id not in managed:
+            continue
+        match = _ENABLED_LINE.search(text, start, end)
+        states[hook_id] = _as_bool(match.group("value")) if match is not None else True
+    return states
+
+
+def _line_end(text: str, offset: int) -> tuple[int, str]:
+    """返回 ``offset`` 所在行之后的位置与该行的换行符；末行无换行时返回文本末尾。"""
+    newline_index = text.find("\n", offset)
+    if newline_index == -1:
+        return len(text), "\n"
+    newline = "\r\n" if newline_index > 0 and text[newline_index - 1] == "\r" else "\n"
+    return newline_index + 1, newline
+
+
+def sync_managed_enabled(text: str, template_body: str) -> str:
+    """把已装配置里受管 hook 的 ``enabled`` 同步成模板值。
+
+    模板是开关的唯一来源：现场手改过 ``enabled``，重跑安装也会回到模板口径
+    （本版本模板为 ``false``，即不拦截）。只动模板里有的 id，其他 hook、缩进
+    与行尾注释一律保留；已有行就地改值，没有就补在 ``event:`` 之后。
+    """
+    switches = _template_switches(template_body)
+    for hook_id, start, end, indent in reversed(_hook_block_spans(text)):
+        if hook_id not in switches:
+            continue
+        wanted = "true" if switches[hook_id] else "false"
+        match = _ENABLED_LINE.search(text, start, end)
+        if match is not None:
+            if match.group("value") == wanted:
+                continue
+            line = f"{match.group('indent')}enabled: {wanted}{match.group('rest')}"
+            text = text[: match.start()] + line + text[match.end() :]
+            continue
+        anchor = _HOOK_EVENT_LINE.search(text, start, end)
+        insert_at, newline = _line_end(text, anchor.end() if anchor is not None else start)
+        line_indent = anchor.group("indent") if anchor is not None else indent + "  "
+        # 末行没有换行时先补一个，否则新行会粘在原行末尾。
+        prefix = newline if insert_at == len(text) and not text.endswith("\n") else ""
+        text = text[:insert_at] + f"{prefix}{line_indent}enabled: {wanted}{newline}" + text[insert_at:]
+    return text
+
+
 def _relax_console_encoding() -> None:
     """控制台编码容错：Windows 中文控制台是 GBK，输出 ``⚠️`` 会抛 UnicodeEncodeError。
 
@@ -359,9 +452,11 @@ def _relax_console_encoding() -> None:
 def merge(target: Path, body: str, *, interpreter: str = "") -> str:
     """写入 hook 条目：首次追加，或把已有条目升级成可移植的启动器形态。
 
-    返回 ``merged`` / ``pinned`` / ``unchanged``。两种写入都会先备份，追加备份成
-    ``hooks.yaml.pre-guard``，只改 ``run`` 块备份成 ``hooks.yaml.pre-pin``——后者
-    不覆盖原始回退点。
+    返回 ``merged`` / ``pinned`` / ``synced`` / ``unchanged``。首次追加按模板整段
+    写入（含 ``enabled``）；已有条目除了升级 ``run``，还会把 ``enabled`` 同步成
+    模板值——否则现场手改过的开关会让“出厂停用”失效。两种写入都会先备份：追加
+    备份成 ``hooks.yaml.pre-guard``，改写已有条目备份成 ``hooks.yaml.pre-pin``
+    ——后者不覆盖原始回退点。
     """
     raw = target.read_bytes()
     has_bom = raw.startswith(BOM)
@@ -371,10 +466,13 @@ def merge(target: Path, body: str, *, interpreter: str = "") -> str:
 
     if GUARD_HOOK_ID in text:
         text, pinned = pin_interpreter(text, interpreter, target.parent)
-        if not pinned:
+        synced_text = sync_managed_enabled(text, body)
+        synced = synced_text != text
+        text = synced_text
+        if not pinned and not synced:
             return "unchanged"
         backup = target.with_name(target.name + ".pre-pin")
-        action = "pinned"
+        action = "pinned" if pinned else "synced"
     else:
         body, _ = pin_interpreter(body, interpreter, target.parent)
         backup = target.with_name(target.name + ".pre-guard")
@@ -425,6 +523,14 @@ def main() -> int:
         dead = [prog for prog in programs if is_store_stub(prog)]
         print(f"配置目录：{target.parent}")
         print(f"  hooks 已安装：{GUARD_HOOK_ID in raw}")
+        template_body = hook_entries(here / "hooks.yaml")
+        expected_switches = _template_switches(template_body)
+        states = managed_enabled_states(raw, template_body)
+        stopped = [hook_id for hook_id in expected_switches if not states.get(hook_id, True)]
+        switches_match = all(states.get(hook_id, True) == value for hook_id, value in expected_switches.items())
+        print(f"  护栏开关：{len(stopped)}/{len(expected_switches)} 个受管 hook 停用")
+        if not switches_match:
+            print("  修复：重跑本脚本（不带 --check）即可把护栏开关同步成模板值")
         print(f"  规则包文件：{len(files)}/{len(PAYLOAD_FILES)} {files}")
         if missing:
             print(f"  缺失：{missing}")
@@ -451,12 +557,20 @@ def main() -> int:
                 and launchers >= 2
                 and not script_runs
                 and not encoded_runs
+                and switches_match
             )
         else:
             # POSIX 上没有商店存根；script 是健康形态，启动器/旧 encoded 是残留。
             if launchers or encoded_runs or dead:
                 print("  修复：重跑本脚本（不带 --check）即可自动改回 type: script")
-            healthy = GUARD_HOOK_ID in raw and not missing and not dead and not launchers and not encoded_runs
+            healthy = (
+                GUARD_HOOK_ID in raw
+                and not missing
+                and not dead
+                and not launchers
+                and not encoded_runs
+                and switches_match
+            )
         return 0 if healthy else 1
 
     if not target.exists():
@@ -472,6 +586,8 @@ def main() -> int:
     action = merge(target, hook_entries(here / "hooks.yaml"), interpreter=interpreter)
     if action == "unchanged":
         print("配置里已存在规则包的 hook，未改动 hooks.yaml（幂等）")
+    if action == "synced":
+        print("已把护栏开关同步成模板值（本版本模板为 enabled: false，即不拦截）")
     if interpreter:
         print(f"解释器（--python 指定，已钉死）：{interpreter}")
     elif sys.platform == "win32":

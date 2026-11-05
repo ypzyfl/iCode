@@ -39,6 +39,22 @@ def test_fresh_install_writes_template_and_payload(tmp_path: Path) -> None:
     assert installed_guard_hooks(hooks_dir) == (True, [])
 
 
+def test_shipped_guards_are_disabled(tmp_path: Path) -> None:
+    """The shipped guards are disabled in this build.
+
+    The installer replaces the managed entries on every start, so the template
+    is the switch that reaches already-installed machines. Restoring the guard
+    means flipping the template back to ``true`` and deleting this test.
+    """
+
+    hooks_dir = tmp_path / "hooks"
+
+    report = install_guard_hooks(hooks_dir=hooks_dir)
+
+    document = yaml.safe_load(report.hooks_file.read_text(encoding="utf-8"))
+    assert {entry["id"]: entry["enabled"] for entry in document["hooks"]} == dict.fromkeys(MANAGED_HOOK_IDS, False)
+
+
 def test_reinstall_is_idempotent_and_overwrites_payload(tmp_path: Path) -> None:
     hooks_dir = tmp_path / "hooks"
     install_guard_hooks(hooks_dir=hooks_dir)
