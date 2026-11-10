@@ -674,9 +674,6 @@ def probe_session_root(raw: str) -> Path | None:
 # field without one.
 
 _LABEL_MODEL_PROFILE_ACTIVE = msg("settings.model.profile.active.label", fallback="Active model profile")
-# AIxCoding catalog: server-side model catalog base (borrow-shell label —
-# see aixcoding/docs/batches/catalog-sync/design.md).
-_LABEL_MODEL_CATALOG_BASE_URL = msg("settings.model.catalog.base_url.label", fallback="Model catalog base URL")
 _LABEL_AGENT_DEFAULT_PROFILE = msg("settings.agent.default_profile.label", fallback="Default agent")
 _LABEL_MODEL_ROLE_APPROVAL_JUDGE = msg("settings.model.role.approval_judge.label", fallback="Approval judge model")
 _LABEL_MODEL_ROLE_SESSION_TITLE = msg("settings.model.role.session_title.label", fallback="Session title model")
@@ -751,7 +748,7 @@ _LABEL_HISTORY_PROMPT_ENABLED = msg("settings.history.prompt.enabled.label", fal
 _LABEL_UI_CHAT_FILE_SNAPSHOT_INLINE_CHARS = msg(
     "settings.ui.chat.file_snapshot_inline_chars.label", fallback="Inline file snapshot limit (chars)"
 )
-_LABEL_MODEL_ROLE_BUDDY_MODEL_ID = msg("settings.model.role.buddy_model_id.label", fallback="Buddy model")
+_LABEL_MODEL_ROLE_BUDDY = msg("settings.model.role.buddy.label", fallback="Buddy model")
 _LABEL_LOG_RAW_HTTP_CAPTURE = msg("settings.log.raw_http_capture.label", fallback="Capture raw model HTTP requests")
 _LABEL_MUTATIONS_TRACE_MODE = msg("settings.mutations.trace.mode.label", fallback="Mutation trace mode")
 _LABEL_MUTATIONS_TRACE_FSATRACE_PATH = msg("settings.mutations.trace.fsatrace_path.label", fallback="fsatrace path")
@@ -876,24 +873,6 @@ class Settings:
             group="model",
             kind=Kind.BOOL,
             persist=False,
-        ),
-    )
-
-    # The deployment's catalog service; the sync appends its fixed request
-    # path and the tier table provides the default.
-    model_catalog_base_url: str = field(
-        default="",
-        metadata=spec(
-            key="model.catalog.base_url",
-            label=_LABEL_MODEL_CATALOG_BASE_URL,
-            env="CHRYS_MODEL_CATALOG_BASE_URL",
-            coerce=text_coercer(),
-            apply=Apply.RESTART,
-            group="model",
-            kind=Kind.TEXT,
-            # Which server owns the model list is a deployment decision; a
-            # cloned repository must not point the catalog elsewhere.
-            project_merge=ProjectMerge.DENY,
         ),
     )
 
@@ -1621,17 +1600,17 @@ class Settings:
     )
 
     # ── Buddy ─────────────────────────────────────────────────────
-    # Model id used for what the buddy says when petted.  Empty = the active
-    # profile's model.  Sits under ``model.role`` with the other per-role
-    # selectors, but holds a *model id* rather than a profile selector —
-    # hence the ``_model_id`` leaf, which is the only thing telling a reader
-    # of the YAML that a profile name will not work here.
-    buddy_model: str = field(
+    # Model profile selector (id or unique name) for what the buddy says when
+    # petted.  Empty, or a profile that is gone or not filled in = the active
+    # profile.  Looked up by ``app/features/buddy/replies.py``.  It replaced
+    # ``model.role.buddy_model_id``, a bare model id asked of the active
+    # profile's connection, which ``migrate_buddy_model_profile`` moves here.
+    buddy_model_profile: str = field(
         default="",
         metadata=spec(
-            key="model.role.buddy_model_id",
-            label=_LABEL_MODEL_ROLE_BUDDY_MODEL_ID,
-            env="CHRYS_PET_MODEL",
+            key="model.role.buddy",
+            label=_LABEL_MODEL_ROLE_BUDDY,
+            env="CHRYS_MODEL_PROFILE_BUDDY",
             coerce=text_coercer(),
             apply=Apply.RELOAD,
             group="model",
