@@ -2,7 +2,12 @@
 
 ## 状态
 
-实施与签认完成（2026-11-10）；peer review request changes 已全部处置（见挂起与备忘），待推送 PR。
+实施与签认完成（2026-11-10）；第一轮 peer review request changes 已全部处置（见挂起与备忘）；
+第二轮 peer review **approve**（2026-11-10，复核 finding 处置，证据见 verification.md 末节）；
+已合并最新 `main_aixcoding_cli`（`a35e57e3`，C153 与 logo-branding C145-C152 不撞号，
+strict 105/146/0），合并后定制测试与上游 LLM 层测试全绿，待推送 PR。
+候选-1（commit body 补"评审处置"要素）：AI 建议不修（规范三要素已齐，落点在 PR 描述
+与活文档；amend 需改写已合并历史），裁决待责任人。
 
 ## 待办
 
@@ -18,7 +23,8 @@
 - [x] peer review finding-B：提交补规范 body（动机/改动/验证）
 - [x] peer review finding-C：本状态节同步
 - [x] peer review finding-D：verification.md 补 `--strict` 对账记录
-- [ ] PR + peer review 终审（复核 finding 处置）
+- [x] peer review 终审复核（2026-11-10 第二轮：approve；第一轮 finding 处置全 confirm）
+- [ ] 推送 PR（描述含两轮评审处置摘要，即 §7 交付报告第 4 项落点）
 
 ## 挂起与备忘
 

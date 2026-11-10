@@ -53,3 +53,30 @@ per-request 层。留证：`git log` 无（当场撤改），测试输出当时�
   ```
 - peer review 证据抽查（评审 AI 复跑，与本文档既有记录一致）：
   `test_sdk_auth.py 2 passed` / `tests/service/llm 2098 passed, 1 skipped`。
+
+## 2026-11-10 第二轮 peer review（approve）与合并主干后复检
+
+- 第二轮 peer review（评审 AI 于 HEAD `5369c285` 执行）：**建议 approve**。
+  上游接触面 18 行 100% 过目（四问全过）、三项交叉检查（R2/R11 比对、
+  幻觉 API 验证——openai 2.54.0 实测符号全真、缺陷模式扫描含 MRO 无冲突）、
+  两 blocker 与第一轮 findings A-D 复核均 confirm、证据抽查复跑通过
+  （`test_sdk_auth.py 2 passed`；`--strict` check OK 102/139/0，与本文档补录一致）。
+  唯一候选 finding（轻微）：commit body 未含"评审处置"要素——经规范核对，
+  DEVELOPMENT.md 无提交 body 五要素要求（三要素已齐），评审结论的规范落点为
+  PR 描述（§7 交付报告第 4 项）与本目录活文档；裁决待责任人。
+  另注（评审查证）：SDK `_provider_runtime` 豁免路径与 `api_key`/`base_url`
+  互斥，本项目必传 base_url，结构性不适用，不构成更优方案。
+- 合并 `main_aixcoding_cli`（merge commit `a35e57e3`，带入 logo-branding PR #109）
+  后复检：
+  ```
+  $ git diff main_aixcoding_cli...HEAD --stat
+  8 files changed, 335 insertions(+)   ← 与合并前一致，无多余改动混入
+  $ uv run python aixcoding/tools/gen_customizations.py --strict
+  gen_customizations: check OK — 105 registration row(s) / 146 marker(s)
+  across 16 design(s), 7 retired id(s), 0 warning(s)
+  （增量 3 行/7 marker 来自 logo-branding C145-C152；C153 不撞号）
+  $ uv run pytest aixcoding/tests/llm/ -n0 -q
+  2 passed in 2.31s
+  $ uv run pytest tests/service/llm/ -n0 -q
+  2098 passed, 1 skipped in 38.89s
+  ```
