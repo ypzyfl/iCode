@@ -21,6 +21,7 @@ from rich.console import Console
 
 from chrys import __version__
 from chrys.app.cli import serve as serve_cli
+from chrys.app.tui.util.logo import TUI_LOGO
 from chrys.foundation.branding import APP_DISPLAY_NAME
 
 
@@ -311,7 +312,8 @@ def test_inject_browser_serve_branding_logo_preserves_logo_spacing() -> None:
     branded = serve_cli._inject_browser_serve_branding_logo(body)
 
     assert f'<pre class="chrys-serve-logo" aria-label="{APP_DISPLAY_NAME}">' in branded
-    assert "▀██████▀          █▄" in branded
+    # AIxCoding branding: logo assertions track TUI_LOGO
+    assert TUI_LOGO.splitlines()[2].strip() in branded
     assert branded.count("chrys-serve-logo") == 1
     assert serve_cli._inject_browser_serve_branding_logo(branded) == branded
 
@@ -1142,7 +1144,8 @@ async def test_auth_required_protects_tui_and_websocket_until_login() -> None:
         assert login_response.status == 200
         assert login_response.headers["Referrer-Policy"] == "same-origin"
         assert 'class="logo"' in login_text
-        assert "▀██████▀" in login_text
+        # AIxCoding branding: logo assertions track TUI_LOGO
+        assert TUI_LOGO.splitlines()[1].strip() in login_text
         assert "overflow: hidden" in login_text
         assert "overflow-x: auto" not in login_text
         assert "10px/1.05" in login_text
@@ -1211,7 +1214,8 @@ async def test_textual_serve_page_injects_browser_clipboard_support() -> None:
         assert "data-chrys-serve-capability" in text
         assert "data-chrys-serve-branding" in text
         assert ".intro > svg" in text
-        assert "▀██████▀" in text
+        # AIxCoding branding: logo assertions track TUI_LOGO
+        assert TUI_LOGO.splitlines()[1].strip() in text
         assert "navigator.clipboard.writeText" in text
         assert server._browser_capability in text
         assert response.headers["Cache-Control"] == "no-store"
@@ -1250,7 +1254,8 @@ async def test_real_textual_serve_page_injects_browser_clipboard_support() -> No
         assert "data-chrys-browser-clipboard" in text
         assert "data-chrys-serve-capability" in text
         assert "data-chrys-serve-branding" in text
-        assert "▀██████▀" in text
+        # AIxCoding branding: logo assertions track TUI_LOGO
+        assert TUI_LOGO.splitlines()[1].strip() in text
         assert "WebSocket.prototype.addEventListener" in text
         assert server._browser_capability in text
     finally:
@@ -1859,10 +1864,29 @@ def test_textual_serve_banner_is_aixcoding_branded() -> None:
     asyncio.run(server.on_startup(object()))
 
     text = output.getvalue()
-    assert "####   ##     ##  #     #  #  #  #   ##   # ##  # ##" in text
+    assert "██████  ██  █▄ ▄█ ██     ▄███▄ ▄████ ██ ████▄ ▄███▄" in text
     assert f"v{__version__}" in text
     assert "TEXTUAL-SERVE" not in text
     assert f"Serving {APP_DISPLAY_NAME} TUI on http://localhost:7777" in text
+
+
+# AIxCoding branding: banner GBK assertions
+def test_textual_serve_banner_gbk_stdout_does_not_crash() -> None:
+    code = (
+        "import sys; sys.stdout.reconfigure(encoding='gbk'); "
+        "from rich.console import Console; "
+        "from chrys.app.cli.serve import _icode_serve_logo; "
+        "Console().print(_icode_serve_logo(), highlight=False)"
+    )
+    result = subprocess.run([sys.executable, "-c", code], check=False, capture_output=True)
+    assert result.returncode == 0, result.stderr.decode("utf-8", errors="replace")
+
+
+# AIxCoding branding: banner GBK assertions
+def test_icode_serve_logo_avoids_upper_half_block() -> None:
+    banner = serve_cli._icode_serve_logo()
+    assert "▀" not in banner
+    assert {char for char in banner if char in "▀▄█"} <= {"▄", "█"}
 
 
 def test_chrys_server_normalizes_ipv6_default_public_url() -> None:

@@ -7,7 +7,7 @@
 
 - 责任人：周彬
 - 状态：已确认
-- 确认日期：2026-11-03
+- 确认日期：2026-11-10
 - 确认意见：无特别意见
 
 > 2026-11-03 责任人重裁：放弃原 `branding-ui` 的"文案先改、入口与安装别名后改"方案，
@@ -249,9 +249,8 @@ alias 归属证明与安全清理。该助手仅依赖标准库，按 ADR-0011 �
 | C059 | src/chrys/foundation/observability/setup.py | AIxCoding branding: OTLP error message | 1 | OTLP ImportError | 低 | 随 C050 |
 | C060 | src/chrys/service/profiles/agents/builtins/Code.yaml | AIxCoding branding: built-in agent self-reference | 1 | Code instructions | 低 | 随 C050 |
 | C061 | src/chrys/service/profiles/agents/builtins/QA.yaml | AIxCoding branding: built-in agent self-reference | 1 | QA instructions | 低 | 随 C050 |
-| C062 | src/chrys/app/cli/serve.py | AIxCoding branding: ASCII serve banner | 1 | `_icode_serve_logo` 输出 | 低 | 随 C050 |
 | C063 | tests/app/cli/test_app.py | AIxCoding branding: sole command follows APP_COMMAND | 1 | wheel 唯一入口契约断言 | 低 | 随 C050/C103 |
-| C064 | tests/app/cli/test_serve.py | AIxCoding branding: banner assertion | 1 | banner 渲染断言 | 低 | 随 C062 |
+| C064 | tests/app/cli/test_serve.py | AIxCoding branding: banner assertion | 1 | banner 渲染断言 | 低 | 随 C146 |
 | C065-C078 | tests/app/tui/terminal/test_program_status.py | AIxCoding branding: OSC app name assertions | 14 | OSC app 字段断言（14 个语义点） | 低 | 随 C050 |
 | C079-C081 | tests/app/tui/terminal/test_program_status_lifecycle.py | AIxCoding branding: OSC app name assertions | 3 | OSC app 字段断言（3 个测试函数） | 低 | 随 C050 |
 | C082 | tests/app/tui/widgets/test_hook_run_list.py | AIxCoding branding: hooks empty-state text | 1 | hooks 空态文案 | 低 | 随 C050 |
@@ -289,6 +288,12 @@ alias 归属证明与安全清理。该助手仅依赖标准库，按 ADR-0011 �
 
 （区间仅用于同一落点、同一 marker 文本的孪生组；实施时不得把多个分散函数合并成一个
 无法定位的 marker。生成 catalog 和定制目录不入上游 C id 表。）
+
+> 退役登记（2026-11-10，logo-branding 实施）：C062 随 serve banner 字形从 ASCII 改为
+> `{▄,█}` 块字符子集（marker 锚 "ASCII serve banner" 不再成立）迁入
+> `aixcoding/docs/batches/logo-branding/design.md` 的退役记录，本节现役行同步删除；
+> 防崩溃语义由 C146 继承，C064 的 removal_condition 改随 C146（计数不变；GBK/无 `▀`
+> 两用例由 logo-branding 独立登记 C151-C152）；本文由责任人按 R10 重签后闭环。
 
 ## 验证与发布门禁
 
