@@ -44,3 +44,4 @@
 | [batches/upstream-merge-v0.34.0](batches/upstream-merge-v0.34.0/) | 升级批次 | 追上游 v0.34.0（基线 0.33.0 → 0.34.0） |
 | [batches/upstream-merge-v0.35.1](batches/upstream-merge-v0.35.1/) | 升级批次 | 追上游 v0.35.1（基线 0.34.0 → 0.35.1，目标 ref = release tag 已裁决） |
 | [batches/logo-branding](batches/logo-branding/) | 功能批次 | TUI 欢迎字符画品牌化（TUI_LOGO 换 AIxCoding 块字符字形，Chat/Workflow 两幅保持上游原样；serve banner 改 `{▄,█}` GBK 安全子集） |
+| [batches/user-manual](batches/user-manual/) | 功能批次 | 定制版用户手册入库 `aixcoding/manual/` + wheel 捆绑源切换（安装版 F8 展示定制手册；C154-C157） |

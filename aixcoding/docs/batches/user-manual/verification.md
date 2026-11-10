@@ -1,0 +1,250 @@
+# 验证记录：定制版用户手册入库与安装版捆绑（user-manual）
+
+> 活文档（不签认）。交付证据（R7）：实际执行的命令与输出摘要。每次验证追加一节，**不删旧记录**；真实性由双 AI 自审与评审抽查保障。
+
+## 2026-11-09 手册内容定制与链接门禁（Windows 11，本地）
+
+命令：
+
+```
+python check_links.py "桌面\用户手册\20261109\0.35更新后\AIxCoding-CLI用户手册.md"
+```
+
+结果：`内锚 237 | 失效 0 | 外链 0 | PASS`。第三方外链去链（手册 5 处 + 仓库 en 文档 6 处，
+zh 本为纯文本）；裸 URL 55 处逐条裁决保留（内网下载地址 / 代码示例 / CLI 真实报错输出）。
+首轮内锚校验曾报 97 个"失效"，确认为校验脚本 slug 算法 bug（`\s` 吞空格），修正算法后 0 失效。
+
+## 2026-11-10 定制手册入库与构建切换验证（Windows 11，本地）
+
+### F8 三级解析实测（行为锚定）
+
+```
+CHRYS_DOCS_ROOT=C:\work\iCode\aixcoding\manual 下调用 resolve_docs_root()
+→ 输出：F8 解析到: C:\work\iCode\aixcoding\manual（指向 manual: True）
+```
+
+### wheel 构建与捆绑比对（SAC 受限机器等价脚本，check_wheel.py 子进程被拦 os error 4551）
+
+```
+uv pip install hatchling（清华镜像，临时）→ python -m hatchling build
+→ dist\icode_tui-0.35.1-py3-none-any.whl
+
+zipfile 校验：wheel 捆绑 67 = manual 67 = docs 67；捆绑清单 == manual 清单（True）；
+逐文件 sha256 抽验（index.yaml + 随机 5 篇）全部一致
+```
+
+### 上游回归测试
+
+```
+python -m pytest tests\foundation\test_documentation.py tests\app\tui\screens\guides
+  tests\service\context\providers\test_documentation.py
+  tests\orchestration\workflows\test_documentation.py
+  tests\orchestration\invoker\test_documentation.py -q -p no:cacheprovider
+→ 92 passed in 169.39s（零跟改）
+  【2026-11-10 评审 F2 注：本节运行于 pyproject 捆绑源切换之前，"零跟改"结论已被评审推翻
+  ——切换后契约测试必红，正确证据见下方"独立评审第一轮处置"F2 节（92 passed 含 C156 跟改）】
+```
+
+### 架构套件排查（确认失败与 manual 无关）
+
+```
+python -m pytest tests\architecture -q → 24 failed（全数集中在 test_test_hygiene.py）
+根因：当时后台并存 4 个重复全量 pytest 进程，xdist worker 崩溃（node down: Not properly
+terminated），非断言失败。清理重复进程后串行重跑：
+python -m pytest "tests/architecture/test_test_hygiene.py::<两用例>" -q -n0
+→ 8 passed in 295.37s
+```
+
+### 环境前提修复：vendored ripgrep
+
+```
+现象：tests/app/tui/widgets/test_search_renderers.py::test_grep_real_output_header_regex
+  AssertionError（真失败，串行复现）
+根因：src/chrys/foundation/vendor/ripgrep/ 为空（构建时下载步骤从未在本机执行）
+修复：powershell scripts\fetch_rg.ps1（经代理，rg 15.2.0 x86_64-pc-windows-msvc）
+复验：pytest tests\app\tui\widgets\test_search_renderers.py -q -n0 → 35 passed
+```
+
+### PDF 交付链路
+
+```
+markdown 库（清华镜像临时装、用毕卸）→ 技能脚本 md2html.py（GitHub slug 锚点 + 中文打印 CSS）
+→ Edge 无头 --print-to-pdf → 桌面 0.35更新后\AIxCoding-CLI用户手册.pdf
+→ 139 页 / 7.0MB；HTML h1-h3 锚点 id 388 个；外部超链接 0
+```
+
+### git 收账
+
+```
+fork/user-manual 分支（基于 main_aixcoding_cli@b8b02456）：
+ed8dd517 build+docs: 定制版用户手册入库 aixcoding/manual 并切换 wheel 捆绑源
+  69 files changed, +15287 / −3（manual 67 + pyproject.toml + scripts/check_wheel.py）
+aixcoding-launch.py 未提交（责任人裁定本地资产）
+均未 push（该时点状态；后经责任人授权推送并建 PR #111，见「验收与裁决闭环」）。
+```
+
+## 2026-11-10 独立评审第一轮处置（评审方：Claude Code + GLM-5.3，与开发 AI〔CodeBuddy + D4 PRO〕不同源）
+
+评审报告：桌面 `user-manual批次独立评审报告-20261110.md`（3 blocker / 2 suggestion / 1 nit）。
+开发 AI 独立复核实证后，责任人拍板"同意"（1A + 2 必做 + 3 方案一 + 4/5/6 做）。处置：
+
+- **F1（R2 表漏报契约测试连带跟改）→ 已修复**：
+  `tests/foundation/test_documentation.py::test_wheel_bundles_docs_where_the_resolver_looks`
+  断言键 `force_include["docs"]` → `["aixcoding/manual"]`（+`AIxCoding` 标记，C156）；
+  design R2 表增补第 3 行 + 定制点预告 C156；test-plan"零跟改"表述修正。
+- **F2（92 passed 证据对应切换前树况）→ 已重跑回填**：
+
+  ```
+  python -m pytest tests\foundation\test_documentation.py tests\app\tui\screens\guides
+    tests\service\context\providers\test_documentation.py
+    tests\orchestration\workflows\test_documentation.py
+    tests\orchestration\invoker\test_documentation.py -q -p no:cacheprovider
+    --basetemp=C:\work\_pytest_review
+  → 92 passed in 27.77s（含 C156 跟改后契约测试，本机无 CI env 不跳过）
+  单验契约测试：1 passed in 12.63s（PASSED test_wheel_bundles_docs_where_the_resolver_looks）
+  ```
+
+  旧记录（169.39s 节）对应 pyproject 切换前的树况，予以保留并加注（不删旧记录原则）。
+- **F3（manual 树 100 处围栏外第三方外链，验收勾选失真）→ 已修复（方案一：真去链）**：
+  围栏外 `[text](url)` 全量清点 = 52 唯一 URL / 100 处；逐条分类——仅
+  `github.com/openJiuwen-ai/iCode/releases`（产品仓库发布页）属 aixcoding 相关保留（2 处），
+  其余 98 处去链保留文字（10 文件：chat-options 41+41、settings 4+4、getting-started 2+2、
+  web-tools 2+2、skills 1+1 等）。复扫：
+
+  ```
+  scan_manual_links.py → manual 树围栏外第三方外链总数: 2（即保留项 zh/en 各 1）
+  wheel 内复扫（重建后）：wheel 内围栏外第三方外链: 0
+  ```
+
+- **F4（批次文档未入库 / plan 措辞）→ 本笔提交一并入库**；plan 措辞已改。
+- **F5（等价脚本不可复现）→ 一次性校验脚本落盘、用毕即删**：曾落盘本目录
+  `verify_wheel_bundle.py`（SAC 受限机器的等价校验：wheel 捆绑清单 + 逐文件 sha256
+  vs `aixcoding/manual/`；Linux CI 仍以 `scripts/check_wheel.py` 为准）；责任人 2026-11-10
+  裁决文件不再保留，**证据以本节输出留档**（复现方式：读 wheel 的
+  `chrys/app/tui/screens/guides/_docs/` 前缀清单与内容哈希，与 `aixcoding/manual/` 比对）。
+  当时执行输出：
+
+  ```
+  wheel: icode_tui-0.35.1-py3-none-any.whl
+  捆绑 67 vs manual 67，清单一致: True
+  内容哈希不一致: 无
+  ```
+
+- **F6（nit）→ 随 F3 联动**，requirements 验收第 2 项证据更新。
+- **顺带完成收尾项**：R3 标记补录——pyproject.toml（C154 行）/ check_wheel.py（C155 行）
+  补 `AIxCoding` 单行标记，design C154/C155 marker 锚同步为正式标记文本。
+- **开发 AI 复检追加发现（评审未覆盖）→ 已处置（理由口径经增量复审 N1 更正）**：
+  ruff 0.17.1 会格式化 md 内 ```python 围栏，把手册有意对齐的注释重排。显式路径下可复现：
+
+  ```
+  ruff format --check --config "extend-exclude=[]" aixcoding/manual
+  → 6 个 md unformatted（python-extensions / running/workflows / reference/workflows，zh+en 各 1）
+  ```
+
+  但 **CI（`aixcoding-tests.yml:129` `ruff format --check aixcoding/`）当前用目录遍历时不覆盖
+  md**（同配置下 `aixcoding/` 目标 316 files already formatted），故原记录"CI 必红"表述过强，
+  更正为：C157（`[tool.ruff] extend-exclude = ["aixcoding/manual"]`）是**防御性策略声明**
+  ——交付内容不参与格式化治理，防止未来 ruff 行为变化或目录遍历覆盖 md 时手册被机器重排。
+
+  第三轮评审 R1 进一步收窄（2026-11-10，已复核）：**ruff 对显式传入的路径默认不套用
+  `extend-exclude`**，故本项**只对目录遍历场景生效**，显式路径调用须加 `--force-exclude`
+  才受约束。实证：
+
+  ```
+  ruff format --check aixcoding/manual                 → 6 files would be reformatted, 60 already formatted
+  ruff format --check --force-exclude aixcoding/manual → No Python files found（全部被 exclude 拦下）
+  ```
+
+  结论不变：C157 保留（CI 现行命令即目录遍历，覆盖成立），仅文档表述收窄，不动代码。
+  落地后复检：
+
+  ```
+  ruff format --check aixcoding/ → 316 files already formatted
+  ruff check aixcoding/         → All checks passed!
+  ```
+
+## 2026-11-10（续）wheel 重建与捆绑复验
+
+manual 树去链后重建（`python -m hatchling build`）：
+
+```
+等价校验（一次性脚本，已删）→ 捆绑 67 = manual 67，清单一致 True，内容哈希不一致: 无
+wheel 内围栏外第三方外链: 0（保留项 2 处在 manual 树源文件，wheel 内同样保留）
+```
+
+桌面定稿 MD/PDF 本轮未改（去链针对 manual 树；桌面合并版此前已清、含外链的
+chat-options 章节为 manual 树独有），PDF 不需重出。
+
+## 2026-11-10 签认与门禁总检
+
+责任人签认（单据头部代填按责任人当次指示执行，签字人 赵阔、日期 2026-11-10）：
+`design.md`（R2 获批记录 + R11 审批人/审批日期）、`self-review.md`（首轮评审结论）。
+ADR 判定四问 ①②③ 成立，责任人同日裁决不出 ADR（决策内容留 design），草案 adr/0001 删除。
+
+签认后连跑两道门禁：
+
+```
+python aixcoding/tools/gen_customizations.py --strict
+→ check OK — 105 registration row(s) / 142 marker(s) across 15 design(s), 6 retired id(s), 0 warning(s)
+
+python aixcoding/tools/check_docs.py
+→ scanned 24 ADR(s), 34 design(s), 32 self-review(s) under aixcoding/docs … OK
+```
+
+对账过程中发现并修正的两处格式问题（R2/R3 对账口径）：
+1. 登记表 marker 锚带反引号，解析器不剥离 → 改为纯文本（工具要求锚是代码标记的逐字前缀）；
+2. design 含 `第三方依赖申请` 章节且已确认 → 按 R11 规则补 `审批人` / `审批日期` 头部字段
+   （结论：无新增第三方依赖，批准）。
+
+## 2026-11-10 验收与裁决闭环
+
+责任人 赵阔 当日逐条裁决（原始记录表见 `plan.md`「责任人裁决记录」），此处记录**验收动作与
+可核事实**：
+
+| # | 裁决 | 本文件对应证据 |
+|---|---|---|
+| 1 | 分支推送 | `origin/fork/user-manual` 已推（`910b06b2` 为 rebase 前时点哈希，现行分支头 `0331858e`，见下节「rebase 留痕」）；PR 已建 #111（base=main_aixcoding_cli，mergeable=clean，13 提交 / 77 文件） |
+| 2 | 验收 8 条全部通过 | 上方验收清单逐条证据（验收结论行落在 requirements.md） |
+| 3 | C157 保留 | 按防御性策略口径留档（见 F5/C157 节更正后的表述），不撤销 |
+| 4 | Linux 侧门禁不改 CI | 不新增 `.github/` 改动（避免额外 R2 申报），等 `aixcoding-upstream-ci` 桥接跑 build+wheel 时覆盖 |
+| 5 | 双轨同源对账下批次 | plan「挂起与备忘」N3 待办 |
+| 6 | 定制版 wheel 交付不入库 | 已拷 `桌面\用户手册\20261110\icode_tui-0.35.1-定制手册版-py3-none-any.whl`（6.96 MB，与 `dist/` 同哈希源）；`dist/` 保持 gitignore |
+| 7 | 分支长期存续 | `fork/user-manual` 作为后续手册批次承载分支 |
+
+## 2026-11-10 rebase 留痕与计数漂移（第三轮评审 R2 处置）
+
+**为何 rebase**：远端 `main_aixcoding_cli` 由 `b8b02456` 前进至 `95e23add`（6 笔提交 / 27 文件），
+与本地分支在 `aixcoding/docs/INDEX.md` 相撞；不 rebase 则 PR 必然 conflict。已于本地 rebase
+（备份分支 `backup/fork-user-manual-65aff267` 保留 rebase 前形态，**未推远端**）。
+
+**哈希前移对照**（本文档中出现的旧哈希均为时点快照，按「更正不删旧记录」原则保留）：
+
+| 旧哈希（rebase 前） | 含义 | 现状态 |
+|---|---|---|
+| `ed8dd517` | 手册入库 + 捆绑源切换主体提交 | 内容等价提交已重放，分支头为 `0331858e` |
+| `42667097` | 首次推送后远端 HEAD | 远端已重建，现行远端 HEAD `0331858e` |
+| `910b06b2` | 验收结论提交 | 同上，重放后并入现行分支 |
+| `65aff267` | 旧分支头（含误建 PR #241 快照引用） | 仅存本地备份分支，远端已无 |
+
+**计数漂移**（rebase 带入了 base 主干新增的 2 个 design，非本批次自身变化）：
+
+| 指标 | 旧记录（时点） | 现行树复跑 |
+|---|---|---|
+| 登记行 | 105 | **109** |
+| marker | 142 | **150** |
+| design 数 | 15 | **17** |
+| retired id | 6 | **7** |
+| strict 门禁 | 0 warning | **0 warning**（仍全绿） |
+| check_docs 计数 | 24 ADR / 34 design / 32 self-review | **23 / 36 / 34**（ADR 减 1 = 删 adr/0001；design+2、self-review+2 = base 主干新增批次） |
+
+**结论**：文中 105/142/15/6 等数字为对应时点的真实现场值，不作为「当前值」引用；现行值以本节
+表格为准。门禁本身无回归（`gen_customizations --strict` exit 0、0 warning）。
+
+## 待补项
+
+- [x] 评审第一轮修复后的增量复审（2026-11-10，同一评审 AI）——3 blocker 修复经独立复现确认，
+  新增 N1/N2/N3 已处置或登记，结论收敛（记录见 self-review 第二轮节）；
+- [ ] Linux 侧 `check_wheel.py` 正式门禁输出——**非本批次动作**：责任人裁决不改 CI，等
+  `aixcoding-upstream-ci` 桥接自然覆盖（届时以 CI 日志为准，本文件不再回填）；
+- [ ] 双轨同源对账（增量复审 N3）：从 `aixcoding/manual/` 重出桌面 MD/PDF 做字符级对账，
+  登记为下个手册批次待办（plan「挂起与备忘」）。
