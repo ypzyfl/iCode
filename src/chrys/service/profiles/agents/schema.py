@@ -150,6 +150,17 @@ class SkillsConfig:
     Reloaded automatically when the workspace cwd changes (``/chdir`` or the
     file picker) because the agent is rebuilt with a fresh ``SessionEnvironment``.
     Default True; harmless when the directory does not exist."""
+    # AIxCoding skills: desktop-shared aixcoding roots (src/chrys/service/aixcoding/skill_paths)
+    auto_load_aixcoding_user_skills: bool = True
+    """When True, also auto-load skills from the desktop-client HOME trees —
+    ``~/.aixcoding/{skills,market-skills,team-skills/<team>}`` and the
+    ``~/.aixcoding_intellij`` mirror for IDE-managed skills.  Default True;
+    harmless when the directories do not exist."""
+    auto_load_aixcoding_cwd_skills: bool = True
+    """When True, also auto-load skills from ``<cwd>/.aixcoding/skills`` — the
+    desktop-client workspace root.  This product-owned directory is not gated
+    by the project trust setting.  Reloaded automatically when the workspace
+    cwd changes.  Default True; harmless when the directory does not exist."""
 
 
 @dataclass

@@ -23,7 +23,8 @@ This document is the design for that feature. For the YAML format see
   the global layer).**
 - Pure addition — no behavior change when no project file is present.
 - Match existing per-workspace config patterns in Chrys (skills at
-  `<cwd>/.agents/skills/`, workspace-relative `AGENTS.md`).
+  `<cwd>/.agents/skills/` and `<cwd>/.aixcoding/skills/`, workspace-relative
+  `AGENTS.md`).
 
 ## Non-goals
 

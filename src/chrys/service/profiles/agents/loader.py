@@ -431,6 +431,9 @@ def _parse_skills(raw: object) -> SkillsConfig:
         script_extensions=raw_map.get("script_extensions", [".py", ".sh", ".ps1"]),
         auto_load_user_agents_skills=raw_map.get("auto_load_user_agents_skills", True),
         auto_load_cwd_agents_skills=raw_map.get("auto_load_cwd_agents_skills", True),
+        # AIxCoding skills: desktop-shared aixcoding roots (src/chrys/service/aixcoding/skill_paths)
+        auto_load_aixcoding_user_skills=raw_map.get("auto_load_aixcoding_user_skills", True),
+        auto_load_aixcoding_cwd_skills=raw_map.get("auto_load_aixcoding_cwd_skills", True),
     )
 
 

@@ -16,7 +16,7 @@ import platform
 import shutil
 from contextlib import ExitStack
 from ctypes import wintypes
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
 
@@ -46,6 +46,8 @@ class PlatformInfo:
     config_dir: Path  # ~/.chrys or %APPDATA%/chrys, by its real path (paths.real_path)
     data_dir: Path  # same as config_dir for now
     extra_shells: tuple[ShellInfo, ...] = ()  # additional shells (e.g. Git Bash on Windows)
+    # AIxCoding skills: desktop-shared root, a literal home entry like ~/.agents (src/chrys/service/aixcoding/skill_paths)
+    aixcoding_dir: Path = field(default_factory=lambda: Path.home() / ".aixcoding")
 
     # --- OS convenience properties ---
 
