@@ -7,8 +7,9 @@ locales:
 # Topics appear in declaration order. Paths are relative to each locale directory.
 # Use children for groups and labels for localized display names; leaf titles
 # otherwise come from the Markdown H1.
-# 章节取舍遵循上一版（0.33）手册口径：仅收录上一版已有章 + 定制章（登录、常见问题）。
-# 上游 0.35.1 新增章节经责任人裁决（2026-11-10）不上 F8 手册。
+# 章节取舍与内容以桌面版《AIxCoding-CLI 用户手册》（0.35，2026-11-09）为唯一基准逐章对齐；
+# zh-Hans 内容逐字取自该手册，en 由上游对应章兜底 + 定制（品牌/内网源/去链），缺失章自行翻译。
+# 上游 0.35.1 独有而该手册没有的章（如 OpenTelemetry 参考）不上 F8（责任人裁决 2026-11-10）。
 topics:
   - id: start
     labels:
@@ -21,35 +22,68 @@ topics:
         path: start/getting-started.md
       - id: login
         path: start/login.md
+  - id: daily_use
+    labels:
+      zh-Hans: 日常使用
+      en: Daily Use
+    children:
+      - id: sessions
+        path: guides/daily-use/sessions.md
+      - id: workspaces
+        path: guides/daily-use/workspaces.md
+      - id: build_info
+        path: guides/daily-use/build-info.md
   - id: running
     labels:
-      zh-Hans: 运行 iCode
-      en: Running iCode
+      zh-Hans: 运行 AIxCoding-CLI
+      en: Running AIxCoding-CLI
     children:
+      - id: icode_run
+        path: guides/running/icode-run.md
+      - id: icode_acp
+        path: guides/running/icode-acp.md
       - id: workflows
         path: guides/running/workflows.md
       - id: terminal_status
         path: guides/running/terminal-status.md
   - id: configuration
     labels:
-      zh-Hans: 配置 iCode
+      zh-Hans: 配置 AIxCoding-CLI
       en: Configuration
     children:
+      - id: models
+        path: guides/configuration/models.md
       - id: agents
         path: guides/configuration/agents.md
+      - id: tools
+        path: guides/configuration/tools.md
       - id: web_tools
         path: guides/configuration/web-tools.md
+      - id: approval
+        path: guides/configuration/approval.md
+      - id: memory
+        path: guides/configuration/memory.md
       - id: compaction
         path: guides/configuration/compaction.md
       - id: settings
         path: guides/configuration/settings.md
+      - id: theme_editor
+        path: guides/configuration/themes.md
   - id: extensions
     labels:
-      zh-Hans: 扩展 iCode
+      zh-Hans: 扩展 AIxCoding-CLI
       en: Extensions
     children:
       - id: skills
         path: guides/extensions/skills.md
+      - id: mcp
+        path: guides/extensions/mcp.md
+      - id: python_extensions
+        path: guides/extensions/python-extensions.md
+      - id: hooks
+        path: guides/extensions/hooks.md
+      - id: shortcuts
+        path: guides/extensions/shortcuts.md
   - id: reference
     labels:
       zh-Hans: 参考
@@ -59,12 +93,20 @@ topics:
         path: reference/workflows.md
       - id: tui_slash_commands
         path: reference/tui-slash-commands.md
+      - id: tool_kinds_and_names
+        path: reference/tool-kinds-and-names.md
       - id: agent_profile_reference
         path: reference/agent-profile.md
+      - id: settings_reference
+        path: reference/settings.md
       - id: hooks_reference
         path: reference/hooks.md
+      - id: themes_reference
+        path: reference/themes.md
   - id: faq
     labels:
       zh-Hans: 常见问题
       en: FAQ
-    path: faq.md
+    children:
+      - id: faq_content
+        path: faq.md

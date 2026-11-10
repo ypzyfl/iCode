@@ -258,3 +258,14 @@ python aixcoding/tools/check_docs.py
 - 执行：zh-Hans/en 各 15 篇 + index.yaml 重写；四道门禁复跑全绿
   （check_docs OK；gen_customizations --strict 109/150/0 warning；契约测试 11 passed；ruff --force-exclude 无输出）。
 - wheel 重建（19:11 后第二次）并重装测试环境复验：捆绑 15 篇与 index 声明一致，login/faq 在包内。
+
+## 2026-11-10 手册基准切换为桌面版 0.35 手册（责任人裁决，活文档追加）
+
+- 裁决：F8 手册以桌面版《AIxCoding-CLI 用户手册》（0.35 更新后，2026-11-09）为唯一基准，内容逐字照搬；
+  PDF 没有的上游章（如 OpenTelemetry 参考）维持删除；PDF 仅中文，英文缺失章自行翻译。
+- 执行：zh-Hans/en 各 32 章 + index.yaml 重排（FAQ 按 PDF 为「常见问题 > FAQ」两层）。
+  zh 逐字取自 PDF md（围栏感知切分 32 章，逐章比对一致）；206 个章内/跨章锚点全部重写解析（0 失效）；
+  en 29 章上游兜底 + 定制（品牌 AIxCoding-CLI、安装源切内网 22.189.54.139、外链降级 8 处、死链清理 15 处），
+  en/login 恢复自 git 历史，en/build-info、en/faq 自行翻译。
+- 门禁：check_docs OK；gen_customizations --strict 0 warning；契约测试 11 passed；锚点/外链/品牌复验全绿。
+- wheel 重建并重装测试环境：捆绑与 manual 树逐字节一致（32×2 章 + index）；本地 aixcoding F8 实测通过（责任人确认）。

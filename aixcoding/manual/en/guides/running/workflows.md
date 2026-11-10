@@ -43,7 +43,7 @@ After generating a project introduction, the example includes the draft in a que
 
 When the run ends with a result, click “Result” to the right of “■ Cancel” to read the final output. If the workflow has several outputs, each one gets its own tab, named after its output node. “Output” still shows the full record, including node states and progress messages. Click “▶ Start” again to enter new input and run again.
 
-A workflow session can save multiple runs. Click the “Run 1”, “Run 2”, and subsequent run tabs above “Workflow”, “Info”, and the other tabs to browse each run. After quitting and reopening iCode, first switch to “Workflow” through the app mode selector in the upper left. Press `F1` or click `f1 Sessions` at the bottom of the interface, then select a workflow session to view its historical inputs, outputs, and node records.
+A workflow session can save multiple runs. Click the “Run 1”, “Run 2”, and subsequent run tabs above “Workflow”, “Info”, and the other tabs to browse each run. After quitting and reopening AIxCoding-CLI, first switch to “Workflow” through the app mode selector in the upper left. Press `F1` or click `f1 Sessions` at the bottom of the interface, then select a workflow session to view its historical inputs, outputs, and node records.
 
 ## Create your first workflow
 
@@ -82,9 +82,9 @@ A node is an execution step in a workflow. Here, `greet()` defines the processin
 Input → hello node → Workflow output
 ```
 
-Finally, `wf.build()` validates and builds the workflow. **The file must assign the result to a module-level variable named `workflow` so iCode can load it.**
+Finally, `wf.build()` validates and builds the workflow. **The file must assign the result to a module-level variable named `workflow` so AIxCoding-CLI can load it.**
 
-You do not need to restart iCode after saving the file. Click “New Session” to open the workflow picker and select `greeting`.
+You do not need to restart AIxCoding-CLI after saving the file. Click “New Session” to open the workflow picker and select `greeting`.
 
 When a custom file is first loaded or has changed, the TUI asks you to review its source and confirm trust. A workflow is executable Python, and loading it can execute code at the top level of the file.
 
@@ -92,7 +92,7 @@ After confirming trust, click “▶ Start”, enter `Alex`, and run. The final 
 
 ## Use another Python environment
 
-By default, workflows use the Python interpreter running iCode. If a workflow needs third-party libraries, use inline script metadata to specify your own Python interpreter or virtual environment. Install dependencies yourself; iCode does not install them automatically. See [Workflow reference: Execution environment](../../reference/workflows.md#execution-environment) for configuration details. The Python examples in this tutorial use only the standard library and need no additional environment setup.
+By default, workflows use the Python interpreter running AIxCoding-CLI. If a workflow needs third-party libraries, use inline script metadata to specify your own Python interpreter or virtual environment. Install dependencies yourself; AIxCoding-CLI does not install them automatically. See [Workflow reference: Execution environment](../../reference/workflows.md#execution-environment) for configuration details. The Python examples in this tutorial use only the standard library and need no additional environment setup.
 
 ## Pass data and ask the user
 
@@ -138,7 +138,7 @@ Nodes pass data through `WorkflowValue`. Its `text` field holds text; the option
 
 A node returns its result with `return`, which determines what it passes downstream:
 
-- When a node returns a string, iCode places it in `WorkflowValue.text` and sets `data` to `None`. Here, `describe()` only needs to output a description, so it returns a string.
+- When a node returns a string, AIxCoding-CLI places it in `WorkflowValue.text` and sets `data` to `None`. Here, `describe()` only needs to output a description, so it returns a string.
 - Returning a `WorkflowValue` passes both text and structured data, as in `parse_items()`.
 
 A Python node function can take one or two parameters. `parse_items(value)` receives a `WorkflowValue`; `describe(value, ctx)` also receives a `NodeContext` as its second parameter. `NodeContext` provides operations for the current node execution. Here, `ctx.emit()` reports progress to the TUI.
@@ -191,7 +191,7 @@ For single-select questions, what an answer contains, and how to pass a selectio
 
 ## Define agent nodes
 
-### Use an iCode agent
+### Use an AIxCoding-CLI agent
 
 Create `.chrys/workflows/learning_plan.py`:
 
@@ -255,11 +255,11 @@ plan = wf.agent(
 )
 ```
 
-For a regular iCode agent, `instructions_suffix` is appended to the profile's existing `instructions` as part of the system prompt. The upstream `text` remains the user message.
+For a regular AIxCoding-CLI agent, `instructions_suffix` is appended to the profile's existing `instructions` as part of the system prompt. The upstream `text` remains the user message.
 
 ### Use an ACP agent
 
-If you have [configured an external Agent Client Protocol (ACP) agent](../extensions/external-acp-agents.md#create-a-profile-and-test-the-connection), replace `QA` with its profile name:
+If you have configured an external Agent Client Protocol (ACP) agent, replace `QA` with its profile name:
 
 ```python
 plan = wf.agent("plan", profile="My ACP agent")

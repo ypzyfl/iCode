@@ -2,15 +2,15 @@
 
 工作流（workflow）将任务拆分为多个节点，并通过边定义执行顺序和数据流向。Python 节点用于确定性处理，智能体节点用于需要模型理解和生成的任务；分支、汇合和循环用于组织更复杂的执行流程。
 
-本教程首先通过内置示例介绍工作流的终端用户界面（Terminal User Interface，TUI）和基本操作，再通过六个可独立运行的 Python 示例介绍如何编写工作流。完整参数说明和运行规则见[工作流参考](../../reference/workflows.md)。
+本教程首先通过内置示例介绍工作流的终端用户界面（Terminal User Interface，TUI）和基本操作，再通过六个可独立运行的 Python 示例介绍如何编写工作流。完整参数说明和运行规则见[工作流参考](../../reference/workflows.md#工作流参考)。
 
-## 在 TUI 中运行内置工作流
+## 1. 在 TUI 中运行内置工作流
 
-先[配置可用模型](../../start/getting-started.md#3-配置模型)，并准备一个本地项目目录。接下来运行的内置示例会让智能体读取该目录中的文件，生成项目介绍，并产生模型调用费用。
+先配置可用模型，并准备一个本地项目目录。接下来运行的内置示例会让智能体读取该目录中的文件，生成项目介绍，并产生模型调用费用。
 
 ### 选择工作流
 
-在终端中进入所选项目目录，运行 `icode` 打开 TUI。在输入框输入 `/workflow`，打开工作流选择器，选择来源为内置的 `demo-workflow`。
+在终端中进入所选项目目录，运行 `aixcoding-cli` 打开 TUI。在输入框输入 `/workflow`，打开工作流选择器，选择来源为内置的 `demo-workflow`。
 
 也可以点击左上角的“应用模式：聊天”，选择“工作流”切换模式，然后再点击“新建会话”并选择工作流。
 
@@ -43,9 +43,9 @@
 
 运行结束并产生结果后，点击“■ 取消”右侧的“结果”查看最终输出。工作流有多个输出时，每个输出单独一个页签，页签名为对应的输出节点名称。“输出”页仍保留完整记录，包括节点状态和进度日志。再次点击“▶ 开始”，可填写新的输入并重新运行。
 
-同一工作流会话可以保存多次运行。在“工作流”“信息”等页签上方，点击“运行 1”“运行 2”等运行页签，可切换查看各次记录。退出并重新打开 iCode 后，先通过左上角的应用模式选择器切换到“工作流”。按 `F1` 或点击界面底部的 `f1 会话`，在会话列表中选择工作流会话，可查看历史输入、输出和节点记录。
+同一工作流会话可以保存多次运行。在“工作流”“信息”等页签上方，点击“运行 1”“运行 2”等运行页签，可切换查看各次记录。退出并重新打开 AIxCoding-CLI 后，先通过左上角的应用模式选择器切换到“工作流”。按 `F1` 或点击界面底部的 `f1 会话`，在会话列表中选择工作流会话，可查看历史输入、输出和节点记录。
 
-## 创建第一个工作流
+## 2. 创建第一个工作流
 
 接下来介绍如何编写自己的工作流。先在项目目录下创建 `.chrys/workflows/` 目录（如果尚不存在），后续工作流文件都保存在这个目录下。
 
@@ -59,12 +59,10 @@ wf = WorkflowBuilder(
     description="Greet the person named in the input."
 )
 
-
 def greet(value: WorkflowValue) -> str:
     text = value.text
     name = text.strip() or "friend"
     return f"Hello, {name}!"
-
 
 hello = wf.python("hello", greet)
 wf.start(hello)
@@ -82,19 +80,19 @@ workflow = wf.build()
 输入 → hello 节点 → 工作流输出
 ```
 
-最后，`wf.build()` 检查并生成工作流。**文件必须将生成的对象赋给模块顶层的 `workflow` 变量，供 iCode 加载。**
+最后，`wf.build()` 检查并生成工作流。**文件必须将生成的对象赋给模块顶层的 `workflow` 变量，供 AIxCoding-CLI 加载。**
 
-保存文件后无需重启 iCode。点击“新建会话”，打开工作流选择器，选择 `greeting`。
+保存文件后无需重启 AIxCoding-CLI。点击“新建会话”，打开工作流选择器，选择 `greeting`。
 
 自定义文件首次加载或发生变化时，TUI 会要求检查源码并确认信任：工作流是可执行 Python，加载时就可能执行文件顶层代码。
 
 确认信任后，点击“▶ 开始”，输入 `Alex` 后运行，最终应得到 `Hello, Alex!`；不填输入则得到 `Hello, friend!`。
 
-## 使用其他 Python 环境
+## 3. 使用其他 Python 环境
 
-默认使用运行 iCode 的 Python 解释器。工作流需要第三方库时，可以通过文件内的脚本元数据指定自备 Python 解释器或虚拟环境；依赖需自行安装，iCode 不会自动安装。配置方式见[工作流参考：执行环境](../../reference/workflows.md#执行环境)。本教程的 Python 示例仅使用标准库，无需额外准备环境。
+默认使用运行 AIxCoding-CLI 的 Python 解释器。工作流需要第三方库时，可以通过文件内的脚本元数据指定自备 Python 解释器或虚拟环境；依赖需自行安装，AIxCoding-CLI 不会自动安装。配置方式见[工作流参考：执行环境](../../reference/workflows.md#工作流参考)。本教程的 Python 示例仅使用标准库，无需额外准备环境。
 
-## 传递数据与询问用户
+## 4. 传递数据与询问用户
 
 ### 在两个节点之间传递数据
 
@@ -105,18 +103,15 @@ from chrys.workflows import NodeContext, WorkflowBuilder, WorkflowValue
 
 wf = WorkflowBuilder("Fruit list")
 
-
 def parse_items(value: WorkflowValue) -> WorkflowValue:
     text = value.text
     items = [item.strip() for item in text.split(",") if item.strip()]
     return WorkflowValue(text=", ".join(items), data={"items": items})
 
-
 def describe(value: WorkflowValue, ctx: NodeContext) -> str:
     items = value.data["items"]
     ctx.emit(f"Received {len(items)} items; preparing the list")
     return f"{len(items)} items: {value.text}"
-
 
 parse = wf.python("parse", parse_items)
 report = wf.python("report", describe)
@@ -138,7 +133,7 @@ workflow = wf.build()
 
 节点通过 `return` 返回处理结果，返回值决定向下游传递的内容：
 
-- 返回字符串时，iCode 将字符串放入 `WorkflowValue.text`，并将 `data` 设为 `None`。本例中的 `describe()` 只需要输出说明，因此返回字符串。
+- 返回字符串时，AIxCoding-CLI 将字符串放入 `WorkflowValue.text`，并将 `data` 设为 `None`。本例中的 `describe()` 只需要输出说明，因此返回字符串。
 - 返回 `WorkflowValue` 时，可以同时传递文本和结构化数据，如本例中的 `parse_items()`。
 
 Python 节点函数可以接收一个或两个参数：`parse_items(value)` 接收 `WorkflowValue`；`describe(value, ctx)` 除了接收 `WorkflowValue`，还通过第二个参数接收执行上下文 `NodeContext`。`NodeContext` 提供与当前节点执行相关的操作。本例通过 `ctx.emit()` 向 TUI 报告当前节点的进度。
@@ -161,7 +156,6 @@ async def describe(value: WorkflowValue, ctx: NodeContext) -> str:
     title = await ctx.ask("请为这份水果清单起一个标题。")
     items = value.data["items"]
     return f"{title}: {len(items)} items: {value.text}"
-
 
 # 等待用户回答时不设置节点截止时间。
 report = wf.python("report", describe, timeout=None)
@@ -187,11 +181,11 @@ async def describe(value: WorkflowValue, ctx: NodeContext) -> str:
 
 传入问题列表时，按顺序为每个问题返回一个 `Answer`：`selected` 是用户选中的选项标签，`text` 是用户输入的内容。使用相同的输入运行。对话框为每个问题显示一个标签页：在“标题”页输入 `Shopping List` 并点击“回答并继续”，在“追加”页勾选 `milk` 和 `eggs` 并点击“回答并检查”，最后点击“提交回答”。输出应为 `Shopping List: 5 items: apple, banana, pear, milk, eggs`。
 
-单选问题、回答包含的内容以及如何把选择结果传给下游，请参阅[工作流参考：`NodeContext.ask`](../../reference/workflows.md#nodecontextask)。
+单选问题、回答包含的内容以及如何把选择结果传给下游，请参阅[工作流参考：`NodeContext.ask`](../../reference/workflows.md#工作流参考)。
 
-## 定义智能体节点
+## 5. 定义智能体节点
 
-### 使用 iCode 智能体
+### 使用 AIxCoding-CLI 智能体
 
 新建 `.chrys/workflows/learning_plan.py`：
 
@@ -200,7 +194,6 @@ from chrys.workflows import WorkflowBuilder, WorkflowValue
 
 wf = WorkflowBuilder("Learning plan")
 
-
 def make_prompt(value: WorkflowValue) -> str:
     text = value.text
     topic = text.strip() or "Python basics"
@@ -208,7 +201,6 @@ def make_prompt(value: WorkflowValue) -> str:
         f"Create a three-step learning plan for a beginner studying {topic}. "
         "Use one sentence per step. Answer in English using only this input. Do not call tools."
     )
-
 
 prepare = wf.python("prepare", make_prompt)
 plan = wf.agent("plan", profile="QA")
@@ -227,17 +219,17 @@ workflow = wf.build()
 `wf.agent()` 用于定义智能体节点。在 `wf.agent("plan", profile="QA")` 中，`"plan"` 是节点名称，`profile="QA"` 选择智能体配置。使用以下命令查看可用配置：
 
 ```shell
-icode agent list
-icode model list
+aixcoding-cli agent list
+aixcoding-cli model list
 ```
 
-`profile` 填写 `icode agent list` 输出中的 `Name`，可选参数 `model` 填写 `icode model list` 输出中的 `Name`。需要为该节点指定模型时，替换注册语句，并将 `My model` 换成实际的模型配置名称：
+`profile` 填写 `aixcoding-cli agent list` 输出中的 `Name`，可选参数 `model` 填写 `aixcoding-cli model list` 输出中的 `Name`。需要为该节点指定模型时，替换注册语句，并将 `My model` 换成实际的模型名称：
 
 ```python
 plan = wf.agent("plan", profile="QA", model="My model")
 ```
 
-`model` 为该节点指定模型，优先于智能体绑定的模型配置。省略时，优先使用智能体绑定的模型配置，否则使用工作流默认模型。
+`model` 为该节点指定模型，优先于智能体绑定的模型。省略时，优先使用智能体绑定的模型，否则使用工作流默认模型。
 
 智能体节点只读取上游节点传递的 `WorkflowValue.text` 作为用户消息，不会读取 `data`。如果模型需要使用 `data` 中的信息，应在上游 Python 节点中将相关内容整理到 `text` 中。智能体生成的回答保存在返回的 `WorkflowValue.text` 中，传给下游节点。
 
@@ -255,23 +247,9 @@ plan = wf.agent(
 )
 ```
 
-对普通 iCode 智能体，`instructions_suffix` 追加在配置原有的 `instructions` 后，作为系统提示词的一部分；上游传入的 `text` 仍作为用户消息。
+对普通 AIxCoding-CLI 智能体，`instructions_suffix` 追加在配置原有的 `instructions` 后，作为系统提示词的一部分；上游传入的 `text` 仍作为用户消息。
 
-### 使用 ACP 智能体
-
-已经[配置外部智能体客户端协议（Agent Client Protocol，ACP）智能体](../extensions/external-acp-agents.md#创建配置并测试连接)时，可用其配置名称替换 `QA`：
-
-```python
-plan = wf.agent("plan", profile="My ACP agent")
-```
-
-将 `My ACP agent` 替换为 `icode agent list` 中已有的 ACP 配置名称，并确保该配置指定的外部程序可以启动。
-
-ACP 节点默认使用外部智能体配置中的模型，不使用工作流默认模型。
-
-ACP 节点也可以设置 `instructions_suffix`，但它会追加到发送给远端的用户提示末尾，不修改远端智能体的系统提示词。
-
-## 设置超时与重试
+## 6. 设置超时与重试
 
 Python 节点和智能体节点都可以设置超时和重试：`timeout` 限制节点每次执行的时间，`retry` 设置包含首次执行在内的最多尝试次数及重试间隔。
 
@@ -297,11 +275,11 @@ plan = wf.agent(
 
 设置 `timeout=None` 表示不限制执行时间。等待人工回答或工具审批也会计时，因此前面的问答示例使用了 `timeout=None`。
 
-重试可能重复调用模型、写入文件，或重复外部 ACP 智能体的工具调用。非 ACP 智能体的尝试失败或超时后，重试会接着已有的对话继续执行，已完成的工具调用不会再次执行。已经发生的操作不会自动撤销。并非所有错误都会自动重试，具体规则见[工作流参考：超时与重试](../../reference/workflows.md#超时与重试)。
+重试可能重复调用模型或写入文件。尝试失败或超时后，重试会接着已有的对话继续执行，已完成的工具调用不会再次执行。已经发生的操作不会自动撤销。并非所有错误都会自动重试，具体规则见[工作流参考：超时与重试](../../reference/workflows.md#工作流参考)。
 
-智能体节点转到后台的 Shell 命令会在该次尝试结束时停止，重试不会沿用它们。详见[在后台继续运行的命令](../configuration/tools.md#在后台继续运行的命令)。
+智能体节点转到后台的 Shell 命令会在该次尝试结束时停止，重试不会沿用它们。详见[在后台继续运行的命令](../configuration/tools.md#5-在后台继续运行的命令)。
 
-## 定义条件分支
+## 7. 定义条件分支
 
 ### 使用 switch() 选择一条分支
 
@@ -312,34 +290,27 @@ from chrys.workflows import WorkflowBuilder, WorkflowValue
 
 wf = WorkflowBuilder("Route by length")
 
-
 def normalize(value: WorkflowValue) -> str:
     text = value.text
     return text.strip()
 
-
 def is_short(value: WorkflowValue) -> bool:
     return len(value.text) <= 10
 
-
 def is_medium(value: WorkflowValue) -> bool:
     return len(value.text) <= 20
-
 
 def short_reply(value: WorkflowValue) -> str:
     text = value.text
     return f"Short text: {text}"
 
-
 def medium_reply(value: WorkflowValue) -> str:
     text = value.text
     return f"Medium text: {text}"
 
-
 def long_reply(value: WorkflowValue) -> str:
     text = value.text
     return f"Long text: {len(text)} characters"
-
 
 check = wf.python("check", normalize)
 short = wf.python("short", short_reply)
@@ -401,7 +372,7 @@ medium
 Medium text: hello
 ```
 
-## 并行处理并汇总结果
+## 8. 并行处理并汇总结果
 
 新建 `.chrys/workflows/text_stats.py`：
 
@@ -410,32 +381,26 @@ from chrys.workflows import SourceValue, WorkflowBuilder, WorkflowValue
 
 wf = WorkflowBuilder("Text statistics")
 
-
 def normalize(value: WorkflowValue) -> str:
     text = value.text
     return text.strip()
 
-
 def count_chars(value: WorkflowValue) -> WorkflowValue:
     text = value.text
     return WorkflowValue(text=str(len(text)), data={"chars": len(text)})
-
 
 def count_words(value: WorkflowValue) -> WorkflowValue:
     text = value.text
     count = len(text.split())
     return WorkflowValue(text=str(count), data={"words": count})
 
-
 def combine_stats(sources: list[SourceValue]) -> str:
     by_node = {source.node_id: source.value.data for source in sources}
     return f"Characters: {by_node['chars']['chars']}; words: {by_node['words']['words']}"
 
-
 def format_report(value: WorkflowValue) -> str:
     text = value.text
     return f"Done. {text}"
-
 
 prepare = wf.python("prepare", normalize)
 chars = wf.python("chars", count_chars)
@@ -491,7 +456,7 @@ Done. ## chars
 
 其中，`Done.` 由 `format_report()` 添加。默认合并适合将多份智能体分析交给下游总结，无需自行编写合并函数。
 
-## 循环执行直到满足条件
+## 9. 循环执行直到满足条件
 
 新建 `.chrys/workflows/count_up.py`：
 
@@ -506,27 +471,22 @@ from chrys.workflows import (
 
 wf = WorkflowBuilder("Count up to three")
 
-
 def increment(value: WorkflowValue) -> str:
     text = value.text
     return str(int(text) + 1)
-
 
 def report_value(value: WorkflowValue, ctx: NodeContext) -> WorkflowValue:
     ctx.emit(f"Current value: {value.text}")
     return value
 
-
 def reached_target(value: WorkflowValue) -> bool:
     return int(value.text) >= 3
-
 
 def make_body(scope: BuilderScope) -> tuple[NodeHandle, NodeHandle]:
     increment_node = scope.python("increment", increment)
     report_node = scope.python("report", report_value)
     scope.chain(increment_node, report_node)
     return increment_node, report_node
-
 
 count = wf.loop(
     "count",
@@ -559,7 +519,7 @@ workflow = wf.build()
 
 在 TUI 中新建会话，选择 `count_up` 工作流，输入 `0` 并运行。三轮结果依次为 `1`、`2`、`3`，最终输出为 `3`。可打开循环体节点，查看不同轮次的输入、输出和进度消息。再输入 `-10` 运行，观察达到五轮上限后工作流失败的结果。
 
-## 把工作流拆成多个文件
+## 10. 把工作流拆成多个文件
 
 工作流变大后，可以把它移进同名文件夹，拆成多个 Python 文件和资源文件。新建 `.chrys/workflows/greeting_kit/`，放入两个文件。入口文件必须与文件夹同名，即 `greeting_kit.py`：
 
@@ -572,10 +532,8 @@ from phrases import greet
 wf = WorkflowBuilder("greeting kit")
 TEMPLATE = (Path(__file__).parent / "template.txt").read_text(encoding="utf-8")
 
-
 def hello(value: WorkflowValue) -> str:
     return greet(TEMPLATE, value.text.strip() or "friend")
-
 
 node = wf.python("hello", hello)
 wf.start(node)
@@ -599,9 +557,9 @@ def greet(template: str, name: str) -> str:
 - 信任确认覆盖文件夹中除以 `.` 开头的名称（如 `.venv`、`.git`）和 Python 在 `__pycache__` 文件夹中保存的编译副本以外的所有文件。修改其中任何文件后，请重新打开工作流进行预览和确认。
 - 在工作流选择器中删除工作流文件夹时，只删除其入口文件，其他文件保留。
 
-完整规则见[工作流参考：工作流文件夹](../../reference/workflows.md#工作流文件夹)。
+完整规则见工作流参考：工作流文件夹。
 
-## 从命令行运行
+## 11. 从命令行运行
 
 CLI 适合无需人工交互的工作流：不支持 `ctx.ask()` 用户问答，工具审批模式固定为 `bypass`，即跳过工具审批。
 
@@ -610,19 +568,19 @@ CLI 适合无需人工交互的工作流：不支持 `ctx.ask()` 用户问答，
 在项目目录执行以下命令，列举可用的工作流：
 
 ```shell
-icode workflow list
+aixcoding-cli workflow list
 ```
 
-要检查正在编写的工作流，将其文件或文件夹传给 `icode workflow validate`。它会输出 `PASS`，或列出每个问题所在的文件和行，见 [`icode workflow validate`](../../reference/workflows.md#icode-workflow-validate)：
+要检查正在编写的工作流，将其文件或文件夹传给 `aixcoding-cli workflow validate`。它会输出 `PASS`，或列出每个问题所在的文件和行，见 [`aixcoding-cli workflow validate`](../../reference/workflows.md#aixcoding-cli-workflow-validate)：
 
 ```shell
-icode workflow validate .chrys/workflows/greeting.py
+aixcoding-cli workflow validate .chrys/workflows/greeting.py
 ```
 
 使用列表中的工作流 ID 运行工作流。将以下命令中的 `WORKFLOW_ID` 替换为实际的 ID：
 
 ```shell
-icode workflow run WORKFLOW_ID --input "输入文本" --trust
+aixcoding-cli workflow run WORKFLOW_ID --input "输入文本" --trust
 ```
 
 `--input` 设置起点节点收到的 `WorkflowValue.text`，省略时为空字符串。初始输入的 `data` 为 `None`，不能通过 CLI 参数直接设置；即使传入 JSON 字符串，也仍是文本，需要工作流自行解析。
@@ -652,7 +610,7 @@ Workflow Code review (review) · run 0b337219bb2e · session 890c8ee93562
 在终端中，结果里的控制字符会显示为 `�`。可以通过 `>` 将最终结果原样保存到文件，进度仍显示在终端中：
 
 ```shell
-icode workflow run WORKFLOW_ID --input "输入文本" > result.txt
+aixcoding-cli workflow run WORKFLOW_ID --input "输入文本" > result.txt
 ```
 
 如只需查看警告、错误和最终结果，可添加 `-q` 或 `--quiet`。
@@ -662,7 +620,9 @@ icode workflow run WORKFLOW_ID --input "输入文本" > result.txt
 添加 `--json` 后，CLI 不显示节点状态和进度消息，而是在运行结束后向 stdout 输出 JSON 格式的运行结果，包括运行状态、输出节点名称，以及各结果的 `text` 和 `data`：
 
 ```shell
-icode workflow run WORKFLOW_ID --input "输入文本" --json
+aixcoding-cli workflow run WORKFLOW_ID --input "输入文本" --json
 ```
 
-完整 JSON 字段和退出码见[工作流参考](../../reference/workflows.md#命令行)。
+完整 JSON 字段和退出码见[工作流参考](../../reference/workflows.md#工作流参考)。
+
+---

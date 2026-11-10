@@ -1,47 +1,47 @@
-# Getting started with iCode
+# Getting started with AIxCoding-CLI
 
-This tutorial shows how to install iCode, configure a model, and use agents to complete a development task in a project.
+This tutorial shows how to install AIxCoding-CLI, configure a model, and use agents to complete a development task in a project.
 
-## 1. Install iCode
+## 1. Install AIxCoding-CLI
 
-Install iCode with uv. If Python 3.14 is not on your system, uv downloads it for you:
+Install AIxCoding-CLI with uv. If Python 3.14 is not on your system, uv downloads it for you:
 
 ```shell
 uv tool install iCode-TUI
 ```
 
-To upgrade later, run `uv tool upgrade iCode-TUI`; when a newer version is out, the iCode welcome screen tells you so. To remove iCode, run `uv tool uninstall iCode-TUI`.
+To upgrade later, run `uv tool upgrade iCode-TUI`; when a newer version is out, the AIxCoding-CLI welcome screen tells you so. To remove AIxCoding-CLI, run `uv tool uninstall iCode-TUI`.
 
 Windows (x64) and Linux (x86-64 or ARM64, glibc 2.27 or later) need nothing else. On a Mac with Apple silicon, first install the Xcode Command Line Tools with `xcode-select --install`; uv uses them to build one dependency during installation.
 
-If you used an iCode offline package before, remove it first with `icode uninstall` (see [Uninstall iCode](#uninstall-icode)). If your version does not have that command, delete the folder it unpacked into: `~/Library/Application Support/pyapp/chrys` on macOS, `~/.local/share/pyapp/chrys` on Linux (or `$XDG_DATA_HOME/pyapp/chrys` if you set `XDG_DATA_HOME`), or `%LOCALAPPDATA%\pyapp\data\chrys` on Windows. Then delete `~/.local/bin/chrys` on macOS or Linux, or the `%LOCALAPPDATA%\chrys\bin` folder on Windows.
+If you used an AIxCoding-CLI offline package before, remove it first with `icode uninstall` (see [Uninstall AIxCoding-CLI](#uninstall-aixcoding-cli)). If your version does not have that command, delete the folder it unpacked into: `~/Library/Application Support/pyapp/chrys` on macOS, `~/.local/share/pyapp/chrys` on Linux (or `$XDG_DATA_HOME/pyapp/chrys` if you set `XDG_DATA_HOME`), or `%LOCALAPPDATA%\pyapp\data\chrys` on Windows. Then delete `~/.local/bin/chrys` on macOS or Linux, or the `%LOCALAPPDATA%\chrys\bin` folder on Windows.
 
-If uv reports that `icode` already exists, an earlier iCode offline install or another program with the same name is in the way. If it is an iCode offline install, remove it as described above, then run the install command again.
+If uv reports that `icode` already exists, an earlier AIxCoding-CLI offline install or another program with the same name is in the way. If it is an AIxCoding-CLI offline install, remove it as described above, then run the install command again.
 
 ### Offline packages
 
-On an Intel Mac, Windows on Arm, an older Linux, or a device without internet access, use the prebuilt offline packages from [iCode Releases](https://github.com/openJiuwen-ai/iCode/releases) instead. The packages include Python and every dependency, so you do not need to install Python separately.
+On an Intel Mac, Windows on Arm, an older Linux, or a device without internet access, use the prebuilt offline packages from the internal download root (`http://22.189.54.139/aixcoding/file/aixcoding`) instead. The packages include Python and every dependency, so you do not need to install Python separately.
 
 The install script picks the package for your computer, checks the download and installs it. Run the same command again later to upgrade. On macOS or Linux:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/openJiuwen-ai/iCode/main/scripts/install.sh | sh
+curl -fsSL http://22.189.54.139/aixcoding/file/aixcoding/install.sh | sh
 ```
 
 On Windows, in PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/openJiuwen-ai/iCode/main/scripts/install.ps1 | iex
+irm http://22.189.54.139/aixcoding/file/aixcoding/install.ps1 | iex
 ```
 
 The script downloads from GitHub, and from GitCode if GitHub fails. If GitHub is slow or unreachable where you are, get the script from GitCode and download from there:
 
 ```bash
-curl -fsSL https://raw.gitcode.com/openJiuwen/iCode/raw/main/scripts/install.sh | sh -s -- --source gitcode
+curl -fsSL http://22.189.54.139/aixcoding/file/aixcoding/install.sh | sh -s -- --source gitcode
 ```
 
 ```powershell
-$env:ICODE_SOURCE = "gitcode"; irm https://raw.gitcode.com/openJiuwen/iCode/raw/main/scripts/install.ps1 | iex
+$env:ICODE_SOURCE = "gitcode"; irm http://22.189.54.139/aixcoding/file/aixcoding/install.ps1 | iex
 ```
 
 To install a particular version, end the command with `| sh -s -- --version 0.29.1` instead of `| sh`. On Windows, run `$env:ICODE_VERSION = "0.29.1"` first. A setting made with `$env:` lasts until you close that PowerShell window.
@@ -80,7 +80,7 @@ Download and extract `icode-windows-x86_64-v<version>-offline.zip`, or `icode-wi
 .\icode.exe install
 ```
 
-The installer attempts to add iCode to the current user's `PATH`. Open a new terminal after installation.
+The installer attempts to add AIxCoding-CLI to the current user's `PATH`. Open a new terminal after installation.
 
 ### Verify the installation
 
@@ -88,11 +88,11 @@ The installer attempts to add iCode to the current user's `PATH`. Open a new ter
 icode --version
 ```
 
-The command should print the iCode version number. If you installed with uv and your terminal cannot find `icode`, run `uv tool update-shell` and open a new terminal.
+The command should print the AIxCoding-CLI version number. If you installed with uv and your terminal cannot find `icode`, run `uv tool update-shell` and open a new terminal.
 
 With an offline package, if your system cannot find `icode` on macOS or Linux, add `~/.local/bin` to `PATH` as the installer instructs. If the installer reported that `~/.local/bin/icode` already exists, that command starts another program; use `chrys` instead. On Windows, open a new terminal; if the installer reported that updating the user PATH failed, add `%LOCALAPPDATA%\chrys\bin` to your user `PATH` manually.
 
-### Uninstall iCode
+### Uninstall AIxCoding-CLI
 
 Run:
 
@@ -100,17 +100,17 @@ Run:
 icode uninstall
 ```
 
-If you installed an offline package, the command lists what it will remove: the `icode` and `chrys` commands and the files the package unpacked. It removes them once you confirm. On Windows, it also removes iCode from your user `PATH`, and the last files go a moment after the command exits. The package you downloaded stays where you saved it.
+If you installed an offline package, the command lists what it will remove: the `icode` and `chrys` commands and the files the package unpacked. It removes them once you confirm. On Windows, it also removes AIxCoding-CLI from your user `PATH`, and the last files go a moment after the command exits. The package you downloaded stays where you saved it.
 
 If you installed with uv, the command only shows what to run: `uv tool uninstall iCode-TUI`.
 
-iCode keeps its data in `~/.chrys` (`%APPDATA%\chrys` on Windows): your settings, API keys, model profiles, agents, skills, sessions and more. Uninstalling keeps this folder. To delete it and everything in it as well, run `icode uninstall --purge`; if you save sessions in another folder, the `sessions` folder there is deleted too. If you installed with uv, do this before `uv tool uninstall`, while the `icode` command still exists. Add `--yes` to skip the confirmation.
+AIxCoding-CLI keeps its data in `~/.chrys` (`%APPDATA%\chrys` on Windows): your settings, API keys, model profiles, agents, skills, sessions and more. Uninstalling keeps this folder. To delete it and everything in it as well, run `icode uninstall --purge`; if you save sessions in another folder, the `sessions` folder there is deleted too. If you installed with uv, do this before `uv tool uninstall`, while the `icode` command still exists. Add `--yes` to skip the confirmation.
 
-## 2. Start iCode in a project
+## 2. Start AIxCoding-CLI in a project
 
 Start this tutorial in a project managed with Git or one that you can safely restore. Before asking an agent to modify files, save any unsaved content and record existing changes with a Git commit. This lets you distinguish the agent's changes and restore the previous state if needed.
 
-In a terminal, go to the project directory and start iCode:
+In a terminal, go to the project directory and start AIxCoding-CLI:
 
 ```shell
 cd <project-directory>
@@ -119,7 +119,7 @@ icode
 
 Replace `<project-directory>` with the actual path to your project. To switch directories after startup, see [Working directory](../guides/daily-use/workspaces.md).
 
-iCode first prints `Starting iCode...` and shows a loading screen while it gets ready. When the main screen appears, it keeps showing that it is loading until the agent is ready.
+AIxCoding-CLI first prints `Starting AIxCoding...` and shows a loading screen while it gets ready. When the main screen appears, it keeps showing that it is loading until the agent is ready.
 
 ## 3. Configure a model
 
@@ -143,7 +143,7 @@ Submit the following in the input field:
 Hello
 ```
 
-iCode should reply with a greeting. If the model service returns an error, check the model profile again, including the model ID, base URL, and API key.
+AIxCoding-CLI should reply with a greeting. If the model service returns an error, check the model profile again, including the model ID, base URL, and API key.
 
 While an agent runs, the status bar above the input shows elapsed time, tool calls and, while text is arriving, its speed. Long runs include hours and days, for example `1d 4h 20m 50s`. Tool cards, background tasks, CLI progress, and the F12 timing dashboard also support days; compact displays keep only the largest time units.
 
@@ -153,7 +153,7 @@ Once the agent answers, the answer's header shows how long the whole turn took, 
 
 ### Select an agent
 
-iCode provides two main agents by default: Q&A Agent and Code Agent. Both can read the project, analyze code, and discuss approaches, but they have different roles and tools. Q&A Agent primarily provides read-only capabilities for understanding projects, explaining code, and analyzing problems. Code Agent can modify files and run commands, making it suitable for writing, reviewing, refactoring, debugging, and validating code.
+AIxCoding-CLI provides two main agents by default: Q&A Agent and Code Agent. Both can read the project, analyze code, and discuss approaches, but they have different roles and tools. Q&A Agent primarily provides read-only capabilities for understanding projects, explaining code, and analyzing problems. Code Agent can modify files and run commands, making it suitable for writing, reviewing, refactoring, debugging, and validating code.
 
 You can switch agents when no agent task is running. Type `#` in the input field to display the agent list above it. Select an agent by clicking it, or use the up and down arrow keys and press Enter. You can also click the agent name in the status bar above the input field to switch agents in the agent selection dialog.
 
@@ -185,13 +185,13 @@ If an approval dialog appears, review the tool call before approving it. Pay par
 
 When the task is complete, review the agent's final response and use `/diff` to browse the file changes recorded in the current session. Then use Git or another version control tool to inspect the complete working directory changes. Confirm that the feature works correctly, the necessary tests pass, and there are no unrelated changes. Once you have verified the changes, you can commit them.
 
-### Ask about iCode itself
+### Ask about AIxCoding-CLI itself
 
-You can ask the agent about iCode in the input field, for example:
+You can ask the agent about AIxCoding-CLI in the input field, for example:
 
-- "What features does iCode offer?"
-- "How do I configure an MCP server in iCode?"
-- "How does iCode's context compaction work?"
+- "What features does AIxCoding-CLI offer?"
+- "How do I configure an MCP server in AIxCoding-CLI?"
+- "How does AIxCoding-CLI's context compaction work?"
 
 The agent looks up the answer in the user guide that comes with your installed version and tells you which pages it used. If a feature described in the guide is not turned on for the current agent, the answer says so. If the agent cannot read files, it tells you that it could not check the guide.
 
@@ -231,11 +231,11 @@ Mouse selection copies what is displayed, without adding newlines for screen wra
 
 ## 5. End the session
 
-To finish using iCode, type `/exit` or press `Ctrl+Q` to exit.
+To finish using AIxCoding-CLI, type `/exit` or press `Ctrl+Q` to exit.
 
 ## Next steps
 
-You have installed iCode, configured a model, and learned the basics of Q&A Agent and Code Agent, including how to use them together in the same session to complete a development task.
+You have installed AIxCoding-CLI, configured a model, and learned the basics of Q&A Agent and Code Agent, including how to use them together in the same session to complete a development task.
 
 You can continue exploring:
 
@@ -243,4 +243,4 @@ You can continue exploring:
 - [Configure models](../guides/configuration/models.md) to connect to and switch between model services
 - [Working directory](../guides/daily-use/workspaces.md)
 - [Configure approval modes](../guides/configuration/approval.md)
-- Extend iCode with [Skills](../guides/extensions/skills.md), [MCP](../guides/extensions/mcp.md), and [Python extensions](../guides/extensions/python-extensions.md)
+- Extend AIxCoding-CLI with [Skills](../guides/extensions/skills.md), [MCP](../guides/extensions/mcp.md), and [Python extensions](../guides/extensions/python-extensions.md)

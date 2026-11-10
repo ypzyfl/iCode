@@ -1,159 +1,99 @@
-# 开始使用 iCode
+# 开始使用 AIxCoding-CLI
 
-本教程介绍如何安装 iCode、配置模型，并在项目中使用智能体完成一次开发任务。
+本教程介绍如何安装 AIxCoding-CLI，并在项目中使用智能体完成一次开发任务。
 
-## 1. 安装 iCode
+## 1. 安装 AIxCoding-CLI
 
-使用 uv 安装 iCode。如果系统中没有 Python 3.14，uv 会自动下载：
+AIxCoding-CLI 为 macOS、Linux 和 Windows 提供预构建的离线安装包。安装包已包含 Python 和运行依赖，无需另行安装 Python。
 
-```shell
-uv tool install iCode-TUI
-```
+以下命令中的 `<version>` 和 `<architecture>` 是占位符，请替换为下载文件名中的实际值。
 
-以后升级请运行 `uv tool upgrade iCode-TUI`；有新版本时，iCode 的欢迎页会提示你。卸载请运行 `uv tool uninstall iCode-TUI`。
+### macOS
 
-Windows（x64）和 Linux（x86-64 或 ARM64，glibc 2.27 或更高版本）无需其他准备。Apple 芯片的 Mac 需要先运行 `xcode-select --install` 安装 Xcode 命令行工具，uv 安装时要用它编译一个依赖。
-
-如果以前用过 iCode 离线安装包，请先用 `icode uninstall` 卸载它（见[卸载 iCode](#卸载-icode)）。如果你的版本没有这个命令，请删除它解压到的文件夹：macOS 上是 `~/Library/Application Support/pyapp/chrys`；Linux 上是 `~/.local/share/pyapp/chrys`，设置了 `XDG_DATA_HOME` 时是 `$XDG_DATA_HOME/pyapp/chrys`；Windows 上是 `%LOCALAPPDATA%\pyapp\data\chrys`。然后在 macOS 或 Linux 上删除 `~/.local/bin/chrys`，在 Windows 上删除 `%LOCALAPPDATA%\chrys\bin` 文件夹。
-
-如果 uv 提示 `icode` 已存在，说明已经有同名命令：可能是之前用离线安装包安装的 iCode，也可能是其他同名程序。如果是离线安装包安装的 iCode，请按上文先卸载它，再重新运行安装命令。
-
-### 离线安装包
-
-Intel 芯片的 Mac、Arm 版 Windows、较旧的 Linux 或无法联网的设备，请改用 [iCode Releases](https://github.com/openJiuwen-ai/iCode/releases) 上的预构建离线安装包。安装包已包含 Python 和全部依赖，无需另行安装 Python。
-
-安装脚本会选好适合你电脑的安装包，校验下载的文件并完成安装。以后再运行同一条命令即可升级。在 macOS 或 Linux 上运行：
+根据处理器选择 `aixcoding-cli-macos-aarch64-v<version>-offline.tar.gz`（Apple 芯片）或 `aixcoding-cli-macos-x86_64-v<version>-offline.tar.gz`（Intel），然后在下载目录运行：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/openJiuwen-ai/iCode/main/scripts/install.sh | sh
+tar xzf aixcoding-cli-macos-<architecture>-v<version>-offline.tar.gz
+chmod +x ./aixcoding-cli
+./aixcoding-cli install
 ```
 
-在 Windows 上，在 PowerShell 中运行：
+### Linux
 
-```powershell
-irm https://raw.githubusercontent.com/openJiuwen-ai/iCode/main/scripts/install.ps1 | iex
-```
-
-脚本从 GitHub 下载，GitHub 下载失败时改从 GitCode 下载。如果你所在的网络访问 GitHub 很慢或无法访问，可以从 GitCode 获取脚本，并直接从 GitCode 下载：
+根据处理器选择 `aixcoding-cli-linux-x86_64-v<version>-offline.tar.gz` 或 `aixcoding-cli-linux-aarch64-v<version>-offline.tar.gz`，然后在下载目录运行：
 
 ```bash
-curl -fsSL https://raw.gitcode.com/openJiuwen/iCode/raw/main/scripts/install.sh | sh -s -- --source gitcode
-```
-
-```powershell
-$env:ICODE_SOURCE = "gitcode"; irm https://raw.gitcode.com/openJiuwen/iCode/raw/main/scripts/install.ps1 | iex
-```
-
-要安装指定版本，把命令末尾的 `| sh` 换成 `| sh -s -- --version 0.29.1`。在 Windows 上，先运行 `$env:ICODE_VERSION = "0.29.1"`。用 `$env:` 做的设置在关闭这个 PowerShell 窗口前一直有效。
-
-在 macOS 和 Linux 上，给 `--version` 或 `--source` 显式传入空值（例如 `--version ""` 或 `--source=`）会报错并停止安装。如果通过 shell 变量传入这些选项的值，请确保变量不为空。
-
-如果想手动安装，请下载对应平台的安装包，然后按下面的步骤操作。以下命令中的 `<version>` 和 `<architecture>` 是占位符，请替换为下载文件名中的实际值。
-
-#### macOS
-
-根据处理器选择 `icode-macos-aarch64-v<version>-offline.tar.gz`（Apple 芯片）或 `icode-macos-x86_64-v<version>-offline.tar.gz`（Intel），然后在下载目录运行：
-
-```bash
-tar xzf icode-macos-<architecture>-v<version>-offline.tar.gz
-chmod +x ./icode
-./icode install
-```
-
-#### Linux
-
-根据处理器选择 `icode-linux-x86_64-v<version>-offline.tar.gz` 或 `icode-linux-aarch64-v<version>-offline.tar.gz`，然后在下载目录运行：
-
-```bash
-tar xzf icode-linux-<architecture>-v<version>-offline.tar.gz
-chmod +x ./icode
-./icode install
+tar xzf aixcoding-cli-linux-<architecture>-v<version>-offline.tar.gz
+chmod +x ./aixcoding-cli
+./aixcoding-cli install
 ```
 
 Linux x86-64 安装包要求 glibc 2.17 或更高版本，ARM64 安装包要求 glibc 2.18 或更高版本。Alpine Linux 等只提供 musl 的发行版不在预构建包的支持范围内。
 
-#### Windows
+HTTP 下载根地址为 `http://22.189.54.139/aixcoding/file/aixcoding`，对应服务器目录 `/homepage/aixcoding/`。根目录放 `install.sh` 和 `install.ps1`；`channels/cli/prod.txt`、`channels/cli/test.txt` 各存一行完整版本号，安装包放在 `releases/cli/<完整版本号>/`。无需 FTP 凭据。Linux 与 macOS 用户可执行同一条命令；脚本会自动识别平台，并创建 `aixcoding` 启动命令：
 
-下载 `icode-windows-x86_64-v<version>-offline.zip`（Arm 版 Windows 请下载 `icode-windows-aarch64-v<version>-offline.zip`）并解压，在 PowerShell 中进入解压目录，然后运行：
-
-```powershell
-.\icode.exe install
+```bash
+curl -fsSL -o install.sh 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' && bash install.sh
 ```
 
-安装器会尝试将 iCode 加入当前用户的 `PATH`。安装完成后，请打开一个新终端。
+默认安装生产包；安装测试包时运行 `bash install.sh --channel test`。CD 流水线分别上传各平台二进制 Artifact，不打包安装脚本。手动把两个安装脚本放在 HTTP 根目录、对应平台的 Artifact ZIP 放在 `releases/cli/<完整版本号>/`，再将完整版本号写入对应频道文件；构建用 wheel 无需上传到 HTTP 镜像。只构建 Linux 时产物中只有 Linux 二进制包。五种平台包名见 README 安装表。
+
+### Windows
+
+在 PowerShell 中执行以下命令，安装生产频道当前版本的 Windows x86-64 包：
+
+```powershell
+irm 'http://22.189.54.139/aixcoding/file/aixcoding/install.ps1' | iex
+```
+
+安装测试包时，先执行 `$env:ICODE_CHANNEL='test'`（该环境变量沿用历史名），再运行上述命令。安装器会尝试将 AIxCoding-CLI 加入当前用户的 `PATH`。安装完成后，请打开一个新终端。
 
 ### 验证安装
 
 ```shell
-icode --version
+aixcoding-cli --version
 ```
 
-命令应输出 iCode 的版本号。如果用 uv 安装后终端找不到 `icode`，请运行 `uv tool update-shell`，然后打开新终端。
+命令应输出 AIxCoding-CLI 的版本号。在 macOS 或 Linux 上，如果系统找不到 `aixcoding-cli`，请按安装器的提示将 `~/.local/bin` 加入 `PATH`；如果安装器提示 `~/.local/bin/aixcoding-cli` 已存在，该命令会启动其他程序，请改用 `chrys` 命令。在 Windows 上请打开新的终端；如果安装器提示更新用户 PATH 失败，请手动将 `%LOCALAPPDATA%\chrys\bin` 加入用户 `PATH`。
 
-使用离线安装包时，在 macOS 或 Linux 上，如果系统找不到 `icode`，请按安装器的提示将 `~/.local/bin` 加入 `PATH`；如果安装器提示 `~/.local/bin/icode` 已存在，该命令会启动其他程序，请改用 `chrys` 命令。在 Windows 上请打开新的终端；如果安装器提示更新用户 PATH 失败，请手动将 `%LOCALAPPDATA%\chrys\bin` 加入用户 `PATH`。
+> **启动命令说明**：`aixcoding-cli` 是本工具的标准启动命令；`aixcoding`（由安装脚本自动创建）和 `chrys`（历史命令名）与它完全等价，输入任意一个都会启动同一程序。本手册统一使用 `aixcoding-cli`。
 
-### 卸载 iCode
+### 卸载 AIxCoding-CLI
 
 运行：
 
 ```shell
-icode uninstall
+aixcoding-cli uninstall
 ```
 
-如果安装的是离线安装包，该命令会列出要删除的内容：`icode` 和 `chrys` 命令，以及安装包解压出的文件。确认后即删除。在 Windows 上，它还会把 iCode 从用户 `PATH` 中移除，最后一部分文件会在命令退出后稍等片刻删除。下载的安装包本身仍保留在原处。
+如果安装的是离线安装包，该命令会列出要删除的内容：`aixcoding-cli` 和 `chrys` 命令，以及安装包解压出的文件。确认后即删除。在 Windows 上，它还会把 AIxCoding-CLI 从用户 `PATH` 中移除，最后一部分文件会在命令退出后稍等片刻删除。下载的安装包本身仍保留在原处。
 
-如果是用 uv 安装的，该命令只会提示应运行的命令：`uv tool uninstall iCode-TUI`。
+AIxCoding-CLI 的数据保存在 `~/.chrys`（Windows 上是 `%APPDATA%\chrys`），包括设置、API 密钥、模型配置、智能体、技能和会话等。卸载时会保留这个文件夹。如需连同其中的全部内容一并删除，请运行 `aixcoding-cli uninstall --purge`；如果把会话保存在了其他文件夹，那里的 `sessions` 文件夹也会删除。加上 `--yes` 可跳过确认。
 
-iCode 的数据保存在 `~/.chrys`（Windows 上是 `%APPDATA%\chrys`），包括设置、API 密钥、模型配置、智能体、Skill 和会话等。卸载时会保留这个文件夹。如需连同其中的全部内容一并删除，请运行 `icode uninstall --purge`；如果把会话保存在了其他文件夹，那里的 `sessions` 文件夹也会删除。用 uv 安装的，请在运行 `uv tool uninstall` 之前执行，那时 `icode` 命令还在。加上 `--yes` 可跳过确认。
-
-## 2. 在项目中启动 iCode
+## 2. 在项目中启动 AIxCoding-CLI
 
 建议在使用 Git 管理或能够安全恢复的项目中开始本教程。在让智能体修改文件前，请先保存尚未写入磁盘的内容，并使用 Git commit 记录已有变更，以便区分智能体所做的修改，并在需要时恢复到修改前的状态。
 
-在终端中进入要处理的项目目录并启动 iCode：
+在终端中进入要处理的项目目录并启动 AIxCoding-CLI：
 
 ```shell
 cd <project-directory>
-icode
+aixcoding-cli
 ```
 
-将 `<project-directory>` 替换为项目目录的实际路径。启动后如需切换目录，请参阅[工作目录](../guides/daily-use/workspaces.md)。
+将 `<project-directory>` 替换为项目目录的实际路径。启动后如需切换目录，请参阅[工作目录](../guides/daily-use/workspaces.md#工作目录)。
 
-iCode 会先显示 `Starting iCode...`，并在准备期间显示加载界面。进入主界面后，主界面会继续显示加载状态，直到智能体准备就绪。
-
-## 3. 配置模型
-
-1. 按 **F4** 或点击屏幕底部的 `f4 模型`，打开“模型配置”窗口。
-2. 点击“新建”。
-3. 填写自定义的配置名称，例如 `我的模型`。
-4. 在模型选项区域，选择模型提供商和 API 样式。仅 OpenAI 和 DeepSeek（OpenAI）提供 API 样式选项。配置前，请根据模型服务商的文档确认其支持的 API，并按文档建议选择 `Chat Completions` 或 `Responses`。如果服务商仅支持其中一种 API，请选择对应的 API 样式；如果两种 API 均支持，则根据服务商的建议或实际使用需求选择。
-5. 填写模型 ID，并根据模型服务的要求填写服务地址和 API 密钥。这些字段名称以所选提供商开头，例如“OpenAI 模型”。
-6. 根据模型提供商的说明，填写最大上下文窗口和最大输出词元数。
-7. 保存配置并关闭配置窗口。若此前没有可用的模型配置，该配置将自动成为当前使用的模型配置。
-
-> **提示**
->
-> 直接填写的 API 密钥会随模型配置文件保存在本机。若不希望将密钥写入配置文件，请[通过环境变量提供 API 密钥](../guides/configuration/models.md#通过环境变量提供-api-密钥)。
-
-### 验证模型连接
-
-在输入栏中提交：
-
-```text
-你好
-```
-
-iCode 应正常返回问候回复。若模型服务返回错误，请重新检查模型 ID、服务地址、API 密钥等模型配置。
+AIxCoding-CLI 会先显示 `Starting AIxCoding-CLI...`，并在准备期间显示加载界面。进入主界面后，主界面会继续显示加载状态，直到智能体准备就绪。
 
 运行期间，输入栏上方的状态栏会显示已运行时长、工具调用次数，以及文字到达时的速度。长时间运行会显示小时和天，例如英文界面的 `1d 4h 20m 50s`，中文界面的 `1天 4小时 20分 50秒`。工具卡片、后台任务、CLI 进度和 F12 耗时面板也支持显示天数；紧凑显示区域只保留较大的时间单位。
 
 智能体答复后，答复标题会显示这一轮的总耗时，例如 `Code Agent - 2:04 AM (6m 5s)`：从你发送消息，或点击 **继续** 或 **重试** 起，到答复完成为止，智能体等待你审批或回答的时间也计算在内。智能体工作期间你发送的消息不会让计时重新开始。重新打开会话时显示的耗时与此相同。
 
-## 4. 使用智能体
+## 3. 使用智能体
 
 ### 选择智能体
 
-iCode 默认提供两个主智能体：Q&A Agent（问答智能体）和 Code Agent（代码智能体）。两者都可以阅读项目、分析代码和讨论方案，但定位和可用工具不同：Q&A Agent 主要提供只读能力，适合了解项目、解释代码和分析问题；Code Agent 则可以修改文件、运行命令，适合编写、审查、重构、调试和验证代码。
+AIxCoding-CLI 默认提供两个主智能体：Q&A Agent（问答智能体）和 Code Agent（代码智能体）。两者都可以阅读项目、分析代码和讨论方案，但定位和可用工具不同：Q&A Agent 主要提供只读能力，适合了解项目、解释代码和分析问题；Code Agent 则可以修改文件、运行命令，适合编写、审查、重构、调试和验证代码。
 
 当前没有正在运行的智能体任务时，可以切换智能体。在输入栏中输入 `#`，输入栏上方会显示智能体列表，可以通过鼠标点击，或使用上下方向键并按回车进行选择。也可以点击输入栏上方状态栏中的智能体名称，在智能体选择窗口中进行切换。
 
@@ -181,17 +121,17 @@ Q&A Agent 给出实现方案后，可以在同一会话中切换到 **Code Agent
 请根据刚才讨论的方案实现“清除已完成任务”功能。修改代码并运行必要的测试。
 ```
 
-如果出现审批对话框，请检查即将执行的工具调用，尤其是命令内容、目标文件和影响范围，确认符合预期后再批准。有关不同审批模式的行为，请参阅[配置审批模式](../guides/configuration/approval.md)。
+如果出现审批对话框，请检查即将执行的工具调用，尤其是命令内容、目标文件和影响范围，确认符合预期后再批准。有关不同审批模式的行为，请参阅[配置审批模式](../guides/configuration/approval.md#配置审批模式)。
 
 任务完成后，检查智能体的最终回复，并通过 `/diff` 浏览当前会话记录的文件修改。随后使用 Git 等版本控制工具检查工作目录的完整变更，并确认功能正确、必要的测试已经通过且不包含无关改动。确认无误后，可以提交这些变更。
 
-### 询问 iCode 本身的用法
+### 询问 AIxCoding-CLI 本身的用法
 
-可以直接在输入栏向智能体询问 iCode 的问题，例如：
+可以直接在输入栏向智能体询问 AIxCoding-CLI 的问题，例如：
 
-- “iCode 有哪些功能？”
-- “如何在 iCode 中配置 MCP 服务器？”
-- “iCode 的上下文压缩是如何工作的？”
+- “AIxCoding-CLI 有哪些功能？”
+- “如何在 AIxCoding-CLI 中配置 MCP 服务器？”
+- “AIxCoding-CLI 的上下文压缩是如何工作的？”
 
 智能体会查阅当前安装版本附带的用户指南，并告诉你参考了哪些页面。如果指南里介绍的功能在当前智能体中没有开启，回答会说明。如果智能体不能读取文件，它会告诉你没有查到指南。
 
@@ -229,18 +169,19 @@ Mermaid 代码块会显示为图表，点击**打开完整图表**可查看、�
 
 鼠标选择复制显示结果，不会因屏幕折行额外插入换行。消息标题旁的**复制**保留原始 Markdown 和 LaTeX。重新打开旧会话时，也会使用当前的渲染效果。
 
-## 5. 结束本次使用
+## 4. 结束本次使用
 
-若要结束本次使用，输入 `/exit` 或按 `Ctrl+Q` 退出 iCode。
+若要结束本次使用，输入 `/exit` 或按 `Ctrl+Q` 退出 AIxCoding-CLI。
 
-## 下一步
+## 5. 下一步
 
-至此，已经完成 iCode 的安装和模型配置，并了解了 Q&A Agent 和 Code Agent 的基本使用方式，以及如何在同一会话中配合完成开发任务。
+至此，已经完成 AIxCoding-CLI 的安装，并了解了 Q&A Agent 和 Code Agent 的基本使用方式，以及如何在同一会话中配合完成开发任务。
 
 接下来，可以继续探索：
 
-- [配置智能体](../guides/configuration/agents.md)，创建或修改智能体，并设置其指令、模型、工具和子智能体
-- [配置模型](../guides/configuration/models.md)，连接并切换不同的模型服务
-- [工作目录](../guides/daily-use/workspaces.md)
-- [配置审批模式](../guides/configuration/approval.md)
-- 通过 [Skills](../guides/extensions/skills.md)、[MCP](../guides/extensions/mcp.md) 和 [Python 扩展](../guides/extensions/python-extensions.md)扩展 iCode
+- [配置智能体](../guides/configuration/agents.md#配置智能体)，创建或修改智能体，并设置其指令、模型、工具和子智能体
+- [工作目录](../guides/daily-use/workspaces.md#工作目录)
+- [配置审批模式](../guides/configuration/approval.md#配置审批模式)
+- 通过技能和 MCP 扩展 AIxCoding-CLI
+
+---
