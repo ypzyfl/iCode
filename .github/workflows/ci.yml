@@ -42,7 +42,9 @@ jobs:
 
   test_linux:
     name: Unix shard (${{ matrix.label }})
-    runs-on: ubuntu-latest
+    # Pin 到 24.04：ubuntu-latest 已迁移到 Ubuntu 26.04，其上 setup-python
+    # 没有 Python 3.9 的 x64 构建（workflow-worker 兼容测试需要），直接失败。
+    runs-on: ubuntu-24.04
     # 步骤级 timeout 杀不掉不响应 kill 的子进程时，job 级是最后的硬上限。
     timeout-minutes: 30
     strategy:
