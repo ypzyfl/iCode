@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="http://127.0.0.1:8321/static/css/xterm.css" />
+
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Roboto%20Mono"
+    />
+    <script src="http://127.0.0.1:8321/static/js/textual.js"></script>
+    <style>
+      body {
+        background: #0c181f;
+      }
+
+      .dialog-container {
+        position: absolute;
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        box-shadow: var(--shadow-elevation-high);
+      }
+      .shade {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background: #0c181f;
+        background-image: url("http://127.0.0.1:8321/static/images/background.png");
+      }
+      .intro {
+        width: 640px;
+        height: 240px;
+        font-size: 16px;
+        z-index: 20;
+        font-family: "Roboto Mono", menlo, monospace;
+        text-align: center;
+        opacity: 1;
+        color: rgba(255, 255, 255, 0.95);
+        background-color: #12232d;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 32px;
+      }
+
+      body.-first-byte .intro-dialog,
+      body.-first-byte .intro-dialog .shade {
+        opacity: 0;
+        transition: opacity 0.3s ease-out;
+        display: none;
+      }
+
+      body .textual-terminal {
+        opacity: 0;
+        transition: opacity 0.3s ease-out;
+      }
+
+      body.-first-byte .textual-terminal {
+        opacity: 1;
+        transition: opacity 0.3s ease-out;
+      }
+
+      .intro svg {
+        padding-right: 16px;
+      }
+
+      body Button {
+        padding: 16px 32px;
+        background-color: #5e0ba7;
+        color: rgba(255, 255, 255, 0.95);
+        border: none;
+        font-family: "Roboto Mono", menlo, monospace;
+        margin: 16px;
+        display: block;
+      }
+
+      Button:hover {
+        background: #ac5af4;
+        cursor: pointer;
+      }
+
+      .closed-dialog {
+        opacity: 0;
+        display: none;
+      }
+
+      body.-closed .closed-dialog {
+        opacity: 1;
+        display: flex;
+      }
+
+      #start {
+        display: none;
+      }
+
+      #start.-delay {
+        display: flex;
+      }
+    </style>
+    <script>
+      function getStartUrl() {
+        const url = new URL(window.location.href);
+        const params = new URLSearchParams(url.search);
+        params.delete("delay");
+        return url.pathname + "?" + params.toString();
+      }
+      async function refresh() {
+        const ping_url = document.body.dataset.pingurl;
+        if (ping_url) {
+          await fetch(ping_url, {
+            method: "GET",
+            mode: "no-cors",
+          });
+        }
+        window.location.href = getStartUrl();
+      }
+    </script>
+  <style data-chrys-serve-branding>
+      .intro {
+        width: min(720px, calc(100vw - 32px));
+        height: auto;
+        min-height: 260px;
+        box-sizing: border-box;
+        flex-direction: column;
+      }
+      .intro > svg,
+      .intro > svg + div {
+        display: none !important;
+      }
+      .intro .chrys-serve-logo {
+        margin: 0;
+        padding: 0;
+        color: rgba(255, 255, 255, 0.95);
+        font: 700 16px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        letter-spacing: 0;
+        white-space: pre;
+        text-align: left;
+      }
+    </style><script data-chrys-serve-capability>
+(() => {
+  const MESSAGE_TYPE = "chrys_serve_capability";
+  const CAPABILITY = "6sMSAsu0fI0TFhYXEBBgHUglStok7g0EzOXd3bweZWY";
+  const NativeWebSocket = window.WebSocket;
+
+  function isTerminalSocket(url) {
+    const terminal = document.querySelector("[data-session-websocket-url]");
+    if (!terminal) {
+      return false;
+    }
+    const expected = new URL(terminal.dataset.sessionWebsocketUrl, window.location.href);
+    const actual = new URL(url, window.location.href);
+    return actual.origin === expected.origin && actual.pathname === expected.pathname;
+  }
+
+  // textual-serve constructs its socket after window.load. Registering this
+  // listener in the constructor guarantees the capability packet is queued
+  // before textual-serve's open listener sends resize, focus, or input data.
+  window.WebSocket = class ChrysAuthenticatedWebSocket extends NativeWebSocket {
+    constructor(url, protocols) {
+      if (protocols === undefined) {
+        super(url);
+      } else {
+        super(url, protocols);
+      }
+      if (isTerminalSocket(url)) {
+        this.addEventListener("open", () => {
+          this.send(JSON.stringify([MESSAGE_TYPE, CAPABILITY]));
+        }, {once: true});
+      }
+    }
+  };
+})();
+</script><script data-chrys-browser-clipboard>
+(() => {
+  const TYPE = "chrys_browser_clipboard_copy";
+  const DIALOG_ID = "chrys-browser-copy-dialog";
+  const STYLE_ID = "chrys-browser-copy-style";
+
+  function fallbackCopy(text) {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "readonly");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-10000px";
+    textarea.style.top = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    try {
+      return document.execCommand("copy");
+    } catch {
+      return false;
+    } finally {
+      textarea.remove();
+    }
+  }
+
+  async function writeClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+    return fallbackCopy(text);
+  }
+
+  async function writeClipboardAutomatically(text) {
+    if (!(navigator.clipboard && window.isSecureContext)) {
+      return false;
+    }
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+
+  function ensureStyles() {
+    if (document.getElementById(STYLE_ID)) {
+      return;
+    }
+    const style = document.createElement("style");
+    style.id = STYLE_ID;
+    style.textContent = `
+      #${DIALOG_ID} {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.54);
+        color: #eef1f6;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      #${DIALOG_ID} .chrys-copy-card {
+        width: min(780px, calc(100vw - 32px));
+        max-height: calc(100vh - 32px);
+        box-sizing: border-box;
+        display: grid;
+        grid-template-rows: auto minmax(260px, auto) auto auto;
+        gap: 8px;
+        overflow: hidden;
+        padding: 18px 18px 16px;
+        border: 1px solid #3a4354;
+        border-radius: 8px;
+        background: #10141c;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+      }
+      #${DIALOG_ID} .chrys-copy-title {
+        font-size: 15px;
+        font-weight: 700;
+      }
+      #${DIALOG_ID} textarea {
+        width: 100%;
+        height: min(430px, 54vh);
+        max-height: calc(100vh - 220px);
+        min-height: min(260px, calc(100vh - 220px));
+        resize: vertical;
+        box-sizing: border-box;
+        padding: 10px;
+        border: 1px solid #303744;
+        border-radius: 6px;
+        color: #f8fafc;
+        background: #080a0f;
+        font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      #${DIALOG_ID} .chrys-copy-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 4px;
+      }
+      #${DIALOG_ID} button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 36px;
+        min-width: 64px;
+        margin: 0;
+        padding: 0 12px;
+        border: 1px solid #3a4354;
+        border-radius: 6px;
+        color: #eef1f6;
+        background: #1c2330;
+        font: 700 13px/1 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        cursor: pointer;
+      }
+      #${DIALOG_ID} button:hover {
+        background: #263244;
+      }
+      #${DIALOG_ID} button[data-primary="true"] {
+        color: #ffffff;
+        background: #1769e0;
+        border-color: #2f89ff;
+        box-shadow: 0 0 0 1px rgba(47, 137, 255, 0.24);
+      }
+      #${DIALOG_ID} button[data-primary="true"]:hover {
+        background: #2180ff;
+        border-color: #61a8ff;
+      }
+      #${DIALOG_ID} .chrys-copy-status {
+        min-height: 0;
+        color: #c3cbd8;
+        font-size: 12px;
+      }
+      #${DIALOG_ID} .chrys-copy-status:empty {
+        display: none;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function closeDialog() {
+    document.getElementById(DIALOG_ID)?.remove();
+  }
+
+  function showDialog(text) {
+    ensureStyles();
+    closeDialog();
+    const overlay = document.createElement("div");
+    overlay.id = DIALOG_ID;
+
+    const card = document.createElement("div");
+    card.className = "chrys-copy-card";
+
+    const title = document.createElement("div");
+    title.className = "chrys-copy-title";
+    title.textContent = "Copy from AIxCoding";
+
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+
+    const status = document.createElement("div");
+    status.className = "chrys-copy-status";
+
+    const actions = document.createElement("div");
+    actions.className = "chrys-copy-actions";
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.textContent = "Close";
+    close.addEventListener("click", closeDialog);
+
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.dataset.primary = "true";
+    copy.textContent = "Copy";
+    copy.addEventListener("click", async () => {
+      try {
+        if (await writeClipboard(text)) {
+          closeDialog();
+          return;
+        }
+      } catch {}
+      textarea.focus();
+      textarea.select();
+      status.textContent = "Copy is blocked. Use the selected text with your browser copy shortcut.";
+    });
+
+    actions.append(close, copy);
+    card.append(title, textarea, status, actions);
+    overlay.appendChild(card);
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) {
+        closeDialog();
+      }
+    });
+    document.body.appendChild(overlay);
+    copy.focus();
+  }
+
+  async function handleClipboardMessage(text) {
+    try {
+      if (await writeClipboardAutomatically(text)) {
+        return;
+      }
+    } catch {}
+    showDialog(text);
+  }
+
+  // textual-serve serves one WebSocket-driven terminal per page. This wrapper
+  // assumes that page shape; if future pages host unrelated WebSockets, move
+  // this hook to the terminal's specific socket setup instead of wrapping the
+  // prototype globally.
+  const originalAddEventListener = WebSocket.prototype.addEventListener;
+  WebSocket.prototype.addEventListener = function(type, listener, options) {
+    if (type !== "message" || typeof listener !== "function") {
+      return originalAddEventListener.call(this, type, listener, options);
+    }
+    const wrapped = function(event) {
+      if (typeof event.data === "string") {
+        try {
+          const packet = JSON.parse(event.data);
+          if (Array.isArray(packet) && packet[0] === TYPE) {
+            const payload = packet[1] || {};
+            handleClipboardMessage(typeof payload.text === "string" ? payload.text : "");
+            return;
+          }
+        } catch {}
+      }
+      return listener.call(this, event);
+    };
+    return originalAddEventListener.call(this, type, wrapped, options);
+  };
+})();
+</script></head>
+  <body data-pingurl="">
+    <div class="dialog-container intro-dialog">
+      <div class="shade"></div>
+      <div class="intro"><pre class="chrys-serve-logo" aria-label="AIxCoding"> ▄██▄  ▀██▀        ▄███▀
+██  ██  ██        ██▀             █▄
+██  ██  ██        ██              ██ ▄
+██████  ██  ▀█▄█▀ ██     ▄███▄ ▄████ ██ ████▄ ▄███▄
+██  ██  ██   ▄█▄  ██▄    ██ ██ ██ ██ ██ ██ ██ ██ ██
+██  ██ ▄██▄ ▄█▀█▄  ▀███▄ ▀███▀ ▀███▀ ██ ██ ██ ▀████
+                                               ▀██▀</pre>
+        <svg
+          width="32px"
+          viewBox="0 0 2933 2261"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            fill-rule="evenodd"
+            clip-rule="evenodd"
+            d="M2927.81 0H1677.1L1312.35 205.173H306.689L0.359375 434.921L204.029 893.177H735.972L644.784 2261H1060.36L1441.72 1974.97L2073.92 688.003H2334.4L2717.9 472.286L2927.81 0ZM1245.82 410.347L1276.32 277.656H330.85L153.929 410.347H1245.82ZM1229.16 482.83H100.972L251.134 820.694H813.449L722.26 2188.52H837.043L1229.16 482.83ZM1350.7 277.656L911.417 2188.52H1023.87L1662.19 615.52H2301.36L2451.52 277.656H1350.7ZM1460.19 205.173H2497.79L2733.69 72.4829H1696.09L1460.19 205.173Z"
+            fill="#ffffff"
+          />
+        </svg>
+
+        <div>AIxCoding</div>
+        <button type="button" onClick="refresh()" id="start">Start</button>
+      </div>
+    </div>
+
+    <div class="dialog-container closed-dialog">
+      <div class="shade"></div>
+      <div class="intro">
+        <div class="message">Session ended.</div>
+        <button type="button" onClick="refresh()">Restart</button>
+      </div>
+    </div>
+
+    <div
+      id="terminal"
+      class="textual-terminal"
+      data-session-websocket-url="ws://127.0.0.1:8321/ws"
+      data-font-size="16"
+    ></div>
+  </body>
+</html>
