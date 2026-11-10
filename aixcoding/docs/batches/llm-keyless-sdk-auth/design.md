@@ -50,7 +50,12 @@ R2 报批说明：本表为实施后补录（用户直接指令"加一个 Omit �
 
 ## 定制点登记预告
 
-不适用点级登记评估：上游接触为单文件 append 方法 + 行内标记，`gen_customizations.py` 扫描口径覆盖（标记注释格式合规）；批次完结时以脚本扫描结果为准。
+上游接触为单文件单 marker（`sdk_openai.py` 追加方法的行内标记），按下表点级登记
+（当前 `--report` 最大 C144，故取 C145）。实施后跑 `--strict` 对账。
+
+| id | 落点 | marker 锚 | 预期计数 | anchor | risk | removal_condition |
+|---|---|---|---|---|---|---|
+| C145 | src/chrys/service/llm/sdk_openai.py | AIxCoding auth: tolerate a credential-free client | 1 | `RetryGuardedAsyncOpenAI._validate_headers` 覆写——空 key（无 profile key、无 env key）跳过 SDK 凭证校验，请求无 `Authorization` 头上 wire | 低（append-only 方法，不改既有行，删除即完全回滚） | 〔目录退役〕上游 SDK 移除/改写 `_validate_headers` 校验点使覆写失效，或网关与目录下发保证 profile 恒有凭证使无凭证场景不复存在 |
 
 ## ADR 判定
 
