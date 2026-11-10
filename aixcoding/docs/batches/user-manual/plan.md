@@ -4,7 +4,7 @@
 
 ## 状态
 
-**事后补录批次（2026-11-10）**：改动已实施并提交（fork/user-manual@ed8dd517，未 push），
+**事后补录批次（2026-11-10）**：改动已实施并提交（fork/user-manual@ed8dd517，rebase 前时点哈希；未 push），
 本六件套按实际终态回写；design.md 待责任人签认，签认后进入收尾清单（R3 标记 / 登记 /
 双 AI 评审 / 门禁总检）。当前分支：`fork/user-manual`。
 
@@ -32,19 +32,20 @@
 - [x] **R3 标记补录**：pyproject.toml（C154/C157）/ check_wheel.py（C155）/
   test_documentation.py（C156）均带 `AIxCoding` 单行标记
 - [x] **定制点登记**：design.md「定制点登记预告」C154-C157 随签认生效 →
-  `gen_customizations.py --strict` → OK（105 行 / 142 标记 / 0 warning）
+  `gen_customizations.py --strict` → OK（时点值 105 行 / 142 标记；rebase 后现行 109 / 150，见 verification「rebase 留痕」）
 - [x] ruff 双门（check + format --check aixcoding/）本地绿（C157 exclude 落地后）
 - [x] **责任人签认**：design.md / self-review.md（赵阔，2026-11-10）
 - [x] 门禁总检：`check_docs.py` OK + `gen_customizations.py --strict` OK（证据见 verification）
 - [x] INDEX.md 登记行与批次六件套已入库（评审 F4）
-- [x] push：`fork/user-manual` 已推 origin（2026-11-10，远端 `42667097`；PR 未建，按需）
+- [x] push：`fork/user-manual` 已推 origin（2026-11-10，当时远端 `42667097`；rebase 后远端头
+  `0331858e`，PR #111 base=main_aixcoding_cli）
 - [ ] 桌面 PDF 若手册后续再改：按 manual-version-update 技能链路重出（MD → HTML → Edge）
 
 ## 责任人裁决记录（2026-11-10，赵阔）
 
 | # | 事项 | 裁决 | 落地 |
 |---|---|---|---|
-| 1 | 分支推送 | **推** | 已推 `origin/fork/user-manual`（`42667097`），未建 PR |
+| 1 | 分支推送 | **推** | 已推 `origin/fork/user-manual`（当时 `42667097`；rebase 后 `0331858e`）；另曾误建 PR #241（base=main）已关闭 |
 | 2 | 验收 8 条 | **全部通过** | requirements 验收清单全勾（含 F3 口径变更后的第 2 项） |
 | 3 | C157（ruff extend-exclude） | **保留** | 按防御性策略口径留档，不撤销 |
 | 4 | Linux 侧 check_wheel 正式门禁 | **不改 CI** | 等 `aixcoding-upstream-ci` 桥接自然覆盖，不新增上游 CI 改动（R2 免增） |

@@ -55,7 +55,7 @@
 
 | 文件 | 改什么 | 预估行数 | 标记注释位置 |
 |---|---|---|---|
-| `pyproject.toml` | ① `[tool.hatch.build.targets.wheel.force-include]` 源键 `"docs"` → `"aixcoding/manual"`；② `[tool.ruff] extend-exclude = ["aixcoding/manual"]`（**评审后增补的防御性策略**：ruff 0.17.1 会格式化 md 内 ```python 围栏、重排手册有意对齐的注释〔显式路径可复现：`ruff format --check aixcoding/manual` 报 6 个 md unformatted〕——交付内容不允许机器改写；CI 现用目录遍历 `aixcoding/` 尚未覆盖 md，故此项为预防未来行为变化/显式路径调用的策略声明，非为修当前红灯。理由口径已按增量复审 N1 更正，2026-11-10） | +8 / −1 | ① 键行上方 `# AIxCoding manual bundle: wheel docs source key (user-manual C154)`；② extend-exclude 行上方 `…(user-manual C157)` |
+| `pyproject.toml` | ① `[tool.hatch.build.targets.wheel.force-include]` 源键 `"docs"` → `"aixcoding/manual"`；② `[tool.ruff] extend-exclude = ["aixcoding/manual"]`（**评审后增补的防御性策略**：ruff 0.17.1 会格式化 md 内 ```python 围栏、重排手册有意对齐的注释〔目录遍历口径可复现：`ruff format --check aixcoding/manual` 报 6 个 md unformatted；注意 ruff 对**显式传入的路径默认不套用** `extend-exclude`，须加 `--force-exclude` 才生效〕——交付内容不允许机器改写；CI 现用目录遍历 `aixcoding/` 尚未覆盖 md，故此项是**目录遍历场景**的策略声明（显式路径调用不在本项保护范围内），非为修当前红灯。理由口径经增量复审 N1 更正、第三轮评审 R1 收窄，2026-11-10） | +8 / −1 | ① 键行上方 `# AIxCoding manual bundle: wheel docs source key (user-manual C154)`；② extend-exclude 行上方 `…(user-manual C157)` |
 | `scripts/check_wheel.py` | `check_archive()` 捆绑清单比对源 `git ls-files -z docs` → `-z aixcoding/manual`；`removeprefix("docs/")` → `removeprefix("aixcoding/manual/")` | +3 / −2 | 比对源行上方 `# AIxCoding manual bundle: compare against the fork-owned manual tree (user-manual C155)` |
 | `tests/foundation/test_documentation.py` | 契约测试 `test_wheel_bundles_docs_where_the_resolver_looks` 断言键 `force_include["docs"]` → `["aixcoding/manual"]`（**评审 F1 增补**，2026-11-10：改键名必然连带，跟改使契约测试继续守护新契约） | +2 / −1 | 断言上一行 `# AIxCoding manual bundle: …`（C156） |
 
@@ -86,7 +86,8 @@
    hatch 构建语义下合法——已实测（本批次重建 wheel 验证捆绑清单一致）。
 4. **`git ls-files` 比对前提**：`check_wheel.py` 以 `git ls-files aixcoding/manual` 为期望集，
    要求手册文件**已入库**——手册未提交时该门禁退化为空集比对（不报错但失去防护），
-   因此手册入库与脚本切换必须同笔提交（已按此执行，ed8dd517）。
+   因此手册入库与脚本切换必须同笔提交（已按此执行；提交 `ed8dd517` 为 rebase 前时点哈希，
+ rebase 后对应提交见分支头 `0331858e` 之前的同主题提交，见 verification「rebase 留痕」）。
 
 ## 定制点登记预告
 
@@ -102,7 +103,7 @@
 | C157 | pyproject.toml | AIxCoding manual bundle: the manual is delivered user-facing content | 1 | `[tool.ruff] extend-exclude` | 低——格式化配置，上游改 lint 版式策略时冲突 | 〔机制替代〕上游把交付文档纳入格式化治理并提供正式排除通道，或手册定制淘汰 |
 
 > R3 正式单行标记已补齐（C154-C157 四行），本表随设计签认生效（2026-11-10）；
-> `gen_customizations.py --strict` 对账绿（105 登记行 / 142 标记 / 0 warning，见 verification）。
+> `gen_customizations.py --strict` 对账绿（rebase 前时点值 105 登记行 / 142 标记；rebase 后现行 109 / 150，见 verification「rebase 留痕」）。
 
 ## 风险与最坏情况
 

@@ -61,7 +61,7 @@
       N3，下个手册批次补（增量复审 N3）；
 - [x] 本批次文档入库后 `check_docs.py` 门禁绿（24 ADR / 34 design / 32 self-review，2026-11-10）；
 - [x] R3 标记注释补录 + 定制点登记（C154-C157）+ `gen_customizations.py --strict` 对账绿
-      （105 登记行 / 142 标记 / 0 warning，2026-11-10）。
+      （时点值 105 登记行 / 142 标记 / 0 warning，2026-11-10；rebase 到最新 base 后现行 109 / 150，见 verification「rebase 留痕」）。
 
 **验收结论：通过**（责任人 赵阔，2026-11-10；逐条裁决见 plan.md「责任人裁决记录」）。
 

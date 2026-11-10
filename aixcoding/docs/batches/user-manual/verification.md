@@ -144,7 +144,18 @@ aixcoding-launch.py 未提交（责任人裁定本地资产）
   但 **CI（`aixcoding-tests.yml:129` `ruff format --check aixcoding/`）当前用目录遍历时不覆盖
   md**（同配置下 `aixcoding/` 目标 316 files already formatted），故原记录"CI 必红"表述过强，
   更正为：C157（`[tool.ruff] extend-exclude = ["aixcoding/manual"]`）是**防御性策略声明**
-  ——交付内容不参与格式化治理，防止未来 ruff 行为变化或显式路径调用时手册被机器重排。
+  ——交付内容不参与格式化治理，防止未来 ruff 行为变化或目录遍历覆盖 md 时手册被机器重排。
+
+  第三轮评审 R1 进一步收窄（2026-11-10，已复核）：**ruff 对显式传入的路径默认不套用
+  `extend-exclude`**，故本项**只对目录遍历场景生效**，显式路径调用须加 `--force-exclude`
+  才受约束。实证：
+
+  ```
+  ruff format --check aixcoding/manual                 → 6 files would be reformatted, 60 already formatted
+  ruff format --check --force-exclude aixcoding/manual → No Python files found（全部被 exclude 拦下）
+  ```
+
+  结论不变：C157 保留（CI 现行命令即目录遍历，覆盖成立），仅文档表述收窄，不动代码。
   落地后复检：
 
   ```
@@ -192,13 +203,41 @@ python aixcoding/tools/check_docs.py
 
 | # | 裁决 | 本文件对应证据 |
 |---|---|---|
-| 1 | 分支推送 | `origin/fork/user-manual` 已推，末笔提交 `910b06b2` 与本文件同步；PR 未建 |
+| 1 | 分支推送 | `origin/fork/user-manual` 已推（`910b06b2` 为 rebase 前时点哈希，现行分支头 `0331858e`，见下节「rebase 留痕」）；PR 未建 |
 | 2 | 验收 8 条全部通过 | 上方验收清单逐条证据（验收结论行落在 requirements.md） |
 | 3 | C157 保留 | 按防御性策略口径留档（见 F5/C157 节更正后的表述），不撤销 |
 | 4 | Linux 侧门禁不改 CI | 不新增 `.github/` 改动（避免额外 R2 申报），等 `aixcoding-upstream-ci` 桥接跑 build+wheel 时覆盖 |
 | 5 | 双轨同源对账下批次 | plan「挂起与备忘」N3 待办 |
 | 6 | 定制版 wheel 交付不入库 | 已拷 `桌面\用户手册\20261110\icode_tui-0.35.1-定制手册版-py3-none-any.whl`（6.96 MB，与 `dist/` 同哈希源）；`dist/` 保持 gitignore |
 | 7 | 分支长期存续 | `fork/user-manual` 作为后续手册批次承载分支 |
+
+## 2026-11-10 rebase 留痕与计数漂移（第三轮评审 R2 处置）
+
+**为何 rebase**：远端 `main_aixcoding_cli` 由 `b8b02456` 前进至 `95e23add`（6 笔提交 / 27 文件），
+与本地分支在 `aixcoding/docs/INDEX.md` 相撞；不 rebase 则 PR 必然 conflict。已于本地 rebase
+（备份分支 `backup/fork-user-manual-65aff267` 保留 rebase 前形态，**未推远端**）。
+
+**哈希前移对照**（本文档中出现的旧哈希均为时点快照，按「更正不删旧记录」原则保留）：
+
+| 旧哈希（rebase 前） | 含义 | 现状态 |
+|---|---|---|
+| `ed8dd517` | 手册入库 + 捆绑源切换主体提交 | 内容等价提交已重放，分支头为 `0331858e` |
+| `42667097` | 首次推送后远端 HEAD | 远端已重建，现行远端 HEAD `0331858e` |
+| `910b06b2` | 验收结论提交 | 同上，重放后并入现行分支 |
+| `65aff267` | 旧分支头（含误建 PR #241 快照引用） | 仅存本地备份分支，远端已无 |
+
+**计数漂移**（rebase 带入了 base 主干新增的 2 个 design，非本批次自身变化）：
+
+| 指标 | 旧记录（时点） | 现行树复跑 |
+|---|---|---|
+| 登记行 | 105 | **109** |
+| marker | 142 | **150** |
+| design 数 | 15 | **17** |
+| retired id | 6 | **7** |
+| strict 门禁 | 0 warning | **0 warning**（仍全绿） |
+
+**结论**：文中 105/142/15/6 等数字为对应时点的真实现场值，不作为「当前值」引用；现行值以本节
+表格为准。门禁本身无回归（`gen_customizations --strict` exit 0、0 warning）。
 
 ## 待补项
 

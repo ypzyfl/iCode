@@ -73,3 +73,25 @@
   - **N3（nit，双轨同源缺实证）→ 已登记**：plan.md「挂起与备忘」新增下批次待办
     （从 manual 树重出桌面版并做字符级对账），本批次不追溯补齐。
 - 结论：blocker 清零，suggestion/nit 全部处置或登记，收敛。
+
+## 2026-11-10 第三轮独立评审（Peer Review）：approve
+
+- 评审方：CodeBuddy + GLM-5.3-Flash（评审报告自述：与开发 AI〔CodeBuddy + D4 PRO〕同工具
+  不同模型、与第一轮评审 AI〔Claude Code + GLM-5.3〕同模型族；**独立性是否满足双 AI 规则，
+  由责任人裁决**，本节仅如实记录）。
+- 结论：**approve**。三项交叉检查通过——R2/R11 上游接触面 4 处（C154/C155/C156/C157）零清单外、
+  幻觉 API 三处路径契约逐字一致、缺陷模式扫描无候选缺陷；F1-F3 与 N1-N3 处置逐条确认。
+- 新增 findings 处置：
+  - **R1（suggestion，C157 防御效力表述过度）→ 采纳，仅改文档**：复核确认 ruff 对**显式路径
+    默认不套用** pyproject 的 `extend-exclude`（`ruff format --check aixcoding/manual`
+    → 6 files would be reformatted；加 `--force-exclude` 后 0 个 python 文件被选中）。
+    故 design R2 表 C157 行与 verification N1 节收窄为「**仅对目录遍历场景生效**；显式路径
+    须加 `--force-exclude` 才受约束」。不改代码（C157 无副作用，保留价值不变）。
+  - **R2（nit，rebase 后哈希与门禁计数漂移）→ 已按「更正不删旧记录」处置**：verification
+    新增「rebase 留痕与计数漂移」节，记明旧哈希（`ed8dd517`/`42667097`/`910b06b2`/`65aff267`）
+    为 rebase 前时点值、仅存于本地备份分支 `backup/fork-user-manual-65aff267`（未推远端），
+    现行分支头为 `0331858e`；门禁计数由 105/142/15/6 漂移至 **109/150/17/7**（base 主干新增
+    2 个 design 所致，strict 门禁仍 0 warning）。
+  - 观察项（不复述为 finding）：`pyproject.toml` 上游原注释「read docs/」在换源后对 wheel 形态
+    语义部分失真，按最小改动原则保留上游原文、fork 注释紧随说明新语义——与评审判定一致，不处理。
+- 落盘位置：本节即第三轮记录载体（评审方提议的「责任人指示后落盘」已按此执行）。
