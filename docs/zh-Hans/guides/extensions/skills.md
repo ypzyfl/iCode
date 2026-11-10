@@ -16,6 +16,7 @@ Skill 是一组可复用的操作说明，可以附带参考资料和脚本，�
 | 自定义目录 | 希望从指定位置加载                            | 需要在相应智能体配置中手动添加 |
 
 其中，`<working-directory>` 表示当前工作目录。工作目录中的 Skill 随仓库而来，因此需要先在“设置 → 安全管控 → 项目信任”中勾选“加载项目 Skills”（`project.skills_enabled`），iCode 才会加载。此开关不影响 `<working-directory>/.aixcoding/skills`：它是 AIxCoding 产品自有目录，不属于仓库作者编写的内容，只跟随对应的智能体开关。工作目录中有未加载的 Skill 时，iCode 会弹出提示。切换工作目录后，iCode 会重新加载新工作目录中的 Skill。
+<!-- AIxCoding skills: desktop-shared aixcoding roots (src/chrys/service/aixcoding/skill_paths) -->
 
 用户级 Skill 目录在不同平台上的路径如下：
 

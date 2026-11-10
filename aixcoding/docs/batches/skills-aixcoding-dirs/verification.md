@@ -15,9 +15,11 @@
 | 6 | ruff check | `uv run ruff check <9 个代码文件>` | 0 error（初检 SIM105 已按建议改 `contextlib.suppress`） |
 | 7 | ruff format | `uv run ruff format --check <代码文件 + 5 个 md>` | 全绿（测试文件初检 6 处签名折行已 format） |
 | 8 | ty 三平台 | `uv run ty check --error-on-warning --python-platform {win32,linux,darwin} src/chrys` | 三平台全绿（junction 修复后复跑 win32 仍绿） |
-| 9 | 登记对账 | `uv run python aixcoding/tools/gen_customizations.py --strict` | OK — 110 行登记 / **151 marker** 全对账（C147-C155 本批 9 marker；初检 26 错全部为登记表格式，已修） |
+| 9 | 登记对账 | `uv run python aixcoding/tools/gen_customizations.py --strict` | OK — 110 行登记 / **151 marker** 全对账（C147-C155 本批 9 marker；初检 26 错全部为登记表格式，已修；C143-C146 与 upstream-merge-v0.35.1 撞号后重编 C152-C155，见 PR107 评审修复） |
 | 10 | R2 审批对账 | `uv run python aixcoding/tools/check_r2_diff.py --base HEAD` | 本批全部上游改动文件 **approved**（4 docs + platform/conftest/adapter/schema/loader）；ERROR 项全部为**批次前遗留的工作区 untracked 杂物**（`.codebuddy/pr64_*`、`pr87_*` 评审探针、`.workbuddy/`、`.zcodeignore`、`review_scope_pr69.txt`、`util/build-linux-arm64-dev.yml`、`制品/*` 离线包），非本批引入，按 R6 未动，待责任人裁决清理 |
 | 11 | 文档校验 | `uv run python aixcoding/tools/check_docs.py` | OK（23 ADR / 32 design） |
+| 12 | R3 marker 门（CI 复跑补验） | `uv run python aixcoding/tools/check_r3_markers.py --base $(git merge-base origin/main_iCode HEAD)` | 5 个 docs 文件改动行补 `<!-- AIxCoding skills: … -->` 各 1 处（登记 C156-C160，本批 marker 9→14），补跑 OK；首轮 govern 在 gen_customizations 撞号处提前终止，R3 未暴露——两道门须同跑 |
+| 13 | 登记对账（复跑） | `uv run python aixcoding/tools/gen_customizations.py --strict` | OK — 111 行登记 / **152 marker** 全对账（含 C156-C160 docs 补登） |
 
 ## 上游 Smart Test 全量说明（环境限制，如实记录）
 

@@ -439,6 +439,7 @@ skills:
 | `auto_load_aixcoding_cwd_skills` | 布尔值 | `true` | 是否加载当前工作目录的 `.aixcoding/skills`（与桌面客户端共享）；不受“加载项目 Skills”约束。切换工作目录后重新加载。 |
 
 iCode 用户 Skill 目录始终加载；AIxCoding 共享目录与 Agent Skills 用户级共享目录默认加载；当前工作目录的 `.agents/skills` 在设置中开启“加载项目 Skills”后加载（AIxCoding 工作目录根不受该开关约束）。各目录可分别通过对应的 `auto_load_*` 字段关闭。用户级 Skill 目录路径见[Skill 安装位置](../guides/extensions/skills.md#skill-安装位置)。
+<!-- AIxCoding skills: desktop-shared aixcoding roots (src/chrys/service/aixcoding/skill_paths) -->
 
 多个来源出现同名 Skill 时，优先级从高到低为：`paths` 中靠前的目录、iCode 用户 Skill 目录、当前工作目录的 AIxCoding 共享目录、用户级 AIxCoding 共享目录、Agent Skills 用户级共享目录、当前工作目录的 `.agents/skills`、`inline` 中靠前的定义。同一个搜索根目录中存在多个同名 Skill 时，发现顺序不确定；为确保加载指定版本，请只保留其中一个。
 

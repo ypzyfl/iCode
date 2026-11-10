@@ -439,6 +439,7 @@ skills:
 | `auto_load_aixcoding_cwd_skills` | Boolean | `true` | Whether to load `.aixcoding/skills` in the current working directory, shared with the desktop client. Not gated by “Load project skills”. Reloaded when switching working directories. |
 
 The iCode user skills directory is always loaded. The AIxCoding shared directories and the user-level shared Agent Skills directory are loaded by default; the current working directory's `.agents/skills` loads once “Load project skills” is on in settings (the AIxCoding working-directory root ignores that gate). Each can be disabled with its corresponding `auto_load_*` field. For user-level directory paths, see [Skill installation locations](../guides/extensions/skills.md#skill-installation-locations).
+<!-- AIxCoding skills: desktop-shared aixcoding roots (src/chrys/service/aixcoding/skill_paths) -->
 
 When multiple sources contain skills with the same name, precedence from highest to lowest is: earlier directories in `paths`, the iCode user skills directory, the working directory's AIxCoding skills, the user-level AIxCoding shared directories, the user-level shared Agent Skills directory, the current working directory's `.agents/skills`, and earlier definitions in `inline`. If one search root contains multiple skills with the same name, discovery order is unspecified. Keep only one to ensure that the intended version loads.
 

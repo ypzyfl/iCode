@@ -25,6 +25,7 @@ This document is the design for that feature. For the YAML format see
 - Match existing per-workspace config patterns in Chrys (skills at
   `<cwd>/.agents/skills/` and `<cwd>/.aixcoding/skills/`, workspace-relative
   `AGENTS.md`).
+  <!-- AIxCoding skills: desktop-shared aixcoding roots (src/chrys/service/aixcoding/skill_paths) -->
 
 ## Non-goals
 

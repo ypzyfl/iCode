@@ -16,6 +16,7 @@ Choose an installation location based on where the skill should be available and
 | Custom directory | Load skills from a specific location | Must be added manually to the corresponding agent's configuration |
 
 Here, `<working-directory>` is the current working directory. Skills in a working directory come with the repository, so iCode does not load them until you turn on “Load project skills” under “Settings → Safety → Project trust” (`project.skills_enabled`). This gate does not apply to `<working-directory>/.aixcoding/skills`: it is an AIxCoding product directory, not repository-authored content, and follows only its per-agent toggle. When the working directory has skills that are not loaded, iCode shows a notice. When you switch working directories, iCode reloads the skills from the new working directory.
+<!-- AIxCoding skills: desktop-shared aixcoding roots (src/chrys/service/aixcoding/skill_paths) -->
 
 The user-level skills directories have the following paths on each platform:
 

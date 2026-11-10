@@ -160,13 +160,13 @@ team 子目录由定制包运行时枚举而非把容器根交给 loader——�
 | 3 | `tests/conftest.py` | 两处 `dataclasses.replace(...)` 同步 patch `aixcoding_dir`（`_detect_with_pinned_config_dir` 与 `_pin_config_dir`；per-test fixture 复用 `_pin_config_dir`，无需单独改）随 config_dir 重定向 | +6（含格式化换行） | 两行上方各一行标记 |
 | 4 | `src/chrys/service/profiles/agents/schema.py` | `SkillsConfig` 增 `auto_load_aixcoding_user_skills` / `auto_load_aixcoding_cwd_skills`（默认 True）+ 字段 docstring | +7 | 字段块上方一行标记 |
 | 5 | `src/chrys/service/profiles/agents/loader.py` | `_parse_skills` 增两行解析 | +2 | 两行上方一行标记 |
-| 6 | `docs/en/guides/extensions/skills.md` | 自动加载目录清单补两目录 + 「不受 project.skills_enabled 管控」说明 | 约 +8 | 文档不加 marker（按 registry 现行口径，实施时以 `gen_customizations.py --strict` 对齐） |
-| 7 | `docs/zh-Hans/guides/extensions/skills.md` | 同上（中文） | 约 +8 | 同上 |
-| 8 | `docs/en/reference/agent-profile.md` | skills 配置键表补两开关 | 约 +8 | 同上 |
-| 9 | `docs/zh-Hans/reference/agent-profile.md` | 同上（中文） | 约 +8 | 同上 |
+| 6 | `docs/en/guides/extensions/skills.md` | 自动加载目录清单补两目录 + 「不受 project.skills_enabled 管控」说明 | 约 +8 | ~~文档不加 marker~~ 改口径：gate 说明段后 `<!-- AIxCoding skills: … -->` 1 处（check_r3_markers 门禁要求 docs diff 新增行带 marker，登记 C156） |
+| 7 | `docs/zh-Hans/guides/extensions/skills.md` | 同上（中文） | 约 +8 | 同 C156 口径（登记 C157） |
+| 8 | `docs/en/reference/agent-profile.md` | skills 配置键表补两开关 | 约 +8 | 同 C156 口径（登记 C158） |
+| 9 | `docs/zh-Hans/reference/agent-profile.md` | 同上（中文） | 约 +8 | 同 C156 口径（登记 C159） |
 | 10 | `src/chrys/service/hooks/docs/configuration.md` | 信任模型段补 `.aixcoding/skills/` 提及 | 改 1 行 | 同上 |
 |    | **实施备案**：0.34 已重构该段（仅描述 hooks 自身信任门，不再列举技能目录清单），无可补位置——该项自然取消，上游接触面净减少 | | | |
-| 11 | `src/chrys/service/hooks/docs/project-hooks.md` | 两处目录清单补提及 | 约 +4 | 同上 |
+| 11 | `src/chrys/service/hooks/docs/project-hooks.md` | 两处目录清单补提及 | 约 +4 | 同 C156 口径（Goals 列表提及处注释行，登记 C160） |
 
 **R1 细则二（逐行归属，必答）**：
 
@@ -244,6 +244,11 @@ aixcoding cwd 仍加载（决策记录的行为锚定）、缺目录不报错、
 | C148-C149 | tests/conftest.py | AIxCoding skills: | 2 | config-dir 重定向两处 `dataclasses.replace` | 中：上游改 redirect 机制形态时需跟随（该机制 0.32→0.34 稳定） | 〔上游等价〕重定向机制原生覆盖新增字段 |
 | C150 | src/chrys/service/profiles/agents/schema.py | AIxCoding skills: | 1 | `SkillsConfig` 开关字段区 | 低：上游重排字段区时冲突面小 | 〔配置契约变更〕ADR-0001 决策一反转（开关撤离 profile schema） |
 | C151 | src/chrys/service/profiles/agents/loader.py | AIxCoding skills: | 1 | `_parse_skills` 解析块 | 低：随 C150 | 随 C150 |
+| C156 | docs/en/guides/extensions/skills.md | AIxCoding skills: | 1 | 安装位置 gate 说明段后注释行（R3 门禁，CI 复跑补登） | 低：上游重写该页时漂移 | 随 C152-C155 |
+| C157 | docs/zh-Hans/guides/extensions/skills.md | AIxCoding skills: | 1 | 同 C156（中文页） | 低：随 C156 | 随 C156 |
+| C158 | docs/en/reference/agent-profile.md | AIxCoding skills: | 1 | skills 配置说明段后注释行（R3 门禁，CI 复跑补登） | 低：随 C156 | 随 C156 |
+| C159 | docs/zh-Hans/reference/agent-profile.md | AIxCoding skills: | 1 | 同 C158（中文页） | 低：随 C158 | 随 C156 |
+| C160 | src/chrys/service/hooks/docs/project-hooks.md | AIxCoding skills: | 1 | Goals 列表 aixcoding 提及处注释行（R3 门禁，CI 复跑补登） | 低：上游重写该页时漂移 | 随 C156 |
 
 ## 风险与最坏情况
 
