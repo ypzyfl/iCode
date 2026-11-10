@@ -248,3 +248,13 @@ python aixcoding/tools/check_docs.py
   `aixcoding-upstream-ci` 桥接自然覆盖（届时以 CI 日志为准，本文件不再回填）；
 - [ ] 双轨同源对账（增量复审 N3）：从 `aixcoding/manual/` 重出桌面 MD/PDF 做字符级对账，
   登记为下个手册批次待办（plan「挂起与备忘」）。
+
+## 2026-11-10 手册取舍对齐（责任人裁决，活文档追加）
+
+- 裁决：F8 手册章节取舍遵循上一版（0.33）口径；上游 0.35.1 新增的 20 篇（zh/en 双语 40 文件）不上手册；
+  打印版手册的「登录与登录状态」（git 历史 ea9e7e25/8499534a 原文）与「FAQ」（打印版 0.35 L6779-6829 原文）迁入；
+  旧 14 篇内容以 0.35.1 上游原文为准（责任人裁决），0.33 时代定制点不再恢复。
+- 待裁决遗留：0.33 有而上游 0.35.1 已删的 guides/daily-use/build-info.md 未恢复（默认随上游删除）。
+- 执行：zh-Hans/en 各 15 篇 + index.yaml 重写；四道门禁复跑全绿
+  （check_docs OK；gen_customizations --strict 109/150/0 warning；契约测试 11 passed；ruff --force-exclude 无输出）。
+- wheel 重建（19:11 后第二次）并重装测试环境复验：捆绑 15 篇与 index 声明一致，login/faq 在包内。
