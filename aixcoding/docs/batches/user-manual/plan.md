@@ -4,7 +4,7 @@
 
 ## 状态
 
-**事后补录批次（2026-11-10）**：改动已实施并提交（fork/user-manual@ed8dd517，rebase 前时点哈希；未 push），
+**事后补录批次（2026-11-10）**：改动已实施并提交（fork/user-manual@ed8dd517，rebase 前时点哈希；该时点未 push，后经授权推送并建 PR #111），
 本六件套按实际终态回写；design.md 待责任人签认，签认后进入收尾清单（R3 标记 / 登记 /
 双 AI 评审 / 门禁总检）。当前分支：`fork/user-manual`。
 

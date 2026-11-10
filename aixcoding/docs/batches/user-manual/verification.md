@@ -80,7 +80,7 @@ fork/user-manual 分支（基于 main_aixcoding_cli@b8b02456）：
 ed8dd517 build+docs: 定制版用户手册入库 aixcoding/manual 并切换 wheel 捆绑源
   69 files changed, +15287 / −3（manual 67 + pyproject.toml + scripts/check_wheel.py）
 aixcoding-launch.py 未提交（责任人裁定本地资产）
-均未 push。
+均未 push（该时点状态；后经责任人授权推送并建 PR #111，见「验收与裁决闭环」）。
 ```
 
 ## 2026-11-10 独立评审第一轮处置（评审方：Claude Code + GLM-5.3，与开发 AI〔CodeBuddy + D4 PRO〕不同源）
@@ -203,7 +203,7 @@ python aixcoding/tools/check_docs.py
 
 | # | 裁决 | 本文件对应证据 |
 |---|---|---|
-| 1 | 分支推送 | `origin/fork/user-manual` 已推（`910b06b2` 为 rebase 前时点哈希，现行分支头 `0331858e`，见下节「rebase 留痕」）；PR 未建 |
+| 1 | 分支推送 | `origin/fork/user-manual` 已推（`910b06b2` 为 rebase 前时点哈希，现行分支头 `0331858e`，见下节「rebase 留痕」）；PR 已建 #111（base=main_aixcoding_cli，mergeable=clean，13 提交 / 77 文件） |
 | 2 | 验收 8 条全部通过 | 上方验收清单逐条证据（验收结论行落在 requirements.md） |
 | 3 | C157 保留 | 按防御性策略口径留档（见 F5/C157 节更正后的表述），不撤销 |
 | 4 | Linux 侧门禁不改 CI | 不新增 `.github/` 改动（避免额外 R2 申报），等 `aixcoding-upstream-ci` 桥接跑 build+wheel 时覆盖 |
@@ -235,6 +235,7 @@ python aixcoding/tools/check_docs.py
 | design 数 | 15 | **17** |
 | retired id | 6 | **7** |
 | strict 门禁 | 0 warning | **0 warning**（仍全绿） |
+| check_docs 计数 | 24 ADR / 34 design / 32 self-review | **23 / 36 / 34**（ADR 减 1 = 删 adr/0001；design+2、self-review+2 = base 主干新增批次） |
 
 **结论**：文中 105/142/15/6 等数字为对应时点的真实现场值，不作为「当前值」引用；现行值以本节
 表格为准。门禁本身无回归（`gen_customizations --strict` exit 0、0 warning）。

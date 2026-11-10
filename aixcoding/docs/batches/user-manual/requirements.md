@@ -59,7 +59,7 @@
       本批次 manual 树去链后**未重出**该 PDF，依据是桌面版此前已单独去链、含外链的
       chat-options 章节为 manual 树独有；双轨同源的全等对账未做，登记为 plan「挂起与备忘」
       N3，下个手册批次补（增量复审 N3）；
-- [x] 本批次文档入库后 `check_docs.py` 门禁绿（24 ADR / 34 design / 32 self-review，2026-11-10）；
+- [x] 本批次文档入库后 `check_docs.py` 门禁绿（时点值 24 ADR / 34 design / 32 self-review，2026-11-10；rebase 后现行 23 / 36 / 34）；
 - [x] R3 标记注释补录 + 定制点登记（C154-C157）+ `gen_customizations.py --strict` 对账绿
       （时点值 105 登记行 / 142 标记 / 0 warning，2026-11-10；rebase 到最新 base 后现行 109 / 150，见 verification「rebase 留痕」）。
 
