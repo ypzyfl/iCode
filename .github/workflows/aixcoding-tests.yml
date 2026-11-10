@@ -127,7 +127,7 @@ jobs:
       # --- ADR-0004 quality gate, lint + docs steps ------------------------
       - run: uv run ruff check aixcoding/
       - run: uv run ruff format --check aixcoding/
-      - run: uv run python aixcoding/tools/check_docs.py
+      - run: uv run python aixcoding/tools/check_docs.py --closure
 
       # --- Governance tools (aixcoding/docs/batches/devtools) ---------------
       - run: uv run python aixcoding/tools/check_import_boundaries.py

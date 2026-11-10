@@ -37,7 +37,7 @@ Windows 免 uv 入口（`guardctl.cmd`）。本批次把该能力移植到 0.33.
 `settings.write_scope.allow_outside_workspace` 由 `false` 改为 `true`。
 理由：新版本不需要拦截工作区外写入。该变更**放宽了一条出厂安全口径**，
 与 `batches/guard-hooks/requirements.md`「规则内容零增删改」相冲突，
-决策与后果记录于本批次 `adr/0001-guard-write-scope-factory-default.md`。
+决策与后果记录于本批次 `standards/adr/0023-guard-write-scope-factory-default.md`。
 
 ## 用户场景
 
@@ -72,7 +72,7 @@ Windows 免 uv 入口（`guardctl.cmd`）。本批次把该能力移植到 0.33.
 
 ## 开放问题
 
-- ~~出厂写入范围~~ 已裁决（C1 = 不拦截，见 ADR-0001）；
+- ~~出厂写入范围~~ 已裁决（C1 = 不拦截，见 ADR-0023）；
 - ~~Windows 免 uv 入口是否要带~~ 已裁决（带，`guardctl.cmd`；无 uv 现场是主要使用场景）；
 - ~~`_launcher.ps1` 语义变更是否影响既有 hook~~ 已核（hooks.yaml 传相对路径，兼容）；
 - ~~同事交付的 `util/verify_guard_deployed.py` 是否采用~~ 已裁决（不采用，以我方

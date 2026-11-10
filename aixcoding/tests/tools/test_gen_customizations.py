@@ -104,6 +104,83 @@ def test_twin_id_range_count_mismatch_errors(file_tree, capsys):
     assert "must keep them equal" in capsys.readouterr().out
 
 
+def test_semantic_id_same_local_slug_in_different_batches(file_tree, capsys):
+    rows_a = "| alpha:shared | src/chrys/app/a.py | AIxCoding alpha: shared |  | — | 低 | — |\n"
+    rows_b = "| beta:shared | src/chrys/app/b.py | AIxCoding beta: shared |  | — | 低 | — |\n"
+    repo = file_tree(
+        {
+            "src/chrys/app/a.py": "A = 1  # AIxCoding alpha: shared\n",
+            "src/chrys/app/b.py": "B = 1  # AIxCoding beta: shared\n",
+            "aixcoding/docs/batches/alpha/design.md": signed_design(rows_a),
+            "aixcoding/docs/batches/beta/design.md": signed_design(rows_b),
+        }
+    )
+    assert gc.run_check(repo) == 0
+    assert gc.run_report(repo) == 0
+    out = capsys.readouterr().out
+    assert "alpha:shared" in out
+    assert "beta:shared" in out
+
+
+def test_semantic_twin_group_count(file_tree):
+    row = "| alpha:twins | src/chrys/app/tw.py | AIxCoding demo: twins same text | 2 | — | 低 | — |\n"
+    design = signed_design(row)
+    repo = file_tree(
+        {
+            "src/chrys/app/tw.py": MARKER_TWIN + "T2 = 1\n" + MARKER_TWIN,
+            "aixcoding/docs/batches/alpha/design.md": design,
+        }
+    )
+    assert gc.run_check(repo) == 0
+    (repo / "aixcoding/docs/batches/alpha/design.md").write_text(design.replace("| 2 |", "| 1 |"), encoding="utf-8")
+    assert gc.run_check(repo) == 1
+
+
+def test_semantic_id_batch_prefix_and_format_validation(file_tree, capsys):
+    row = "| beta:point | src/chrys/app/up.py | AIxCoding demo: whitelist |  | — | 低 | — |\n"
+    design = signed_design(row)
+    path = "aixcoding/docs/batches/alpha/design.md"
+    repo = file_tree({"src/chrys/app/up.py": MARKER_SINGLE, path: design})
+    assert gc.run_check(repo) == 1
+    assert "batch prefix must be `alpha`" in capsys.readouterr().out
+    for invalid in ("Alpha:point", "alpha:legacy-custom"):
+        (repo / path).write_text(design.replace("beta:point", invalid), encoding="utf-8")
+        assert gc.run_check(repo) == 1
+        capsys.readouterr()
+
+
+def test_semantic_id_active_retired_duplicate_errors(file_tree):
+    retired = "### 退役记录\n\n| id | 原落点 |\n|---|---|\n| alpha:shared | src/chrys/app/old.py |\n"
+    row = "| alpha:shared | src/chrys/app/up.py | AIxCoding demo: whitelist |  | — | 低 | — |\n"
+    repo = file_tree(
+        {
+            "src/chrys/app/up.py": MARKER_SINGLE,
+            "aixcoding/docs/batches/alpha/design.md": signed_design(row, retired),
+        }
+    )
+    assert gc.run_check(repo) == 1
+
+
+def test_m1_legacy_slug_is_accepted(file_tree):
+    row = "| alpha:legacy-c145 | src/chrys/app/up.py | AIxCoding demo: whitelist |  | — | 低 | — |\n"
+    repo = file_tree(
+        {
+            "src/chrys/app/up.py": MARKER_SINGLE,
+            "aixcoding/docs/batches/alpha/design.md": signed_design(row),
+        }
+    )
+    assert gc.run_check(repo) == 0
+
+
+def test_archaeology_output_has_no_roadmap_dependency(file_tree, capsys):
+    repo = file_tree({"src/chrys/app/up.py": "X = 1\n"})
+    assert gc.run_archaeology(repo, None) == 0
+    out = capsys.readouterr().out
+    assert "定制资产清单（考古盘点）" in out
+    assert "ROADMAP" not in out
+    assert "ROADMAP" not in gc.__doc__
+
+
 def test_longest_anchor_first_resolves_prefix_overlap(file_tree):
     # The long-anchor row (extended text) must absorb its marker before the
     # twin row's short anchor sees it (the commands.py C008-vs-twins shape).
