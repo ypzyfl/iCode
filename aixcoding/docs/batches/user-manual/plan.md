@@ -18,7 +18,7 @@
   - [x] wheel 重建 + 捆绑清单/哈希比对（67=67，零差异）
   - [x] docs 相关上游回归 92 passed；桌面 PDF 重出（139 页）
 - [x] requirements.md（六件套，事后补录初稿）
-- [x] design.md 起草（备选对比 A/B/C + R2 表 2 项 + 假设 4 条 + 定制点预告 C145/C146 + ADR 判定=出）
+- [x] design.md 起草（备选对比 A/B/C + R2 表 2 项 + 假设 4 条 + 定制点预告 C154/C155 + ADR 判定=出）
 - [x] test-plan.md（覆盖矩阵对照验收 8 条）
 - [x] verification.md（2026-11-09/10 两节真实验证证据）
 - [x] plan.md（本文档）
@@ -26,14 +26,14 @@
   风险节，见 design「ADR 判定」）
 - [x] 双 AI 评审第一轮（HOWTO ①②）：评审方 Claude Code + GLM-5.3，3 blocker/2
   suggestion/1 nit → 责任人拍板全部处置（见 verification 评审处置节）
-- [x] 评审修复：F1 契约测试跟改（C147）+ F2 重跑回填 + F3 manual 树去链 98 处 + F5 脚本落盘
+- [x] 评审修复：F1 契约测试跟改（C156）+ F2 重跑回填 + F3 manual 树去链 98 处 + F5 脚本落盘
 - [x] 评审增量复审（HOWTO ③，同一评审 AI，2026-11-10）：F1-F6 六项修复经独立复现确认，
   新增 N1/N2/N3 已处置或登记 → 收敛（记录见 self-review 第二轮节，不重签）
-- [x] **R3 标记补录**：pyproject.toml（C145/C148）/ check_wheel.py（C146）/
-  test_documentation.py（C147）均带 `AIxCoding` 单行标记
-- [x] **定制点登记**：design.md「定制点登记预告」C145-C148 随签认生效 →
+- [x] **R3 标记补录**：pyproject.toml（C154/C157）/ check_wheel.py（C155）/
+  test_documentation.py（C156）均带 `AIxCoding` 单行标记
+- [x] **定制点登记**：design.md「定制点登记预告」C154-C157 随签认生效 →
   `gen_customizations.py --strict` → OK（105 行 / 142 标记 / 0 warning）
-- [x] ruff 双门（check + format --check aixcoding/）本地绿（C148 exclude 落地后）
+- [x] ruff 双门（check + format --check aixcoding/）本地绿（C157 exclude 落地后）
 - [x] **责任人签认**：design.md / self-review.md（赵阔，2026-11-10）
 - [x] 门禁总检：`check_docs.py` OK + `gen_customizations.py --strict` OK（证据见 verification）
 - [x] INDEX.md 登记行与批次六件套已入库（评审 F4）
@@ -46,7 +46,7 @@
 |---|---|---|---|
 | 1 | 分支推送 | **推** | 已推 `origin/fork/user-manual`（`42667097`），未建 PR |
 | 2 | 验收 8 条 | **全部通过** | requirements 验收清单全勾（含 F3 口径变更后的第 2 项） |
-| 3 | C148（ruff extend-exclude） | **保留** | 按防御性策略口径留档，不撤销 |
+| 3 | C157（ruff extend-exclude） | **保留** | 按防御性策略口径留档，不撤销 |
 | 4 | Linux 侧 check_wheel 正式门禁 | **不改 CI** | 等 `aixcoding-upstream-ci` 桥接自然覆盖，不新增上游 CI 改动（R2 免增） |
 | 5 | 双轨同源对账（N3） | **下批次做** | 已登记「挂起与备忘」 |
 | 6 | 定制版 wheel 交付 | **拷交付目录，不入库** | 已拷 `桌面\用户手册\20261110\icode_tui-0.35.1-定制手册版-py3-none-any.whl`（`dist/` 仍 gitignore） |
@@ -68,4 +68,4 @@
   后台进程挤兑导致 xdist worker 崩溃假失败）；`%TEMP%\pytest-of-*` 联接点偶发 WinError 448
   ——重跑即过，或 `--basetemp` 指到 C:\work 干净目录。
 - **假设 2（捆绑路径三方一致）升级检查点**：追上游时核对 `BUNDLED_DOCS_PATH` /
-  `BUNDLED_DOCS_PREFIX` / force-include 目标键三者未变，变则 C145/C146 跟改并重报 R2。
+  `BUNDLED_DOCS_PREFIX` / force-include 目标键三者未变，变则 C154/C155 跟改并重报 R2。

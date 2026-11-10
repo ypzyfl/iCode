@@ -131,7 +131,7 @@ packages = ["src/chrys"]
 # Fork change: bundle the customized manual (aixcoding/manual, fork-owned
 # namespace) instead of the upstream docs/ so intranet customers get our
 # adapted user guide. Local dev F8 overrides via CHRYS_DOCS_ROOT.
-# AIxCoding manual bundle: wheel docs source key (user-manual C145)
+# AIxCoding manual bundle: wheel docs source key (user-manual C154)
 "aixcoding/manual" = "chrys/app/tui/screens/guides/_docs"
 
 [tool.hatch.build.targets.wheel.hooks.custom]
@@ -173,7 +173,7 @@ line-length = 120
 src = ["src", "tests"]
 fix = true
 # AIxCoding manual bundle: the manual is delivered user-facing content — its
-# intentionally aligned comments must stay out of the formatter (user-manual C148)
+# intentionally aligned comments must stay out of the formatter (user-manual C157)
 extend-exclude = ["aixcoding/manual"]
 
 [tool.ruff.per-file-target-version]

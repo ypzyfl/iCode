@@ -8,7 +8,7 @@
 - 责任人：赵阔
 - 状态：已确认
 - 确认日期：2026-11-10
-- 确认意见：同意方案 C（数据源切换：fork 命名空间落位 + force-include 换源 + env 指向）；R2 表所列 pyproject.toml / scripts/check_wheel.py / tests/foundation/test_documentation.py 三处上游改动予以批准（C145-C148）；评审第一轮三个 blocker 按处置结论修复。
+- 确认意见：同意方案 C（数据源切换：fork 命名空间落位 + force-include 换源 + env 指向）；R2 表所列 pyproject.toml / scripts/check_wheel.py / tests/foundation/test_documentation.py 三处上游改动予以批准（C154-C157）；评审第一轮三个 blocker 按处置结论修复。
 - 审批人：赵阔（R11：无新增第三方依赖，本节结论批准）
 - 审批日期：2026-11-10
 
@@ -55,9 +55,9 @@
 
 | 文件 | 改什么 | 预估行数 | 标记注释位置 |
 |---|---|---|---|
-| `pyproject.toml` | ① `[tool.hatch.build.targets.wheel.force-include]` 源键 `"docs"` → `"aixcoding/manual"`；② `[tool.ruff] extend-exclude = ["aixcoding/manual"]`（**评审后增补的防御性策略**：ruff 0.17.1 会格式化 md 内 ```python 围栏、重排手册有意对齐的注释〔显式路径可复现：`ruff format --check aixcoding/manual` 报 6 个 md unformatted〕——交付内容不允许机器改写；CI 现用目录遍历 `aixcoding/` 尚未覆盖 md，故此项为预防未来行为变化/显式路径调用的策略声明，非为修当前红灯。理由口径已按增量复审 N1 更正，2026-11-10） | +8 / −1 | ① 键行上方 `# AIxCoding manual bundle: wheel docs source key (user-manual C145)`；② extend-exclude 行上方 `…(user-manual C148)` |
-| `scripts/check_wheel.py` | `check_archive()` 捆绑清单比对源 `git ls-files -z docs` → `-z aixcoding/manual`；`removeprefix("docs/")` → `removeprefix("aixcoding/manual/")` | +3 / −2 | 比对源行上方 `# AIxCoding manual bundle: compare against the fork-owned manual tree (user-manual C146)` |
-| `tests/foundation/test_documentation.py` | 契约测试 `test_wheel_bundles_docs_where_the_resolver_looks` 断言键 `force_include["docs"]` → `["aixcoding/manual"]`（**评审 F1 增补**，2026-11-10：改键名必然连带，跟改使契约测试继续守护新契约） | +2 / −1 | 断言上一行 `# AIxCoding manual bundle: …`（C147） |
+| `pyproject.toml` | ① `[tool.hatch.build.targets.wheel.force-include]` 源键 `"docs"` → `"aixcoding/manual"`；② `[tool.ruff] extend-exclude = ["aixcoding/manual"]`（**评审后增补的防御性策略**：ruff 0.17.1 会格式化 md 内 ```python 围栏、重排手册有意对齐的注释〔显式路径可复现：`ruff format --check aixcoding/manual` 报 6 个 md unformatted〕——交付内容不允许机器改写；CI 现用目录遍历 `aixcoding/` 尚未覆盖 md，故此项为预防未来行为变化/显式路径调用的策略声明，非为修当前红灯。理由口径已按增量复审 N1 更正，2026-11-10） | +8 / −1 | ① 键行上方 `# AIxCoding manual bundle: wheel docs source key (user-manual C154)`；② extend-exclude 行上方 `…(user-manual C157)` |
+| `scripts/check_wheel.py` | `check_archive()` 捆绑清单比对源 `git ls-files -z docs` → `-z aixcoding/manual`；`removeprefix("docs/")` → `removeprefix("aixcoding/manual/")` | +3 / −2 | 比对源行上方 `# AIxCoding manual bundle: compare against the fork-owned manual tree (user-manual C155)` |
+| `tests/foundation/test_documentation.py` | 契约测试 `test_wheel_bundles_docs_where_the_resolver_looks` 断言键 `force_include["docs"]` → `["aixcoding/manual"]`（**评审 F1 增补**，2026-11-10：改键名必然连带，跟改使契约测试继续守护新契约） | +2 / −1 | 断言上一行 `# AIxCoding manual bundle: …`（C156） |
 
 > 修订记录：2026-11-10 独立评审（Claude Code + GLM-5.3）F1——上表第 3 行为评审后增补；
 > 原稿遗漏该连带跟改，系"上游测试零跟改"误判（该契约测试本机不跳过，旧 92 passed 证据
@@ -90,16 +90,18 @@
 
 ## 定制点登记预告
 
-（ADR-0015 点级登记；本批次 4 个定制点，编号接现有高水位 C144 之后的 C145-C148。）
+（ADR-0015 点级登记；本批次 4 个定制点，编号接现有高水位 C153 之后的 C154-C157。
+原拟用 C145-C148，因 rebase 到最新 `main_aixcoding_cli` 后该区间已被 `logo-branding`
+（C144-C152）与 `llm-keyless-sdk-auth`（C153）占用，2026-11-10 整体后移。）
 
 | id | 落点 | marker 锚 | 预期计数 | anchor | risk | removal_condition |
 |---|---|---|---|---|---|---|
-| C145 | pyproject.toml | AIxCoding manual bundle: wheel docs source key | 1 | `[tool.hatch.build.targets.wheel.force-include]` | 低——声明式配置，上游改捆绑数据源策略时冲突 | 〔机制替代〕上游提供手册数据源配置化能力，或手册定制淘汰回归纯上游版本 |
-| C146 | scripts/check_wheel.py | AIxCoding manual bundle: compare against the fork-owned manual tree | 1 | `check_archive()` 捆绑清单比对 | 低——校验脚本低频改动 | 〔机制替代〕同 C145（两点同生共死） |
-| C147 | tests/foundation/test_documentation.py | AIxCoding manual bundle | 1 | `test_wheel_bundles_docs_where_the_resolver_looks` 断言 | 低——契约测试随 C145 键名联动 | 〔机制替代〕同 C145（契约随捆绑源同生共死） |
-| C148 | pyproject.toml | AIxCoding manual bundle: the manual is delivered user-facing content | 1 | `[tool.ruff] extend-exclude` | 低——格式化配置，上游改 lint 版式策略时冲突 | 〔机制替代〕上游把交付文档纳入格式化治理并提供正式排除通道，或手册定制淘汰 |
+| C154 | pyproject.toml | AIxCoding manual bundle: wheel docs source key | 1 | `[tool.hatch.build.targets.wheel.force-include]` | 低——声明式配置，上游改捆绑数据源策略时冲突 | 〔机制替代〕上游提供手册数据源配置化能力，或手册定制淘汰回归纯上游版本 |
+| C155 | scripts/check_wheel.py | AIxCoding manual bundle: compare against the fork-owned manual tree | 1 | `check_archive()` 捆绑清单比对 | 低——校验脚本低频改动 | 〔机制替代〕同 C154（两点同生共死） |
+| C156 | tests/foundation/test_documentation.py | AIxCoding manual bundle | 1 | `test_wheel_bundles_docs_where_the_resolver_looks` 断言 | 低——契约测试随 C154 键名联动 | 〔机制替代〕同 C154（契约随捆绑源同生共死） |
+| C157 | pyproject.toml | AIxCoding manual bundle: the manual is delivered user-facing content | 1 | `[tool.ruff] extend-exclude` | 低——格式化配置，上游改 lint 版式策略时冲突 | 〔机制替代〕上游把交付文档纳入格式化治理并提供正式排除通道，或手册定制淘汰 |
 
-> R3 正式单行标记已补齐（C145-C148 四行），本表随设计签认生效（2026-11-10）；
+> R3 正式单行标记已补齐（C154-C157 四行），本表随设计签认生效（2026-11-10）；
 > `gen_customizations.py --strict` 对账绿（105 登记行 / 142 标记 / 0 warning，见 verification）。
 
 ## 风险与最坏情况

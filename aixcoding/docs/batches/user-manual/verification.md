@@ -42,7 +42,7 @@ python -m pytest tests\foundation\test_documentation.py tests\app\tui\screens\gu
   tests\orchestration\invoker\test_documentation.py -q -p no:cacheprovider
 → 92 passed in 169.39s（零跟改）
   【2026-11-10 评审 F2 注：本节运行于 pyproject 捆绑源切换之前，"零跟改"结论已被评审推翻
-  ——切换后契约测试必红，正确证据见下方"独立评审第一轮处置"F2 节（92 passed 含 C147 跟改）】
+  ——切换后契约测试必红，正确证据见下方"独立评审第一轮处置"F2 节（92 passed 含 C156 跟改）】
 ```
 
 ### 架构套件排查（确认失败与 manual 无关）
@@ -90,8 +90,8 @@ aixcoding-launch.py 未提交（责任人裁定本地资产）
 
 - **F1（R2 表漏报契约测试连带跟改）→ 已修复**：
   `tests/foundation/test_documentation.py::test_wheel_bundles_docs_where_the_resolver_looks`
-  断言键 `force_include["docs"]` → `["aixcoding/manual"]`（+`AIxCoding` 标记，C147）；
-  design R2 表增补第 3 行 + 定制点预告 C147；test-plan"零跟改"表述修正。
+  断言键 `force_include["docs"]` → `["aixcoding/manual"]`（+`AIxCoding` 标记，C156）；
+  design R2 表增补第 3 行 + 定制点预告 C156；test-plan"零跟改"表述修正。
 - **F2（92 passed 证据对应切换前树况）→ 已重跑回填**：
 
   ```
@@ -100,7 +100,7 @@ aixcoding-launch.py 未提交（责任人裁定本地资产）
     tests\orchestration\workflows\test_documentation.py
     tests\orchestration\invoker\test_documentation.py -q -p no:cacheprovider
     --basetemp=C:\work\_pytest_review
-  → 92 passed in 27.77s（含 C147 跟改后契约测试，本机无 CI env 不跳过）
+  → 92 passed in 27.77s（含 C156 跟改后契约测试，本机无 CI env 不跳过）
   单验契约测试：1 passed in 12.63s（PASSED test_wheel_bundles_docs_where_the_resolver_looks）
   ```
 
@@ -131,8 +131,8 @@ aixcoding-launch.py 未提交（责任人裁定本地资产）
   ```
 
 - **F6（nit）→ 随 F3 联动**，requirements 验收第 2 项证据更新。
-- **顺带完成收尾项**：R3 标记补录——pyproject.toml（C145 行）/ check_wheel.py（C146 行）
-  补 `AIxCoding` 单行标记，design C145/C146 marker 锚同步为正式标记文本。
+- **顺带完成收尾项**：R3 标记补录——pyproject.toml（C154 行）/ check_wheel.py（C155 行）
+  补 `AIxCoding` 单行标记，design C154/C155 marker 锚同步为正式标记文本。
 - **开发 AI 复检追加发现（评审未覆盖）→ 已处置（理由口径经增量复审 N1 更正）**：
   ruff 0.17.1 会格式化 md 内 ```python 围栏，把手册有意对齐的注释重排。显式路径下可复现：
 
@@ -143,7 +143,7 @@ aixcoding-launch.py 未提交（责任人裁定本地资产）
 
   但 **CI（`aixcoding-tests.yml:129` `ruff format --check aixcoding/`）当前用目录遍历时不覆盖
   md**（同配置下 `aixcoding/` 目标 316 files already formatted），故原记录"CI 必红"表述过强，
-  更正为：C148（`[tool.ruff] extend-exclude = ["aixcoding/manual"]`）是**防御性策略声明**
+  更正为：C157（`[tool.ruff] extend-exclude = ["aixcoding/manual"]`）是**防御性策略声明**
   ——交付内容不参与格式化治理，防止未来 ruff 行为变化或显式路径调用时手册被机器重排。
   落地后复检：
 
@@ -194,7 +194,7 @@ python aixcoding/tools/check_docs.py
 |---|---|---|
 | 1 | 分支推送 | `origin/fork/user-manual` 已推，末笔提交 `910b06b2` 与本文件同步；PR 未建 |
 | 2 | 验收 8 条全部通过 | 上方验收清单逐条证据（验收结论行落在 requirements.md） |
-| 3 | C148 保留 | 按防御性策略口径留档（见 F5/C148 节更正后的表述），不撤销 |
+| 3 | C157 保留 | 按防御性策略口径留档（见 F5/C157 节更正后的表述），不撤销 |
 | 4 | Linux 侧门禁不改 CI | 不新增 `.github/` 改动（避免额外 R2 申报），等 `aixcoding-upstream-ci` 桥接跑 build+wheel 时覆盖 |
 | 5 | 双轨同源对账下批次 | plan「挂起与备忘」N3 待办 |
 | 6 | 定制版 wheel 交付不入库 | 已拷 `桌面\用户手册\20261110\icode_tui-0.35.1-定制手册版-py3-none-any.whl`（6.96 MB，与 `dist/` 同哈希源）；`dist/` 保持 gitignore |

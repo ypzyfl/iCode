@@ -9,7 +9,7 @@
 1. **上游回归（行为锚定）**：`tests/foundation/test_documentation.py`（`resolve_docs_root`
    三级解析：env 覆盖 / 坏覆盖降级 / checkout 回退 / 捆绑优先）+ `tests/app/tui/screens/guides/`
    （GuideDialog/index/reader 全链路）+ `tests/service|orchestration/**/test_documentation.py`
-   （agent 运行时文档路由）——上游测试仅 **1 处跟改**（C147：契约测试
+   （agent 运行时文档路由）——上游测试仅 **1 处跟改**（C156：契约测试
    `test_wheel_bundles_docs_where_the_resolver_looks` 断言键随捆绑源切换，
    `design.md` R2 表第 3 行，2026-11-10 评审 F1 增补），其余零跟改。
 2. **构建完整性门禁**：`scripts/check_wheel.py`（安装 wheel 后 `resolve_docs_root()` 必须解析到
@@ -30,7 +30,7 @@
 | wheel 捆绑源 = manual，逐文件一致 | `python -m hatchling build` + zipfile 清单/哈希比对（verification 2026-11-10 节）；正式门禁 `python scripts/check_wheel.py dist/<wheel>`（SAC 受限机器以一次性等价校验替代：脚本用毕即删，输出与复现方式留 verification） | 构建/契约 |
 | check_wheel 比对源切换 | `git grep -n "aixcoding/manual" scripts/check_wheel.py`（2 处）+ 构建比对绿 | 静态 + 契约 |
 | 开发机 F8 指向 manual | `CHRYS_DOCS_ROOT=<repo>/aixcoding/manual` 下调 `resolve_docs_root()` 断言路径（verification 实测） | 行为锚定（上游符号） |
-| 上游解析/手册 UI 不回归 | `pytest tests/foundation/test_documentation.py tests/app/tui/screens/guides tests/service/context/providers/test_documentation.py tests/orchestration/{workflows,invoker}/test_documentation.py -q`（含契约测试 C147 跟改后断言） | 上游回归 |
+| 上游解析/手册 UI 不回归 | `pytest tests/foundation/test_documentation.py tests/app/tui/screens/guides tests/service/context/providers/test_documentation.py tests/orchestration/{workflows,invoker}/test_documentation.py -q`（含契约测试 C156 跟改后断言） | 上游回归 |
 | 桌面 PDF 同步 | Edge 无头打印页数核验（139 页）+ HTML 锚点数复核 | 人工/交付 |
 | check_docs 门禁绿（文档入库后） | `uv run python aixcoding/tools/check_docs.py` → exit 0 | 文档门禁 |
 

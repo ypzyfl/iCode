@@ -21,7 +21,7 @@
 
 1. R2 比对：diff 中上游文件应**仅有** `pyproject.toml`（force-include 节）、
    `scripts/check_wheel.py`（check_archive 比对源 2 行）与
-   `tests/foundation/test_documentation.py`（契约测试断言键跟改，C147——评审 F1 增补）——
+   `tests/foundation/test_documentation.py`（契约测试断言键跟改，C156——评审 F1 增补）——
    出现任何其他上游文件改动即 blocker；
 2. R3 现状：两处上游改动**尚未**带正式 `AIxCoding` 单行标记（收尾待办，plan.md）——
    评审时按"已登记待补录"口径检查 plan/design 表述一致性，标记缺失本身不判 blocker；
@@ -41,7 +41,7 @@
   （3 blocker / 2 suggestion / 1 nit）。
 - blocker 处置（全部修复，证据见 verification.md「独立评审第一轮处置」节）：
   - **F1** 契约测试连带跟改漏报（`test_wheel_bundles_docs_where_the_resolver_looks` 断言
-    `force_include["docs"]` 必红）→ 已跟改断言键并补 R2 表第 3 行 + C147 标记；
+    `force_include["docs"]` 必红）→ 已跟改断言键并补 R2 表第 3 行 + C156 标记；
     单验 1 passed。
   - **F2** "92 passed" 证据对应 pyproject 切换前树况（R7 失真）→ 已在提交态重跑，92 passed
     （含契约测试）；旧记录加注树况差异。
@@ -52,7 +52,7 @@
   输出证据留 verification；F6 随 F3 联动更新。
 - 开发 AI 复检追加发现（评审未覆盖）：`ruff format --check aixcoding/`（CI govern 门）会重排
   manual 树 md 围栏内有意对齐的注释 → 已加 `[tool.ruff] extend-exclude = ["aixcoding/manual"]`
-  （C148），ruff 双门本地全绿。
+  （C157），ruff 双门本地全绿。
 - 未修项（次要问题，责任人拍板不修）：无（suggestion/nit 全部处置）。
 
 ## 2026-11-10 增量复审（第一轮修复后）：已收敛
@@ -62,14 +62,14 @@
 - 原 6 项处置核验：F1-F6 **6/6 修复**，逐项独立复现通过（92 passed 复跑一致、manual 树
   复扫 2 处保留项、脚本实在、证据对口）。
 - 新增 findings 处置：
-  - **N1（suggestion，C148 "必红"证据口径）→ 已修**：复审实证 `ruff format --check
+  - **N1（suggestion，C157 "必红"证据口径）→ 已修**：复审实证 `ruff format --check
     --config "extend-exclude=[]" aixcoding/` 为 316 files already formatted（md 未被目录
     遍历覆盖），"CI 必红"不成立。开发 AI 复现确认：**显式路径** `aixcoding/manual` 下
     6 个 md 确报 unformatted（机制前提为真）。处置：design R2 行与 verification 节改为
     防御性策略声明（防未来行为变化/显式路径调用），保留可复现命令与输出，原表述按
     "更正不删旧记录"原则加注。
-  - **N2（nit，C145-C148 口径三处不一致）→ 已修**：requirements 验收第 8 条、
-    verification 待补项、plan 待办统一为 C145-C148。
+  - **N2（nit，C154-C157 口径三处不一致）→ 已修**：requirements 验收第 8 条、
+    verification 待补项、plan 待办统一为 C154-C157。
   - **N3（nit，双轨同源缺实证）→ 已登记**：plan.md「挂起与备忘」新增下批次待办
     （从 manual 树重出桌面版并做字符级对账），本批次不追溯补齐。
 - 结论：blocker 清零，suggestion/nit 全部处置或登记，收敛。

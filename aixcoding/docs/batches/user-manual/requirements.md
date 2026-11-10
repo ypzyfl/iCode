@@ -60,7 +60,7 @@
       chat-options 章节为 manual 树独有；双轨同源的全等对账未做，登记为 plan「挂起与备忘」
       N3，下个手册批次补（增量复审 N3）；
 - [x] 本批次文档入库后 `check_docs.py` 门禁绿（24 ADR / 34 design / 32 self-review，2026-11-10）；
-- [x] R3 标记注释补录 + 定制点登记（C145-C148）+ `gen_customizations.py --strict` 对账绿
+- [x] R3 标记注释补录 + 定制点登记（C154-C157）+ `gen_customizations.py --strict` 对账绿
       （105 登记行 / 142 标记 / 0 warning，2026-11-10）。
 
 **验收结论：通过**（责任人 赵阔，2026-11-10；逐条裁决见 plan.md「责任人裁决记录」）。
