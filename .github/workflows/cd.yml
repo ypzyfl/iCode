@@ -462,7 +462,10 @@ jobs:
     # 因此定时构建也会发布最新 tag 对应的 Release。
     # inputs.publish 是 boolean：必须与 boolean 字面量比较。若写成 != 'false'，
     # GitHub 表达式会把 false→0、'false'→NaN，NaN 比较恒为不等，条件恒真，开关失效。
-    if: needs.resolve-target.outputs.is_dev != 'true' && inputs.publish != false
+    # 反向的坑：非 dispatch 事件（tag push / schedule）里 inputs.publish 是 null，
+    # null != false 恒为 false，会把开关误关——因此仅对 dispatch 读 publish，
+    # 其余事件按 is_dev 放行。
+    if: needs.resolve-target.outputs.is_dev != 'true' && (inputs.publish != false || github.event_name != 'workflow_dispatch')
     needs: [build-wheel, build-binaries, resolve-target]
     runs-on: ubuntu-latest
     permissions:
