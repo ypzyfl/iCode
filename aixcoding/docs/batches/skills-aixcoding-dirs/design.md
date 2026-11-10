@@ -239,7 +239,7 @@ aixcoding cwd 仍加载（决策记录的行为锚定）、缺目录不报错、
 
 | id | 落点 | marker 锚 | 预期计数 | anchor | risk | removal_condition |
 |---|---|---|---|---|---|---|
-| C143-C146 | src/chrys/service/skills/adapter.py | AIxCoding skills: | 4 | `_collect_skill_paths` 挂点×2 + 降级注释×2 | 低：上游重写 `_collect_skill_paths` 函数体时挂点漂移（`--strict` 报计数不符） | 〔上游等价〕上游原生提供桌面共享技能目录的合并机制 |
+| C152-C155 | src/chrys/service/skills/adapter.py | AIxCoding skills: | 4 | `_collect_skill_paths` 挂点×2 + 降级注释×2 | 低：上游重写 `_collect_skill_paths` 函数体时挂点漂移（`--strict` 报计数不符） | 〔上游等价〕上游原生提供桌面共享技能目录的合并机制 |
 | C147 | src/chrys/foundation/platform/__init__.py | AIxCoding skills: | 1 | `PlatformInfo` 字段区 | 低：上游演进 `PlatformInfo` 字段集时冲突，diff 面小 | 〔上游等价〕`PlatformInfo` 原生提供等价产品目录字段 |
 | C148-C149 | tests/conftest.py | AIxCoding skills: | 2 | config-dir 重定向两处 `dataclasses.replace` | 中：上游改 redirect 机制形态时需跟随（该机制 0.32→0.34 稳定） | 〔上游等价〕重定向机制原生覆盖新增字段 |
 | C150 | src/chrys/service/profiles/agents/schema.py | AIxCoding skills: | 1 | `SkillsConfig` 开关字段区 | 低：上游重排字段区时冲突面小 | 〔配置契约变更〕ADR-0001 决策一反转（开关撤离 profile schema） |
