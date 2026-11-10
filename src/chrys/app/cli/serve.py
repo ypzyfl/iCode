@@ -1131,14 +1131,15 @@ def _make_chrys_server_class(base_server_class: type[Any]) -> _TextualServeServe
     return ChrysServeServer
 
 
-# AIxCoding branding: ASCII serve banner
+# AIxCoding branding: GBK-safe serve banner
 def _icode_serve_logo() -> str:
-    """Return the AIxCoding serve startup banner (pure ASCII, safe on GBK consoles)."""
-    return f"""[bold magenta] ##   ####  #  #   ###   ##   ###   ####  #  #   ###
-#  #   ##    # #  #     #  #  #  #   ##   ## #  #
-####   ##     ##  #     #  #  #  #   ##   # ##  # ##
-#  #   ##    # #  #     #  #  #  #   ##   #  #  #  #
-#  #  ####  #  #   ###   ##   ###   ####  #  #   ###  v{__version__}[/bold magenta]\n"""
+    """Return the AIxCoding serve startup banner (GBK-safe block subset: no U+2580, which CP936 cannot encode)."""
+    return f"""[bold magenta] ▄██▄  ▄██▄        ▄███▄
+██  ██  ██        ██              █▄ ▄
+██████  ██  █▄ ▄█ ██     ▄███▄ ▄████ ██ ████▄ ▄███▄
+██  ██  ██   ▄█▄  ██▄    ██ ██ ██ ██ ██ ██ ██ ██ ██
+██  ██ ▄██▄ █▄ ▄█  ▄███▄ ▄███▄ ▄███▄ ██ ██ ██ ▄████  v{__version__}
+                                               ▄██▄[/bold magenta]\n"""
 
 
 def run_command(args: argparse.Namespace) -> None:
