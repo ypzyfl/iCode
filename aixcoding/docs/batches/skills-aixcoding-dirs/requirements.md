@@ -30,7 +30,8 @@
   `tests/conftest.py`（重定向 patch×2）。
 - **增**：`src/chrys/service/aixcoding/skill_paths.py`（定制包）、
   `aixcoding/tests/skills/test_aixcoding_skill_paths.py`（行为锚）。
-- **不改**（2026-11-11 裁决，原清单 6-10 项撤销）：`docs/en`、`docs/zh-Hans` 用户手册与
+- **不改**（2026-11-11 裁决，原清单 6-9 与 11 项撤销；#10 已于 2026-11-10 自然取消）：
+  `docs/en`、`docs/zh-Hans` 用户手册与
   hooks 文档——与 `fork/user-manual` 批次并行改写冲突，手册缺口由该批次补齐。
 
 ## 验收条件

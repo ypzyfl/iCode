@@ -108,7 +108,7 @@ def cwd_aixcoding_skill_paths(config: SkillsConfig, runtime: SessionEnvironment 
     Tied to the agent's ``SessionEnvironment`` (not ``os.getcwd()``) so it
     follows the workspace through soft restarts.  Deliberately independent of
     the project trust gate: the AIxCoding directory is a product-owned root,
-    not repository-authored content (ADR-0001 decision 2).
+    not repository-authored content (skills-aixcoding-dirs design decision 2).
     """
     if not config.auto_load_aixcoding_cwd_skills:
         return []
