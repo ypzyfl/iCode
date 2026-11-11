@@ -5,8 +5,8 @@
 
 ## 当前基线（每次升级完成后人工更新，自 customization-registry 批次起由本节承载）
 
-- 当前所基于的上游版本：0.35.1
-- 最近一次升级完成日期：2026-11-09（upstream-merge-v0.35.1 批次）
+- 当前所基于的上游版本：0.35.2
+- 最近一次升级完成日期：2026-11-11（upstream-merge-v0.35.2 批次）
 - 定制点全景按需视图：`uv run python aixcoding/tools/gen_customizations.py --report`（实时对账，勿编辑不落盘）
 > 升级节奏与债务控制条款见 DEVELOPMENT.md §8 正文。
 
@@ -56,9 +56,10 @@ git merge <目标ref>   # release tag（如 v0.32.2）或镜像头 origin/main_i
   现无定制登记残留，上游重构该文件时直接以上游为准。）
 - 坑：git 冲突输出对中文文件名默认八进制转义，人工核对用 `git -c core.quotepath=off ...`；
 - 坑：`except A, B:`（PEP 758，py3.14）是本仓 ruff format 强制输出，**不要**被编辑器/linter"修复"。
-- **定制手册固定对账（user-manual 批次）**：用 `git diff <旧tag> <新tag> -- docs` 逐篇评估上游变化，
-  同步到 `aixcoding/manual/` 并重放去链、措辞定制及 `check_links.py` 内容门禁；不得直接定制上游 `docs/`。
-  同时核对 `BUNDLED_DOCS_PATH`、`BUNDLED_DOCS_PREFIX` 与 force-include 目标路径三者仍一致。
+- **定制手册解耦（2026-11-11 责任人裁决）**：`aixcoding/manual/` 是完整定制手册，升级批次
+  **不做**上游 `docs/` → manual 的内容对账；手册跟进上游由独立的手册批次处理（diff 评估、
+  去链/措辞定制重放、`check_links.py`、wheel/PDF 重出）。升级批次仍需核对
+  `BUNDLED_DOCS_PATH`、`BUNDLED_DOCS_PREFIX` 与 force-include 目标路径三者一致（捆绑机制，非内容对账）。
 
 ## 3. 结构层（anchor 核对）
 

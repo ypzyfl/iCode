@@ -60,7 +60,8 @@
   正式输出待 Linux/CI 侧补（aixcoding-upstream-ci 桥接的 build+wheel 探测 job）。
 - **vendored rg.exe**：gitignore 资产，每台开发机首次需跑 `scripts/fetch_rg.ps1`，否则
   search_renderers 相关上游测试必挂（本机 2026-11-10 已修复，见 verification）。
-- **手册对齐流程（每次升级固定步骤）**：`git diff <旧tag> <新tag> -- docs` 逐篇评估 →
+- **手册对齐流程（独立手册批次，2026-11-11 责任人裁决）**：追上游批次不再固定处理手册内容；
+  需要跟进上游 `docs/` 时另开手册批次：`git diff <旧tag> <新tag> -- docs` 逐篇评估 →
   内容性定制重放（去链清单 + 措辞清单 + `check_links.py` 门禁）→ manual 提交 → 重出 wheel/PDF。
 - **双轨同源对账（增量复审 N3 遗留，下个手册批次做）**：本批次"PDF 不需重出"依据是桌面版
   此前已单独去链 + chat-options 为 manual 树独有章节，但从未从 manual 树重出桌面版做全等
