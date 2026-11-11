@@ -49,7 +49,7 @@ The `web_search` and `web_fetch` kinds require approval by default. This default
 
 - In manual mode, each web tool call opens the **Approval Required** dialog.
 - In automatic mode, the approval judge model may approve the call.
-- In bypass mode, including the headless CLI `icode run`, web tool calls run without asking.
+- In bypass mode, including the headless CLI `aixcoding-cli run`, web tool calls run without asking.
 
 To stop being asked about searches, set an override in the agent profile, for example `approval.overrides: {web_search: auto}`. See [Configure approval modes](./approval.md).
 
@@ -322,16 +322,6 @@ Search results and page text come from outside sources. AIxCoding-CLI marks them
 Some model services can run web search themselves. When a model profile declares such a tool in its `chat_options`, for example `{"tools": [{"type": "web_search"}]}`, the provider's tool takes over that name. If the agent also includes the matching AIxCoding-CLI tool, the local tool is turned off for that run and AIxCoding-CLI shows a notice once. This works per name: a provider-run `web_search` leaves a local `web_fetch` in place.
 
 Provider-run search happens on the model provider's side, so AIxCoding-CLI's approval rules and network settings do not apply to it. To use AIxCoding-CLI's own tools instead, remove the declaration from the model's `chat_options`.
-
-### DeepSeek
-
-DeepSeek's Responses API supports a server-side `web_search` tool. To use it:
-
-- Model profile: provider "DeepSeek (OpenAI)", API style "Responses".
-- Add a `tools` row in **Chat Options** with the value `[{"type": "web_search"}]`.
-- Do not include local `web_search` in the agent's `tools.builtins`; if you do, AIxCoding-CLI turns the local tool off for that run and shows a notice. `web_fetch` is unaffected.
-
-See the DeepSeek Responses API guide for supported models, billing, and limits; you can also use the [DeepSeek Search API](#deepseek-search-api) above through the local `web_search` tool.
 
 ## When web tools do not appear
 

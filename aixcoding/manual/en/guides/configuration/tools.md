@@ -22,7 +22,7 @@ Each option corresponds to a kind of built-in tool. Enable the kinds the agent n
 | Web search | Find online URLs and summaries; uses Exa (exa.ai) unless the agent profile names other providers | Enable when the agent needs current external information, such as documentation or release details. Queries go to that outside service and can carry details from your conversation, so mind your data and privacy |
 | Web fetch | Read the text of a page by URL | Enable when the agent needs to read pages it finds or that you point it to |
 | Shell | Execute terminal commands in a subprocess | Enable when the agent needs to run builds, tests, or other commands |
-| Ask User | Request additional information or ask the user to make a choice during a task | Suitable for TUI and ACP sessions; headless CLI mode (`icode run`) does not provide this tool to the agent |
+| Ask User | Request additional information or ask the user to make a choice during a task | Suitable for TUI sessions; headless CLI mode (`aixcoding-cli run`) does not provide this tool to the agent |
 | Document Converter (PDF, Office) | Convert PDF, DOCX, PPTX, XLSX, and XLS files to Markdown; if the current model supports image input and the agent has "Filesystem Read" enabled, images can also be extracted from PDF, DOCX, and PPTX files for the agent to view; XLSX and XLS conversion includes only text and tables, and text struck through in an XLSX file is kept and marked as struck through (`~~text~~`) | Enable when the agent needs to read these document formats |
 | Todo List | Track tasks with multiple steps using a live checklist | Suitable for tasks with many steps that need visible progress tracking |
 
@@ -73,14 +73,14 @@ A command counts as finished only when every program it started has ended. So a 
 
 When background commands stop:
 
-- In the TUI and through an ACP client, commands the main agent moved to the background keep running across turns, and the agent is reminded each turn which ones are still running. Commands a sub-agent or a workflow node moved to the background stop when it finishes.
-- All of them stop when the session ends: when you start a new session, switch to another session, delete the session, or quit AIxCoding-CLI, including by closing the terminal window. With `icode run`, they stop when the run ends.
+- In the TUI, commands the main agent moved to the background keep running across turns, and the agent is reminded each turn which ones are still running. Commands a sub-agent or a workflow node moved to the background stop when it finishes.
+- All of them stop when the session ends: when you start a new session, switch to another session, delete the session, or quit AIxCoding-CLI, including by closing the terminal window. With `aixcoding-cli run`, they stop when the run ends.
 - Interrupting the agent stops the command it is waiting on, but not the commands already in the background.
 - `/rollback` stops the commands that the discarded turns started. It may not restore files that a command changed after it moved to the background.
 
 AIxCoding-CLI cannot stop programs that detach themselves from the command that started them, such as services that some tools start with a `-d` option; they keep running after the session ends.
 
-If AIxCoding-CLI ends before it can stop its background commands, for example when it crashes or an ACP client ends it outright, the commands keep running on macOS and Linux. The next time you open the TUI, AIxCoding-CLI lists the ones still running and asks whether to **Stop** them; choose **Ignore** to leave them running. When an ACP client starts AIxCoding-CLI again, AIxCoding-CLI stops the ones that earlier ACP sessions left running, without asking. On Windows, the commands end together with AIxCoding-CLI.
+If AIxCoding-CLI ends before it can stop its background commands, for example when it crashes, the commands keep running on macOS and Linux. The next time you open the TUI, AIxCoding-CLI lists the ones still running and asks whether to **Stop** them; choose **Ignore** to leave them running. On Windows, the commands end together with AIxCoding-CLI.
 
 ### See and stop background commands in the TUI
 

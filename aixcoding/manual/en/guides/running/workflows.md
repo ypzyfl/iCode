@@ -6,11 +6,11 @@ This tutorial first introduces the terminal user interface (TUI) and basic opera
 
 ## Run the built-in workflow in the TUI
 
-First, [configure a working model](../../start/getting-started.md#3-configure-a-model) and choose a local project directory. The built-in example below asks agents to read files in that directory and generate a project introduction, incurring model usage costs.
+First, make sure a working model is configured, and prepare a local project directory. The built-in example below asks agents to read files in that directory and generate a project introduction, incurring model usage costs.
 
 ### Select a workflow
 
-In a terminal, change to the chosen project directory and run `icode` to open the TUI. Enter `/workflow` in the input box to open the workflow picker, then select `demo-workflow` with the `builtin` source.
+In a terminal, change to the chosen project directory and run `aixcoding-cli` to open the TUI. Enter `/workflow` in the input box to open the workflow picker, then select `demo-workflow` with the `builtin` source.
 
 Alternatively, click “APP MODE: Chat” in the upper left and select “Workflow” to switch modes, then click “New Session” and select a workflow.
 
@@ -227,11 +227,11 @@ Input → prepare (Python) → plan (agent) → Workflow output
 Use `wf.agent()` to define an agent node. In `wf.agent("plan", profile="QA")`, `"plan"` is the node name and `profile="QA"` selects the agent profile. List available profiles with:
 
 ```shell
-icode agent list
-icode model list
+aixcoding-cli agent list
+aixcoding-cli model list
 ```
 
-For `profile`, use a `Name` from `icode agent list`; for the optional `model` parameter, use a `Name` from `icode model list`. To specify a model for this node, replace the registration below, substituting an actual model profile name for `My model`:
+For `profile`, use a `Name` from `aixcoding-cli agent list`; for the optional `model` parameter, use a `Name` from `aixcoding-cli model list`. To specify a model for this node, replace the registration below, substituting an actual model profile name for `My model`:
 
 ```python
 plan = wf.agent("plan", profile="QA", model="My model")
@@ -256,20 +256,6 @@ plan = wf.agent(
 ```
 
 For a regular AIxCoding-CLI agent, `instructions_suffix` is appended to the profile's existing `instructions` as part of the system prompt. The upstream `text` remains the user message.
-
-### Use an ACP agent
-
-If you have configured an external Agent Client Protocol (ACP) agent, replace `QA` with its profile name:
-
-```python
-plan = wf.agent("plan", profile="My ACP agent")
-```
-
-Replace `My ACP agent` with an existing ACP profile name from `icode agent list`, and make sure the external program specified in that profile can start.
-
-By default, ACP nodes use the model configured for the external agent, not the workflow's default model.
-
-ACP nodes also support `instructions_suffix`, but append it to the user prompt sent to the remote agent without changing that agent's system prompt.
 
 ## Set timeouts and retries
 
@@ -297,7 +283,7 @@ Each attempt is limited to 120 seconds, with at most three attempts including th
 
 Set `timeout=None` for no execution deadline. Time spent waiting for user answers or tool approval counts toward the timeout, which is why the earlier question example uses `timeout=None`.
 
-Retrying may repeat model calls, file writes, or an external ACP agent's tool calls. When a non-ACP agent's attempt fails or times out, the retry continues its conversation, so tool calls that already finished do not run again. Operations that have already occurred are not automatically undone. Not every error is retried automatically; see [Workflow reference: Timeouts and retries](../../reference/workflows.md#timeouts-and-retries).
+Retrying may repeat model calls and file writes. When an attempt fails or times out, the retry continues its conversation, so tool calls that already finished do not run again. Operations that have already occurred are not automatically undone. Not every error is retried automatically; see [Workflow reference: Timeouts and retries](../../reference/workflows.md#timeouts-and-retries).
 
 Shell commands that an agent node moved to the background stop when its attempt ends, so a retry does not inherit them. See [Commands that keep running in the background](../configuration/tools.md#commands-that-keep-running-in-the-background).
 
@@ -610,19 +596,19 @@ The CLI is suitable for workflows that need no human interaction. It does not su
 Run this command in the project directory to list available workflows:
 
 ```shell
-icode workflow list
+aixcoding-cli workflow list
 ```
 
-To check a workflow you are writing, pass its file or folder to `icode workflow validate`. It prints `PASS`, or each problem with its file and line; see [`icode workflow validate`](../../reference/workflows.md#icode-workflow-validate):
+To check a workflow you are writing, pass its file or folder to `aixcoding-cli workflow validate`. It prints `PASS`, or each problem with its file and line; see [`aixcoding-cli workflow validate`](../../reference/workflows.md#aixcoding-cli-workflow-validate):
 
 ```shell
-icode workflow validate .chrys/workflows/greeting.py
+aixcoding-cli workflow validate .chrys/workflows/greeting.py
 ```
 
 Use a workflow ID from the list to run it. Replace `WORKFLOW_ID` below with the actual ID:
 
 ```shell
-icode workflow run WORKFLOW_ID --input "Input text" --trust
+aixcoding-cli workflow run WORKFLOW_ID --input "Input text" --trust
 ```
 
 `--input` sets the `WorkflowValue.text` received by the start node and defaults to an empty string. The initial `data` is `None` and cannot be set directly through CLI arguments. Even a JSON string is still text; the workflow must parse it itself.
@@ -652,7 +638,7 @@ Workflow Code review (review) · run 0b337219bb2e · session 890c8ee93562
 On a terminal, control characters in the results are shown as `�`. Redirect the final results to a file with `>` to keep them exactly as written; the progress still shows in the terminal:
 
 ```shell
-icode workflow run WORKFLOW_ID --input "Input text" > result.txt
+aixcoding-cli workflow run WORKFLOW_ID --input "Input text" > result.txt
 ```
 
 To see only warnings, errors and the final results, add `-q` or `--quiet`.
@@ -662,7 +648,7 @@ To see only warnings, errors and the final results, add `-q` or `--quiet`.
 With `--json`, the CLI suppresses node states and progress messages and writes a JSON result to stdout when the run ends. It includes the run outcome, output node names, and each result's `text` and `data`:
 
 ```shell
-icode workflow run WORKFLOW_ID --input "Input text" --json
+aixcoding-cli workflow run WORKFLOW_ID --input "Input text" --json
 ```
 
 For the complete JSON fields and exit codes, see the [Workflow reference](../../reference/workflows.md#command-line).

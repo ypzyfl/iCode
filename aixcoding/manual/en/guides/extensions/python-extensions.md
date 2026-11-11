@@ -60,7 +60,7 @@ An extension is installed in one of two ways:
 - **As a Python package**, when its author published one. Install it into the environment AIxCoding-CLI runs in. If you installed AIxCoding-CLI with uv, name the extension's package with `--with`:
 
   ```bash
-  uv tool install iCode-TUI --with icode-pyproject
+  uv tool install aixcoding-cli --with aixcoding-cli-pyproject
   ```
 
   uv keeps only the packages named in the latest command, so name every extension you use each time. A package also installs the libraries the extension needs. The AIxCoding-CLI offline packages cannot take extra packages: install extensions as files instead.
@@ -96,7 +96,7 @@ With these rules, the tools of the `tracker` extension run without asking, excep
 
 Hooks match extension tools the same way, with `match.tool_kind: extension.tracker`. See [Configure approval modes](../configuration/approval.md) and [Tool kinds and names](../../reference/tool-kinds-and-names.md#extension-tool-names).
 
-> `icode run` never asks for approval: every tool runs, extension tools included. See [Run headless tasks with icode run](../running/icode-run.md).
+> `aixcoding-cli run` never asks for approval: every tool runs, extension tools included. See [Run headless tasks with aixcoding-cli run](../running/icode-run.md).
 
 ## Write an extension
 
@@ -248,7 +248,7 @@ async def ticket(ctx: TurnContext) -> str | None:
 
 ### Check or change tool calls
 
-A tool hook sees each tool call the agent makes, of AIxCoding-CLI's own tools, MCP tools, sub-agents, and extension tools alike. A sub-agent's own tool calls reach only the hooks of the extensions its own profile turns on. Add an `async def` function with `@extension.before_tool` to check a call before it runs, or with `@extension.after_tool` to change the result the model reads once the call has ended. This extension is saved as `icode_guard.py`:
+A tool hook sees each tool call the agent makes, of AIxCoding-CLI's own tools, MCP tools, sub-agents, and extension tools alike. A sub-agent's own tool calls reach only the hooks of the extensions its own profile turns on. Add an `async def` function with `@extension.before_tool` to check a call before it runs, or with `@extension.after_tool` to change the result the model reads once the call has ended. This extension is saved as `aixcoding-cli_guard.py`:
 
 ```python
 """Keep .env files unchanged and tokens out of tool results."""
@@ -280,7 +280,7 @@ async def hide_tokens(call: ToolCall, result: ToolResult) -> str | None:
 - **After a call**: the hook takes the `ToolCall` and a `ToolResult`: `text`, which is what the model reads; `failed`, whether the call did not succeed; `rejected`, whether it was refused, by you, a hook, or an extension; and `duration_ms`. Return text to replace what the model reads; images and other attachments of the result stay. Return `None` to leave it. When the tool raised an exception, the model reads that error whatever the hook returns.
 - **Order**: hooks run one after another, in the order the agent's extensions are listed and then in the order each extension declares them, and each sees what the previous one left. They run before the hooks you configure in `hooks.yaml`.
 - **Failures**: a before hook that raises anything other than `ToolError`, runs longer than its timeout (10 seconds, or `@extension.before_tool(timeout=...)`), or returns something other than a dict refuses the call. An after hook that raises, runs longer than its timeout, or returns something other than text replaces the result with a note that AIxCoding-CLI withheld it. Both messages name the extension and the hook; the model is not shown the error itself, which in the TUI AIxCoding-CLI records in `logs/debug.log` in the configuration directory.
-- **What hooks do not see**: tools the model provider runs itself, such as a provider's own web search; calls whose arguments do not fit the tool; and the tool calls of external ACP agents. When you interrupt a call while its after hooks run, the call keeps the result the tool returned.
+- **What hooks do not see**: tools the model provider runs itself, such as a provider's own web search; calls whose arguments do not fit the tool; and [if you interrupt a call while its after hooks run, the call keeps the result the tool returned.
 
 The calls of one model response run at the same time, so hooks for different calls can run at the same time too.
 
@@ -318,14 +318,14 @@ The folder is not on Python's import path, so `import client` and `from client i
 
 ### Test an extension
 
-Tools stay plain async functions, so tests call them directly with a test context. `chrys.extensions` comes with AIxCoding-CLI; to run tests, install `iCode-TUI` in your development environment:
+Tools stay plain async functions, so tests call them directly with a test context. `chrys.extensions` comes with AIxCoding-CLI; to run tests, install `aixcoding-cli` in your development environment:
 
 ```python
 import asyncio
 
 from chrys.extensions import ToolContext
 
-from icode_pyproject import pyproject_version
+from aixcoding-cli_pyproject import pyproject_version
 
 
 def test_reads_the_version(tmp_path):
@@ -344,7 +344,7 @@ import asyncio
 import pytest
 from chrys.extensions import ToolCall, ToolContext, ToolError
 
-from icode_guard import protect_env
+from aixcoding-cli_guard import protect_env
 
 
 def test_refuses_to_change_env_files(tmp_path):
@@ -361,28 +361,28 @@ def test_refuses_to_change_env_files(tmp_path):
 
 ### Publish an extension as a package
 
-Name the extension in your package's `pyproject.toml` under the `chrys.extensions` entry point group. The entry's name is the extension id, and its value names the module and its `extension`. This package keeps the extension's code in `icode_pyproject/__init__.py`, next to `pyproject.toml`:
+Name the extension in your package's `pyproject.toml` under the `chrys.extensions` entry point group. The entry's name is the extension id, and its value names the module and its `extension`. This package keeps the extension's code in `aixcoding-cli_pyproject/__init__.py`, next to `pyproject.toml`:
 
 ```toml
 [project]
-name = "icode-pyproject"
+name = "aixcoding-cli-pyproject"
 version = "0.1.0"
 description = "Read details from the project's pyproject.toml"
 requires-python = ">=3.14"
 dependencies = []
 
 [project.entry-points."chrys.extensions"]
-pyproject = "icode_pyproject:extension"
+pyproject = "aixcoding-cli_pyproject:extension"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = ["iCode-TUI", "pytest"]
+dev = ["aixcoding-cli", "pytest"]
 ```
 
-The package's `description` is what the "Tools" tab shows. AIxCoding-CLI runs on Python 3.14 or later. List the libraries your extension needs under `dependencies`, but not `iCode-TUI`: your extension runs inside the AIxCoding-CLI that is already installed, so list `iCode-TUI` only as a development dependency. `uv build` builds the package into `dist/`, ready to publish; in your own checkout, `uv sync` installs the package and its `dev` group, so tests can import it. Once the package is installed into AIxCoding-CLI's environment, the extension is listed in the "Tools" tab.
+The package's `description` is what the "Tools" tab shows. AIxCoding-CLI runs on Python 3.14 or later. List the libraries your extension needs under `dependencies`, but not `aixcoding-cli`: your extension runs inside the AIxCoding-CLI that is already installed, so list `aixcoding-cli` only as a development dependency. `uv build` builds the package into `dist/`, ready to publish; in your own checkout, `uv sync` installs the package and its `dev` group, so tests can import it. Once the package is installed into AIxCoding-CLI's environment, the extension is listed in the "Tools" tab.
 
 ## Troubleshoot
 

@@ -8,7 +8,7 @@ In a terminal, enter the project directory and start AIxCoding-CLI:
 
 ```shell
 cd <project-directory>
-icode
+aixcoding-cli
 ```
 
 AIxCoding-CLI uses the directory it was started in as the working directory.
@@ -16,7 +16,7 @@ AIxCoding-CLI uses the directory it was started in as the working directory.
 You can also specify a working directory with `-C` or `--workdir`, without first entering the project directory:
 
 ```shell
-icode -C <project-directory>
+aixcoding-cli -C <project-directory>
 ```
 
 ## Change the working directory during a session
@@ -48,4 +48,4 @@ If the working directory is deleted or moved outside AIxCoding-CLI, for example 
 
 When you resume a session whose working directory no longer exists, AIxCoding-CLI asks you to choose a folder to open the session in. If you cancel, the session is not resumed; if you started AIxCoding-CLI with `-s`, AIxCoding-CLI starts a new session instead.
 
-If you start AIxCoding-CLI from a directory that no longer exists, AIxCoding-CLI shows an error and exits. Enter an existing directory, or pass `-C` with the full path of your project directory, such as `icode -C ~/projects/my-app`.
+If you start AIxCoding-CLI from a directory that no longer exists, AIxCoding-CLI shows an error and exits. Enter an existing directory, or pass `-C` with the full path of your project directory, such as `aixcoding-cli -C ~/projects/my-app`.

@@ -21,7 +21,7 @@ You can change the current session's title in any of these ways:
 - Enter `/rename` in the input field to open the "Session Title" dialog, enter a title, and click "Save".
 - Enter a title directly after `/rename`, for example, `/rename Fix the login issue`.
 
-The top of the "Session Title" dialog also shows the session ID. Click "Copy ID" to copy it, for example to resume the session later with `icode -s <session-id>`. Click "Open folder" to open the folder that holds the session's data in your file manager. "Open folder" is not shown where AIxCoding-CLI cannot open a file manager, for example over SSH.
+The top of the "Session Title" dialog also shows the session ID. Click "Copy ID" to copy it, for example to resume the session later with `aixcoding-cli -s <session-id>`. Click "Open folder" to open the folder that holds the session's data in your file manager. "Open folder" is not shown where AIxCoding-CLI cannot open a file manager, for example over SSH.
 
 After you set a title manually, the new title appears in the session list and on the main screen, and AIxCoding-CLI stops updating that session's title automatically. If [automatic session titles](../configuration/settings.md#sessions) are enabled, clearing the "Session Title" dialog and saving restores the existing automatic title and lets AIxCoding-CLI continue updating it automatically during subsequent tasks.
 
@@ -59,10 +59,10 @@ When the agent is idle, enter `/resume` in the input field to resume the most re
 
 To find and resume another session, press **F1**, click `f1 Sessions`, or enter `/sessions` in the input field to open the "Chat Sessions" window. It lists each session's ID, title, directory, last active time, number of conversation turns, and session data size. Each page shows up to 100 sessions, most recently active first.
 
-- **Filter by where a session was last used**: The "TUI", "CLI", and "ACP" checkboxes above the search field show sessions last used in the TUI, in [`icode run`](../running/icode-run.md), or in an editor or other client connected through [`icode acp`](../running/icode-acp.md). Only "TUI" is checked at first. Sessions from earlier AIxCoding-CLI versions count as TUI. AIxCoding-CLI remembers your choice until you quit it. Hover over a session to see where it was last used.
+- **Filter by where a session was last used**: The "TUI" and "CLI" checkboxes above the search field show sessions last used in the TUI or through [`aixcoding-cli run`](../running/icode-run.md). Only "TUI" is checked at first. Sessions from earlier AIxCoding-CLI versions count as TUI. AIxCoding-CLI remembers your choice until you quit it. Hover over a session to see where it was last used.
 - **Switch pages**: Click "Previous" or "Next" on the right, next to the checkboxes.
 - **Sort sessions**: Sessions are sorted by last active time, newest first. Click a column header to sort the current page by that column: "Last Active", "Turns", and "Size" start in descending order, and the other columns in ascending order. Click the same header again to reverse the order.
-- **Search sessions**: Enter a session ID, title, directory, or a prompt you previously entered in the search field at the bottom. The search covers only the current page.
+- **Search sessions**: Enter a session ID, title, directory, or a prompt you previously entered in the search field at the bottom. The search covers all sessions the checkboxes select, not only the current page, and its results are paged the same way. Sessions found only through a prompt are listed after the others, in italics; hover over one to see the matching text. Very long prompts are searched by their beginning and end, and a session with many prompts by its earliest and latest ones. Last active time and size are not searched. Clear the search to return to the page you were on.
 - **Resume a session**: Select a session and click "Resume". You can also double-click it, or select it with the up and down arrow keys and press Enter. AIxCoding-CLI closes the current conversation view, loads the selected session, and switches the working directory to the session's saved primary working directory; the current session remains saved in the list. Before resuming, check the working directory that will be restored in the list's "Directory" column. If that directory no longer exists, AIxCoding-CLI asks you to choose another folder; see [If the working directory is deleted or moved](workspaces.md#if-the-working-directory-is-deleted-or-moved).
 
 A resumed session continues on the agent and model it was saved with. That doesn't change the agent and model a new session (`/new`) starts on: the agent you last chose with `#` (or started with) and your default model.
@@ -75,7 +75,7 @@ Successful turns also fold their intermediate activity by default. Each mid-turn
 
 Clicking an activity header keeps focus in the input field. A restored turn waiting for sub-agents stays open. Compressed history uses the same tool counts and activity titles.
 
-If a resumed conversation continues on a different model service than before, some earlier reasoning may be left out; see [Switch the current model profile](../configuration/models.md#switch-the-current-model-profile).
+If a resumed conversation continues on a different model service than before, some earlier reasoning may be left out; see [Switch models](../configuration/models.md#switch-models).
 
 ## Delete old sessions
 
@@ -143,7 +143,7 @@ Keep in mind:
 
 - Days follow your computer's time zone, and weeks start on Monday.
 - Requests that ended before the provider reported usage count as calls but add no tokens. The line at the bottom of **Overview** says how many there were in the range, and the foot of the day panel says how many on that day.
-- Deleted sessions and external ACP agents are not counted.
+- Deleted sessions are not counted.
 - Sessions saved by older versions may show fewer cache reads for DeepSeek and no usage for requests that failed partway.
 
 ## Inspect session timing
@@ -175,5 +175,5 @@ These IDs only link records. A file change detected after a shell command keeps 
 To investigate failed requests or analyze token usage, export the session's turns, model requests and retries to a JSON file. Replace `<id>` with your session ID:
 
 ```bash
-icode trajectory export --session <id> --format turns --out turns.json
+aixcoding-cli trajectory export --session <id> --format turns --out turns.json
 ```

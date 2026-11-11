@@ -27,7 +27,7 @@ In a new card, fill in the following fields:
 
 HTTP header values and STDIO environment variable values can both use `{{ENV_VAR}}` to reference environment variables set before starting AIxCoding-CLI. Variable names can contain only letters, digits, and underscores, and cannot start with a digit.
 
-Both can also use what a command prints, with `{{!command}}`, such as `Bearer {{!tokenprovider gettoken}}`. See [Get an API key from a command](../configuration/models.md#get-an-api-key-from-a-command) for what the command has to do. An HTTP server gets a new value while AIxCoding-CLI runs. An STDIO server keeps the value it started with, and gets a new one only when AIxCoding-CLI starts it again. If the command fails the first time, the server fails to connect.
+Both can also use what a command prints, with `{{!command}}`, such as `Bearer {{!tokenprovider gettoken}}`. See Get an API key from a command for what the command has to do. An HTTP server gets a new value while AIxCoding-CLI runs. An STDIO server keeps the value it started with, and gets a new one only when AIxCoding-CLI starts it again. If the command fails the first time, the server fails to connect.
 
 When editing YAML by hand, numeric header and environment variable values are read as text. Write `timeout` as a positive integer without quotes; invalid values must be corrected before saving.
 
@@ -82,7 +82,7 @@ For example:
 - If a server provides only `search` and `read_file`, and both are used frequently, choose "Full — load all available tools".
 - If a server provides dozens of tools but you usually need only `search` and `read_file`, choose "On demand — load tools as needed" and enter these two tools in "Initially Visible Tools (optional)".
 
-With Claude Opus 5.5, Fable 5.1 and Sonnet 5.5, on-demand loading has a cost. These models tie the thinking they return to the conversation before it, including the tools available to the agent at that point. When the agent loads or unloads a tool, or the next task starts again with only the initially visible tools, that changes, and the model service may leave the earlier thinking out or refuse to read it back. If the service refuses, AIxCoding-CLI sends the request once more without the earlier thinking, which costs one extra request. Whether the service leaves the thinking out or AIxCoding-CLI resends without it, the model no longer sees that earlier reasoning. With `thinking_block_binding: error`, AIxCoding-CLI reports the refusal instead of resending. For the settings involved, see [Claude thinking settings](../configuration/models.md#claude-thinking-settings).
+With Claude Opus 5.5, Fable 5.1 and Sonnet 5.5, on-demand loading has a cost. These models tie the thinking they return to the conversation before it, including the tools available to the agent at that point. When the agent loads or unloads a tool, or the next task starts again with only the initially visible tools, that changes, and the model service may leave the earlier thinking out or refuse to read it back. If the service refuses, AIxCoding-CLI sends the request once more without the earlier thinking, which costs one extra request. Whether the service leaves the thinking out or AIxCoding-CLI resends without it, the model no longer sees that earlier reasoning. With `thinking_block_binding: error`, AIxCoding-CLI reports the refusal instead of resending. For the settings involved, see Claude thinking settings.
 
 ### Naming and limits
 

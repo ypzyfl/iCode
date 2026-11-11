@@ -31,7 +31,7 @@ While a task is running, the **Agent Configuration** window opens in read-only m
 
 ### Create an agent profile
 
-The following steps create an agent of the **Built-in** type. To connect an external program as a sub-agent, see Configure external ACP agents.
+The following steps create an agent of the **Built-in** type.
 
 1. Click **New**.
 
@@ -139,7 +139,7 @@ A main agent interacts directly with the user. A sub-agent is called by another 
 
 An agent profile can be used both as a main agent and as a sub-agent called by other agents. Selecting **Sub-Agent only** prevents the agent from being selected as a main agent; it can only be called by other agents.
 
-The Code Agent and Q&A Agent included with AIxCoding-CLI can serve as main agents. Explore and General are sub-agents only. External ACP agents are also sub-agents only. To configure them, see Configure external ACP agents.
+The Code Agent and Q&A Agent included with AIxCoding-CLI can serve as main agents. Explore and General are sub-agents only.
 
 ### Configure sub-agents for an agent
 
@@ -161,7 +161,7 @@ These settings work as follows:
 
 During a task, the agent uses each sub-agent's tool name and description to decide whether to delegate work to it. You can also request a specific sub-agent in the input field, for example: `Call <tool name> to complete <task>`. A successful result from the corresponding sub-agent tool confirms that the configuration has taken effect.
 
-A sub-agent returns its final reply to the agent that called it. Text it writes between tool calls appears on its card but is not returned. The card shows each piece of text once the sub-agent has finished writing it. A model request that fails before any of its text has appeared on the card is retried as in the main conversation; once some has appeared, the card keeps it and shows the error. In `icode run`, ACP clients and workflows, a sub-agent's text is not shown as it is written, so text it has already written does not by itself stop such a retry. If the final reply has no text, all the text the sub-agent wrote is returned, in order. If the sub-agent fails, its card shows the reason. The bottom edge of the card shows how many tool calls the sub-agent made, its current context size, the tokens it has used and how long it ran; these stay on the card when you reopen the session, unless the sub-agent was interrupted. An external ACP agent returns what its **Result** setting selects; see Set the result and timeouts. Click **View details** on the card to see everything the sub-agent did: the view opens at its newest content and keeps showing new tool calls and text as they arrive while you stay at the bottom; scroll up to read earlier content and it stays where you are until you scroll back to the bottom.
+A sub-agent returns its final reply to the agent that called it. Text it writes between tool calls appears on its card but is not returned. The card shows each piece of text once the sub-agent has finished writing it. A model request that fails before any of its text has appeared on the card is retried as in the main conversation; once some has appeared, the card keeps it and shows the error. In `aixcoding-cli run` and workflows, a sub-agent's text is not shown as it is written, so text it has already written does not by itself stop such a retry. If the final reply has no text, all the text the sub-agent wrote is returned, in order. If the sub-agent fails, its card shows the reason. The bottom edge of the card shows how many tool calls the sub-agent made, its current context size, the tokens it has used and how long it ran; these stay on the card when you reopen the session, unless the sub-agent was interrupted. Click **View details** on the card to see everything the sub-agent did: the view opens at its newest content and keeps showing new tool calls and text as they arrive while you stay at the bottom; scroll up to read earlier content and it stays where you are until you scroll back to the bottom.
 
 **Notes:**
 

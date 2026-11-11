@@ -1,6 +1,6 @@
 # Write and use shortcuts
 
-A shortcut is a prompt you save once as a Markdown file and reuse by typing `/` and its name. Choosing it fills the prompt into the input field, where you can edit it before you send it. A shortcut can also take arguments, switch the agent or model for the session, and fill in the output of shell commands when it is sent. Shortcuts work in the AIxCoding-CLI window; `icode run` and editors connected through `icode acp` send `/name` as plain text.
+A shortcut is a prompt you save once as a Markdown file and reuse by typing `/` and its name. Choosing it fills the prompt into the input field, where you can edit it before you send it. A shortcut can also take arguments, switch the agent or model for the session, and fill in the output of shell commands when it is sent. Shortcuts work in the AIxCoding-CLI window; `aixcoding-cli run` and editors connected through `aixcoding-cli acp` send `/name` as plain text.
 
 ## Where shortcut files go
 
@@ -58,7 +58,7 @@ In the prompt you can use:
 
 1. Type `/` in the input field. Shortcuts are listed in the **Prompt Shortcuts** group.
 2. Choose one, or type its name, with or without arguments (`/review error handling`), and press **Tab** or **Enter**.
-3. The prompt fills the input field. Arguments you did not give are highlighted: press **Tab** to move between them and type to fill them in. If you press **Enter** while some are still empty, AIxCoding-CLI asks once before sending. Stepping through your prompt history with **↑** and back with **↓** brings the prompt back as it was, highlights included; so does closing the full-screen editor without changing the text. If you change the text in the editor, the highlights go, but the prompt still belongs to its shortcut.
+3. The prompt fills the input field. Arguments you did not give are highlighted: press **Tab** to move between them and type to fill them in. Each unfilled argument is one unit: **Backspace** or **Delete** removes it in one go, and undo brings it back. If you press **Enter** while some are still empty, AIxCoding-CLI asks once before sending. Stepping through your prompt history with **↑** and back with **↓** brings the prompt back as it was, highlights included. After confirming the full-screen editor, untouched arguments stay highlighted, and the prompt still belongs to its shortcut. In Vim mode, each unfilled argument counts as one character and as a word of its own for `w` / `b` / `e`.
 4. Edit the prompt if you like, then press **Enter** to send it.
 
 ### Commands in the prompt

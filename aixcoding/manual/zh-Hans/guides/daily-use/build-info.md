@@ -14,13 +14,13 @@ sha256sum aixcoding-cli-<platform>-v<version>-offline.tar.gz
 Get-FileHash .\aixcoding-cli-<platform>-v<version>-offline.zip -Algorithm SHA256
 ```
 
-以校验 v0.35.1 版本的安装包为例（哈希值均为示意）：
+以校验 v0.35.2 版本的安装包为例（哈希值均为示意）：
 
 **Windows**（PowerShell，校验 Windows x86-64 安装包）：
 
 ```powershell
 cd C:\Users\<用户名>\Downloads
-Get-FileHash .\aixcoding-cli-windows-x86_64-v0.35.1-offline.zip -Algorithm SHA256
+Get-FileHash .\aixcoding-cli-windows-x86_64-v0.35.2-offline.zip -Algorithm SHA256
 ```
 
 ```text
@@ -33,11 +33,11 @@ SHA256          A1B2C3D4E5F60718293A4B5C6D7E8F90A1B2C3D4E5F60718293A4B5C6D7E8F..
 
 ```bash
 cd ~/Downloads
-sha256sum aixcoding-cli-linux-x86_64-v0.35.1-offline.tar.gz
+sha256sum aixcoding-cli-linux-x86_64-v0.35.2-offline.tar.gz
 ```
 
 ```text
-a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f  aixcoding-cli-linux-x86_64-v0.35.1-offline.tar.gz
+a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f  aixcoding-cli-linux-x86_64-v0.35.2-offline.tar.gz
 ```
 
 命令会输出一串 64 位十六进制哈希值，将其与发布方 SHA256 清单中**同名文件的条目**比对。哈希一致即证明文件与该次构建完全同源；不一致说明文件损坏或被替换，请重新下载。
@@ -48,7 +48,7 @@ a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f  aixcoding-cli-li
 aixcoding-cli --version
 ```
 
-输出当前版本号（如 `0.35.1`）。注意：同一版本号会在每晚构建中重复使用，**版本号相同不代表代码相同**，精确溯源请以哈希比对为准。
+输出当前版本号（如 `0.35.2`）。注意：同一版本号会在每晚构建中重复使用，**版本号相同不代表代码相同**，精确溯源请以哈希比对为准。
 
 ## 3. 首次运行缓存提示
 

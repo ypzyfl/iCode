@@ -47,7 +47,7 @@ Project hooks are not loaded by default, because they come with the repository y
 
 Editing a hook configuration file on disk does not take effect immediately. After editing, run `/reload` while idle, switch sessions, or restart AIxCoding-CLI to load the configuration. Changes to hook scripts alone do not require a reload; the next time the hook is triggered, it uses the new script content.
 
-Enter `/runtime` in the TUI and open the **Hooks** tab to view the currently loaded project and global hooks. In a terminal, [`icode hook list`](#icode-hook-list) shows the hooks a session started in the current directory loads, and [`icode hook validate`](#icode-hook-validate) checks the configuration files.
+Enter `/runtime` in the TUI and open the **Hooks** tab to view the currently loaded project and global hooks. In a terminal, [`aixcoding-cli hook list`](#aixcoding-cli-hook-list) shows the hooks a session started in the current directory loads, and [`aixcoding-cli hook validate`](#aixcoding-cli-hook-validate) checks the configuration files.
 
 ## Configuration file structure
 
@@ -134,7 +134,7 @@ For the fields in the `tool` and `result` objects, see [Tool event fields](#tool
 
 ### Approval events
 
-Approval events notify or record when tool approval is waiting for a human decision. They cover only tool approvals handled by AIxCoding-CLI, not approvals forwarded by external ACP agents. For payload details, see [Approval event fields](#approval-event-fields).
+Approval events notify or record when tool approval is waiting for a human decision. They cover only tool approvals handled by AIxCoding-CLI. For payload details, see [Approval event fields](#approval-event-fields).
 
 | Event | When it runs | Additional fields |
 | --- | --- | --- |
@@ -249,7 +249,7 @@ The shell tool's `working_dir` argument is now `workdir`, and `max_tokens` is no
 
 A durable hook task left unfinished by an earlier version of AIxCoding-CLI, retried after the update, gives its script the new names as well as the old ones.
 
-Support for the old names will be removed in a later release, so rename them in hooks for the shell and update scripts to read and return the new names. `icode hook validate` reports a hook that still uses an old name as `retired_shell_arg`:
+Support for the old names will be removed in a later release, so rename them in hooks for the shell and update scripts to read and return the new names. `aixcoding-cli hook validate` reports a hook that still uses an old name as `retired_shell_arg`:
 
 - A hook with `tool_kind: shell`: rename the argument.
 - A hook without `tool_kind`, warned for `working_dir` only: rename it and add `tool_kind: shell` only if the hook is for the shell. A tool name alone does not settle it, since another tool, such as an MCP tool, may have any name, including a shell's, and keeps its own `working_dir`; a hook for both needs one hook per tool. `max_tokens` is not reported here, because `read_file` and `web_fetch` take it too.
@@ -485,7 +485,7 @@ Every input file contains the following fields:
 | `session_id` | The current session's ID. |
 | `profile` | The current agent's name, such as `Code`. For sub-agent events, and for tool, approval, and compaction events inside a sub-agent, this is the sub-agent's profile name. |
 | `cwd` | The current session's working directory. `run.cwd` sets the hook process's working directory and does not change this field. |
-| `confirmation_available` | Only for `user_prompt_submit` and `before_tool_call`. `true` when this hook can [ask you to confirm](#asking-you-to-confirm): it is a blocking hook, and someone can answer (not in `icode run` or a workflow run from the command line). Use it to decide what to do when nobody can be asked. |
+| `confirmation_available` | Only for `user_prompt_submit` and `before_tool_call`. `true` when this hook can [ask you to confirm](#asking-you-to-confirm): it is a blocking hook, and someone can answer (not in `aixcoding-cli run` or a workflow run from the command line). Use it to decide what to do when nobody can be asked. |
 
 For example, input before a tool call includes the following base fields:
 
@@ -604,11 +604,11 @@ A blocking `user_prompt_submit` or `before_tool_call` hook can leave the decisio
 {"action": "ask", "reason": "This changes the production configuration. Continue?"}
 ```
 
-AIxCoding-CLI then pauses the operation and asks you, showing the hook, its reason, and the tool call or your message. An editor connected over ACP shows it as a permission request.
+AIxCoding-CLI then pauses the operation and asks you, showing the hook, its reason, and the tool call or your message.
 
 - **Continue**: the remaining hooks run and the operation goes on. A tool call still needs approval where your approval settings require it.
-- **Cancel**: the operation doesn't go ahead. A rejected tool call is reported to the model; a rejected message stays in the input box (an ACP editor shows `Input rejected:` and the reason, and `icode run` exits with an error).
-- **No answer**: by default AIxCoding-CLI waits until you answer or the operation ends, and so does the tool call, or the workflow run, that asked. If you set **Human approval timeout (seconds)**, the operation is rejected once that time passes unanswered. It is also rejected at once when nobody can be asked, such as in `icode run`; a hook can check `confirmation_available` to decide differently. If the operation ends first, for example because you interrupted or cancelled the workflow run, the question closes by itself.
+- **Cancel**: the operation doesn't go ahead. A rejected tool call is reported to the model; a rejected message stays in the input box (`aixcoding-cli run` exits with an error).
+- **No answer**: by default AIxCoding-CLI waits until you answer or the operation ends, and so does the tool call, or the workflow run, that asked. If you set **Human approval timeout (seconds)**, the operation is rejected once that time passes unanswered. It is also rejected at once when nobody can be asked, such as in `aixcoding-cli run`; a hook can check `confirmation_available` to decide differently. If the operation ends first, for example because you interrupted or cancelled the workflow run, the question closes by itself.
 
 The time you take doesn't count toward the hook's `timeout_seconds`. Your answer applies only to this operation; if the tool call's arguments change after you continued (a later hook changes them, or you edit them when approving the call), you may be asked again. To change arguments before asking, put a hook that returns `modify` before the one that returns `ask`.
 
@@ -644,16 +644,16 @@ Duplicate `id` values within one configuration file cause that file to fail to l
 
 `settings` in project and global configurations are merged field by field: explicitly set project values take precedence, followed by global values, with defaults used when neither file sets a field.
 
-If either configuration file is invalid, AIxCoding-CLI displays a warning and disables all hooks defined in that file; a valid configuration file in the other location still takes effect. No warning is issued when a configuration file is not found. To see every problem in a file, run [`icode hook validate`](#icode-hook-validate).
+If either configuration file is invalid, AIxCoding-CLI displays a warning and disables all hooks defined in that file; a valid configuration file in the other location still takes effect. No warning is issued when a configuration file is not found. To see every problem in a file, run [`aixcoding-cli hook validate`](#aixcoding-cli-hook-validate).
 
 ## Command line
 
-### `icode hook list`
+### `aixcoding-cli hook list`
 
-List the hooks a session started in the current directory loads, without running any of them. `icode hook` without a command does the same.
+List the hooks a session started in the current directory loads, without running any of them. `aixcoding-cli hook` without a command does the same.
 
 ```shell
-icode hook list [--json]
+aixcoding-cli hook list [--json]
 ```
 
 Each configuration file found is listed, the project file first, then the global one. Its first line gives its path and one of these states:
@@ -662,9 +662,9 @@ Each configuration file found is listed, the project file first, then the global
 | --- | --- |
 | `loaded` | A session started here runs the hooks in this file |
 | `not loaded` | Project hooks are turned off; see [Loading configuration files](#loading-configuration-files). If the file also has an error, the first one is shown too |
-| `invalid, not loaded` | The file has an error, so a session runs none of its hooks. The first error is shown; run `icode hook validate` to see them all |
+| `invalid, not loaded` | The file has an error, so a session runs none of its hooks. The first error is shown; run `aixcoding-cli hook validate` to see them all |
 
-The file's hooks follow in order. Each starts with its ID and, in parentheses, its event and run mode, plus `turned off` when its `enabled` is `false`. A `match:` line follows with its match conditions, when it has any, then a `run:` line: `script` and the script path, `command` and the program, or `shell`. Command arguments, environment variable values and shell snippets are not shown, because they can contain passwords or tokens. The script path and the program are shown only when they can be found from the folder you run the command in: a file that exists, or a program on `PATH`. Otherwise `…` stands in for them, because what was written there may hold more, as in `"notify --token abc"`. A program found only through the hook's own `cwd` or `PATH` setting also shows `…`. `icode hook validate` reports the scripts and programs it can tell are missing. A hook left out because a regular expression in its match conditions is invalid is shown on a `skipped` line.
+The file's hooks follow in order. Each starts with its ID and, in parentheses, its event and run mode, plus `turned off` when its `enabled` is `false`. A `match:` line follows with its match conditions, when it has any, then a `run:` line: `script` and the script path, `command` and the program, or `shell`. Command arguments, environment variable values and shell snippets are not shown, because they can contain passwords or tokens. The script path and the program are shown only when they can be found from the folder you run the command in: a file that exists, or a program on `PATH`. Otherwise `…` stands in for them, because what was written there may hold more, as in `"notify --token abc"`. A program found only through the hook's own `cwd` or `PATH` setting also shows `…`. `aixcoding-cli hook validate` reports the scripts and programs it can tell are missing. A hook left out because a regular expression in its match conditions is invalid is shown on a `skipped` line.
 
 ```text
 Project hooks: ./.chrys/hooks/hooks.yaml (loaded)
@@ -675,16 +675,16 @@ Project hooks: ./.chrys/hooks/hooks.yaml (loaded)
     run: script scripts/protect_env.py
 ```
 
-The command exits with code 0 even when a file is invalid; to check files, use `icode hook validate`.
+The command exits with code 0 even when a file is invalid; to check files, use `aixcoding-cli hook validate`.
 
 With `--json`, stdout holds one object: `version` (currently `1`), `files`, and `searched` (the folders looked in). Each item in `files` contains `scope` (`project` or `global`), `path`, `state` (`loaded`, `not_loaded`, or `invalid`; `not_loaded` whenever project hooks are turned off), `error` (the error that keeps a session from loading the file, in the form of a `validate` diagnostic, or `null`; other errors, such as a missing script, are reported only by `validate`), `hooks`, and `skipped` (each with `id` and `reason`). Each hook contains `id`, `event`, `enabled`, `description`, `execution`, `match`, and `run`; in `run`, `type` is `script`, `command`, or `shell`, and `path` is the script path and `program` the command's program, each `null` for the other types of hook or when the listing shows `…`.
 
-### `icode hook validate`
+### `aixcoding-cli hook validate`
 
 Check hook configuration files the way a session loads them, and report every problem with its file and line. No hook is run.
 
 ```shell
-icode hook validate [<path>] [--json]
+aixcoding-cli hook validate [<path>] [--json]
 ```
 
 Without `<path>`, the command checks the project file of the current directory and the global file. It checks the project file even when project hooks are turned off. `<path>` is a hook configuration file, which can have any name and be anywhere, or a folder; for a folder, it checks the file a session would read there.

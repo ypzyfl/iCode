@@ -101,16 +101,16 @@ If AIxCoding-CLI cannot save your choice, the call still runs once and a notice 
 
 ### Manage remembered approvals
 
-Use the `icode approval` command to see and remove what you have remembered:
+Use the `aixcoding-cli approval` command to see and remove what you have remembered:
 
 ```bash
-icode approval list                          # everything you have remembered
-icode approval list --project /work/demo     # only one project
-icode approval list --session SESSION_ID --json
-icode approval revoke GRANT_ID               # remove one approval by its ID from the list
-icode approval clear --project /work/demo    # remove all approvals for one project
-icode approval clear --session SESSION_ID    # remove all approvals for one session
-icode approval clear --all                   # remove everything
+aixcoding-cli approval list                          # everything you have remembered
+aixcoding-cli approval list --project /work/demo     # only one project
+aixcoding-cli approval list --session SESSION_ID --json
+aixcoding-cli approval revoke GRANT_ID               # remove one approval by its ID from the list
+aixcoding-cli approval clear --project /work/demo    # remove all approvals for one project
+aixcoding-cli approval clear --session SESSION_ID    # remove all approvals for one session
+aixcoding-cli approval clear --all                   # remove everything
 ```
 
 Approvals for a session are deleted with that session and are not copied to a branch you create with `/fork`. Approvals for a project stay until you remove them.
@@ -133,7 +133,7 @@ Web tools send requests to outside services, so the `web_search` and `web_fetch`
 Select the built-in Code agent, then submit this request:
 
 ```text
-Use the Shell tool to run icode --version
+Use the Shell tool to run aixcoding-cli --version
 ```
 
 This command only displays the version and does not modify files, but it is not among the read-only Shell commands approved automatically. Expect the following results:
@@ -146,14 +146,13 @@ This command only displays the version and does not modify files, but it is not 
 
 Other ways of running AIxCoding-CLI use the following approval modes and switching methods:
 
-- **Headless CLI (`icode run`)**: Always bypasses approval and provides no approval-related options.
-- **AIxCoding-CLI ACP server**: Defaults to manual mode. Use `icode acp --approval manual|auto|bypass` to set the initial mode. ACP clients that support this capability can also switch the current session's mode.
-- **Browser-hosted TUI (`icode serve`)**: Use the TUI operations described earlier to switch approval modes and handle approval requests.
+- **Headless CLI (`aixcoding-cli run`)**: Always bypasses approval and provides no approval-related options.
+- **Browser-hosted TUI (`aixcoding-cli serve`)**: Use the TUI operations described earlier to switch approval modes and handle approval requests.
 
 ## Set the human approval timeout
 
-Press **F10** → **Settings** → **Safety**, then set **Human approval timeout (seconds)** in the **Approval** section. This setting applies to both the TUI and ACP clients. The default is **0 (no timeout)**; positive values set a deadline in seconds. Negative values are adjusted to **0**. Restart AIxCoding-CLI (the TUI or ACP server) after saving.
+Press **F10** → **Settings** → **Safety**, then set **Human approval timeout (seconds)** in the **Approval** section. This setting applies to the TUI. The default is **0 (no timeout)**; positive values set a deadline in seconds. Negative values are adjusted to **0**. Restart AIxCoding-CLI after saving.
 
-With a positive timeout configured, the TUI timer starts when the approval dialog is shown and the call is ready for a human decision. Waiting behind another approval dialog and preparing its content (including file diffs) do not use up the timeout. In ACP, timing starts when the server sends the human approval request. If no response arrives before the timeout, AIxCoding-CLI rejects that tool call.
+With a positive timeout configured, the TUI timer starts when the approval dialog is shown and the call is ready for a human decision. Waiting behind another approval dialog and preparing its content (including file diffs) do not use up the timeout. If no response arrives before the timeout, AIxCoding-CLI rejects that tool call.
 
-Without a timeout, a request waits until you approve or decline it, it is cancelled, or the session closes. Stopping the ACP server also ends any approval that is still waiting.
+Without a timeout, a request waits until you approve or decline it, it is cancelled, or the session closes.

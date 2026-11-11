@@ -26,4 +26,4 @@ Terminals that implement the protocol decide how to present it; check your termi
 
 What AIxCoding-CLI sends is the state, the stable program identifier `AIxCoding-CLI` (`app=AIxCoding-CLI`), and, where noted above, a short single line of text (a tool name, a question, the opening of a reply or an error). When you quit AIxCoding-CLI, it reports `idle` one last time: quitting is taken as having seen the result, so a finished run does not keep notifying after you left. This also applies when you quit with a workflow error dialog still open.
 
-Reporting is enabled only in the native TUI, including its chat and workflow modes. Browser sessions (`icode serve`), headless commands (`icode run` and `icode workflow run`), and the ACP server (`icode acp`) do not send OSC 7501 reports.
+Reporting is enabled only in the native TUI, including its chat and workflow modes. Browser sessions (`aixcoding-cli serve`) and headless commands (`aixcoding-cli run` and `aixcoding-cli workflow run`) do not send OSC 7501 reports.

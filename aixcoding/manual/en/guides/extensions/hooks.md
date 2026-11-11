@@ -56,7 +56,7 @@ AIxCoding-CLI provides the event's JSON input file through the `CHRYS_HOOK_PAYLO
 To check the configuration, run this in a terminal in the working directory:
 
 ```shell
-icode hook validate
+aixcoding-cli hook validate
 ```
 
 It checks the project and global hook files without running any hook. It lists each problem with its file and line, then ends with `PASS` when no errors are found, or `FAIL` and the number of errors. Fix what it reports and run it again until it prints a line like this:
@@ -67,7 +67,7 @@ PASS 1 file · 1 hook
 
 Project hooks are not loaded by default. In the terminal user interface (TUI), press **F10** to open **Settings**, then turn on **Load project hooks** in the **Project trust** section of **Safety**. If it is already on, run `/reload` while idle, switch sessions, or restart AIxCoding-CLI to apply the configuration on disk.
 
-Run `icode hook list` to see the hooks a session started in this directory loads. The `Project hooks` line should end with `(loaded)`, with `record-turn` listed below it.
+Run `aixcoding-cli hook list` to see the hooks a session started in this directory loads. The `Project hooks` line should end with `(loaded)`, with `record-turn` listed below it.
 
 In the TUI, enter `/runtime` and open the **Hooks** tab. You should see `record-turn`. Submit a message and wait for the current turn to end, then check `hook-events.log` in the working directory. It should contain a line like this:
 

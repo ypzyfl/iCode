@@ -1,6 +1,6 @@
 # Configure context compaction
 
-When a long conversation approaches the model's context window, AIxCoding-CLI automatically compacts earlier content to make room for subsequent requests. This guide explains how to configure the Last Words supplement and output limit for agents of the "Built-in" type. External ACP agents manage their own context.
+When a long conversation approaches the model's context window, AIxCoding-CLI automatically compacts earlier content to make room for subsequent requests. This guide explains how to configure the Last Words supplement and output limit for agents of the "Built-in" type.
 
 New agents use defaults suited to most tasks, so adjustments are usually unnecessary.
 

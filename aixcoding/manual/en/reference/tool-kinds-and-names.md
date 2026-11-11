@@ -10,7 +10,7 @@ In the terminal user interface (TUI), enter `/runtime` in the input field, or cl
 
 | Tool kind | Built-in | Purpose or source | Tool names |
 | --- | --- | --- | --- |
-| `shell` | Yes | Run shell commands | The name of the current shell; also includes `git_bash` on Windows when Git Bash is detected, and `list_workspace_dirs` in ACP sessions |
+| `shell` | Yes | Run shell commands | The name of the current shell; also includes `git_bash` on Windows when Git Bash is detected, |
 | `filesystem.read` | Yes | Read files and view images | `read_file`, `view_image` |
 | `filesystem.write` | Yes | Create, overwrite, and edit files | `write_file`, `edit_file` |
 | `search` | Yes | Search file contents and filenames | `grep`, `glob` |
@@ -26,7 +26,7 @@ In the terminal user interface (TUI), enter `/runtime` in the input field, or cl
 | `skill` | No | Load skills, read resources, and run scripts | `load_skill`, `read_skill_resource`, `run_skill_script` |
 | `context` | No | Compact and query conversation context | `compress_context`, `recall_context`, `list_compressed_contexts` |
 
-Tool availability also depends on the current agent, model capabilities, and how AIxCoding-CLI is run. For example, `view_image` is only provided to models that support image input, and the headless CLI mode `icode run` does not provide `ask_user`.
+Tool availability also depends on the current agent, model capabilities, and how AIxCoding-CLI is run. For example, `view_image` is only provided to models that support image input, and the headless CLI mode `aixcoding-cli run` does not provide `ask_user`.
 
 Every agent has `sleep`, whatever its `tools.builtins` lists. A profile that still lists `sleep` loads as before, and AIxCoding-CLI leaves it out the next time the profile is saved.
 
@@ -35,8 +35,6 @@ Every agent has `sleep`, whatever its `tools.builtins` lists. A profile that sti
 ## Shell tool names
 
 The main tool in the `shell` kind uses the name of the current shell, such as `zsh`, `bash`, `pwsh`, `powershell`, or `cmd`. On Windows, when Git Bash is detected, AIxCoding-CLI also provides a `git_bash` tool alongside the main shell tool. The actual names depend on the operating system and the shells detected by AIxCoding-CLI.
-
-ACP sessions also provide `list_workspace_dirs`, which lists the primary working directory and any additional working directories provided by the ACP client.
 
 ## Sub-agent tool names
 
