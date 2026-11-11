@@ -1,0 +1,43 @@
+{
+  "source": "0.28.0 OpenAI Responses with MockTransport and loopback telemetry receiver",
+  "requests": [
+    {
+      "method": "POST",
+      "telemetry.requestId": "<create>"
+    },
+    {
+      "method": "GET",
+      "body": null
+    }
+  ],
+  "reports": [
+    {
+      "path": "/csas/telemetry/api/v1/tool-detail/save",
+      "requestId": "<poll>"
+    },
+    {
+      "path": "/csas/telemetry/api/v1/tool-detail/update"
+    },
+    {
+      "path": "/csas/telemetry/api/v1/tool-detail/update"
+    },
+    {
+      "path": "/csas/telemetry/api/v1/ai-code/save",
+      "requestId": "<poll>"
+    },
+    {
+      "path": "/csas/telemetry/api/v1/tool-detail/save",
+      "requestId": "<poll>"
+    },
+    {
+      "path": "/csas/telemetry/api/v1/tool-detail/update"
+    },
+    {
+      "path": "/csas/telemetry/api/v1/tool-detail/update"
+    },
+    {
+      "path": "/csas/telemetry/api/v1/ai-code/save",
+      "requestId": "<poll>"
+    }
+  ]
+}

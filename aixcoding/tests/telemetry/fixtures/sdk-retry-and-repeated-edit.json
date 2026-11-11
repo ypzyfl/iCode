@@ -1,0 +1,207 @@
+{
+  "scenario": "SDK 429 retry, streaming two tool calls, two actual file edits with arguments rebound after Start",
+  "old_model_telemetry": [
+    {
+      "requestId": "<requestId-1>",
+      "sessionId": "probe-session",
+      "eventType": "llm",
+      "eventSubType": "agent",
+      "channelType": "cli",
+      "channelName": "icode",
+      "agentName": "Code",
+      "pluginVersion": "0.28.0",
+      "projectName": "old-work"
+    },
+    {
+      "requestId": "<requestId-1>",
+      "sessionId": "probe-session",
+      "eventType": "llm",
+      "eventSubType": "agent",
+      "channelType": "cli",
+      "channelName": "icode",
+      "agentName": "Code",
+      "pluginVersion": "0.28.0",
+      "projectName": "old-work"
+    }
+  ],
+  "old_reports": [
+    {
+      "path": "/csas/telemetry/api/v1/tool-detail/save",
+      "body": {
+        "funcId": "provider-0",
+        "funcName": "edit_file",
+        "funcType": 3,
+        "sessionId": "probe-session",
+        "requestId": "<requestId-1>",
+        "parentSpanId": "<parentSpanId-2>",
+        "value": "{\"path\": \"/probe/old-work/example.py\", \"old_string\": \"alpha\", \"new_string\": \"pre-approval\"}",
+        "fileName": "example.py",
+        "agentName": "Code",
+        "pluginVersion": "0.28.0",
+        "channelType": "cli",
+        "channelName": "icode",
+        "projectName": "old-work"
+      }
+    },
+    {
+      "path": "/csas/telemetry/api/v1/tool-detail/update",
+      "body": {
+        "funcId": "provider-0",
+        "funcName": "edit_file",
+        "codeStatus": 3,
+        "executionStartedAt": "<timestamp>"
+      }
+    },
+    {
+      "path": "/csas/telemetry/api/v1/tool-detail/update",
+      "body": {
+        "funcId": "provider-0",
+        "funcName": "edit_file",
+        "codeStatus": 1,
+        "status": 1,
+        "executionDurationMs": 0,
+        "executionStartedAt": "<timestamp>",
+        "executionFinishedAt": "<timestamp>",
+        "originalLines": 1,
+        "addedLines": 1,
+        "deletedLines": 1
+      }
+    },
+    {
+      "path": "/csas/telemetry/api/v1/ai-code/save",
+      "body": {
+        "reportId": "<reportId-3>",
+        "filepath": "example.py",
+        "blocks": [
+          {
+            "snippet": "beta\n",
+            "rangeStart": 1,
+            "rangeEnd": 1
+          }
+        ],
+        "sourceType": "edit",
+        "inputMethod": "ai_generated",
+        "sessionId": "probe-session",
+        "codeStatus": 1,
+        "language": "python",
+        "requestId": "<requestId-1>",
+        "agentName": "Code",
+        "pluginVersion": "0.28.0",
+        "channelType": "cli",
+        "channelName": "icode",
+        "projectName": "old-work"
+      }
+    },
+    {
+      "path": "/csas/telemetry/api/v1/tool-detail/save",
+      "body": {
+        "funcId": "provider-1",
+        "funcName": "edit_file",
+        "funcType": 3,
+        "sessionId": "probe-session",
+        "requestId": "<requestId-1>",
+        "parentSpanId": "<parentSpanId-2>",
+        "value": "{\"path\": \"/probe/old-work/example.py\", \"old_string\": \"beta\", \"new_string\": \"pre-approval\"}",
+        "fileName": "example.py",
+        "agentName": "Code",
+        "pluginVersion": "0.28.0",
+        "channelType": "cli",
+        "channelName": "icode",
+        "projectName": "old-work"
+      }
+    },
+    {
+      "path": "/csas/telemetry/api/v1/tool-detail/update",
+      "body": {
+        "funcId": "provider-1",
+        "funcName": "edit_file",
+        "codeStatus": 3,
+        "executionStartedAt": "<timestamp>"
+      }
+    },
+    {
+      "path": "/csas/telemetry/api/v1/tool-detail/update",
+      "body": {
+        "funcId": "provider-1",
+        "funcName": "edit_file",
+        "codeStatus": 1,
+        "status": 1,
+        "executionDurationMs": 0,
+        "executionStartedAt": "<timestamp>",
+        "executionFinishedAt": "<timestamp>",
+        "originalLines": 1,
+        "addedLines": 1,
+        "deletedLines": 1
+      }
+    },
+    {
+      "path": "/csas/telemetry/api/v1/ai-code/save",
+      "body": {
+        "reportId": "<reportId-4>",
+        "filepath": "example.py",
+        "blocks": [
+          {
+            "snippet": "alpha\n",
+            "rangeStart": 1,
+            "rangeEnd": 1
+          }
+        ],
+        "sourceType": "edit",
+        "inputMethod": "ai_generated",
+        "sessionId": "probe-session",
+        "codeStatus": 1,
+        "language": "python",
+        "requestId": "<requestId-1>",
+        "agentName": "Code",
+        "pluginVersion": "0.28.0",
+        "channelType": "cli",
+        "channelName": "icode",
+        "projectName": "old-work"
+      }
+    }
+  ],
+  "new_http_attempt_ids": [
+    "<attempt-7>",
+    "<attempt-8>"
+  ],
+  "new_tool_events": [
+    {
+      "event": "start",
+      "call_id": "<call_id-5>",
+      "provider_id": "",
+      "args": {
+        "path": "/probe/new-work/example.py",
+        "old_string": "alpha",
+        "new_string": "pre-approval"
+      }
+    },
+    {
+      "event": "result",
+      "call_id": "<call_id-5>",
+      "provider_id": "",
+      "snapshot": [
+        "alpha\n",
+        "beta\n"
+      ]
+    },
+    {
+      "event": "start",
+      "call_id": "<call_id-6>",
+      "provider_id": "",
+      "args": {
+        "path": "/probe/new-work/example.py",
+        "old_string": "beta",
+        "new_string": "pre-approval"
+      }
+    },
+    {
+      "event": "result",
+      "call_id": "<call_id-6>",
+      "provider_id": "",
+      "snapshot": [
+        "beta\n",
+        "alpha\n"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,162 @@
+{
+  "dispatch": [
+    {
+      "path": "main.txt",
+      "value": "B",
+      "provider": "reused-id",
+      "operation": "<operation-1>",
+      "item": "<item-1>",
+      "exchange": "<exchange-1>"
+    },
+    {
+      "path": "main.txt",
+      "value": "A",
+      "provider": "reused-id",
+      "operation": "<operation-2>",
+      "item": "<item-2>",
+      "exchange": "<exchange-2>"
+    },
+    {
+      "path": "left.txt",
+      "value": "L",
+      "provider": "reused-id",
+      "operation": "<operation-3>",
+      "item": "<item-3>",
+      "exchange": "<exchange-3>"
+    },
+    {
+      "path": "right.txt",
+      "value": "R",
+      "provider": "reused-id",
+      "operation": "<operation-4>",
+      "item": "<item-4>",
+      "exchange": "<exchange-4>"
+    }
+  ],
+  "traces": [
+    {
+      "operation": "<operation-1>",
+      "exchange": "<exchange-1>",
+      "item": "<item-1>"
+    },
+    {
+      "operation": "<operation-2>",
+      "exchange": "<exchange-2>",
+      "item": "<item-2>"
+    },
+    {
+      "operation": "<operation-4>",
+      "exchange": "<exchange-4>",
+      "item": "<item-4>"
+    },
+    {
+      "operation": "<operation-3>",
+      "exchange": "<exchange-3>",
+      "item": "<item-3>"
+    }
+  ],
+  "events": [
+    {
+      "type": "InvocationToolCallStart",
+      "invocation": "probe-turn",
+      "call": "<call-1>",
+      "provider": "",
+      "exchange": "<exchange-1>",
+      "operation_in_metadata": null,
+      "snapshot": null
+    },
+    {
+      "type": "InvocationToolCallResult",
+      "invocation": "probe-turn",
+      "call": "<call-1>",
+      "provider": "",
+      "exchange": "<exchange-1>",
+      "operation_in_metadata": null,
+      "snapshot": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "type": "InvocationToolCallStart",
+      "invocation": "probe-turn",
+      "call": "<call-2>",
+      "provider": "",
+      "exchange": "<exchange-2>",
+      "operation_in_metadata": null,
+      "snapshot": null
+    },
+    {
+      "type": "InvocationToolCallResult",
+      "invocation": "probe-turn",
+      "call": "<call-2>",
+      "provider": "",
+      "exchange": "<exchange-2>",
+      "operation_in_metadata": null,
+      "snapshot": [
+        "B",
+        "A"
+      ]
+    },
+    {
+      "type": "InvocationToolCallStart",
+      "invocation": "<invocation-1>",
+      "call": "<call-3>",
+      "provider": "",
+      "exchange": "<exchange-4>",
+      "operation_in_metadata": null,
+      "snapshot": null
+    },
+    {
+      "type": "InvocationToolCallStart",
+      "invocation": "<invocation-2>",
+      "call": "<call-4>",
+      "provider": "",
+      "exchange": "<exchange-3>",
+      "operation_in_metadata": null,
+      "snapshot": null
+    },
+    {
+      "type": "InvocationToolCallResult",
+      "invocation": "<invocation-2>",
+      "call": "<call-4>",
+      "provider": "",
+      "exchange": "<exchange-3>",
+      "operation_in_metadata": null,
+      "snapshot": [
+        "A",
+        "L"
+      ]
+    },
+    {
+      "type": "InvocationToolCallResult",
+      "invocation": "<invocation-1>",
+      "call": "<call-3>",
+      "provider": "",
+      "exchange": "<exchange-4>",
+      "operation_in_metadata": null,
+      "snapshot": [
+        "A",
+        "R"
+      ]
+    }
+  ],
+  "results": [
+    {
+      "provider": "reused-id",
+      "operation": "<operation-1>"
+    },
+    {
+      "provider": "reused-id",
+      "operation": "<operation-2>"
+    },
+    {
+      "provider": "reused-id",
+      "operation": "<operation-3>"
+    },
+    {
+      "provider": "reused-id",
+      "operation": "<operation-4>"
+    }
+  ]
+}

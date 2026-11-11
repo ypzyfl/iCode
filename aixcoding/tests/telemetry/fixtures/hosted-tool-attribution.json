@@ -1,0 +1,84 @@
+{
+  "boundary": "Real 0.28.0 Responses SDK, model middleware, reporter and MockTransport HTTP receiver. Hosted bus events are scripted.",
+  "model_requests": {
+    "normal": {
+      "method": "POST",
+      "requestId": "<request-normal>",
+      "spanId": "<span-normal>"
+    },
+    "failed": {
+      "method": "POST",
+      "requestId": "<request-failed>",
+      "spanId": "<span-failed>"
+    },
+    "create": {
+      "method": "POST",
+      "requestId": "<request-create>",
+      "spanId": "<span-create>"
+    },
+    "poll": {
+      "method": "GET",
+      "body": null
+    },
+    "concurrent-a": {
+      "method": "POST",
+      "requestId": "<request-concurrent-a>",
+      "spanId": "<span-concurrent-a>"
+    },
+    "concurrent-b": {
+      "method": "POST",
+      "requestId": "<request-concurrent-b>",
+      "spanId": "<span-concurrent-b>"
+    }
+  },
+  "tool_saves": [
+    {
+      "event": "normal",
+      "funcId": "repeated-hosted-id",
+      "requestId": "<request-normal>",
+      "spanId": "<span-normal>",
+      "parentSpanId": "<parent-normal>"
+    },
+    {
+      "event": "failed",
+      "funcId": "repeated-hosted-id",
+      "requestId": "<request-normal>",
+      "spanId": "<span-normal>",
+      "parentSpanId": "<parent-normal>"
+    },
+    {
+      "event": "poll",
+      "funcId": "repeated-hosted-id",
+      "requestId": "<request-poll>",
+      "spanId": "<span-create>",
+      "parentSpanId": "<parent-poll>"
+    },
+    {
+      "event": "concurrent-b",
+      "funcId": "repeated-hosted-id",
+      "requestId": "<request-concurrent-a>",
+      "spanId": "<span-concurrent-a>",
+      "parentSpanId": "<parent-concurrent-a>"
+    },
+    {
+      "event": "concurrent-a",
+      "funcId": "repeated-hosted-id",
+      "requestId": "<request-concurrent-a>",
+      "spanId": "<span-concurrent-a>",
+      "parentSpanId": "<parent-concurrent-a>"
+    }
+  ],
+  "report_count": 15,
+  "update_code_status": [
+    3,
+    1,
+    3,
+    2,
+    3,
+    1,
+    3,
+    1,
+    3,
+    1
+  ]
+}
