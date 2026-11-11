@@ -11,9 +11,11 @@ from chrys.kernel.aixcoding.diagnostics.config import DiagnosticsConfig
 
 @dataclass(frozen=True)
 class ModelCatalogConfig:
-    """``[model_catalog]`` section: optional service base URL."""
+    """``[model_catalog]`` section: service base URL and the auto-sync switch."""
 
     base_url: str = ""
+    #: ``None`` = unset: the tier default applies (local off, dev/prod on).
+    auto_sync: bool | None = None
 
 
 @dataclass(frozen=True)
