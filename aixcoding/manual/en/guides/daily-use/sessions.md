@@ -1,6 +1,6 @@
 # Manage and resume sessions
 
-A session contains conversation history and related data, such as snapshots for discarding turns and diagnostic logs. iCode saves sessions automatically so you can resume a conversation or look up past tasks later. This guide explains how to switch, name, find, resume, and delete sessions in the terminal user interface (TUI), and how to migrate existing sessions when changing their storage location.
+A session contains conversation history and related data, such as snapshots for discarding turns and diagnostic logs. AIxCoding-CLI saves sessions automatically so you can resume a conversation or look up past tasks later. This guide explains how to switch, name, find, resume, and delete sessions in the terminal user interface (TUI), and how to migrate existing sessions when changing their storage location.
 
 ## Switch to a new session
 
@@ -21,13 +21,13 @@ You can change the current session's title in any of these ways:
 - Enter `/rename` in the input field to open the "Session Title" dialog, enter a title, and click "Save".
 - Enter a title directly after `/rename`, for example, `/rename Fix the login issue`.
 
-The top of the "Session Title" dialog also shows the session ID. Click "Copy ID" to copy it, for example to resume the session later with `icode -s <session-id>`. Click "Open folder" to open the folder that holds the session's data in your file manager. "Open folder" is not shown where iCode cannot open a file manager, for example over SSH.
+The top of the "Session Title" dialog also shows the session ID. Click "Copy ID" to copy it, for example to resume the session later with `aixcoding-cli -s <session-id>`. Click "Open folder" to open the folder that holds the session's data in your file manager. "Open folder" is not shown where AIxCoding-CLI cannot open a file manager, for example over SSH.
 
-After you set a title manually, the new title appears in the session list and on the main screen, and iCode stops updating that session's title automatically. If [automatic session titles](../configuration/settings.md#sessions) are enabled, clearing the "Session Title" dialog and saving restores the existing automatic title and lets iCode continue updating it automatically during subsequent tasks.
+After you set a title manually, the new title appears in the session list and on the main screen, and AIxCoding-CLI stops updating that session's title automatically. If [automatic session titles](../configuration/settings.md#sessions) are enabled, clearing the "Session Title" dialog and saving restores the existing automatic title and lets AIxCoding-CLI continue updating it automatically during subsequent tasks.
 
 ## Follow a task in the terminal tab
 
-The terminal tab shows your latest message, or the session title once iCode updates it; a title you set yourself always stays. A mark before it shows how the current task is going, so you can check on it from another tab:
+The terminal tab shows your latest message, or the session title once AIxCoding-CLI updates it; a title you set yourself always stays. A mark before it shows how the current task is going, so you can check on it from another tab:
 
 | Mark | Meaning |
 | --- | --- |
@@ -59,15 +59,15 @@ When the agent is idle, enter `/resume` in the input field to resume the most re
 
 To find and resume another session, press **F1**, click `f1 Sessions`, or enter `/sessions` in the input field to open the "Chat Sessions" window. It lists each session's ID, title, directory, last active time, number of conversation turns, and session data size. Each page shows up to 100 sessions, most recently active first.
 
-- **Filter by where a session was last used**: The "TUI", "CLI", and "ACP" checkboxes above the search field show sessions last used in the TUI, in [`icode run`](../running/icode-run.md), or in an editor or other client connected through [`icode acp`](../running/icode-acp.md). Only "TUI" is checked at first. Sessions from earlier iCode versions count as TUI. iCode remembers your choice until you quit it. Hover over a session to see where it was last used.
+- **Filter by where a session was last used**: The "TUI" and "CLI" checkboxes above the search field show sessions last used in the TUI or through [`aixcoding-cli run`](../running/icode-run.md). Only "TUI" is checked at first. Sessions from earlier AIxCoding-CLI versions count as TUI. AIxCoding-CLI remembers your choice until you quit it. Hover over a session to see where it was last used.
 - **Switch pages**: Click "Previous" or "Next" on the right, next to the checkboxes.
 - **Sort sessions**: Sessions are sorted by last active time, newest first. Click a column header to sort the current page by that column: "Last Active", "Turns", and "Size" start in descending order, and the other columns in ascending order. Click the same header again to reverse the order.
-- **Search sessions**: Enter a session ID, title, directory, or a prompt you previously entered in the search field at the bottom. The search covers only the current page.
-- **Resume a session**: Select a session and click "Resume". You can also double-click it, or select it with the up and down arrow keys and press Enter. iCode closes the current conversation view, loads the selected session, and switches the working directory to the session's saved primary working directory; the current session remains saved in the list. Before resuming, check the working directory that will be restored in the list's "Directory" column. If that directory no longer exists, iCode asks you to choose another folder; see [If the working directory is deleted or moved](workspaces.md#if-the-working-directory-is-deleted-or-moved).
+- **Search sessions**: Enter a session ID, title, directory, or a prompt you previously entered in the search field at the bottom. The search covers all sessions the checkboxes select, not only the current page, and its results are paged the same way. Sessions found only through a prompt are listed after the others, in italics; hover over one to see the matching text. Very long prompts are searched by their beginning and end, and a session with many prompts by its earliest and latest ones. Last active time and size are not searched. Clear the search to return to the page you were on.
+- **Resume a session**: Select a session and click "Resume". You can also double-click it, or select it with the up and down arrow keys and press Enter. AIxCoding-CLI closes the current conversation view, loads the selected session, and switches the working directory to the session's saved primary working directory; the current session remains saved in the list. Before resuming, check the working directory that will be restored in the list's "Directory" column. If that directory no longer exists, AIxCoding-CLI asks you to choose another folder; see [If the working directory is deleted or moved](workspaces.md#if-the-working-directory-is-deleted-or-moved).
 
 A resumed session continues on the agent and model it was saved with. That doesn't change the agent and model a new session (`/new`) starts on: the agent you last chose with `#` (or started with) and your default model.
 
-When you resume a long conversation, iCode shows its most recent part first so you can continue right away; earlier messages keep loading above it for a few seconds.
+When you resume a long conversation, AIxCoding-CLI shows its most recent part first so you can continue right away; earlier messages keep loading above it for a few seconds.
 
 A resumed conversation shows the model's saved thinking folded to one line above the reply it led to: **Thought:**, followed by how the thinking begins; click it to unfold it. If a reply was interrupted or failed, the thinking shown for the request that was cut off is not saved, so it does not appear.
 
@@ -75,7 +75,7 @@ Successful turns also fold their intermediate activity by default. Each mid-turn
 
 Clicking an activity header keeps focus in the input field. A restored turn waiting for sub-agents stays open. Compressed history uses the same tool counts and activity titles.
 
-If a resumed conversation continues on a different model service than before, some earlier reasoning may be left out; see [Switch the current model profile](../configuration/models.md#switch-the-current-model-profile).
+If a resumed conversation continues on a different model service than before, some earlier reasoning may be left out; see [Switch models](../configuration/models.md#switch-models).
 
 ## Delete old sessions
 
@@ -83,7 +83,7 @@ Open the "Chat Sessions" window and first check the session ID, directory, and l
 
 Once you confirm deletion, the session's conversation history, snapshots for discarding turns, diagnostic data, and other session contents are permanently deleted and cannot be recovered. Deleting a session does not undo changes the agent has already made to working directory files.
 
-Deleting the current session also starts a new session, like `/clear`. A session open in another iCode instance cannot be deleted; close that instance first. If iCode cannot remove all of a session's files, it shows an error; close any program that may have those files open, then try again.
+Deleting the current session also starts a new session, like `/clear`. A session open in another AIxCoding-CLI instance cannot be deleted; close that instance first. If AIxCoding-CLI cannot remove all of a session's files, it shows an error; close any program that may have those files open, then try again.
 
 ## Find the session ID and storage location
 
@@ -95,7 +95,7 @@ If you have not customized the session storage root, the `sessions` directory de
 
 The root setting names the folder that contains `sessions`. If the configuration folder, the session storage root, or `sessions` itself is a symbolic link (or a Windows directory junction), "In use" shows the folder it leads to, which can have a different name. Sessions stored there work as usual.
 
-On macOS, these folders can also be on an exFAT drive. exFAT drives do not keep separate permissions for each user, and neither does a drive with "Ignore ownership on this volume" selected in its Finder Get Info window. On such a drive, other accounts on this Mac can read and change the configuration, sessions, and keys that iCode stores there. To keep them from other accounts, put these folders on the Mac's internal disk, or on a drive that is not exFAT and does not have that option selected.
+On macOS, these folders can also be on an exFAT drive. exFAT drives do not keep separate permissions for each user, and neither does a drive with "Ignore ownership on this volume" selected in its Finder Get Info window. On such a drive, other accounts on this Mac can read and change the configuration, sessions, and keys that AIxCoding-CLI stores there. To keep them from other accounts, put these folders on the Mac's internal disk, or on a drive that is not exFAT and does not have that option selected.
 
 To back up or move your configuration, copy the whole configuration folder.
 
@@ -103,7 +103,7 @@ To back up or move your configuration, copy the whole configuration folder.
 
 To change where sessions are stored, set a new session storage root and migrate existing sessions to it. The new location takes effect after a restart; changing the storage location alone does not migrate existing sessions automatically.
 
-Before starting, finish the current task and close other iCode instances, then follow these steps:
+Before starting, finish the current task and close other AIxCoding-CLI instances, then follow these steps:
 
 1. Enter `/settings sessions`, or press **F10** and select the "Sessions" tab, then choose a new root directory under "Session storage root".
 2. Click "Migrate sessions". Check that "From" is the `sessions` directory currently in use and "To" is the `sessions` directory under the new root, then click "Migrate".
@@ -112,15 +112,15 @@ Before starting, finish the current task and close other iCode instances, then f
    | Result | Meaning | Next step |
    | --- | --- | --- |
    | Copied | The session was copied to the destination directory. | No action needed. |
-   | already present | The destination already contains the same session ID, so it was skipped. iCode does not compare or update the destination contents. | If you cannot confirm which version is at the destination, use an empty destination directory and migrate again, or keep the source data. |
-   | active | The session is open in an iCode instance, so it was skipped. | Close other instances and retry. If it is the current session, close settings and run `/new`; do not send a message in the new session, then migrate again. |
+   | already present | The destination already contains the same session ID, so it was skipped. AIxCoding-CLI does not compare or update the destination contents. | If you cannot confirm which version is at the destination, use an empty destination directory and migrate again, or keep the source data. |
+   | active | The session is open in an AIxCoding-CLI instance, so it was skipped. | Close other instances and retry. If it is the current session, close settings and run `/new`; do not send a message in the new session, then migrate again. |
    | busy | The session is being saved or is in use by another operation, so it was skipped. | Wait for the operation to finish, then retry. |
    | failed | The session could not be copied. | Use the paths and reasons listed in the window to resolve permission or path issues, then retry. |
 
 4. After handling sessions marked "active", "busy", or "failed", click "Close", then click "Migrate sessions" to migrate again (the "Migrate" button is disabled after each migration). Repeat until all sessions you want to keep have been copied.
-5. Close all iCode instances and restart, then press **F1** to open the "Chat Sessions" window and confirm that important sessions appear and can be resumed.
+5. Close all AIxCoding-CLI instances and restart, then press **F1** to open the "Chat Sessions" window and confirm that important sessions appear and can be resumed.
 
-Migration keeps the original data in the source directory; it is not deleted automatically. After confirming that migration is complete, if you need to free up space, close iCode and archive or delete the old `sessions` directory shown under "From" in the migration window. Manual deletion cannot be undone.
+Migration keeps the original data in the source directory; it is not deleted automatically. After confirming that migration is complete, if you need to free up space, close AIxCoding-CLI and archive or delete the old `sessions` directory shown under "From" in the migration window. Manual deletion cannot be undone.
 
 ## Check token usage and speed
 
@@ -143,30 +143,30 @@ Keep in mind:
 
 - Days follow your computer's time zone, and weeks start on Monday.
 - Requests that ended before the provider reported usage count as calls but add no tokens. The line at the bottom of **Overview** says how many there were in the range, and the foot of the day panel says how many on that day.
-- Deleted sessions and external ACP agents are not counted.
+- Deleted sessions are not counted.
 - Sessions saved by older versions may show fewer cache reads for DeepSeek and no usage for requests that failed partway.
 
 ## Inspect session timing
 
 Press **F12** to open the trajectory dashboard. **Overview** summarizes time and usage; **Timeline** shows individual turns and operations; **Insights** helps explain delays; **Session data** shows the saved session. Long sessions are analyzed in the background while a loading indicator is visible. The timing analysis preserves overlapping operations, so parallel work is not counted twice on a critical path.
 
-If iCode can't record a session's trajectory, it shows a warning that trajectory recording is off for the session. You can keep working as usual; only the dashboard and the export get nothing new from that session. Workflow runs don't show this warning. Common causes are an earlier recording of the session that hasn't stopped yet (closing the iCode windows that had the session open ends it), files in the session's `trajectory` folder that other users can read or that belong to another user, a `trajectory` folder that is a link, a trajectory key (`trajectory-hmac.key` in the iCode configuration directory) that iCode can't read, and a trajectory that iCode can't safely add to, such as one written by a newer iCode version.
+If AIxCoding-CLI can't record a session's trajectory, it shows a warning that trajectory recording is off for the session. You can keep working as usual; only the dashboard and the export get nothing new from that session. Workflow runs don't show this warning. Common causes are an earlier recording of the session that hasn't stopped yet (closing the AIxCoding-CLI windows that had the session open ends it), files in the session's `trajectory` folder that other users can read or that belong to another user, a `trajectory` folder that is a link, a trajectory key (`trajectory-hmac.key` in the AIxCoding-CLI configuration directory) that AIxCoding-CLI can't read, and a trajectory that AIxCoding-CLI can't safely add to, such as one written by a newer AIxCoding-CLI version.
 
 If a shell command's file content comparison cannot be completed because a file is unreadable, the file-change overview marks detection as incomplete. The recorded change list may omit changes; check the affected files or your Git diff before relying on it to discard turns and restore files. Files deliberately excluded from content comparison by the size or binary-file limits do not by themselves trigger this warning.
 
 ## Link file changes and model requests in session data
 
-If you build reports from a session's files, link records by the IDs below instead of by timestamps or the order of tool calls. Records from older iCode versions don't have these IDs, and some records never get one; when an ID is missing, treat the link as unknown.
+If you build reports from a session's files, link records by the IDs below instead of by timestamps or the order of tool calls. Records from older AIxCoding-CLI versions don't have these IDs, and some records never get one; when an ID is missing, treat the link as unknown.
 
 **Which tool call changed a file.** Each file change recorded in `session.json` has a `tool_operation_id`. In `trajectory/events.jsonl`, the `tool.operation.started` and `tool.operation.finished` events of that tool call have the same value as their `operation_id`, including for tools run by sub-agents. For tool calls made by the main agent, the tool call entry in the reply message's `contents`, and the matching result entry in the tool message that follows, also carry the same value as `_chrys_operation_id`. The reply message itself has a different `_chrys_operation_id`, which identifies the model request (see below). One tool call can change several files.
 
 **Which request returned a model reply.** Each model reply message in `session.json` carries `_chrys_request_attempt_id`, the ID of the HTTP request that returned it. The message's `_chrys_operation_id` is the `operation_id` of the `model.request.*` and `model.exchange.finished` events for that reply. In `trajectory/events.jsonl`:
 
-- `model.request.prepared` marks a request iCode is about to send, and `model.request.headers_received` marks the provider's response to it. Both carry the same `request_attempt_id`. The second also records the HTTP status and, when the provider sends one, the provider's own request ID as `provider_request_id`.
+- `model.request.prepared` marks a request AIxCoding-CLI is about to send, and `model.request.headers_received` marks the provider's response to it. Both carry the same `request_attempt_id`. The second also records the HTTP status and, when the provider sends one, the provider's own request ID as `provider_request_id`.
 - Each automatic retry or redirect is a separate request with its own ID. A request with no `model.request.headers_received` event may have failed before it reached the provider.
 - A received response doesn't mean the reply finished. To see how the reply ended, check the `model.exchange.finished` event with the same `operation_id`.
 
-iCode also sends this ID to the provider in the `Chrys-Request-Attempt-Id` header, so you can find the request in a gateway or proxy log. If you turned on raw HTTP logging, each request's `exchange_id` in that log is the same ID.
+AIxCoding-CLI also sends this ID to the provider in the `Chrys-Request-Attempt-Id` header, so you can find the request in a gateway or proxy log. If you turned on raw HTTP logging, each request's `exchange_id` in that log is the same ID.
 
 These IDs only link records. A file change detected after a shell command keeps its own confidence: the ID doesn't prove that the command made the change. The IDs also don't count changed lines.
 
@@ -175,5 +175,5 @@ These IDs only link records. A file change detected after a shell command keeps 
 To investigate failed requests or analyze token usage, export the session's turns, model requests and retries to a JSON file. Replace `<id>` with your session ID:
 
 ```bash
-icode trajectory export --session <id> --format turns --out turns.json
+aixcoding-cli trajectory export --session <id> --format turns --out turns.json
 ```

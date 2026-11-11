@@ -1,8 +1,8 @@
-# iCode settings file reference
+# AIxCoding-CLI settings file reference
 
-`settings.yaml` stores iCode interface preferences, the default agent, and session and tool settings. This page lists common settings by purpose and explains file locations and format, how to write values, precedence when multiple sources are present, and which settings project files can override.
+`settings.yaml` stores AIxCoding-CLI interface preferences, the default agent, and session and tool settings. This page lists common settings by purpose and explains file locations and format, how to write values, precedence when multiple sources are present, and which settings project files can override.
 
-For steps to change settings in the terminal user interface (TUI) and when those changes take effect, see [Configure iCode settings](../guides/configuration/settings.md).
+For steps to change settings in the terminal user interface (TUI) and when those changes take effect, see [Configure AIxCoding-CLI settings](../guides/configuration/settings.md).
 
 ## File locations and format
 
@@ -11,11 +11,11 @@ For steps to change settings in the terminal user interface (TUI) and when those
 | User settings | `~/.chrys/settings.yaml` | `%APPDATA%\chrys\settings.yaml` | Store personal settings; the TUI Settings dialog writes to this file |
 | Project settings | `.chrys/settings.yaml` in the working directory | Same as macOS / Linux | Override some settings for that working directory; not loaded by default |
 
-iCode looks for `.chrys/settings.yaml` only in the current session's working directory. It does not search parent directories or subdirectories.
+AIxCoding-CLI looks for `.chrys/settings.yaml` only in the current session's working directory. It does not search parent directories or subdirectories.
 
-UTF-8 is recommended for settings files. iCode also detects common legacy encodings such as GBK/GB18030 and BOM-marked UTF-16/UTF-32. Settings are always saved as UTF-8.
+UTF-8 is recommended for settings files. AIxCoding-CLI also detects common legacy encodings such as GBK/GB18030 and BOM-marked UTF-16/UTF-32. Settings are always saved as UTF-8.
 
-Bytes that cannot be decoded using the detected encoding make the file invalid; iCode does not replace them with `�`. Settings use the existing invalid-file recovery rules.
+Bytes that cannot be decoded using the detected encoding make the file invalid; AIxCoding-CLI does not replace them with `�`. Settings use the existing invalid-file recovery rules.
 
 The file uses YAML. Dots in key names represent nesting. For example, write `llm.retry.max_transient` as:
 
@@ -25,9 +25,9 @@ llm:
     max_transient: 3
 ```
 
-After editing settings manually, save the file and run `/reload` while the TUI is idle. Theme, language, notifications and verify commands change right away. The editor keymap applies the next time you open the message editor. Chat display preferences and the option to delay the approval dialog during automatic review are read when next used. The default agent and default approval mode take effect the next time you start iCode. Your edit also replaces a choice you made earlier in the Settings panel, theme picker, language picker or message editor, once that choice has been saved. A choice that could not be saved stays in use for the rest of this session. If the file names a theme that is not in your theme list, the screen keeps its current theme, or the default theme if the current theme's file was deleted, and the file stays as you wrote it. The summary lists conflicting values and settings that require a restart. An invalid settings document stops the command and is left intact. Fix it before saving other settings. Ordinary reads can use the last valid document or a backup until you fix it. Deleting the file removes that layer.
+After editing settings manually, save the file and run `/reload` while the TUI is idle. Theme, language, notifications and verify commands change right away. The editor keymap applies the next time you open the message editor. Chat display preferences and the option to delay the approval dialog during automatic review are read when next used. The default agent and default approval mode take effect the next time you start AIxCoding-CLI. Your edit also replaces a choice you made earlier in the Settings panel, theme picker, language picker or message editor, once that choice has been saved. A choice that could not be saved stays in use for the rest of this session. If the file names a theme that is not in your theme list, the screen keeps its current theme, or the default theme if the current theme's file was deleted, and the file stays as you wrote it. The summary lists conflicting values and settings that require a restart. An invalid settings document stops the command and is left intact. Fix it before saving other settings. Ordinary reads can use the last valid document or a backup until you fix it. Deleting the file removes that layer.
 
-The same reload scans the agent and model profile directories. A newly added model can be selected in the same edit. If an existing profile file is invalid, iCode keeps its last loaded definition and names the file. If you rename an agent, iCode moves its file to match the new name after the replacement builds successfully. It also fills in missing agent IDs and removes references to the retired Plan agent when appropriate. If you add or remove a same-name override for the active built-in agent, `/reload` keeps that agent selected even if the override has its own ID. Removing a custom active agent selects an available launch agent. Removing the selected model selects another available model. If no model can take over, the current runtime stays available. A failed file migration reports which files were already changed so you can correct the problem and retry.
+The same reload scans the agent and model profile directories. A newly added model can be selected in the same edit. If an existing profile file is invalid, AIxCoding-CLI keeps its last loaded definition and names the file. If you rename an agent, AIxCoding-CLI moves its file to match the new name after the replacement builds successfully. It also fills in missing agent IDs and removes references to the retired Plan agent when appropriate. If you add or remove a same-name override for the active built-in agent, `/reload` keeps that agent selected even if the override has its own ID. Removing a custom active agent selects an available launch agent. Removing the selected model selects another available model. If no model can take over, the current runtime stays available. A failed file migration reports which files were already changed so you can correct the problem and retry.
 
 The reload also reads your [hooks](../guides/extensions/hooks.md#apply-edits-with-reload) again and [reconnects MCP servers](../guides/extensions/mcp.md#reconnect-with-reload).
 
@@ -48,22 +48,22 @@ In the tables, “None” means there is no corresponding environment variable, 
 | `ui.chat.image_graphics` | None | `true` | Boolean; ask the terminal what it is at startup, and in Ghostty, kitty, iTerm2 3.7.5 or later, WezTerm, VS Code with terminal images on and Windows Terminal 1.22 or later show conversation images in full color with the terminal's own graphics; when `false` the terminal is not asked and, as in other terminals, images are drawn with colored blocks. Read at startup |
 | `ui.chat.file_snapshot_inline_chars` | `CHRYS_TUI_FILE_SNAPSHOT_INLINE_CHARS` | `131072` | Integer; limits the before-and-after file content loaded directly with a file edit card, measured by their combined byte size. Within the limit, content loads with the card and the header shows the exact numbers of added and deleted lines. Above the limit, if snapshot references are available, content is read only when the diff is expanded, and the header does not show exact line counts. `0` or a negative value sets the limit to zero; inline content may still be retained when no snapshot references are available. This setting controls only how the card loads content; `mutations.snapshot.max_file_mb` and `mutations.snapshot.skip_binary` determine whether file content is backed up |
 | `history.prompt.enabled` | `CHRYS_HISTORY_DISABLE` | `true` | Boolean; save and read input history across sessions. Disabling it does not delete existing records. The environment variable has the opposite meaning: only the exact value `1` disables history; other values do not |
-| `app.update_check` | `CHRYS_UPDATE_CHECK` | `true` | Boolean; once a day, when the TUI starts, look up the newest iCode version and, when it is newer, show it on the welcome screen with the command that upgrades iCode. The request carries none of your personal information or data. `icode run`, `icode acp` and `icode serve` never check |
+| `app.update_check` | `CHRYS_UPDATE_CHECK` | `true` | Boolean; once a day, when the TUI starts, look up the newest AIxCoding-CLI version and, when it is newer, show it on the welcome screen with the command that upgrades AIxCoding-CLI. The request carries none of your personal information or data. `aixcoding-cli run`, `aixcoding-cli acp` and `aixcoding-cli serve` never check |
 | `workspace.mru_max_entries` | `CHRYS_WORKSPACE_MRU_MAX_ENTRIES` | `20` | Integer; maximum number of recently used working directories to retain, capped at `100`. `0` or a negative value disables recording |
 
 ### Agents, models, and requests
 
-Model role keys take the ID or unique name of an existing model profile. `model.role.buddy` replaces `model.role.buddy_model_id` from earlier versions, which took a model name: when iCode starts, it replaces a saved model name with the model profile that uses that model. If no model profile uses it, or more than one does, the old value is removed and Buddy uses the current model. `CHRYS_PET_MODEL` is no longer read; set `CHRYS_MODEL_PROFILE_BUDDY` to a model profile's ID or name instead.
+Model role keys take the ID or unique name of an existing model profile. `model.role.buddy` replaces `model.role.buddy_model_id` from earlier versions, which took a model name: when AIxCoding-CLI starts, it replaces a saved model name with the model profile that uses that model. If no model profile uses it, or more than one does, the old value is removed and Buddy uses the current model. `CHRYS_PET_MODEL` is no longer read; set `CHRYS_MODEL_PROFILE_BUDDY` to a model profile's ID or name instead.
 
 | YAML key | Environment variable | Default | Type, values, and effect |
 | --- | --- | --- | --- |
 | `agent.default_profile` | `CHRYS_DEFAULT_AGENT` | `Code` | String; the default agent the next time the TUI starts. Does not switch the current session's agent; an explicit `--agent` takes precedence |
-| `model.profile.active` | `CHRYS_MODEL_PROFILE` | Unset | String; select an existing model profile as the fallback when the agent has no valid `model.profile_id`. An explicit `--model` takes precedence over this key but still serves as a fallback; explicitly switching models in an ACP session takes precedence over the model specified by the agent |
+| `model.profile.active` | `CHRYS_MODEL_PROFILE` | Unset | String; select an existing model profile as the fallback when the agent has no valid `model.profile_id`. An explicit `--model` takes precedence over this key but still serves as a fallback |
 | `model.role.approval_judge` | `CHRYS_MODEL_PROFILE_APPROVAL_JUDGE` | Unset | String; the model profile used for automatic approval. Uses the current model when unset |
 | `model.role.session_title` | `CHRYS_MODEL_PROFILE_SESSION_TITLE` | Unset | String; the model profile used to generate session titles automatically. Uses the current model when unset |
 | `model.role.buddy` | `CHRYS_MODEL_PROFILE_BUDDY` | Unset | String; the model profile used by Buddy, with that profile's own provider, address and model. Uses the current model when unset |
-| `llm.retry.max_transient` | `CHRYS_MAX_TRANSIENT_RETRIES` | `null` | Integer or `null`; `null` uses the default retry count for the launch command: `10` for the TUI (including `icode serve`) and `icode acp`, or `18` for `icode run` and `icode workflow run`. The wait before each retry grows, up to 10 minutes. `0` disables automatic retries for transient errors; negative values are invalid; capped at `50` |
-| `llm.credential_command.ttl_seconds` | `CHRYS_CREDENTIAL_COMMAND_TTL_SECONDS` | `3600` | Integer; how long, in seconds, a value from a `{{!command}}` placeholder is used before the next request runs the command again. Minimum `60`. A value the service refuses is replaced at once. Takes effect after a restart. See [Get an API key from a command](../guides/configuration/models.md#get-an-api-key-from-a-command) |
+| `llm.retry.max_transient` | `CHRYS_MAX_TRANSIENT_RETRIES` | `null` | Integer or `null`; `null` uses the default retry count for the launch command: `10` for the TUI (including `aixcoding-cli serve`) and `aixcoding-cli acp`, or `18` for `aixcoding-cli run` and `aixcoding-cli workflow run`. The wait before each retry grows, up to 10 minutes. `0` disables automatic retries for transient errors; negative values are invalid; capped at `50` |
+| `llm.credential_command.ttl_seconds` | `CHRYS_CREDENTIAL_COMMAND_TTL_SECONDS` | `3600` | Integer; how long, in seconds, a value from a `{{!command}}` placeholder is used before the next request runs the command again. Minimum `60`. A value the service refuses is replaced at once. Takes effect after a restart. See Get an API key from a command |
 
 Transient error retries handle recoverable errors such as temporary network failures, request timeouts, and rate limits. Raising the count also increases the wait and number of requests before a final failure. This number is not the total number of model requests for the entire task.
 
@@ -75,15 +75,15 @@ The `approval` keys control approval behavior when an agent requests an operatio
 | --- | --- | --- | --- |
 | `approval.default_mode` | `CHRYS_DEFAULT_APPROVAL_MODE` | `manual` | String; `manual` for manual approval, `auto` for automatic approval, or `bypass` to bypass approval. Setting the default mode does not switch the current session's mode |
 | `approval.auto_review` | `CHRYS_APPROVAL_AUTO_REVIEW` | `direct` | `direct` selects **Direct review**; `formal` selects **Individual risk checks**, which ask you to confirm detected risks such as file deletion or code publication. See [Choose how automatic review works](../guides/configuration/approval.md#choose-how-automatic-review-works). Used only in `auto` mode. Close Settings to apply changes made there; after editing the file directly, run `/reload`. Set it in your user settings; projects cannot override it. Invalid values use `direct` |
-| `approval.timeout_seconds` | `CHRYS_APPROVAL_TIMEOUT_SECONDS` | `0` | Integer; seconds to wait for human approval in TUI and ACP. `0` disables the timeout; positive values set a deadline. Negative values are raised to `0`. Timeout rejects the tool call. Restart iCode to apply |
-| `ui.approval.defer_while_judging` | None | `true` | Boolean; in automatic mode, whether the TUI opens the approval dialog only when the approval judge model flags a call or evaluation fails. `false` opens it at once while the call is evaluated. The ACP server and `icode run` ignore it |
+| `approval.timeout_seconds` | `CHRYS_APPROVAL_TIMEOUT_SECONDS` | `0` | Integer; seconds to wait for human approval in the TUI. `0` disables the timeout; positive values set a deadline. Negative values are raised to `0`. Timeout rejects the tool call. Restart AIxCoding-CLI to apply |
+| `ui.approval.defer_while_judging` | None | `true` | Boolean; in automatic mode, whether the TUI opens the approval dialog only when the approval judge model flags a call or evaluation fails. `false` opens it at once while the call is evaluated. `aixcoding-cli run` is not affected |
 | `project.config_enabled` | None | `false` | Boolean; whether to load project settings for each working directory. Must be enabled in user settings |
 | `project.hooks_enabled` | None | `false` | Boolean; whether to load project hooks from `.chrys/hooks` in the working directory. Must be enabled in user settings. Does not affect user-level hooks |
 | `project.skills_enabled` | None | `false` | Boolean; whether to load project skills from `.agents/skills` in the working directory. Must be enabled in user settings. The agent's own “Load skills from working folder” option must also stay on |
 
-If you manually set the default approval mode to `bypass` in YAML or an environment variable, approval is bypassed the next time iCode starts with that default. When you switch to `bypass` with `/approval` in the TUI, iCode saves `auto` as the default mode; the TUI Settings dialog does not offer `bypass`.
+If you manually set the default approval mode to `bypass` in YAML or an environment variable, approval is bypassed the next time AIxCoding-CLI starts with that default. When you switch to `bypass` with `/approval` in the TUI, AIxCoding-CLI saves `auto` as the default mode; the TUI Settings dialog does not offer `bypass`.
 
-Project settings, project hooks, and project skills come from the repository you open, so all three are off by default and each is turned on separately: enabling one does not enable the others. When the working directory has any of them that are off, iCode shows a notice naming the setting to turn on. Hooks are external commands that iCode runs on specific events; for authoring and configuration, see [Configure and write hooks](../guides/extensions/hooks.md). For skills, see [Install and use skills](../guides/extensions/skills.md).
+Project settings, project hooks, and project skills come from the repository you open, so all three are off by default and each is turned on separately: enabling one does not enable the others. When the working directory has any of them that are off, AIxCoding-CLI shows a notice naming the setting to turn on. Hooks are external commands that AIxCoding-CLI runs on specific events; for authoring and configuration, see [Configure and write hooks](../guides/extensions/hooks.md). For skills, see [Install and use skills](../guides/extensions/skills.md).
 
 ### Sessions and file recovery
 
@@ -95,21 +95,21 @@ Project settings, project hooks, and project skills come from the repository you
 | `mutations.snapshot.max_file_mb` | `CHRYS_MUTATION_SNAPSHOT_MAX_FILE_MB` | `50` | Integer; maximum size of an individual file backup, in MiB. `0` or a negative value removes the size limit. Files above the limit are still recorded as changed, but their content is not backed up, so that record cannot be used to display a diff or restore the file |
 | `mutations.snapshot.skip_binary` | `CHRYS_MUTATION_SNAPSHOT_SKIP_BINARY` | `true` | Boolean; whether to skip backing up binary file content. When set to `false`, the per-file size limit still applies |
 
-Changing the session storage root does not automatically move existing sessions. If the specified directory is unavailable, iCode reports it and falls back to the default location. For migration steps, see [Move session storage](../guides/daily-use/sessions.md#migrate-session-storage).
+Changing the session storage root does not automatically move existing sessions. If the specified directory is unavailable, AIxCoding-CLI reports it and falls back to the default location. For migration steps, see [Move session storage](../guides/daily-use/sessions.md#migrate-session-storage).
 
 ### Tools and working directory changes
 
 | YAML key | Environment variable | Default | Type, values, and effect |
 | --- | --- | --- | --- |
 | `tools.search.respect_gitignore` | None | `true` | Boolean; apply `.gitignore` rules to grep and glob searches. When `false`, hidden paths are still skipped and other ignore files such as `.ignore` still apply |
-| `tools.image.send_limit_kb` | `CHRYS_IMAGE_SEND_LIMIT_KB` | `256` | Integer from `32` to `3072`; values outside are clamped. The most KB an image's file takes when sent to the model (about a third more in the request, as base64). A larger image is compressed to a JPEG within it when it is attached, viewed, or sent by an ACP client; at the start of each turn and retry, larger images sent earlier in the session are compressed too |
+| `tools.image.send_limit_kb` | `CHRYS_IMAGE_SEND_LIMIT_KB` | `256` | Integer from `32` to `3072`; values outside are clamped. The most KB an image's file takes when sent to the model (about a third more in the request, as base64). A larger image is compressed to a JPEG within it when it is attached or viewed; at the start of each turn and retry, larger images sent earlier in the session are compressed too |
 | `tools.ask_user.inline` | `CHRYS_ASK_USER_INLINE` | `false` | Boolean; show agent questions in the TUI conversation instead of a dialog |
 | `tools.ask_user.timeout_seconds` | `CHRYS_ASK_USER_TIMEOUT_SECONDS` | `900` | Integer or `null`; seconds to wait for an answer. On timeout, a timeout result is returned to the agent. `0`, a negative value, or `null` in user YAML means wait indefinitely |
 | `tools.result.ceiling_tokens` | `CHRYS_TOOL_RESULT_CEILING_TOKENS` | `64000` | Integer; final length limit for a single tool result before it is passed to the model, in tokens. `0` disables this limit; positive values have a minimum of `2000`; negative values are invalid |
 | `workspace.change_notice.enabled` | `CHRYS_WORKSPACE_CHANGE_NOTICE` | `true` | Boolean; when processing a new prompt, give the agent a summary of working directory file changes since the previous prompt was submitted, including changes made by the agent and external changes |
 | `workspace.change_notice.max_entries` | `CHRYS_WORKSPACE_CHANGE_NOTICE_MAX_ENTRIES` | `50` | Integer; maximum number of entries in the change summary, from `1` to `100` |
 | `mutations.parallel_implicit_tools` | `CHRYS_PARALLEL_IMPLICIT_TOOLS` | `true` | Boolean; allow tools that may modify files, such as shell commands and skill scripts, to run in parallel within the same session. Setting this to `false` makes it easier to identify which tool call caused a file change |
-| `mutations.coordination.enabled` | `CHRYS_MUTATION_COORDINATION` | `true` | Boolean; help distinguish file changes made by different iCode sessions sharing a working directory |
+| `mutations.coordination.enabled` | `CHRYS_MUTATION_COORDINATION` | `true` | Boolean; help distinguish file changes made by different AIxCoding-CLI sessions sharing a working directory |
 
 Tools may also have their own output limits, such as limits on MCP results and skill resources. Setting `tools.result.ceiling_tokens` to `0` does not disable those limits or recover content that a tool has already truncated. Separately from these token limits, shell commands and skill scripts keep at most 32 MiB of each output stream.
 
@@ -159,17 +159,17 @@ The following keys are all booleans, default to `true`, and have no correspondin
 | `notifications.enabled` | Master switch for event notifications |
 | `notifications.delivery.desktop` | Show desktop notifications |
 | `notifications.delivery.sound` | Play a sound |
-| `notifications.suppress_when_focused` | Suppress notifications while iCode has focus |
+| `notifications.suppress_when_focused` | Suppress notifications while AIxCoding-CLI has focus |
 | `notifications.events.approval_required` | Notify when approval is required |
 | `notifications.events.ask_user` | Notify when the agent needs input |
 | `notifications.events.turn_complete` | Notify when the agent completes a task |
 | `notifications.events.turn_error` | Notify when the agent encounters an error |
 
-To send a notification, the master switch, the corresponding event switch, and at least one delivery method must be enabled, and notifications must not be suppressed because iCode has focus. Turning off the master switch does not clear the other choices.
+To send a notification, the master switch, the corresponding event switch, and at least one delivery method must be enabled, and notifications must not be suppressed because AIxCoding-CLI has focus. Turning off the master switch does not clear the other choices.
 
 ### Diagnostics and telemetry
 
-**Raw HTTP logs may contain plaintext API keys, full prompts, and model responses.** Enable this only after confirming where the data will go and who can access it. After troubleshooting, turn off diagnostic options you no longer need and restart iCode.
+**Raw HTTP logs may contain plaintext API keys, full prompts, and model responses.** Enable this only after confirming where the data will go and who can access it. After troubleshooting, turn off diagnostic options you no longer need and restart AIxCoding-CLI.
 
 | YAML key | Environment variable | Default | Type, values, and effect |
 | --- | --- | --- | --- |
@@ -178,7 +178,7 @@ To send a notification, the master switch, the corresponding event switch, and a
 | `otel.endpoint` | `CHRYS_OTEL_ENDPOINT` | Unset | String; telemetry collector endpoint. With no endpoints configured, only traces and logs are saved locally. Standard OTLP endpoint environment variables take precedence over this setting. Configuring an endpoint stops local storage, with no local fallback if export fails |
 | `otel.sensitive_data` | `CHRYS_OTEL_SENSITIVE_DATA` | `false` | Boolean; additionally record prompts, model responses, tool arguments, and tool results, which may contain private information. Enable this only after confirming where the data will go and who can access it |
 
-For data storage locations, collector connections, authentication, and metric queries, see the [OpenTelemetry reference](./opentelemetry.md).
+For data storage locations, collector connections, authentication, and metric queries, see the OpenTelemetry reference.
 
 ## Source precedence
 
@@ -192,7 +192,7 @@ Each key is resolved independently in the following order, using the first valid
 | 4 | User settings |
 | 5 | Built-in defaults |
 
-iCode does not load or migrate `.env` files from the working directory or user configuration directory. Set any variables you still need from those files in the environment that launches iCode, then restart iCode. This includes provider API keys, proxy variables (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`), OpenTelemetry variables (`OTEL_*`), and variables referenced by placeholders such as `{{MCP_API_TOKEN}}` in MCP headers or `{{MY_GATEWAY_TOKEN}}` in model `extra_headers`. Write user settings in the user `settings.yaml`, and project settings in `.chrys/settings.yaml`.
+AIxCoding-CLI does not load or migrate `.env` files from the working directory or user configuration directory. Set any variables you still need from those files in the environment that launches AIxCoding-CLI, then restart AIxCoding-CLI. This includes provider API keys, proxy variables (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`), OpenTelemetry variables (`OTEL_*`), and variables referenced by placeholders such as `{{MCP_API_TOKEN}}` in MCP headers or `{{MY_GATEWAY_TOKEN}}` in model `extra_headers`. Write user settings in the user `settings.yaml`, and project settings in `.chrys/settings.yaml`.
 
 ## Value syntax and invalid values
 
@@ -241,20 +241,19 @@ llm:
 
 After enabling project settings and reloading, if the user has not set a retry count, the project's `3` retries apply. If user YAML already sets `1`, the project's `3` is rejected and `1` still applies. A valid value in the startup environment always takes precedence.
 
-iCode reports and ignores disallowed project keys, values that exceed override restrictions, and unknown keys, while continuing to apply other valid settings.
+AIxCoding-CLI reports and ignores disallowed project keys, values that exceed override restrictions, and unknown keys, while continuing to apply other valid settings.
 
 ## Differences between launch commands
 
 | Launch command | Behavior related to settings files |
 | --- | --- |
-| `icode` (TUI) | Uses interface, input, and notification settings; the default agent comes from `agent.default_profile` |
-| `icode run` | Always bypasses approval and does not wait for user answers; the default approval mode and question timeout settings do not change these behaviors |
-| `icode acp` | Agent Client Protocol (ACP) server; the initial agent and approval mode are determined by `--agent` and `--approval`, defaulting to `Code` and `manual`, respectively. Questions wait indefinitely by default; set a timeout with `--ask-user-timeout` |
-| `icode serve` | Hosts the TUI in a browser; configuration files and environment variables come from the machine running the iCode service |
+| `aixcoding-cli` (TUI) | Uses interface, input, and notification settings; the default agent comes from `agent.default_profile` |
+| `aixcoding-cli run` | Always bypasses approval and does not wait for user answers; the default approval mode and question timeout settings do not change these behaviors |
+| `aixcoding-cli serve` | Hosts the TUI in a browser; configuration files and environment variables come from the machine running the AIxCoding-CLI service |
 
 ## When a setting does not take effect
 
-1. Confirm that the settings file is in the correct location and that you have saved it and run `/reload` (or restarted iCode for settings the summary says need a restart or the next launch).
+1. Confirm that the settings file is in the correct location and that you have saved it and run `/reload` (or restarted AIxCoding-CLI for settings the summary says need a restart or the next launch).
 2. Check for a higher-priority source. Deleting a key from YAML does not clear values from other sources.
 3. For project settings, confirm that loading is enabled in user settings and that the key and override direction meet the restrictions.
-4. Check the messages iCode reports at startup. For how invalid values and unknown keys are handled, see [Value syntax and invalid values](#value-syntax-and-invalid-values); for directory-related messages, check [File locations and format](#file-locations-and-format).
+4. Check the messages AIxCoding-CLI reports at startup. For how invalid values and unknown keys are handled, see [Value syntax and invalid values](#value-syntax-and-invalid-values); for directory-related messages, check [File locations and format](#file-locations-and-format).

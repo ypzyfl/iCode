@@ -1,8 +1,8 @@
 # 主题文件参考
 
-iCode 支持通过主题文件自定义终端用户界面（Terminal User Interface，TUI）的外观。本页介绍主题文件的格式、常用配色字段和加载规则。通过界面修改并保存主题，请参阅[自定义主题](../guides/configuration/themes.md)。
+AIxCoding-CLI 支持通过主题文件自定义终端用户界面（Terminal User Interface，TUI）的外观。本页介绍主题文件的格式、常用配色字段和加载规则。通过界面修改并保存主题，请参阅[自定义主题](../guides/configuration/themes.md#自定义主题)。
 
-## 文件位置与命名
+## 1. 文件位置与命名
 
 主题文件保存在以下目录中；目录不存在时先创建。
 
@@ -11,7 +11,7 @@ iCode 支持通过主题文件自定义终端用户界面（Terminal User Interf
 | macOS / Linux | `~/.chrys/themes/` |
 | Windows | `%APPDATA%\chrys\themes\` |
 
-主题文件扩展名必须为 `.yaml` 或 `.yml`，建议使用 UTF-8。iCode 也会自动检测 GBK/GB18030 等常见旧编码，以及带 BOM 的 UTF-16/UTF-32。通过 iCode 保存的主题使用 UTF-8。文件应直接存放在上述目录中；iCode 不读取子目录中的主题文件。
+主题文件扩展名必须为 `.yaml` 或 `.yml`，建议使用 UTF-8。AIxCoding-CLI 也会自动检测 GBK/GB18030 等常见旧编码，以及带 BOM 的 UTF-16/UTF-32。通过 AIxCoding-CLI 保存的主题使用 UTF-8。文件应直接存放在上述目录中；AIxCoding-CLI 不读取子目录中的主题文件。
 
 无法按检测到的编码解码的文件与无效 YAML 文件一样，会被跳过并报告警告。
 
@@ -23,11 +23,11 @@ iCode 支持通过主题文件自定义终端用户界面（Terminal User Interf
 
 `.yaml` 和 `.yml` 文件名称相同时，优先使用 `.yaml`；如果 `.yaml` 文件无效，仍会尝试使用 `.yml`。同名主题只保留一个。
 
-新增或修改主题文件后，在 TUI 空闲且主题编辑器已关闭时执行 `/reload`，或重启 iCode。然后按 **F9** 在主题列表中选择对应主题，或在[设置](settings.md)的 `ui.theme` 中写上它的名称。修改的如果是正在使用的主题，界面会立即更新。删除正在使用的主题文件后，界面改用默认主题 `chrys`，已保存的主题选择不变，恢复文件后该主题会重新生效。
+新增或修改主题文件后，在 TUI 空闲且主题编辑器已关闭时执行 `/reload`，或重启 AIxCoding-CLI。然后按 **F9** 在主题列表中选择对应主题，或在设置的 `ui.theme` 中写上它的名称。修改的如果是正在使用的主题，界面会立即更新。删除正在使用的主题文件后，界面改用默认主题 `chrys`，已保存的主题选择不变，恢复文件后该主题会重新生效。
 
-## 文件格式
+## 2. 文件格式
 
-以下是自定义深色主题 `icode-ocean.yaml` 的示例：
+以下是自定义深色主题 `aixcoding-cli-ocean.yaml` 的示例：
 
 ```yaml
 # 整体配色
@@ -51,9 +51,9 @@ variables:
   markdown-block-background: "#202c38"
 ```
 
-`primary` 是唯一必填字段，其余字段均可按需设置。未指定的颜色由 iCode 自动补齐，具体规则见[默认配色规则](#默认配色规则)。
+`primary` 是唯一必填字段，其余字段均可按需设置。未指定的颜色由 AIxCoding-CLI 自动补齐，具体规则见[默认配色规则](#4-默认配色规则)。
 
-## 配置字段
+## 3. 配置字段
 
 主题文件由两部分组成：
 
@@ -122,7 +122,7 @@ variables:
 
 滚动条可通过 `scrollbar`、`scrollbar-hover`、`scrollbar-active` 配置普通、悬停和拖动状态的颜色。`scrollbar-background` 同时决定这三种状态的轨道背景；已有的 `scrollbar-background-hover` 和 `scrollbar-background-active` 可分别覆盖对应状态。
 
-## 默认配色规则
+## 4. 默认配色规则
 
 非 ANSI 主题中，未指定的字段使用以下默认值，或根据其他颜色自动计算。ANSI 模式使用终端配色，不应按下表推断最终显示颜色。
 
@@ -145,8 +145,10 @@ variables:
 
 顶层还接受 `text_alpha` 字段，须填写有限数值，但目前不会改变显示颜色。
 
-## 加载失败
+## 5. 加载失败
 
-加载时发现 YAML 格式错误、缺少 `primary`、未知顶层字段或无效字段值时，iCode 会显示警告并跳过该文件。根据警告检查对应文件，修正后执行 `/reload` 或重启 iCode 重新加载；其他有效主题仍可使用。执行 `/reload` 时，之前从该文件加载的主题也会保留到文件修好为止。
+加载时发现 YAML 格式错误、缺少 `primary`、未知顶层字段或无效字段值时，AIxCoding-CLI 会显示警告并跳过该文件。根据警告检查对应文件，修正后执行 `/reload` 或重启 AIxCoding-CLI 重新加载；其他有效主题仍可使用。执行 `/reload` 时，之前从该文件加载的主题也会保留到文件修好为止。
 
-主题通过加载后，如果应用时发现 `variables` 值无法用于对应的界面样式，iCode 会显示警告。`/reload` 会保留屏幕上当前的主题，其他情况则回退到默认主题 `chrys`。这两种情况都不会覆盖已保存的主题选择，修正文件后可执行 `/reload` 或重启 iCode 重试。
+主题通过加载后，如果应用时发现 `variables` 值无法用于对应的界面样式，AIxCoding-CLI 会显示警告。`/reload` 会保留屏幕上当前的主题，其他情况则回退到默认主题 `chrys`。这两种情况都不会覆盖已保存的主题选择，修正文件后可执行 `/reload` 或重启 AIxCoding-CLI 重试。
+
+---

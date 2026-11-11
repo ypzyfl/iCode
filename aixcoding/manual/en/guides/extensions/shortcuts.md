@@ -1,10 +1,10 @@
 # Write and use shortcuts
 
-A shortcut is a prompt you save once as a Markdown file and reuse by typing `/` and its name. Choosing it fills the prompt into the input field, where you can edit it before you send it. A shortcut can also take arguments, switch the agent or model for the session, and fill in the output of shell commands when it is sent. Shortcuts work in the iCode window; `icode run` and editors connected through `icode acp` send `/name` as plain text.
+A shortcut is a prompt you save once as a Markdown file and reuse by typing `/` and its name. Choosing it fills the prompt into the input field, where you can edit it before you send it. A shortcut can also take arguments, switch the agent or model for the session, and fill in the output of shell commands when it is sent. Shortcuts work in the AIxCoding-CLI window; `aixcoding-cli run` and editors connected through `aixcoding-cli acp` send `/name` as plain text.
 
 ## Where shortcut files go
 
-iCode reads shortcuts from two places:
+AIxCoding-CLI reads shortcuts from two places:
 
 | Folder | macOS and Linux | Windows |
 | --- | --- | --- |
@@ -13,7 +13,7 @@ iCode reads shortcuts from two places:
 
 New and changed files show the next time you type `/`, or after `/reload`.
 
-A project's `.chrys/shortcuts` must stay inside the repository: if it is a link to a folder outside it, iCode skips it.
+A project's `.chrys/shortcuts` must stay inside the repository: if it is a link to a folder outside it, AIxCoding-CLI skips it.
 
 The file name is the shortcut's name: `review.md` is `/review`. A file in a subfolder keeps the folder in its name: `git/commit-msg.md` is `/git/commit-msg`. When two folders hold a shortcut with the same name, the first one read is used: your own shortcuts, then the nearest project folder.
 
@@ -58,16 +58,16 @@ In the prompt you can use:
 
 1. Type `/` in the input field. Shortcuts are listed in the **Prompt Shortcuts** group.
 2. Choose one, or type its name, with or without arguments (`/review error handling`), and press **Tab** or **Enter**.
-3. The prompt fills the input field. Arguments you did not give are highlighted: press **Tab** to move between them and type to fill them in. If you press **Enter** while some are still empty, iCode asks once before sending. Stepping through your prompt history with **↑** and back with **↓** brings the prompt back as it was, highlights included; so does closing the full-screen editor without changing the text. If you change the text in the editor, the highlights go, but the prompt still belongs to its shortcut.
+3. The prompt fills the input field. Arguments you did not give are highlighted: press **Tab** to move between them and type to fill them in. Each unfilled argument is one unit: **Backspace** or **Delete** removes it in one go, and undo brings it back. If you press **Enter** while some are still empty, AIxCoding-CLI asks once before sending. Stepping through your prompt history with **↑** and back with **↓** brings the prompt back as it was, highlights included. After confirming the full-screen editor, untouched arguments stay highlighted, and the prompt still belongs to its shortcut. In Vim mode, each unfilled argument counts as one character and as a word of its own for `w` / `b` / `e`.
 4. Edit the prompt if you like, then press **Enter** to send it.
 
 ### Commands in the prompt
 
 When you send the prompt, your [prompt hooks](hooks.md) check it first, as you typed it, commands included. Then each `` !`command` `` in it runs in the session's working directory, and its output replaces it in the message the model receives; the conversation shows the message with the output. A command may run for up to 10 seconds, and up to 16 KB of its output is kept. While the commands run, the status bar says so and other actions, such as switching the agent or starting a new session, wait; press **Esc** to cancel.
 
-If a hook blocks the prompt, a command fails to start, times out or is cancelled, or iCode cannot send the prompt for another reason, the prompt returns to the input field with its highlights. As soon as it appears, you can edit it or press **Enter** to try again. If you typed something else in the meantime, iCode keeps what you typed.
+If a hook blocks the prompt, a command fails to start, times out or is cancelled, or AIxCoding-CLI cannot send the prompt for another reason, the prompt returns to the input field with its highlights. As soon as it appears, you can edit it or press **Enter** to try again. If you typed something else in the meantime, AIxCoding-CLI keeps what you typed.
 
-The commands run only if the shortcut is still loaded from the same file for the session's working directory. If that file has moved, was deleted, or is no longer loaded for the current working directory, iCode shows an error. When the prompt returns to the input field, press **Enter** to send it as plain text, including the command placeholders.
+The commands run only if the shortcut is still loaded from the same file for the session's working directory. If that file has moved, was deleted, or is no longer loaded for the current working directory, AIxCoding-CLI shows an error. When the prompt returns to the input field, press **Enter** to send it as plain text, including the command placeholders.
 
 Whenever sending will run commands, a card above the input field says how many, such as `2 commands in the input run when sent`.
 
