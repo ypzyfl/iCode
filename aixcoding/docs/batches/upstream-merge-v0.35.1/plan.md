@@ -11,8 +11,9 @@ ruff / format / ty 三平台全绿；i18n 三轮幂等；fork-full 复跑 upstre
 （剩余 32 = 31 环境性 WinError 448 + 1 mo 中间态已收敛）；headless 冒烟 --version=0.35.1；
 收尾独立评审（CodeBuddy/BM:GLM-5.3）**blocker 0**，nit×5 已处置（F1/F2/F3 修订、F4 留痕、
 F5 记录）。
-**下一步 = design 措辞修订重签 + self-review 签认 → 补充 add → push（逐条授权）→
-责任人建 PR → 双 CI 绿后合并。**
+**已合并（2026-11-11 同步）**：PR #105（chore/merge_upstream_v0.35.1 → main_aixcoding_cli）
+双 CI 绿后合并，merge commit `b2899590`——下方"下一步"链（重签/签认 → add → push → PR →
+合并）已全部走完。
 
 ## 待办
 
@@ -36,8 +37,8 @@ F5 记录）。
 - [x] git add + `git rm --cached` mo（逐条授权）→ R3 OK（82/79/3）+ oracle 3 passed + strict 复跑绿
 - [x] commit ×2（edec1539 merge + c022feef 评审修订；逐条授权）
 - [x] 复查补强：architecture 单跑 1248 passed/3 skipped + uv build/check_wheel 通过
-- [ ] push（逐条授权，责任人指示暂缓）
-- [ ] PR 双 CI（aixcoding-tests + 上游 ci.yml 桥接）绿后责任人合并
+- [x] push（逐条授权，责任人指示暂缓）→ 已推送并建 PR #105
+- [x] PR 双 CI（aixcoding-tests + 上游 ci.yml 桥接）绿后责任人合并 → PR #105 已合并（merge commit `b2899590`）
 - [x] TUI 冒烟（2026-11-09：人工四项无问题；discard 入口因模型不可用改自动化验证，
       上游 8 个 rollback/discard TUI 测试文件 153 passed）
 

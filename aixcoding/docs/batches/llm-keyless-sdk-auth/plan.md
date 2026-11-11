@@ -5,7 +5,8 @@
 实施与签认完成（2026-11-10）；第一轮 peer review request changes 已全部处置（见挂起与备忘）；
 第二轮 peer review **approve**（2026-11-10，复核 finding 处置，证据见 verification.md 末节）；
 已合并最新 `main_aixcoding_cli`（`a35e57e3`，C153 与 logo-branding C145-C152 不撞号，
-strict 105/146/0），合并后定制测试与上游 LLM 层测试全绿，待推送 PR。
+strict 105/146/0），合并后定制测试与上游 LLM 层测试全绿。**已合并（2026-11-11 同步）**：
+PR #110（fix/authorization-hint-retry → main_aixcoding_cli）已合并，merge commit `95e23add`。
 候选-1（commit body 补"评审处置"要素）：AI 建议不修（规范三要素已齐，落点在 PR 描述
 与活文档；amend 需改写已合并历史），裁决待责任人。
 
@@ -24,7 +25,7 @@ strict 105/146/0），合并后定制测试与上游 LLM 层测试全绿，待�
 - [x] peer review finding-C：本状态节同步
 - [x] peer review finding-D：verification.md 补 `--strict` 对账记录
 - [x] peer review 终审复核（2026-11-10 第二轮：approve；第一轮 finding 处置全 confirm）
-- [ ] 推送 PR（描述含两轮评审处置摘要，即 §7 交付报告第 4 项落点）
+- [x] 推送 PR（描述含两轮评审处置摘要，即 §7 交付报告第 4 项落点）→ 已推送、建 PR #110 并合并（merge commit `95e23add`；描述落点以 GitHub 为准）
 
 ## 挂起与备忘
 

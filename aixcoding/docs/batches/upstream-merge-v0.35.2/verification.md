@@ -143,8 +143,8 @@ marker/anchor 全景对账 0 error 0 warning + 上游区间与定制落点交集
 
 ## 九、遗留项与收尾跟踪
 
-- merge commit / push：`git add -A` 已逐条授权完成（index 无 UU/RM/MM 残留，locales 无未暂存内容漂移，staged whitespace OK）；commit 与 push 继续逐条申请；
-- PR 双 CI：push 后由责任人在 GitHub 网页建 PR，双 CI 绿后合并；
+- ~~merge commit / push：`git add -A` 已逐条授权完成（index 无 UU/RM/MM 残留，locales 无未暂存内容漂移，staged whitespace OK）；commit 与 push 继续逐条申请~~ 已完成：commit `c93336ee` 推送后建 PR #115 并合并（merge commit `2c06375a`，2026-11-11）；
+- ~~PR 双 CI：push 后由责任人在 GitHub 网页建 PR，双 CI 绿后合并~~ 已完成：PR #115（chore/merge_upstream_v0.35.2 → main_aixcoding_cli）双 CI 绿后合并，结果以 GitHub checks 为准；
 - **手册跟进**：4 篇上游指南语义变化移交独立手册批次（含 manual 同步、去链/措辞重放、wheel/PDF 重出评估）；
 - **`rg-cache-warmer.yml` 首次运行观察**：workflow 随 merge 入库；`schedule` 为每周一 06:23 UTC，push/PR 仅限 `main` 路径。fork 默认分支合并后观察首次定时运行并在此追加记录；
 - ~~R2/R3 终态复跑~~ 已完成：R2 561/85/93 OK、R3 85/82/3 OK（add 后）；
