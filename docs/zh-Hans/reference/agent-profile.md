@@ -413,8 +413,6 @@ skills:
   script_extensions: [.py, .sh, .ps1]
   auto_load_user_agents_skills: true
   auto_load_cwd_agents_skills: true
-  auto_load_aixcoding_user_skills: true
-  auto_load_aixcoding_cwd_skills: true
   inline:
     - name: release-notes
       description: 根据提交记录起草面向用户的发布说明
@@ -435,13 +433,10 @@ skills:
 | `script_extensions` | 字符串列表 | `[.py, .sh, .ps1]` | 允许作为 Skill 脚本运行的扩展名；所需解释器必须已经安装。 |
 | `auto_load_user_agents_skills` | 布尔值 | `true` | 是否加载 Agent Skills 用户级共享目录。 |
 | `auto_load_cwd_agents_skills` | 布尔值 | `true` | 是否加载当前工作目录的 `.agents/skills`；还需在设置中开启“加载项目 Skills”（`project.skills_enabled`）。切换工作目录后重新加载。 |
-| `auto_load_aixcoding_user_skills` | 布尔值 | `true` | 是否加载 AIxCoding 共享 HOME 目录树：`~/.aixcoding/{skills,market-skills,team-skills/<团队>}` 以及与桌面客户端、IDE 插件共享的 `~/.aixcoding_intellij` 镜像目录。 |
-| `auto_load_aixcoding_cwd_skills` | 布尔值 | `true` | 是否加载当前工作目录的 `.aixcoding/skills`（与桌面客户端共享）；不受“加载项目 Skills”约束。切换工作目录后重新加载。 |
 
-iCode 用户 Skill 目录始终加载；AIxCoding 共享目录与 Agent Skills 用户级共享目录默认加载；当前工作目录的 `.agents/skills` 在设置中开启“加载项目 Skills”后加载（AIxCoding 工作目录根不受该开关约束）。各目录可分别通过对应的 `auto_load_*` 字段关闭。用户级 Skill 目录路径见[Skill 安装位置](../guides/extensions/skills.md#skill-安装位置)。
-<!-- AIxCoding skills: desktop-shared aixcoding roots (src/chrys/service/aixcoding/skill_paths) -->
+iCode 用户 Skill 目录始终加载；Agent Skills 用户级共享目录默认加载；当前工作目录 Skill 目录在设置中开启“加载项目 Skills”后加载。两者可分别通过两个 `auto_load_*` 字段关闭。用户级 Skill 目录路径见[Skill 安装位置](../guides/extensions/skills.md#skill-安装位置)。
 
-多个来源出现同名 Skill 时，优先级从高到低为：`paths` 中靠前的目录、iCode 用户 Skill 目录、当前工作目录的 AIxCoding 共享目录、用户级 AIxCoding 共享目录、Agent Skills 用户级共享目录、当前工作目录的 `.agents/skills`、`inline` 中靠前的定义。同一个搜索根目录中存在多个同名 Skill 时，发现顺序不确定；为确保加载指定版本，请只保留其中一个。
+多个来源出现同名 Skill 时，优先级从高到低为：`paths` 中靠前的目录、iCode 用户 Skill 目录、Agent Skills 用户级共享目录、当前工作目录 Skill 目录、`inline` 中靠前的定义。同一个搜索根目录中存在多个同名 Skill 时，发现顺序不确定；为确保加载指定版本，请只保留其中一个。
 
 > **注意**：Skill 脚本作为本地进程运行，不受安全沙箱隔离。将目录加入 `paths` 或启用自动加载来源前，请检查其中的 `SKILL.md`、脚本和其他相关文件，只加载可信 Skill。允许某种脚本扩展名不会自动安装对应解释器。
 

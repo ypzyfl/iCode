@@ -14,7 +14,7 @@
 |---|---|---|---|---|---|---|
 | 1 | profile 显式路径 | profile YAML `skills.paths` 中逐条配置 | 同左 | 用户/团队自定义技能位置，相对路径按当前工作区解析 | 无（显式配置即加载；缺失的**绝对**路径产生 `skill_path_missing` 警告，相对路径视为临时目录常态不告警） | 是 |
 | 2 | chrys 用户目录 | `~/.chrys/skills` | `%APPDATA%\chrys\skills` | 产品自有全局技能（CLI 自身生态） | 无，永远加载（目录缺失也进列表，为会话中途新增技能留位） | 是 |
-| 3 | aixcoding 工作区根 | `<cwd>/.aixcoding/skills` | `<工作区>\.aixcoding\skills` | **与桌面客户端共享**的项目专属技能，随工作区切换 | 仅 profile 开关 `auto_load_aixcoding_cwd_skills`（默认开）；**不受**项目信任门管控（ADR-0001 决策二） | 是 |
+| 3 | aixcoding 工作区根 | `<cwd>/.aixcoding/skills` | `<工作区>\.aixcoding\skills` | **与桌面客户端共享**的项目专属技能，随工作区切换 | 仅 profile 开关 `auto_load_aixcoding_cwd_skills`（默认开）；**不受**项目信任门管控（design「ADR 判定」决策二） | 是 |
 | 4 | aixcoding 用户级全树 | `~/.aixcoding/skills` → `~/.aixcoding/market-skills` → `~/.aixcoding/team-skills/<team>` | `%USERPROFILE%\.aixcoding\…`（字面 HOME） | **与桌面客户端共享**：手工技能 → 技能市场安装 → 团队空间分发（每个 team 子目录各为一个技能根） | profile 开关 `auto_load_aixcoding_user_skills`（默认开） | 是 |
 | 5 | aixcoding IDE 镜像树 | `~/.aixcoding_intellij/{skills,market-skills,team-skills/<team>}` | `%USERPROFILE%\.aixcoding_intellij\…` | IDE（IntelliJ 插件）管理的同构技能树，与第 4 类完全同构 | 同上（`auto_load_aixcoding_user_skills`） | 是 |
 | 6 | agents 用户目录 | `~/.agents/skills` | `%USERPROFILE%\.agents\skills`（字面 HOME） | 跨 CLI 编码工具共享的全局技能（`.agents` 为多工具通用约定） | profile 开关 `auto_load_user_agents_skills`（默认开） | 是 |
@@ -71,7 +71,7 @@ staged 与已禁用状态，`runtime-composition.ts:1083`），与上表「本�
 | `project.skills_enabled` | `<workspace>/.agents/skills` | 关 |
 
 三处均为 `ProjectMerge.DENY`：项目自己的配置文件**无权**打开自己层，只能由用户在用户级
-设置或 TUI 显式开启。本批次决策（ADR-0001）：
+设置或 TUI 显式开启。本批次决策（design「ADR 判定」节）：
 
 - `~/.aixcoding/skills` 与 `<cwd>/.aixcoding/skills` 为**产品自有目录**，信任级对齐用户目录
   （类比 `~/.chrys/skills`），不引入新门，默认可见；
@@ -93,6 +93,6 @@ Windows 上不在 `%APPDATA%` 下——桌面客户端共享契约即字面 HOME
 
 ## 五、与其他批次文档的关系
 
-- 决策依据与备选取舍：本目录 `design.md`（v2.1，已签认）、`adr/0001-aixcoding-skill-dirs-trust-and-contract.md`；
+- 决策依据与备选取舍：本目录 `design.md`（v2.1，已签认，含「ADR 判定」节决策记录）；
 - 行为锚定测试：`test-plan.md` 覆盖矩阵第 3、2a 行（次序与信任门例外）；
 - 实施时用户文档改写以本文第一、二节为依据（R2 清单 6–9）。

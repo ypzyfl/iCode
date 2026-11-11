@@ -149,7 +149,7 @@ def test_cwd_aixcoding_skills_loaded_with_runtime(tmp_path: Path, monkeypatch: p
 
 
 def test_cwd_aixcoding_skills_load_despite_project_gate_off(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """ADR-0001 decision 2 anchor: the workspace aixcoding root ignores the trust gate."""
+    """skills-aixcoding-dirs design decision 2 anchor: the workspace aixcoding root ignores the trust gate."""
     home = tmp_path / "home"
     cwd = tmp_path / "project"
     _place_skill(cwd / ".aixcoding" / "skills")

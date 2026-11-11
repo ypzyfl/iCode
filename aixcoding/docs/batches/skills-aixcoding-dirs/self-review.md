@@ -8,8 +8,9 @@
 - 评审 AI：GLM-5.3 / CodeBuddy 子代理（独立会话，只读评审，两轮）
 
 > 记录档：签认一次，后续追加评审记录不触发重签。
-> 批次上下文：design.md v3（已签认 2026-11-09）、ADR-0001（已签认 2026-11-09）、
-> test-plan.md、skill-directories.md、verification.md（命令与输出留档）。
+> 批次上下文：design.md v3（已签认 2026-11-09）、批次 ADR（2026-11-09 签认、2026-11-11
+> 撤销——决策并入 design「ADR 判定」节）、test-plan.md、skill-directories.md、
+> verification.md（命令与输出留档）。
 
 ## 2026-11-09 评审结论：通过（两轮收敛，blocker 清零）
 

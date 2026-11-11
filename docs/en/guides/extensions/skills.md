@@ -9,24 +9,20 @@ Choose an installation location based on where the skill should be available and
 | Location | When to use it | How iCode loads it |
 | --- | --- | --- |
 | iCode user skills directory | Make skills available to all agents of the "Built-in" type in iCode | Always loaded automatically |
-| AIxCoding shared directory (working folder) | `<working-directory>/.aixcoding/skills`: share skills with the AIxCoding desktop client in the current working directory | Loaded automatically by default; can be disabled per agent. Not affected by “Load project skills” |
-| AIxCoding shared directory (user) | `~/.aixcoding/...`: share hand-placed skills with the AIxCoding desktop client and IDE plugin | Loaded automatically by default; can be disabled per agent |
 | Agent Skills shared directory | Share skills between iCode and other tools that support Agent Skills | Loaded automatically by default; can be disabled per agent |
 | `<working-directory>/.agents/skills` | Make skills available only in the current working directory | Loaded only after you turn on “Load project skills”; can also be disabled per agent |
 | Custom directory | Load skills from a specific location | Must be added manually to the corresponding agent's configuration |
 
-Here, `<working-directory>` is the current working directory. Skills in a working directory come with the repository, so iCode does not load them until you turn on “Load project skills” under “Settings → Safety → Project trust” (`project.skills_enabled`). This gate does not apply to `<working-directory>/.aixcoding/skills`: it is an AIxCoding product directory, not repository-authored content, and follows only its per-agent toggle. When the working directory has skills that are not loaded, iCode shows a notice. When you switch working directories, iCode reloads the skills from the new working directory.
-<!-- AIxCoding skills: desktop-shared aixcoding roots (src/chrys/service/aixcoding/skill_paths) -->
+Here, `<working-directory>` is the current working directory. Skills in a working directory come with the repository, so iCode does not load them until you turn on “Load project skills” under “Settings → Safety → Project trust” (`project.skills_enabled`). When the working directory has skills that are not loaded, iCode shows a notice. When you switch working directories, iCode reloads the skills from the new working directory.
 
-The user-level skills directories have the following paths on each platform:
+The two user-level skills directories have the following paths on each platform:
 
 | Directory | macOS and Linux | Windows |
 | --- | --- | --- |
 | iCode user skills directory | `~/.chrys/skills` | `%APPDATA%\chrys\skills` |
-| AIxCoding shared directory | `~/.aixcoding/skills`, `~/.aixcoding/market-skills`, `~/.aixcoding/team-skills/<team>`, and the `~/.aixcoding_intellij` mirror of the same layout | `%USERPROFILE%\.aixcoding\...` and `%USERPROFILE%\.aixcoding_intellij\...` |
 | Agent Skills shared directory | `~/.agents/skills` | `%USERPROFILE%\.agents\skills` |
 
-For the automatic installation locations above, copy or move the skill directory to the corresponding location. For a custom directory, there is no need to move the skill; add its directory to the corresponding agent's configuration.
+For the first three installation locations, copy or move the skill directory to the corresponding location. For a custom directory, there is no need to move the skill; add its directory to the corresponding agent's configuration.
 
 iCode searches for `SKILL.md` files in configured skills directories and up to two levels of subdirectories. Once it finds a `SKILL.md`, it recognizes the containing directory as a skill directory and stops searching for nested skills within it.
 
@@ -102,11 +98,9 @@ If multiple skills have the same name, iCode loads only the one with the highest
 
 1. Directories added manually in the agent's "Skills" tab, with those higher in the list taking priority (new directories are added at the top).
 2. The iCode user skills directory.
-3. The working directory's AIxCoding shared directory (`.aixcoding/skills`).
-4. The user-level AIxCoding shared directories (`~/.aixcoding/...` and the IDE mirror).
-5. The Agent Skills shared directory.
-6. `.agents/skills` in the current working directory.
-7. Inline skills in the agent profile, in their definition order.
+3. The Agent Skills shared directory.
+4. Skills in the current working directory.
+5. Inline skills in the agent profile, in their definition order.
 
 If multiple skills with the same name exist within one installation location or custom directory, their discovery order is unspecified. To ensure that a particular version loads, keep only that version.
 

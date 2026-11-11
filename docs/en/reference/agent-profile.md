@@ -413,8 +413,6 @@ skills:
   script_extensions: [.py, .sh, .ps1]
   auto_load_user_agents_skills: true
   auto_load_cwd_agents_skills: true
-  auto_load_aixcoding_user_skills: true
-  auto_load_aixcoding_cwd_skills: true
   inline:
     - name: release-notes
       description: Draft user-facing release notes from commits
@@ -435,13 +433,10 @@ skills:
 | `script_extensions` | List of strings | `[.py, .sh, .ps1]` | Extensions allowed for skill scripts. The required interpreters must already be installed. |
 | `auto_load_user_agents_skills` | Boolean | `true` | Whether to load the user-level shared Agent Skills directory. |
 | `auto_load_cwd_agents_skills` | Boolean | `true` | Whether to load `.agents/skills` in the current working directory; “Load project skills” (`project.skills_enabled`) must also be on in settings. Reloaded when switching working directories. |
-| `auto_load_aixcoding_user_skills` | Boolean | `true` | Whether to load the AIxCoding shared HOME trees: `~/.aixcoding/{skills,market-skills,team-skills/<team>}` and the `~/.aixcoding_intellij` mirror shared with the desktop client and IDE plugin. |
-| `auto_load_aixcoding_cwd_skills` | Boolean | `true` | Whether to load `.aixcoding/skills` in the current working directory, shared with the desktop client. Not gated by “Load project skills”. Reloaded when switching working directories. |
 
-The iCode user skills directory is always loaded. The AIxCoding shared directories and the user-level shared Agent Skills directory are loaded by default; the current working directory's `.agents/skills` loads once “Load project skills” is on in settings (the AIxCoding working-directory root ignores that gate). Each can be disabled with its corresponding `auto_load_*` field. For user-level directory paths, see [Skill installation locations](../guides/extensions/skills.md#skill-installation-locations).
-<!-- AIxCoding skills: desktop-shared aixcoding roots (src/chrys/service/aixcoding/skill_paths) -->
+The iCode user skills directory is always loaded. The user-level shared Agent Skills directory is loaded by default; the current working directory's skills directory loads once “Load project skills” is on in settings. Each can be disabled with its corresponding `auto_load_*` field. For user-level directory paths, see [Skill installation locations](../guides/extensions/skills.md#skill-installation-locations).
 
-When multiple sources contain skills with the same name, precedence from highest to lowest is: earlier directories in `paths`, the iCode user skills directory, the working directory's AIxCoding skills, the user-level AIxCoding shared directories, the user-level shared Agent Skills directory, the current working directory's `.agents/skills`, and earlier definitions in `inline`. If one search root contains multiple skills with the same name, discovery order is unspecified. Keep only one to ensure that the intended version loads.
+When multiple sources contain skills with the same name, precedence from highest to lowest is: earlier directories in `paths`, the iCode user skills directory, the user-level shared Agent Skills directory, the current working directory's skills directory, and earlier definitions in `inline`. If one search root contains multiple skills with the same name, discovery order is unspecified. Keep only one to ensure that the intended version loads.
 
 > **Note**: Skill scripts run as local processes without security sandbox isolation. Before adding a directory to `paths` or enabling an automatically loaded source, inspect its `SKILL.md`, scripts, and other relevant files. Load only trusted skills. Allowing a script extension does not install its interpreter.
 

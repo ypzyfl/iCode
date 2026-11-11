@@ -242,13 +242,13 @@ aixcoding cwd 仍加载（决策记录的行为锚定）、缺目录不报错、
 | C163-C166 | src/chrys/service/skills/adapter.py | AIxCoding skills: | 4 | `_collect_skill_paths` 挂点×2 + 降级注释×2 | 低：上游重写 `_collect_skill_paths` 函数体时挂点漂移（`--strict` 报计数不符） | 〔上游等价〕上游原生提供桌面共享技能目录的合并机制 |
 | C158 | src/chrys/foundation/platform/__init__.py | AIxCoding skills: | 1 | `PlatformInfo` 字段区 | 低：上游演进 `PlatformInfo` 字段集时冲突，diff 面小 | 〔上游等价〕`PlatformInfo` 原生提供等价产品目录字段 |
 | C159-C160 | tests/conftest.py | AIxCoding skills: | 2 | config-dir 重定向两处 `dataclasses.replace` | 中：上游改 redirect 机制形态时需跟随（该机制 0.32→0.34 稳定） | 〔上游等价〕重定向机制原生覆盖新增字段 |
-| C161 | src/chrys/service/profiles/agents/schema.py | AIxCoding skills: | 1 | `SkillsConfig` 开关字段区 | 低：上游重排字段区时冲突面小 | 〔配置契约变更〕ADR-0001 决策一反转（开关撤离 profile schema） |
+| C161 | src/chrys/service/profiles/agents/schema.py | AIxCoding skills: | 1 | `SkillsConfig` 开关字段区 | 低：上游重排字段区时冲突面小 | 〔配置契约变更〕本 design ADR 判定决策一反转（开关撤离 profile schema） |
 | C162 | src/chrys/service/profiles/agents/loader.py | AIxCoding skills: | 1 | `_parse_skills` 解析块 | 低：随 C161 | 随 C161 |
-| C167 | docs/en/guides/extensions/skills.md | AIxCoding skills: | 1 | 安装位置 gate 说明段后注释行（R3 门禁，CI 复跑补登） | 低：上游重写该页时漂移 | 随 C163-C166 |
-| C168 | docs/zh-Hans/guides/extensions/skills.md | AIxCoding skills: | 1 | 同 C167（中文页） | 低：随 C167 | 随 C167 |
-| C169 | docs/en/reference/agent-profile.md | AIxCoding skills: | 1 | skills 配置说明段后注释行（R3 门禁，CI 复跑补登） | 低：随 C167 | 随 C167 |
-| C170 | docs/zh-Hans/reference/agent-profile.md | AIxCoding skills: | 1 | 同 C169（中文页） | 低：随 C169 | 随 C167 |
-| C171 | src/chrys/service/hooks/docs/project-hooks.md | AIxCoding skills: | 1 | Goals 列表 aixcoding 提及处注释行（R3 门禁，CI 复跑补登） | 低：上游重写该页时漂移 | 随 C167 |
+
+<!-- 2026-11-11 备案：原 C167-C171（docs/en、docs/zh-Hans 四页与 project-hooks.md 的
+     marker 登记）随文档改动整体还原而撤销——该批改动与 main_aixcoding_cli 上并行
+     的文档更新冲突，实施改为不动任何既有文档；手册缺口由并行的文档更新批次补齐。 -->
+
 
 ## 风险与最坏情况
 
@@ -279,8 +279,14 @@ aixcoding cwd 仍加载（决策记录的行为锚定）、缺目录不报错、
 - ④ 依赖上游非公开接口 → 否（定制包仅依赖公开的 `SkillsConfig` / `SessionEnvironment` /
   `get_platform`；挂点由上游调用定制包，方向相反；conftest patch 属上游测试自身机制）。
 
-结论：①②③ 成立 → 出 `adr/0001-aixcoding-skill-dirs-trust-and-contract.md`
-（配置契约 + cwd 不受信任门管控 + 目录根挂 platform 的决策记录，落本批次 `adr/`）。
+结论：①②③ 成立 → 出批次 ADR（2026-11-09 已签认）。
+
+> **2026-11-11 备案（责任人裁决，仿 user-manual 批次先例）**：该 ADR 不再以独立文件存在，
+> 已从本批次 `adr/` 撤销——并行批次治理（standards/adr/0024 起）将决策文档收归全局池、
+> 批次 `adr/` 池废止，且 0001 号与全局池既有文件重号不可保留。四个决策（配置契约、
+> cwd 不受信任门管控、目录根挂 platform 单例、七类根与桌面端同序）的完整记录由本
+> design「方案概述」「对上游隐式行为的假设」与「风险与最坏情况」承载，测试行为锚
+> `test_cwd_aixcoding_skills_load_despite_project_gate_off` 改指本节。
 
 ## 验证方式（实施阶段执行，此处为计划）
 

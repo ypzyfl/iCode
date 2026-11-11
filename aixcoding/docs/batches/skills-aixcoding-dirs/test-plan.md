@@ -1,7 +1,7 @@
 # 测试计划：aixcoding 技能目录自动加载（skills-aixcoding-dirs）
 
 > 活文档（R10，不签认）；实施中随验证结果更新。方案见同目录 `design.md`（v2.1，已签认），
-> 决策见 `adr/0001-aixcoding-skill-dirs-trust-and-contract.md`。
+> 决策见同目录 `design.md`「ADR 判定」节（批次 ADR 已于 2026-11-11 撤销并档）。
 
 ## 测试策略
 
