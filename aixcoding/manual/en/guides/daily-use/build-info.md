@@ -14,13 +14,13 @@ sha256sum aixcoding-cli-<platform>-v<version>-offline.tar.gz
 Get-FileHash .\aixcoding-cli-<platform>-v<version>-offline.zip -Algorithm SHA256
 ```
 
-As an example of verifying the v0.35.1 installer (hash values are illustrative):
+As an example of verifying the v0.35.2 installer (hash values are illustrative):
 
 **Windows** (PowerShell, verifying the Windows x86-64 installer):
 
 ```powershell
 cd C:\Users\<username>\Downloads
-Get-FileHash .\aixcoding-cli-windows-x86_64-v0.35.1-offline.zip -Algorithm SHA256
+Get-FileHash .\aixcoding-cli-windows-x86_64-v0.35.2-offline.zip -Algorithm SHA256
 ```
 
 ```text
@@ -33,11 +33,11 @@ SHA256          A1B2C3D4E5F60718293A4B5C6D7E8F90A1B2C3D4E5F60718293A4B5C6D7E8F..
 
 ```bash
 cd ~/Downloads
-sha256sum aixcoding-cli-linux-x86_64-v0.35.1-offline.tar.gz
+sha256sum aixcoding-cli-linux-x86_64-v0.35.2-offline.tar.gz
 ```
 
 ```text
-a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f  aixcoding-cli-linux-x86_64-v0.35.1-offline.tar.gz
+a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f  aixcoding-cli-linux-x86_64-v0.35.2-offline.tar.gz
 ```
 
 The command outputs a 64-character hexadecimal hash. Compare it with the entry for the **file of the same name** in the publisher's SHA256 manifest. A matching hash proves the file comes from exactly that build; a mismatch means the file is corrupted or was replaced — download it again.
@@ -48,7 +48,7 @@ The command outputs a 64-character hexadecimal hash. Compare it with the entry f
 aixcoding-cli --version
 ```
 
-This prints the current version number (e.g. `0.35.1`). Note that the same version number is reused for nightly builds, so **an identical version number does not mean identical code** — use hash comparison for precise provenance.
+This prints the current version number (e.g. `0.35.2`). Note that the same version number is reused for nightly builds, so **an identical version number does not mean identical code** — use hash comparison for precise provenance.
 
 ## 3. First-run cache notice
 

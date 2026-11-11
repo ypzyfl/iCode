@@ -1,6 +1,6 @@
 # Install and use skills
 
-A skill is a reusable set of instructions that can include reference materials and scripts to extend an agent's ability to handle specific tasks. This guide explains how to install skills for agents of the "Built-in" type, confirm that they have loaded, and use them. Support for skills and their configuration in external ACP agents is determined by the external agent.
+A skill is a reusable set of instructions that can include reference materials and scripts to extend an agent's ability to handle specific tasks. This guide explains how to install skills for agents of the "Built-in" type, confirm that they have loaded, and use them.
 
 ## Skill installation locations
 
@@ -169,7 +169,7 @@ AIxCoding-CLI recognizes text files as skill resources only if they have one of 
 Text resources use the same automatic encoding detection as `SKILL.md`; UTF-8 is recommended. In addition:
 
 * Script extensions must be listed in the agent configuration's "Allowed Script Extensions".
-* AIxCoding-CLI reads only files at the skill directory root and in its immediate subdirectories. For example, it discovers `guide.md` and `references/guide.md`, but ignores `references/api/guide.md`.
+* AIxCoding-CLI reads files at the skill directory root and up to two levels of subdirectories. For example, it discovers `guide.md`, `references/guide.md`, and `references/api/guide.md`, but ignores `references/api/v1/guide.md`.
 * Within a skill directory, AIxCoding-CLI skips files and directories accessed through symbolic links or Windows directory junctions. Both point to other locations on disk. To use their contents, place the actual files in the skill directory.
 
 Files that do not meet the extension, directory depth, or link rules do not appear in the skill's resource or script list. A missing, inaccessible, or undecodable resource fails when read. These issues do not prevent an otherwise valid `SKILL.md` from loading.

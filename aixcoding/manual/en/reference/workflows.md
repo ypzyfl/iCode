@@ -28,7 +28,7 @@ The module must define a top-level variable named `workflow` containing the `Wor
 
 Syntax errors, exceptions in top-level code, build validation failures, or a missing valid `workflow` object prevent loading. For structural validation rules, see [`WorkflowBuilder.build()`](#workflowbuilderbuild).
 
-To check a workflow before running it, use [`icode workflow validate`](#icode-workflow-validate): it reports each problem with its file and line.
+To check a workflow before running it, use [`aixcoding-cli workflow validate`](#aixcoding-cli-workflow-validate): it reports each problem with its file and line.
 
 ### File discovery
 
@@ -79,10 +79,10 @@ Moving `review.py` to `review/review.py` changes the workflow's path, so it must
 Loading a custom workflow for the first time requires trust confirmation:
 
 - **TUI**: Selecting a workflow opens the “Trust workflow” dialog. Review the source and declared execution environment, then click “Trust” to continue or “Cancel” to leave it unloaded.
-- **CLI**: Add `--trust` to `icode workflow run`. For example, run `.chrys/workflows/echo.py` from the project root with:
+- **CLI**: Add `--trust` to `aixcoding-cli workflow run`. For example, run `.chrys/workflows/echo.py` from the project root with:
 
 ```shell
-icode workflow run echo --trust --input "Hello"
+aixcoding-cli workflow run echo --trust --input "Hello"
 ```
 
 The confirmation is saved, so later runs can omit `--trust`. Confirmation is required again if the workflow's source, the built workflow definition, or environment information changes, including the selected interpreter's path, version, platform, or the workflow SDK supplied by AIxCoding-CLI. For a single `.py` file, the source is that file; other Python files it imports are not checked. For a workflow folder, the source is every file in the folder except names starting with `.` and the compiled copies Python keeps in `__pycache__` folders, so adding, changing, or removing any of them requires confirming again. The check does not cover changes to installed dependencies.
@@ -250,8 +250,8 @@ agent(
 | Parameter | Meaning |
 | --- | --- |
 | `name` | Node name |
-| `profile` | Required ID, name, or display name of an existing agent profile; using the ID is recommended. List profiles with `icode agent list` |
-| `model` | Optional AIxCoding-CLI model profile ID or name, listed by `icode model list`; when omitted, the model selection rules below apply |
+| `profile` | Required ID, name, or display name of an existing agent profile; using the ID is recommended. List profiles with `aixcoding-cli agent list` |
+| `model` | Optional AIxCoding-CLI model profile ID or name, listed by `aixcoding-cli model list`; when omitted, the model selection rules below apply |
 | `instructions_suffix` | Optional string with additional instructions for this node |
 | `timeout` | Maximum seconds per attempt, unlimited by default; a finite positive number or `None` |
 | `retry` | When omitted, at most three attempts with zero backoff; not all errors are retried automatically |
@@ -282,7 +282,7 @@ Regular AIxCoding-CLI agents select a model in this priority order:
 
 1. The `model` argument to `agent()`.
 2. The model bound to the agent profile.
-3. The workflow's default model. In the TUI, select it under “Run Settings”. In the CLI, loading an existing workflow session with `icode workflow run <workflow-id> --session <session-id>` retains that session's saved model selection. If no workflow default has been selected, the [default model configured in AIxCoding-CLI](settings.md#agents-models-and-requests) is used.
+3. The workflow's default model. In the TUI, select it under “Run Settings”. In the CLI, loading an existing workflow session with `aixcoding-cli workflow run <workflow-id> --session <session-id>` retains that session's saved model selection. If no workflow default has been selected, the [default model configured in AIxCoding-CLI](settings.md#agents-models-and-requests) is used.
 
 An explicit `model` that does not exist or is unavailable causes an error. If the agent's bound model does not exist, selection falls back to the workflow default. The workflow cannot start without an available model.
 
@@ -310,18 +310,6 @@ Regular AIxCoding-CLI agent nodes support profile settings as follows (✓ suppo
 | `memory` | ✓ | Loads the configured memory files and directories |
 
 Each agent node has its own context. Edges pass only node outputs, not the full conversation history or tool-call records.
-
-##### External ACP agents
-
-`profile` can directly reference a configured ACP agent, even one marked as sub-agent-only. Configure an external ACP agent in the TUI, or [create an agent YAML file containing an `acp` configuration](agent-profile.md#acp).
-
-ACP nodes differ in these ways:
-
-- Omitting `model` uses the remote model settings in the ACP profile, not the workflow default.
-- An explicit `model` takes an AIxCoding-CLI model profile ID or name. AIxCoding-CLI uses only its `model_id` to request a remote model switch over ACP; the profile's other fields do not apply. If the remote agent does not list the model, or rejects the switch because the method is unsupported or the parameters are invalid, execution continues with the remote default model.
-- `instructions_suffix` is appended to the user prompt sent to the external agent.
-- The node output is determined by “Result” in the external agent profile ([`acp.result_mode`](agent-profile.md#acp)), with options “Last message segment” and “Full transcript”. See Set the result and timeouts.
-- The external agent executes its own tools. Only operations for which it sends ACP permission requests enter AIxCoding-CLI's approval process.
 
 #### `BuilderScope.edge`
 
@@ -638,17 +626,16 @@ Automatic retry after a node failure depends on the error type and the node's `R
 | Situation | Automatic retry condition |
 | --- | --- |
 | A Python node's function raises an exception or times out | `Retry.max_attempts` has not been reached |
-| A non-ACP agent node's model request hits a temporary error, such as a dropped connection, a rate limit or a request timeout | The request is first retried within the attempt, as in chat. If it still fails, the node is retried while `Retry.max_attempts` has not been reached |
-| A non-ACP agent node's model request is too long for the model's context window | As in chat, with context compaction on, the context is compacted and the request is sent once more within the attempt, unless the error names a smaller limit than the model profile's. If it still fails, the node is not retried automatically |
-| A non-ACP agent node reaches its `timeout` | `Retry.max_attempts` has not been reached |
-| An external ACP agent node loses its connection, stops responding, reports an error, or reaches its `timeout` | `Retry.max_attempts` has not been reached. AIxCoding-CLI cannot tell which errors an external agent reports are permanent, so it retries them all. It does not retry an agent that cannot be started, one that still cannot be reached after the attempt retried the connection several times, a rejected configuration, or an answer the agent refuses, cuts short or leaves empty |
-| Errors that retrying cannot fix, such as an exhausted quota or plan, or an external agent that needs you to log in; also failed condition or combine calculations, unserializable or oversized return values, user questions in an environment that does not support them, and similar errors | Not retried automatically |
+| An agent node's model request hits a temporary error, such as a dropped connection, a rate limit or a request timeout | The request is first retried within the attempt, as in chat. If it still fails, the node is retried while `Retry.max_attempts` has not been reached |
+| An agent node's model request is too long for the model's context window | As in chat, with context compaction on, the context is compacted and the request is sent once more within the attempt, unless the error names a smaller limit than the model profile's. If it still fails, the node is not retried automatically |
+| An agent node reaches its `timeout` | `Retry.max_attempts` has not been reached |
+| Errors that retrying cannot fix, such as an exhausted quota or plan or a conversation exceeding the model's length limit; also failed condition or combine calculations, unserializable or oversized return values, user questions in an environment that does not support them, and similar errors | Not retried automatically |
 
 If retrying could make the model provider run one of its own tools a second time, such as an MCP server or shell the provider runs, the node is not retried automatically. Provider-run search and code execution are safe to repeat and don't stop retries; neither do AIxCoding-CLI's own file, Shell or MCP tools.
 
 Once an agent node's model has started writing its reply, a request that fails is not sent again within the same attempt: the attempt fails, and the node is retried as described in this section.
 
-When a non-ACP agent's attempt fails or times out, the retry continues from its conversation so far: tool calls that already finished do not run again, and node details show the new attempt's transcript continuing the previous one. A reply the failure cut off is written again, and the new attempt's transcript shows only the new reply. An external ACP agent starts a new session with the same input, and the new attempt's transcript shows only that session. If the agent finished and a later step of the node failed, such as an outgoing condition, a retry runs the agent again from its input.
+When an agent's attempt fails or times out, the retry continues from its conversation so far: tool calls that already finished do not run again, and node details show the new attempt's transcript continuing the previous one. A reply the failure cut off is written again, and the new attempt's transcript shows only the new reply. If the agent finished and a later step of the node failed, such as an outgoing condition, a retry runs the agent again from its input.
 
 `Retry(max_attempts=1)` turns off node retries only: a failed model request is still retried within the attempt, unless the model had already started writing its reply.
 
@@ -721,7 +708,7 @@ Workflow sessions do not save their own approval mode. They share the TUI's curr
 
 Reopening a session lets you view history or start a new run, but does not resume from the last interrupted node. Cancelled or interrupted runs must start over. For nodes awaiting manual retry in the current run, see [Timeouts and retries](#timeouts-and-retries).
 
-In the result object from `icode workflow run --json`, `outcome` indicates the run outcome. Local records also store it in the run-end event in `workflows/<run_id>/events.jsonl` under the [session directory](../guides/daily-use/sessions.md#find-the-session-id-and-storage-location).
+In the result object from `aixcoding-cli workflow run --json`, `outcome` indicates the run outcome. Local records also store it in the run-end event in `workflows/<run_id>/events.jsonl` under the [session directory](../guides/daily-use/sessions.md#find-the-session-id-and-storage-location).
 
 If the process terminates abnormally before finalizing a run, restoring the session records `outcome=orphaned` for that run. The workflow run view displays “orphaned”.
 
@@ -743,11 +730,11 @@ Use the run tabs in the TUI to switch between records within a session; after qu
 
 The `workflows/<run_id>/` directory under the [session directory](../guides/daily-use/sessions.md#find-the-session-id-and-storage-location) stores the source snapshot, graph definition, input, final outputs, run events, and node records. Agent transcripts also belong to that run. These files preserve records; they do not support resuming a workflow run.
 
-Run and node usage and elapsed time help assess costs; ACP usage depends on what the remote agent reports. To export analysis data, use:
+Run and node usage and elapsed time help assess costs. To export analysis data, use:
 
 ```shell
-icode trajectory export --session <session-id> --format json --out workflow.json
-icode trajectory export --session <session-id> --format perfetto --out workflow.perfetto.json
+aixcoding-cli trajectory export --session <session-id> --format json --out workflow.json
+aixcoding-cli trajectory export --session <session-id> --format perfetto --out workflow.perfetto.json
 ```
 
 Replace `<session-id>` with the workflow session ID. Analysis exports for workflow sessions support only JSON and Perfetto.
@@ -774,27 +761,27 @@ All these events include `session_kind: "workflow"`, `workflow_id`, `session_id`
 
 ## Command line
 
-### `icode workflow list`
+### `aixcoding-cli workflow list`
 
-List workflows according to the [file discovery](#file-discovery) rules without executing workflow code. Custom workflow titles come from previously saved trust confirmations. `icode workflow` without a command does the same.
+List workflows according to the [file discovery](#file-discovery) rules without executing workflow code. Custom workflow titles come from previously saved trust confirmations. `aixcoding-cli workflow` without a command does the same.
 
 ```shell
-icode workflow list [--json]
+aixcoding-cli workflow list [--json]
 ```
 
 Text mode shows `ID`, `Source`, `Title`, and `Path`, using `-` for an unknown title; for a workflow folder, `Path` is its entry file. With `--json`, the output is an object with a `workflows` array; each entry contains `id`, `source`, `layout` (`file` for a single `.py` file, `package` for a workflow folder), `title`, and `path` (the entry file), with an empty string for an unknown title. In either mode, warnings about skipped files go to stderr. Use `-h` / `--help` for help.
 
-### `icode workflow validate`
+### `aixcoding-cli workflow validate`
 
 Check a workflow before running it. The command loads the workflow as a run would and reports each problem with its file, line, and column, like a compiler.
 
 ```shell
-icode workflow validate <path> [--json]
+aixcoding-cli workflow validate <path> [--json]
 ```
 
 `<path>` is a workflow `.py` file or a [workflow folder](#workflow-folders), relative to the current directory. It does not have to be in a location AIxCoding-CLI searches. For a folder, `code-review`, `code-review/`, and `code-review/code-review.py` all check the folder.
 
-Validation runs the workflow's top-level code, as loading it in the TUI does, but it runs no node and calls no model. It does not ask for or record trust confirmation, so a later `icode workflow run` still needs `--trust` when the workflow is new or has changed.
+Validation runs the workflow's top-level code, as loading it in the TUI does, but it runs no node and calls no model. It does not ask for or record trust confirmation, so a later `aixcoding-cli workflow run` still needs `--trust` when the workflow is new or has changed.
 
 The checks run in this order and stop at the first one that fails:
 
@@ -892,19 +879,19 @@ Each item in `diagnostics` contains:
 | `2` | Argument parsing error |
 | `130` | The CLI caught a keyboard interrupt |
 
-### `icode workflow run`
+### `aixcoding-cli workflow run`
 
 Run the specified workflow and output its results when it finishes.
 
 #### Arguments
 
 ```shell
-icode workflow run <workflow-id> [--input TEXT] [-s SESSION] [--trust] [--timeout SECONDS] [--json] [-q]
+aixcoding-cli workflow run <workflow-id> [--input TEXT] [-s SESSION] [--trust] [--timeout SECONDS] [--json] [-q]
 ```
 
 | Argument | Default and purpose |
 | --- | --- |
-| `<workflow-id>` | File name without `.py`, or the folder name of a workflow folder; find IDs with `icode workflow list` |
+| `<workflow-id>` | File name without `.py`, or the folder name of a workflow folder; find IDs with `aixcoding-cli workflow list` |
 | `--input TEXT` | Defaults to an empty string, passed to the start node as `WorkflowValue.text` (see [multi-line input](#multi-line-input)) |
 | `-s` / `--session` | Load an existing workflow session and start a new run of its bound workflow; does not resume an old run. The session must be a workflow session with at least one run. `<workflow-id>` must match the session's workflow; otherwise the run is rejected with `spec_changed` |
 | `--trust` | Trust the current custom source and environment; unnecessary for built-in workflows |
@@ -918,13 +905,13 @@ icode workflow run <workflow-id> [--input TEXT] [-s SESSION] [--trust] [--timeou
 How to write line breaks in `--input` depends on the shell. In bash and zsh, use `$'...'` quoting with `\n`:
 
 ```shell
-icode workflow run demo-workflow --input $'interactive: false\ndepth: deep\nhow are errors handled?'
+aixcoding-cli workflow run demo-workflow --input $'interactive: false\ndepth: deep\nhow are errors handled?'
 ```
 
 In PowerShell, write each line break as `` `n `` inside double quotes:
 
 ```powershell
-icode workflow run demo-workflow --input "interactive: false`ndepth: deep`nhow are errors handled?"
+aixcoding-cli workflow run demo-workflow --input "interactive: false`ndepth: deep`nhow are errors handled?"
 ```
 
 PowerShell does not understand `$'...'`: it passes the text on as one line with a literal `\n`.

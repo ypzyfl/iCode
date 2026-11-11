@@ -1,110 +1,74 @@
 # Getting started with AIxCoding-CLI
 
-This tutorial shows how to install AIxCoding-CLI, configure a model, and use agents to complete a development task in a project.
+This tutorial shows how to install AIxCoding-CLI and use agents to complete a development task in a project.
 
 ## 1. Install AIxCoding-CLI
 
-Install AIxCoding-CLI with uv. If Python 3.14 is not on your system, uv downloads it for you:
+AIxCoding-CLI provides prebuilt offline packages for macOS, Linux and Windows. Each package already bundles Python and all runtime dependencies, so you do not need to install Python separately.
 
-```shell
-uv tool install iCode-TUI
-```
+In the commands below, `<version>` and `<architecture>` are placeholders. Replace them with the actual values from the filename you downloaded.
 
-To upgrade later, run `uv tool upgrade iCode-TUI`; when a newer version is out, the AIxCoding-CLI welcome screen tells you so. To remove AIxCoding-CLI, run `uv tool uninstall iCode-TUI`.
+### macOS
 
-Windows (x64) and Linux (x86-64 or ARM64, glibc 2.27 or later) need nothing else. On a Mac with Apple silicon, first install the Xcode Command Line Tools with `xcode-select --install`; uv uses them to build one dependency during installation.
-
-If you used an AIxCoding-CLI offline package before, remove it first with `icode uninstall` (see [Uninstall AIxCoding-CLI](#uninstall-aixcoding-cli)). If your version does not have that command, delete the folder it unpacked into: `~/Library/Application Support/pyapp/chrys` on macOS, `~/.local/share/pyapp/chrys` on Linux (or `$XDG_DATA_HOME/pyapp/chrys` if you set `XDG_DATA_HOME`), or `%LOCALAPPDATA%\pyapp\data\chrys` on Windows. Then delete `~/.local/bin/chrys` on macOS or Linux, or the `%LOCALAPPDATA%\chrys\bin` folder on Windows.
-
-If uv reports that `icode` already exists, an earlier AIxCoding-CLI offline install or another program with the same name is in the way. If it is an AIxCoding-CLI offline install, remove it as described above, then run the install command again.
-
-### Offline packages
-
-On an Intel Mac, Windows on Arm, an older Linux, or a device without internet access, use the prebuilt offline packages from the internal download root (`http://22.189.54.139/aixcoding/file/aixcoding`) instead. The packages include Python and every dependency, so you do not need to install Python separately.
-
-The install script picks the package for your computer, checks the download and installs it. Run the same command again later to upgrade. On macOS or Linux:
+Choose `aixcoding-cli-macos-aarch64-v<version>-offline.tar.gz` for Apple silicon or `aixcoding-cli-macos-x86_64-v<version>-offline.tar.gz` for Intel, then run the following in your download directory:
 
 ```bash
-curl -fsSL http://22.189.54.139/aixcoding/file/aixcoding/install.sh | sh
+tar xzf aixcoding-cli-macos-<architecture>-v<version>-offline.tar.gz
+chmod +x ./aixcoding-cli
+./aixcoding-cli install
 ```
 
-On Windows, in PowerShell:
+### Linux
 
-```powershell
-irm http://22.189.54.139/aixcoding/file/aixcoding/install.ps1 | iex
-```
-
-The script downloads from GitHub, and from GitCode if GitHub fails. If GitHub is slow or unreachable where you are, get the script from GitCode and download from there:
+Choose `aixcoding-cli-linux-x86_64-v<version>-offline.tar.gz` or `aixcoding-cli-linux-aarch64-v<version>-offline.tar.gz` for your processor, then run the following in your download directory:
 
 ```bash
-curl -fsSL http://22.189.54.139/aixcoding/file/aixcoding/install.sh | sh -s -- --source gitcode
-```
-
-```powershell
-$env:ICODE_SOURCE = "gitcode"; irm http://22.189.54.139/aixcoding/file/aixcoding/install.ps1 | iex
-```
-
-To install a particular version, end the command with `| sh -s -- --version 0.29.1` instead of `| sh`. On Windows, run `$env:ICODE_VERSION = "0.29.1"` first. A setting made with `$env:` lasts until you close that PowerShell window.
-
-On macOS and Linux, passing an empty value to `--version` or `--source` (for example, `--version ""` or `--source=`) stops installation with an error. If you pass a shell variable to either option, make sure it contains a value.
-
-To install by hand instead, download the package for your platform and follow the steps below. In the commands, `<version>` and `<architecture>` are placeholders. Replace them with the actual values in the downloaded filename.
-
-#### macOS
-
-Choose `icode-macos-aarch64-v<version>-offline.tar.gz` for Apple silicon or `icode-macos-x86_64-v<version>-offline.tar.gz` for Intel, then run the following in your download directory:
-
-```bash
-tar xzf icode-macos-<architecture>-v<version>-offline.tar.gz
-chmod +x ./icode
-./icode install
-```
-
-#### Linux
-
-Choose `icode-linux-x86_64-v<version>-offline.tar.gz` or `icode-linux-aarch64-v<version>-offline.tar.gz` for your processor, then run the following in your download directory:
-
-```bash
-tar xzf icode-linux-<architecture>-v<version>-offline.tar.gz
-chmod +x ./icode
-./icode install
+tar xzf aixcoding-cli-linux-<architecture>-v<version>-offline.tar.gz
+chmod +x ./aixcoding-cli
+./aixcoding-cli install
 ```
 
 The Linux x86-64 package requires glibc 2.17 or later, and the ARM64 package requires glibc 2.18 or later. Distributions that provide only musl, such as Alpine Linux, are not supported by the prebuilt packages.
 
-#### Windows
+The HTTP download root is `http://22.189.54.139/aixcoding/file/aixcoding`, which maps to the server directory `/homepage/aixcoding/`. The root holds `install.sh` and `install.ps1`; `channels/cli/prod.txt` and `channels/cli/test.txt` each hold one line with a full version number, and the packages are stored under `releases/cli/<full-version>/`. No FTP credentials are needed. macOS and Linux users can run the same command; the script detects the platform automatically and creates the `aixcoding` start command:
 
-Download and extract `icode-windows-x86_64-v<version>-offline.zip`, or `icode-windows-aarch64-v<version>-offline.zip` on Windows on Arm. Open PowerShell, go to the extracted directory, and run:
-
-```powershell
-.\icode.exe install
+```bash
+curl -fsSL -o install.sh 'http://22.189.54.139/aixcoding/file/aixcoding/install.sh' && bash install.sh
 ```
 
-The installer attempts to add AIxCoding-CLI to the current user's `PATH`. Open a new terminal after installation.
+By default the production package is installed; to install a test build, run `bash install.sh --channel test`. The CD pipeline uploads each platform's binary artifact separately and does not package the install scripts. Place the two install scripts in the HTTP root manually, put each platform's artifact ZIP under `releases/cli/<full-version>/`, and write the full version number into the matching channel file; the build wheel does not need to be uploaded to the HTTP mirror. If only Linux is built, the artifacts contain only the Linux binary package. The five platform package names are listed in the README installation table.
+
+### Windows
+
+In PowerShell, run the following command to install the current Windows x86-64 package from the production channel:
+
+```powershell
+irm 'http://22.189.54.139/aixcoding/file/aixcoding/install.ps1' | iex
+```
+
+To install a test build, run `$env:AIXCODING_CHANNEL='test'` first, then run the command above. The installer attempts to add AIxCoding-CLI to the current user's `PATH`. Open a new terminal after installation.
 
 ### Verify the installation
 
 ```shell
-icode --version
+aixcoding-cli --version
 ```
 
-The command should print the AIxCoding-CLI version number. If you installed with uv and your terminal cannot find `icode`, run `uv tool update-shell` and open a new terminal.
+The command should print the AIxCoding-CLI version number. On macOS or Linux, if your system cannot find `aixcoding-cli`, add `~/.local/bin` to `PATH` as the installer instructs; if the installer reported that `~/.local/bin/aixcoding-cli` already exists, that command starts another program; use the `chrys` command instead. On Windows, open a new terminal; if the installer reported that updating the user PATH failed, add `%LOCALAPPDATA%\chrys\bin` to your user `PATH` manually.
 
-With an offline package, if your system cannot find `icode` on macOS or Linux, add `~/.local/bin` to `PATH` as the installer instructs. If the installer reported that `~/.local/bin/icode` already exists, that command starts another program; use `chrys` instead. On Windows, open a new terminal; if the installer reported that updating the user PATH failed, add `%LOCALAPPDATA%\chrys\bin` to your user `PATH` manually.
+> **About the start commands**: `aixcoding-cli` is the standard start command for this tool; `aixcoding` (created automatically by the install script) and `chrys` (the historical command name) are fully equivalent to it — typing any of them starts the same program. This guide consistently uses `aixcoding-cli`.
 
 ### Uninstall AIxCoding-CLI
 
 Run:
 
 ```shell
-icode uninstall
+aixcoding-cli uninstall
 ```
 
-If you installed an offline package, the command lists what it will remove: the `icode` and `chrys` commands and the files the package unpacked. It removes them once you confirm. On Windows, it also removes AIxCoding-CLI from your user `PATH`, and the last files go a moment after the command exits. The package you downloaded stays where you saved it.
+If you installed an offline package, the command lists what it will remove: the `aixcoding-cli` and `chrys` commands and the files the package unpacked. It removes them once you confirm. On Windows, it also removes AIxCoding-CLI from your user `PATH`, and the last files go a moment after the command exits. The package you downloaded stays where you saved it.
 
-If you installed with uv, the command only shows what to run: `uv tool uninstall iCode-TUI`.
-
-AIxCoding-CLI keeps its data in `~/.chrys` (`%APPDATA%\chrys` on Windows): your settings, API keys, model profiles, agents, skills, sessions and more. Uninstalling keeps this folder. To delete it and everything in it as well, run `icode uninstall --purge`; if you save sessions in another folder, the `sessions` folder there is deleted too. If you installed with uv, do this before `uv tool uninstall`, while the `icode` command still exists. Add `--yes` to skip the confirmation.
+AIxCoding-CLI keeps its data in `~/.chrys` (`%APPDATA%\chrys` on Windows): your settings, API keys, model profiles, agents, skills, sessions and more. Uninstalling keeps this folder. To delete it and everything in it as well, run `aixcoding-cli uninstall --purge`; if you save sessions in another folder, the `sessions` folder there is deleted too. Add `--yes` to skip the confirmation.
 
 ## 2. Start AIxCoding-CLI in a project
 
@@ -114,42 +78,18 @@ In a terminal, go to the project directory and start AIxCoding-CLI:
 
 ```shell
 cd <project-directory>
-icode
+aixcoding-cli
 ```
 
 Replace `<project-directory>` with the actual path to your project. To switch directories after startup, see [Working directory](../guides/daily-use/workspaces.md).
 
-AIxCoding-CLI first prints `Starting AIxCoding...` and shows a loading screen while it gets ready. When the main screen appears, it keeps showing that it is loading until the agent is ready.
-
-## 3. Configure a model
-
-1. Press **F4** or click `f4 Models` at the bottom of the screen to open the **Model Configuration** dialog.
-2. Click **New**.
-3. Enter a **Profile Name** of your choice, such as `My Model`.
-4. In the **Model Options** section, select the **Provider** and **API Style**. Only OpenAI and DeepSeek (OpenAI) provide an API Style option. Before configuring it, check the model service's documentation for supported APIs and follow its recommendation when choosing **Chat Completions** or **Responses**. If the service supports only one API, select its corresponding style; if it supports both, choose according to the service's recommendation or your needs.
-5. Enter the model ID in the **Model** field, and fill in the **Base URL** and **API Key** fields as required by the model service. These field names start with the selected provider, for example **OpenAI Model**.
-6. Set **Max Context Window** and the **Max Output Tokens** field according to the model provider's documentation.
-7. Save the profile and close the dialog. If no model profile was previously available, this profile automatically becomes the active model profile.
-
-> **Tip**
->
-> An API key entered directly is stored locally in the model profile file. To avoid writing the key to that file, [provide the API key through an environment variable](../guides/configuration/models.md#provide-an-api-key-through-an-environment-variable).
-
-### Verify the model connection
-
-Submit the following in the input field:
-
-```text
-Hello
-```
-
-AIxCoding-CLI should reply with a greeting. If the model service returns an error, check the model profile again, including the model ID, base URL, and API key.
+AIxCoding-CLI first prints `Starting AIxCoding-CLI...` and shows a loading screen while it gets ready. When the main screen appears, it keeps showing that it is loading until the agent is ready.
 
 While an agent runs, the status bar above the input shows elapsed time, tool calls and, while text is arriving, its speed. Long runs include hours and days, for example `1d 4h 20m 50s`. Tool cards, background tasks, CLI progress, and the F12 timing dashboard also support days; compact displays keep only the largest time units.
 
 Once the agent answers, the answer's header shows how long the whole turn took, for example `Code Agent - 2:04 AM (6m 5s)`: from when you sent your message, or clicked **Continue** or **Retry**, to the answer, including the time the agent waited for your approval or reply. A message you send while the agent works doesn't restart it. It shows the same when you reopen the session.
 
-## 4. Use agents
+## 3. Use agents
 
 ### Select an agent
 
@@ -207,11 +147,11 @@ In other multi-line fields, **Enter** and **Shift+Enter** start a new line. In t
 
 ### Attach images, quote the conversation and paste long text
 
-Paste a screenshot or an image, or drop an image file into the message box, and it shows as **[Image #1]**. To quote part of the conversation, select it with the mouse and click **Quote** when it appears; **[Quote #1]** is added where the cursor is. Long pasted text, more than 800 characters or four lines or more, shows as **[Pasted text #1 +3 lines]**. Keep typing around them as usual; each message numbers each kind from 1.
+Paste a screenshot or an image, or drop an image file into the message box, and it shows as **[Image #1]**. To quote part of the conversation, select it with the mouse and click **Quote** when it appears; **[Quote #1]** is added where the cursor is. Long pasted text, more than 800 characters or six lines or more (fewer in a very short terminal), shows as **[Pasted text #1 +5 lines]**. Keep typing around them as usual; each message numbers each kind from 1.
 
-Click a label to see what it stands for: an image shows its file path and the picture, a quote or pasted text shows the whole text. A label is edited as one piece: the cursor steps over it, and Backspace or Delete removes all of it. The full-screen prompt editor (Ctrl+O) works the same way, labels included.
+Click an image or quote label for a read-only preview. A label is edited as one piece: the cursor steps over it, and Backspace or Delete removes all of it. Click a pasted-text label to edit that text in the prompt editor; it stays folded while it is still long. Press **Ctrl+O** to open the prompt editor on the full text to be sent: save without changes to keep the labels; after any change, the message box shows the full text. Press **Ctrl+Z** to undo a save that changed the message.
 
-When you send, each label is replaced by what it stands for: the images go to the model with your message, pasted text goes back where its label was, and a quote of one line goes in its place inside quotation marks. A quote of several lines goes on lines of its own as a block quote, so any headings, lists or code in it stay inside the quote. A quote is what someone else said, so an `@file` or `` !`command` `` in it does nothing: it is sent with a backslash in front so it stays plain text. Pasted text counts as your own words and works like typed text. Your message, and what you bring back with the Up arrow or from prompt history, shows that full text rather than the labels. After you send a message, press **Ctrl+Z** in the empty message box to get the whole message back, labels included.
+When you send, each label is replaced by what it stands for: the images go to the model with your message, pasted text goes back where its label was, and a quote goes on lines of its own as a block quote, so any headings, lists or code in it stay inside the quote. A quote is what someone else said, so an `@file` or `` !`command` `` in it does nothing: it is sent with a backslash in front so it stays plain text. Pasted text counts as your own words and works like typed text. Your message, and what you bring back with the Up arrow or from prompt history, shows that full text rather than the labels. After you send a message, press **Ctrl+Z** in the empty message box to get the whole message back, labels included.
 
 ### Read and copy replies
 
@@ -221,7 +161,7 @@ Lists and quotes can contain headings, tables, code and formulas.
 
 Single-line math is written with `$...$` or `\(...\)`. Display formulas in `math` code blocks, `$$...$$` or `\[...\]` can show fractions, matrices and aligned equations. Ordinary text, prices and shell variables keep their Markdown formatting. Formulas that are unsupported or too wide are shown as complete, wrapped source.
 
-For example, `$x^{n+1}$` displays as xⁿ⁺¹ and `$90^\circ$` as 90°.
+For example, `$x^{n+1}$` displays as xⁿ⁺¹ and `$90^\circ$` displays as 90°.
 
 Mermaid code blocks appear as diagrams; choose **Open full diagram** to view and scroll the full result. Some diagrams are simplified with a notice; unsupported diagrams stay as source.
 
@@ -229,18 +169,17 @@ When the model service returns readable thinking, a folded row above the reply s
 
 Mouse selection copies what is displayed, without adding newlines for screen wrapping. Use **Copy** beside the message header to copy the original Markdown and LaTeX. Reopening an older conversation uses the current rendering.
 
-## 5. End the session
+## 4. End the session
 
 To finish using AIxCoding-CLI, type `/exit` or press `Ctrl+Q` to exit.
 
-## Next steps
+## 5. Next steps
 
-You have installed AIxCoding-CLI, configured a model, and learned the basics of Q&A Agent and Code Agent, including how to use them together in the same session to complete a development task.
+You have installed AIxCoding-CLI and learned the basics of Q&A Agent and Code Agent, including how to use them together in the same session to complete a development task.
 
 You can continue exploring:
 
 - [Configure agents](../guides/configuration/agents.md) to create or modify agents and set their instructions, models, tools, and sub-agents
-- [Configure models](../guides/configuration/models.md) to connect to and switch between model services
 - [Working directory](../guides/daily-use/workspaces.md)
 - [Configure approval modes](../guides/configuration/approval.md)
-- Extend AIxCoding-CLI with [Skills](../guides/extensions/skills.md), [MCP](../guides/extensions/mcp.md), and [Python extensions](../guides/extensions/python-extensions.md)
+- Extend AIxCoding-CLI with Skills and MCP

@@ -27,7 +27,7 @@ After adding or editing a theme file, run `/reload` while the TUI is idle and th
 
 ## File Format
 
-The following example defines a custom dark theme in `icode-ocean.yaml`:
+The following example defines a custom dark theme in `aixcoding-cli-ocean.yaml`:
 
 ```yaml
 # Overall palette

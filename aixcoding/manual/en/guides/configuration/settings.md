@@ -110,7 +110,7 @@ This tab selects existing agent or model profiles; it does not edit them. For th
 | --- | --- | --- |
 | Default approval mode | Sets the default approval mode for the next AIxCoding-CLI launch; it does not affect the current session. Only `manual` and `auto` are offered; to bypass approval in the current session, use `/approval bypass`. For switching the current session's mode and the differences between modes, see [Configure approval modes](./approval.md). | Saved immediately; applies at the next launch |
 | Automatic review strategy | **Direct review** (default) lets the model judge the action as a whole. **Individual risk checks** ask you to confirm detected risks such as file deletion or code publication. Used only in automatic mode. See [Choose how automatic review works](./approval.md#choose-how-automatic-review-works). | After closing Settings |
-| Human approval timeout (seconds) | Defaults to `0` (no timeout); positive values set a deadline in seconds. Negative values are adjusted to `0`. Applies to TUI and ACP human approvals. Timeout rejects the call. | After restarting AIxCoding-CLI |
+| Human approval timeout (seconds) | Defaults to `0` (no timeout); positive values set a deadline in seconds. Negative values are adjusted to `0`. Applies to TUI human approvals; a timeout rejects the call. | After restarting AIxCoding-CLI |
 | Show the approval dialog only when Auto-Review flags a call | On by default. In automatic mode, no dialog opens while the approval judge model evaluates a call, and calls it judges safe run without one; the dialog opens only for flagged calls or when evaluation fails. When disabled, the dialog opens at once and shows **Evaluating**, so you can decide before evaluation finishes. Requests already waiting keep the behavior they started with. See [Handle approval requests in the TUI](./approval.md#handle-approval-requests-in-the-tui). | Immediately |
 
 #### Project trust
@@ -127,7 +127,7 @@ Project settings, hooks, and skills come with the repository you open, so all th
 
 | Setting | Effect and notes | Takes effect |
 | --- | --- | --- |
-| Credential command refresh interval (seconds) | How often AIxCoding-CLI runs a `{{!command}}` value again, at least 60 seconds. The default is 3600 (one hour). A key the service refuses is replaced at once, whatever this says. See [Get an API key from a command](./models.md#get-an-api-key-from-a-command). | After restart |
+| Credential command refresh interval (seconds) | How often AIxCoding-CLI runs a `{{!command}}` value again, at least 60 seconds. The default is 3600 (one hour). A key the service refuses is replaced at once, whatever this says. See Get an API key from a command. | After restart |
 
 #### Diagnostics
 
@@ -151,16 +151,6 @@ For non-streaming Chat Completions, an error in `choices[].error` fails the whol
 When an in-band error omits `code`, AIxCoding-CLI uses its native `type`: for example, `billing_error` and `authentication_error` stop automatic retries, while `overloaded_error` remains retryable. A recognized canonical `error_type` still takes precedence.
 
 Ordinary 500/502/503 errors remain retryable. A 403 without content-filter evidence remains an authorization failure. OpenRouter's temporary `openrouter_in_flight_budget` response is retryable when accompanied by a positive `Retry-After`; exhausted account or workspace budgets are not. If ordinary task content is blocked, contact the provider with the request ID: the response may omit the exact matched text, and a client cannot infer it from the status alone.
-
-#### Telemetry
-
-| Setting | Effect and notes | Takes effect |
-| --- | --- | --- |
-| OpenTelemetry export | Enables telemetry to record traces, logs, and metrics. When disabled, the other two settings do not cause AIxCoding-CLI to save or send telemetry. | After restart |
-| Telemetry endpoint | Sets the address of the collector that receives telemetry. With no endpoints configured through settings or environment variables, only traces and logs are saved locally. Configuring any endpoint stops local storage, with no local fallback if export fails. | After restart |
-| Include sensitive data in telemetry | Additionally records prompts, model responses, tool arguments, and tool results in both local storage and remote export. Tool duration metrics may also contain tool arguments. Before enabling this, confirm where the data will go and who can access it. | After restart |
-
-For telemetry data types, storage locations, endpoint precedence, and collector connections, see the OpenTelemetry reference.
 
 ### Sessions
 
@@ -194,7 +184,7 @@ For telemetry data types, storage locations, endpoint precedence, and collector 
 
 | Setting | Effect and notes | Takes effect |
 | --- | --- | --- |
-| Image size limit (KB) | The largest an image's file can be when it is sent to the model, from 32 to 3072 KB. The default is 256. In the request an image takes about a third more than its file, since it is sent as text. A larger image that you attach, that the agent views, or that an ACP client sends is compressed to a JPEG within the limit; the image file itself is not changed. Each new turn and each retry also compresses the images sent earlier in the session that are larger than the limit, and the session keeps the compressed copies, so an image that an MCP tool returns is compressed from the next turn or retry on. If a request with images fails because it is too large, for example with an HTTP 413 error from a gateway, lower the limit and retry. With a lower limit the model sees less detail in each image. | On close |
+| Image size limit (KB) | The largest an image's file can be when it is sent to the model, from 32 to 3072 KB. The default is 256. In the request an image takes about a third more than its file, since it is sent as text. A larger image that you attach or that the agent views is compressed to a JPEG within the limit; the image file itself is not changed. Each new turn and each retry also compresses the images sent earlier in the session that are larger than the limit, and the session keeps the compressed copies, so an image that an MCP tool returns is compressed from the next turn or retry on. If a request with images fails because it is too large, for example with an HTTP 413 error from a gateway, lower the limit and retry. With a lower limit the model sees less detail in each image. | On close |
 
 #### Web search
 
@@ -218,7 +208,7 @@ Values are checked with the same rules the web tools use before they are saved, 
 | Setting | Effect and notes | Takes effect |
 | --- | --- | --- |
 | Show questions in the chat | When enabled, the agent's questions appear directly in the conversation. When disabled, they appear in a popup. | On close |
-| Ask-user timeout (seconds) | Sets how long AIxCoding-CLI waits for an answer. When left blank, it uses the default value shown in the TUI. If no answer arrives before the timeout, AIxCoding-CLI returns a timeout result to the agent. Set to `0` to wait until an answer arrives or the task is interrupted. When using an ACP client such as an IDE plugin, `ask_user` has no server-side time limit by default; to set one, use `--ask-user-timeout` when starting the ACP server. | On close |
+| Ask-user timeout (seconds) | Sets how long AIxCoding-CLI waits for an answer. When left blank, it uses the default value shown in the TUI. If no answer arrives before the timeout, AIxCoding-CLI returns a timeout result to the agent. Set to `0` to wait until an answer arrives or the task is interrupted. | On close |
 
 #### Workspace notice
 

@@ -64,12 +64,12 @@ This example omits `id`. AIxCoding-CLI assigns a stable ID and writes it back to
 Save the profile as `Reviewer.yaml` in the [user agent profile directory](#user-agent-profile-directory). Run the following command to confirm that it loads:
 
 ```bash
-icode agent list
+aixcoding-cli agent list
 ```
 
 If "Code review" appears in the list, the profile has loaded. If it does not appear, check the YAML parsing or field validation warnings shown at startup, and confirm that the file is in the user agent profile directory.
 
-`icode agent list` and `icode model list` read your user configuration without requiring a working directory. They also work if the directory you launched them from has been deleted.
+`aixcoding-cli agent list` and `aixcoding-cli model list` read your user configuration without requiring a working directory. They also work if the directory you launched them from has been deleted.
 
 ## Top-level fields
 
@@ -79,8 +79,8 @@ If "Code review" appears in the list, the profile has loaded. If it does not app
 | `id` | String | Assigned automatically | Stable identifier. If omitted or empty, AIxCoding-CLI automatically assigns a 12-character hexadecimal ID: it reuses the built-in agent's ID when the names match, or generates a new ID otherwise. You can also specify a unique ID manually; quote an ID made only of digits, such as `id: "123"`, because an unquoted one is read as a number and the profile fails to load. When copying and modifying an existing profile to create a new one, remove the `id` field so AIxCoding-CLI can assign a new ID. |
 | `display_name` | String | Empty | Display name. |
 | `description` | String | Empty | Describes the agent's purpose. Also used as the default tool description for a sub-agent when none is specified. |
-| `sub_agent_only` | Boolean | `false` | If `true`, the agent cannot be selected as the main agent and can only be called by other agents. Forced to `true` for external ACP agents. |
-| `instructions` | String or list of strings | Empty | Main behavioral instructions for agents of the built-in type. A list is joined into one text, one item per line. External ACP profiles ignore this field. |
+| `sub_agent_only` | Boolean | `false` | If `true`, the agent cannot be selected as the main agent and can only be called by other agents. |
+| `instructions` | String or list of strings | Empty | Main behavioral instructions for agents of the built-in type. A list is joined into one text, one item per line. |
 | `model` | Object | `{}` | Binds a model profile. See [model](#model). |
 | `tools` | Object | `{}` | Configures built-in tools, MCP, and shell filtering. See [tools](#tools). |
 | `extensions` | List of strings | `[]` | The Python extensions the agent loads. See [extensions](#extensions). |
@@ -89,7 +89,6 @@ If "Code review" appears in the list, the profile has loaded. If it does not app
 | `memory` | Object | `{}` | Configures reference files to load automatically. See [memory](#memory). |
 | `compaction` | Object | See below | Configures context compaction. See [compaction](#compaction). |
 | `sub_agents` | Object | See below | Configures callable sub-agents. See [sub_agents](#sub_agents). |
-| `acp` | Object | Disabled | The presence of this field makes the profile an external Agent Client Protocol (ACP) agent. See [acp](#acp). An empty object (`acp: {}`) or an empty value (`acp:` or `acp: null`) also enables this type, but the agent cannot start without `command`. |
 
 ## model
 
@@ -106,7 +105,7 @@ model:
 
 If `profile_id` is omitted, empty, or not found among the loaded model profiles, the main agent uses the model profile currently active in the session, and a sub-agent inherits the model profile actually used by its parent. AIxCoding-CLI also logs a warning when the ID cannot be found.
 
-Run `icode model list` to find stable model profile IDs in the `ID` column. For model configuration instructions, see [Configure models](../guides/configuration/models.md).
+Run `aixcoding-cli model list` to find stable model profile IDs in the `ID` column. For model configuration instructions, see [Configure models](../guides/configuration/models.md).
 
 ## tools
 
@@ -157,7 +156,7 @@ tools:
         Authorization: "Bearer {{MCP_API_TOKEN}}"
 ```
 
-Both `env` and `headers` are key-value mappings: enter the variable or header name on the left and its value on the right. You can specify values directly, use `{{ENV_VAR}}` to reference an environment variable set before starting AIxCoding-CLI, or use `{{!command}}` to use what a command prints (see [Get an API key from a command](../guides/configuration/models.md#get-an-api-key-from-a-command)). If a variable referenced in `env` is missing or empty, or a command fails the first time, the server connection fails. For `headers`, placeholders are resolved and this rule applies only when `resolve_header_templates` is `true`.
+Both `env` and `headers` are key-value mappings: enter the variable or header name on the left and its value on the right. You can specify values directly, use `{{ENV_VAR}}` to reference an environment variable set before starting AIxCoding-CLI, or use `{{!command}}` to use what a command prints (see Get an API key from a command). If a variable referenced in `env` is missing or empty, or a command fails the first time, the server connection fails. For `headers`, placeholders are resolved and this rule applies only when `resolve_header_templates` is `true`.
 
 | Field | Type | Default | Applies to | Description |
 | --- | --- | --- | --- | --- |
@@ -288,7 +287,7 @@ Each entry in `providers` supports these fields:
 
 `exa_mcp`, `bing_html`, `duckduckgo_html`, and `keenable` accept only `type`.
 
-A complete `custom_http` example for the DeepSeek Search API is in [Configure web tools](../guides/configuration/web-tools.md#deepseek-search-api). See DeepSeek's documentation for the models and billing that support its server-side `web_search`.
+A complete `custom_http` example for the DeepSeek Search API is in [Configure web tools](../guides/configuration/web-tools.md#configure-web-tools). The models and billing supported by DeepSeek's server-side `web_search` are subject to DeepSeek's official documentation.
 
 ### tools.web_fetch
 
@@ -524,45 +523,8 @@ sub_agents:
 
 The **Agent Configuration** window in the TUI checks the concurrency values and the `tool_name` format when saving; AIxCoding-CLI does not check them when loading a YAML file you edited by hand. A concurrency value of `0` or less makes every call to the affected sub-agents fail.
 
-Tool calls within non-ACP sub-agents use the parent agent's `approval` configuration. The sub-agent's own `approval` configuration does not affect these calls.
+Tool calls within sub-agents use the parent agent's `approval` configuration. The sub-agent's own `approval` configuration does not affect these calls.
 
-A non-ACP sub-agent returns its final reply to the parent agent, without the text it wrote between tool calls. If the final reply has no text, it returns all the text it wrote, in order. An ACP sub-agent returns what [`result_mode`](#acp) selects.
+A sub-agent returns its final reply to the parent agent, without the text it wrote between tool calls. If the final reply has no text, it returns all the text it wrote, in order.
 
-For configuration instructions and call verification, see [Configure agents](../guides/configuration/agents.md#configure-sub-agents-for-an-agent).
-
-## acp
-
-When `acp` appears at the top level, the profile becomes an external ACP agent and is forced to be available only as a sub-agent. The external process determines its task instructions, model, and tools.
-
-External ACP agents do not use `instructions`, `model.profile_id`, `tools`, `extensions`, `skills`, `memory`, `compaction`, `approval`, or `sub_agents` from the current profile. These settings do not affect the external agent's behavior.
-
-```yaml
-name: ExternalReviewer
-display_name: External review agent
-description: Call an external review program through ACP
-acp:
-  command: example-agent
-  args: [acp]
-  env:
-    API_KEY: "{{EXAMPLE_API_KEY}}"
-  result_mode: last_segment
-```
-
-| Field | Type | Default | Description |
-| --- | --- | --- | --- |
-| `command` | String | Empty | Executable name or path. Required to start the external agent. An empty value can be loaded but cannot be started. Cannot contain NUL. Do not append arguments to this field. |
-| `args` | List of strings | `[]` | Arguments passed individually to the process. Cannot contain NUL. |
-| `env` | String-valued object | `{}` | Environment variables passed to the process. Names must follow environment variable naming rules and be unique ignoring case. `CHRYS_ACP_SUBAGENT_DEPTH` is reserved for AIxCoding-CLI. |
-| `cwd` | String | Empty | The external agent's working directory. If empty, uses the current AIxCoding-CLI session's working directory. Relative paths are resolved against that session directory. |
-| `allow_external_cwd` | Boolean | `false` | Whether to allow the external agent to run outside the current session's working directory and its subdirectories. Defaults to `false`: a `cwd` outside the allowed directory scope causes an error and prevents startup; AIxCoding-CLI does not fall back to the default directory. This option only controls startup directory validation, not the external agent's file access permissions. |
-| `session_mode` | String | Empty | Session mode ID to request from the external agent. |
-| `model_id` | String | Empty | Model ID to request from the external agent on a best-effort basis. |
-| `config_options` | Object | `{}` | External agent configuration options. Keys must be non-empty strings; values can only be strings or booleans. |
-| `best_effort_options` | Boolean | `false` | Whether to ignore session modes and configuration options that the external agent does not support and continue connecting. |
-| `result_mode` | `last_segment` or `transcript` | `last_segment` | Returns the last message segment or the full transcript to the parent agent. |
-| `handshake_timeout_seconds` | Number | `30.0` | Timeout in seconds for starting, initializing, and opening a session. Must be greater than `0`. Invalid YAML values fall back to the default with a warning. |
-| `idle_timeout_seconds` | Number | `600.0` | Timeout in seconds for inactivity during a call. `0` means no timeout; cannot be negative. Invalid YAML values fall back to the default with a warning. |
-
-**Directory scope for `allow_external_cwd`**: If an ACP client creates the AIxCoding-CLI session and supplies additional working directories, the external agent can run in those directories and their subdirectories even when `allow_external_cwd` is `false`.
-
-`command`, `args`, values in `env`, and `cwd` can use `{{ENV_VAR}}` to reference environment variables from the AIxCoding-CLI process. Missing or empty variables cause startup to fail. `args` and values in `env` can also use `{{!command}}`, which runs each time the external agent starts; `command` and `cwd` cannot. For connection tests, working directory security boundaries, and how configuration options are applied, see Configure external ACP agents.
+For configuration instructions and call verification, see [Configure agents](../guides/configuration/agents.md#configure-agents).
