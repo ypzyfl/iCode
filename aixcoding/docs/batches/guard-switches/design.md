@@ -41,7 +41,7 @@ rules.json（随包，每次启动重装）         guard_state.json（现场，
    `if not config.write_scope_restricted: return []`（状态可覆盖出厂值），
    函数体内的路径比较保留我方 `_canonical_scope()` 的符号链接 / junction 解析。
 3. **出厂值**：`rules.json` 的 `allow_outside_workspace` 改 `true`（裁决 C1，
-   见 `adr/0001-guard-write-scope-factory-default.md`）。
+   见 `standards/adr/0023-guard-write-scope-factory-default.md`）。
 4. **管理入口**：`pack/guardctl.py`（标准库、3.9+、零耦合）原样移植，改 4 处：
    模块路径文案、`# ty: ignore[unresolved-import]`、状态文件环境变量随
    `_guard_core.STATE_PATH_ENV`、文档命令形态。
@@ -126,5 +126,5 @@ rules.json（随包，每次启动重装）         guard_state.json（现场，
 - ④ 依赖上游非公开接口或行为 → 否（`bootstrap_runtime` / `get_platform` /
   hatch 打包均为公开或已在 `batches/guard-hooks` 登记）。
 
-结论：①③ 成立 → 本批次出 `adr/0001-guard-write-scope-factory-default.md`
-（功能级决策，落 `batches/guard-switches/adr/`）。
+结论：①③ 成立 → 决策记录为 `standards/adr/0023-guard-write-scope-factory-default.md`
+（ADR-0023；由批次功能池迁入全局单池，决策正文不变）。

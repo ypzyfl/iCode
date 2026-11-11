@@ -18,6 +18,10 @@
 刻意选择——单 server + 单 env 覆盖登录、目录、LLM chat。`--no-auth` + 独立 auth mock
 的拆用形态保留。
 
+**LOCAL 默认不自动同步模型目录**（`[model_catalog] auto_sync`，批次 catalog-auto-sync）：
+LOCAL 档模型文件默认由开发者自管（手放 yaml 指向真实端点）；要演练目录同步链路，在
+`aixcoding.toml` 显式设 `auto_sync = true`。操作细节见 `model_catalog/README.md`。
+
 ## 组合启动器（一键联调）
 
 ```bash

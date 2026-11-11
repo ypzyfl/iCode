@@ -8,6 +8,11 @@
 本六件套按实际终态回写；design.md 待责任人签认，签认后进入收尾清单（R3 标记 / 登记 /
 双 AI 评审 / 门禁总检）。当前分支：`fork/user-manual`。
 
+**当前状态（2026-11-11 同步）**：批次已完结——design/self-review 已签认（赵阔 2026-11-10，
+见下方待办与裁决记录），收尾清单（R3 标记 / 登记 / 双 AI 评审 / 门禁总检）全部完成，
+PR #111 已合并（merge commit `9d824cb5`）。分支 `fork/user-manual` 按裁决 #7 长期存续，
+作为后续手册批次承载分支；遗留两项（Linux 侧门禁回填豁免、双轨同源对账）见文末待办。
+
 ## 待办
 
 - [x] 实施主体（已随升级与手册两轮交付完成）：
@@ -60,7 +65,8 @@
   正式输出待 Linux/CI 侧补（aixcoding-upstream-ci 桥接的 build+wheel 探测 job）。
 - **vendored rg.exe**：gitignore 资产，每台开发机首次需跑 `scripts/fetch_rg.ps1`，否则
   search_renderers 相关上游测试必挂（本机 2026-11-10 已修复，见 verification）。
-- **手册对齐流程（每次升级固定步骤）**：`git diff <旧tag> <新tag> -- docs` 逐篇评估 →
+- **手册对齐流程（独立手册批次，2026-11-11 责任人裁决）**：追上游批次不再固定处理手册内容；
+  需要跟进上游 `docs/` 时另开手册批次：`git diff <旧tag> <新tag> -- docs` 逐篇评估 →
   内容性定制重放（去链清单 + 措辞清单 + `check_links.py` 门禁）→ manual 提交 → 重出 wheel/PDF。
 - **双轨同源对账（增量复审 N3 遗留，下个手册批次做）**：本批次"PDF 不需重出"依据是桌面版
   此前已单独去链 + chat-options 为 manual 树独有章节，但从未从 manual 树重出桌面版做全等

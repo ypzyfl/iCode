@@ -26,6 +26,40 @@ uv run python aixcoding/mock/model_catalog/server.py --no-auth  # 只挂目录�
 AIXCODING_ENVIRONMENT=local uv run aixcoding-cli
 ```
 
+## LOCAL 的模型目录：默认自管（auto_sync）
+
+mock 目录下发的模型 `apiBase` 指向 mock 自身，`/v1/chat/completions` 只回固定文本——
+**mock 模型不能真实推理**。因此 LOCAL 档**默认不自动同步模型目录**（批次
+`catalog-auto-sync`），由 `aixcoding.toml` 的 `[model_catalog] auto_sync` 控制：
+
+| 配置 | 行为 |
+|---|---|
+| 未设置 | local 不同步（默认）；dev/prod 自动同步（现状不变） |
+| `auto_sync = true` | 任意档自动同步——LOCAL 恢复 mock 同步走这条 |
+| `auto_sync = false` | 任意档都不同步（dev/prod 下慎用：不再接收服务端模型更新） |
+
+**自管模型**：往模型目录（`~/.chrys/models/`；Windows 为 `%APPDATA%\chrys\models\`）
+放自己的 `*.yaml`（指向真实可用的 OpenAI 兼容端点，字段含 `id` / `name` / `provider` /
+`model_id` / `base_url` 等），TUI 启动即加载；不登录、不起 mock 也不受影响，文件不会被
+覆盖删除。TUI 模型管理界面仍全局只读（集中管理政策不变），自管通道就是文件系统。
+
+**恢复自动同步（测 catalog 同步链路）**：
+
+```toml
+[model_catalog]
+auto_sync = true
+```
+
+然后起 mock、登录——启动 / 登录后 / 15 分钟轮询三条路径与故障六模式照旧可验。
+
+**从"已同步过"回到自管**：同步成功会写 `.catalog-state.json`，此后目录粘滞为
+server-owned（auto_sync 关后不再轮询、内容保留，但名义上不归你）。显式恢复 = 删状态文件
++ 删除或替换 mock 下发的模型 yaml，再重启 TUI（Windows 示例）：
+
+```console
+del "%APPDATA%\chrys\models\.catalog-state.json"
+```
+
 ## 端点
 
 | 方法 | 路径 | 说明 |

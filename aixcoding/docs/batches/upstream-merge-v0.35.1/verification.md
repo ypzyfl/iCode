@@ -21,7 +21,7 @@
 | 打包 `uv build` + `check_wheel.py`（merge 带入 hatch hook/mo 入 wheel 新链路） | **通过**（wheel 构建 + 安装探测 + mo 随包与安装态翻译校验） | 复查补强 |
 | 依赖对齐 `uv sync --frozen` | 已对齐（CPython 3.14.10 / icode-tui 0.35.1 / babel 2.18.0；uv 升 0.13.7） | — |
 | TUI 冒烟 | **通过**：headless `--version`=0.35.1；责任人双窗口人工验证启动/F6 aixcoding tab/登录徽标与命令/F4 禁用无问题；discard 入口因模型同步不可用改自动化验证——上游 rollback/discard 相关 8 个 TUI 测试文件 **153 passed**（中断卡片 Discard 按钮、消息头入口、范围预览与确认链） | test-plan 手工步骤 + rollback_smoke 复跑 |
-| PR 双 CI | 待 PR | — |
+| PR 双 CI | PR #105 双 CI 绿后合并（merge commit `b2899590`；2026-11-11 回填） | GitHub checks |
 
 ## 二、冲突点全清单 + 逐点处理意见（runbook §5 交付物 1）
 
@@ -172,7 +172,7 @@ marker 138 = 升级前 137 − 1（C028）+ 2（C143/C144）；退役累计 6。
 
 ## 八、遗留项（收尾跟踪）
 
-- PR 双 CI 待 push 后跑（aixcoding-tests + 上游 ci.yml 桥接）；
+- ~~PR 双 CI 待 push 后跑（aixcoding-tests + 上游 ci.yml 桥接）~~ 已完成：PR #105 双 CI 绿后合并（merge commit `b2899590`）；
 - ~~TUI 人工冒烟~~ **已闭环**（2026-11-09：人工四项无问题；discard 入口自动化 153 passed）；
 - **R3 + mo 禁跟踪测试复跑**：merge add/rm 后中间态信号（mo UD）收敛确认，随收尾执行；
 - 本机 31 个 WinError 448 环境族：若需本地全绿，由责任人评估本机 junction 策略/nvm
