@@ -74,3 +74,22 @@
 - 责任人待办：签认 design.md（R2 批准的书面落盘，含 docs 8 文件）与本记录；提交通知后
   按显式路径提交（排除 `aixcoding-launch.py`；docs 8 文件当前为 staged 状态，系
   `git checkout v0.35.2 -- <paths>` 的副作用，内容为官方原文）。
+
+## 2026-11-11 第三轮 peer review 结论：approve（评审后收尾）
+
+- 评审 AI：**CodeBuddy（GLM-5.3）**——与第 1/2 轮评审 AI（Claude Code / GLM-5.3-flash）不同
+  工具；如实声明：与开发 AI 同工具、不同模型（双 AI 规则按"不同源工具"判定下成立，如实记录）。
+- 评审对象：`d031e28b`（47 文件批次主提交）+ `c787fdde`（签认提交，无夹带）。
+- 结论：**approve**。R2/R11 零越权、closure 复跑 OK、上游接触面 `git diff v0.35.2 -- docs`
+  复跑为空（纯官方镜像）、4 项证据抽查全部复现（归零断言 / strict 109 行 / 契约测试 26
+  passed / 官方 6 处关键词命中）、F1 扩围与 en 27 逐文件对名吻合、F2/F4 修复属实、F3/F5
+  不修合理、N1-N4 处置链完整、无新 blocker。
+- 新 findings 处置：
+  - **nit-1｜plan/self-review 状态行滞后** → **已修复**：plan 待办三项（复审/签认/提交）回填
+    `[x]` 并附落地提交号；本记录即收尾回填。
+  - **观察-2｜部分验收证据依赖已清理的 `.tmp_*` 临时脚本，无法原样复跑** → **知悉，规则化**：
+    沉淀为 SKILL §十.3 新规则（验收证据须可复跑：要么常驻 `aixcoding/tools`，要么在
+    verification 留最小可复现命令）。
+  - **观察-3｜存量 OpenTelemetry 残留（`manual/index.yaml:12`、`en/reference/settings.md`）**
+    → **知悉不处置**：均在 d031e28b hunk 范围外（前批次引入，后者为真实配置项名），不属本
+    批次范围。

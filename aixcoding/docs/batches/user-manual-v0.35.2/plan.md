@@ -33,10 +33,13 @@ design.md 待责任人签认（签认字段 AI 不代填）。当前分支：`fo
 - [x] 双 AI 评审第一轮（Claude Code / GLM-5.3-flash；1 blocker + 1 suggestion + 3 nit）
 - [x] **F1 扩围处置（评审后）**：六件套如实登记 en 追平 22 整文件 + 混入 hunk + zh CHANNEL
       处（requirements/design/plan/verification 补录；F2 清单补正，F3/F4 修正，F5 登记不修）
-- [ ] 复审增量（同一评审 AI 只审补录增量）→ self-review.md 回填
-- [ ] design.md / self-review.md 责任人签认
-- [ ] 提交/推送：待责任人逐条授权（git 写操作逐条授权铁律）；提交限显式路径，
-      `aixcoding-launch.py` 等根目录杂物显式排除
+- [x] 复审增量（同一评审 AI 只审补录增量）→ self-review.md 已回填（第 2 轮通过）
+- [x] design.md / self-review.md 责任人签认（赵阔 2026-11-11，落盘 `c787fdde`）
+- [x] 提交/推送：显式路径提交 `d031e28b`（47 文件）+ 合并 main `fe734863` + 签认 `c787fdde`；
+      `aixcoding-launch.py` 未入库（工作区已消失，评审 F5 风险自动消解）
+- [x] PR #117（`docs/manual-0.35.2` → `main_aixcoding_cli`）已建：CI 全绿 + 审核人 approve 后合并
+- [x] 第三轮 peer review（CodeBuddy / GLM-5.3，与开发 AI 同工具不同模型）**approve**：
+      2 nit + 2 观察级，均不阻塞；本回填即 nit-1 的落实
 
 ## 责任人裁决记录（2026-11-11）
 
