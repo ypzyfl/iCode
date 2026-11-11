@@ -92,10 +92,10 @@ def test_c060_c061_builtin_agent_self_reference() -> None:
         assert '"iCode"' not in instructions
 
 
-def test_c062_serve_banner_is_ascii_aixcoding() -> None:
+def test_c146_serve_banner_gbk_safe_block_aixcoding() -> None:
     banner = serve_cli._icode_serve_logo()
-    assert "####   ##     ##  #     #  #  #  #   ##   # ##  # ##" in banner
-    assert "░" not in banner
+    assert "██████  ██  █▄ ▄█ ██     ▄███▄ ▄████ ██ ████▄ ▄███▄" in banner
+    assert "▀" not in banner
 
 
 def test_c118_approval_fallback_names_the_new_command() -> None:

@@ -143,15 +143,16 @@ def check_archive(wheel: Path, version: str) -> None:
         problems.append(f"the wheel installs the commands {commands}, not only {COMMAND}")
 
     bundled = {name.removeprefix(BUNDLED_DOCS_PREFIX) for name in names if name.startswith(BUNDLED_DOCS_PREFIX)}
+    # AIxCoding manual bundle: compare against the fork-owned manual tree (user-manual C155)
     listed = subprocess.run(
-        ["git", "ls-files", "-z", "docs"],
+        ["git", "ls-files", "-z", "aixcoding/manual"],
         cwd=REPO_ROOT,
         check=True,
         capture_output=True,
         encoding="utf-8",
         stdin=subprocess.DEVNULL,
     )
-    tracked = {path.removeprefix("docs/") for path in listed.stdout.split("\0") if path}
+    tracked = {path.removeprefix("aixcoding/manual/") for path in listed.stdout.split("\0") if path}
     missing = sorted(tracked - bundled)
     if missing:
         problems.append(f"the wheel is missing user-guide files: {missing}")

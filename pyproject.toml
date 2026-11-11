@@ -128,7 +128,11 @@ packages = ["src/chrys"]
 [tool.hatch.build.targets.wheel.force-include]
 # The /help user guide and agent runtime read docs/; installed builds carry it here
 # (src/chrys/foundation/documentation.py::resolve_docs_root).
-"docs" = "chrys/app/tui/screens/guides/_docs"
+# Fork change: bundle the customized manual (aixcoding/manual, fork-owned
+# namespace) instead of the upstream docs/ so intranet customers get our
+# adapted user guide. Local dev F8 overrides via CHRYS_DOCS_ROOT.
+# AIxCoding manual bundle: wheel docs source key (user-manual C154)
+"aixcoding/manual" = "chrys/app/tui/screens/guides/_docs"
 
 [tool.hatch.build.targets.wheel.hooks.custom]
 # hatch_build.py compiles locales/zh-Hans/LC_MESSAGES/chrys.po into the wheel's
@@ -168,6 +172,9 @@ target-version = "py314"
 line-length = 120
 src = ["src", "tests"]
 fix = true
+# AIxCoding manual bundle: the manual is delivered user-facing content — its
+# intentionally aligned comments must stay out of the formatter (user-manual C157)
+extend-exclude = ["aixcoding/manual"]
 
 [tool.ruff.per-file-target-version]
 # Workflow SDK and worker host run inside any Python >= 3.9 interpreter (see per-file-ignores below)

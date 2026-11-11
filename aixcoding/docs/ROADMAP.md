@@ -194,6 +194,7 @@ OTel 遥测框架（opt-in）与 trajectory 会话回放——这些定制化直
 |---|---|---|
 | 定制层公共基础层/服务层提取（tier 地址注册表、共享常量、网络访问封装、通用工具；形态参考 aixcoding-continue `core/aixcoding/{types,network,utils}` 公共层） | ①定制功能增多后出现 **≥2 个真实跨特性共享消费方**（lazy import 接口复用无法覆盖的共享形态）；②**第 3 个 tier 地址消费方**出现（最可能为 telemetry 或版本更新检测批次）。届时随消费批次 design 一并裁决模块归属与 tier 放置（ADR-0011 适配），或按需独立批次走 §6 管线（涉 ADR-0011 补充则加 ADR） | 新分支 4 特性（auth / diagnostics / catalog / tui）实测无提取对象：地址仅 2 定义点且已有 drift test 防漂移（`aixcoding/tests/catalog/test_catalog_sync.py`）；网络访问 3 调用点语义刻意不同（auth 请求-响应 + `trust_env=False` vs catalog 轮询拉取，错误类型为特性域各归各）；常量零跨特性重复；唯一真实共享点（当前用户身份）已用接口复用解决（catalog `_catalog_user_id()` lazy import auth `stored_user_id`，旧分支 telemetry `current_user_id()` 同模式）。考古证据：旧分支 `src/chrys/aixcoding/` 根模块 5 py 实证为 telemetry 支撑模块长在根上（http / context / git_info 消费方均仅 telemetry 家族），属伪公共层——tier 放置（ADR-0011）为纠偏而非丢失；对比侧 aixcoding-continue 公共层系多 feature 共享密度长出（5 URL × 3 profile × 多 feature），且集中止步于 core 层（vscode / IntelliJ 扩展各持独立地址表、无跨层一致性测试）——"集中"为层内相对集中，边界由跨语言/跨进程结构决定。2026-11-09 environment-config 批次仅承担共享配置与环境解析子集（service config + app 注入），按触发条件①路径随消费批次裁决实施（ADR-0022 已确认）；地址注册表、网络封装、通用工具等其余子项仍按本行触发条件独立评估，不整项销项 |
 | 安全护栏规则包外置分发（`rules.json` 等规则/数据文件与二进制产物解耦——现随 wheel/PyApp 打包于 `src/chrys/kernel/aixcoding/guard/pack/`，系快速实现的临时措施，责任人 2026-11-07 认定；重构方向：规则文件作为独立配置/数据文件分发，规则更新不依赖二进制重建发版） | ①出现不随版本发布的规则更新需求（如安全事件需即时下发新规则）；②规则维护方与二进制发布方职责分离需求明确（运维/安全侧直接维护规则文件）；③分发体系（ADR-0020 内网镜像/安装器）出现被复用的独立数据文件下发通道 | 2026-11-07 登记：现状可用——运行时读部署副本 + `AIXCODING_GUARD_RULES` env 覆盖逃生门在位；规则演进走仓库源文件随版本发布（批次 `rule-pack/SWITCHES.md` 已载双通道口径）。立项须裁决的开放问题：外置分发机理（挂 ADR-0020 体系或独立机制）、外置规则文件缺失/损坏时的 fail-closed 语义、`guard_state.json` 开关状态与外置规则的归属关系、规则 schema 与 `_guard_core.py` 引擎版本配对兼容 |
+| marker 完备性治理（定制点标记与登记对账增强） | ①任何批次实施/评审中再次出现"应加未加"漏标；②下一品牌/字面量类批次开工前（规范补充先行落地）；③`gen_customizations` 工具链扩展立项时 | 2026-11-10 登记（logo-branding 批次实证，详见其 self-review.md 第 5 条）：三起问题——两条新增 GBK/无 `▀` 测试漏 marker（strict 绿无法发现"应加未加"：对账仅双向覆盖"有 marker 必登记/有登记必实现"，"既无 marker 又无登记的新增改动行"为结构盲区）；`C064` 历史单 id 区间不可扩（`C065-C078` 已占用）致"并入孪生组计数 1→3"不可行，改独立登记 C151-C152；4 处动态引用断言初判不登记，经责任人裁决补登 C147-C150（我方改动行须可追踪）。双 AI 评审亦共盲（模板缺逐 hunk 检查项），最终由责任人肉眼发现。治理内容：①`SELF-REVIEW-HOWTO.md` §二补"diff 逐 hunk marker 覆盖审查 + 登记预期计数 vs `--report` 实值逐项核对"检查项；②`templates/design.md` R2 表"标记注释位置"列须写锚文本/处数/计数/id 区间可用性（design 阶段核对区间占用）；③（可选）`gen_customizations` diff 感知扫描（上游文件 `+` 行 hunk 无 marker 覆盖告警 + 豁免清单）——工具行为变更须独立批次呈报，不随其他批次夹带 |
 
 ## 5. 变更记录
 
@@ -347,3 +348,7 @@ OTel 遥测框架（opt-in）与 trajectory 会话回放——这些定制化直
   生成）；fork-full 复跑真实语义冲突清零（32 环境性 WinError 448 失败在案，OS 级对照坐实）+
   architecture 1248 全绿、TUI 冒烟通过（--version=0.35.1）、双 CI 全绿（aixcoding-tests +
   上游 ci.yml 17 job）；strict 100/137→101/138、6 退役。
+- 2026-11-10（二）：**§4 F 类新增"marker 完备性治理"候选**——logo-branding 批次实施期三起
+  marker 问题（新增测试漏标 / 孪生组区间不可扩 / 动态引用补登 C147-C150）经责任人复核与
+  裁决闭合；规范补充（评审检查项、design R2 列可执行化）与可选工具 diff 扫描不随本批夹带，
+  按责任人指示登记 F 类独立事项，触发再评估条件与治理内容见 F 类行。
