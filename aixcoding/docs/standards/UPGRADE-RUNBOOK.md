@@ -5,8 +5,8 @@
 
 ## 当前基线（每次升级完成后人工更新，自 customization-registry 批次起由本节承载）
 
-- 当前所基于的上游版本：0.35.1
-- 最近一次升级完成日期：2026-11-09（upstream-merge-v0.35.1 批次）
+- 当前所基于的上游版本：0.35.2
+- 最近一次升级完成日期：2026-11-11（upstream-merge-v0.35.2 批次）
 - 定制点全景按需视图：`uv run python aixcoding/tools/gen_customizations.py --report`（实时对账，勿编辑不落盘）
 > 升级节奏与债务控制条款见 DEVELOPMENT.md §8 正文。
 
@@ -32,7 +32,7 @@
 3. 确认工作树干净、定制全绿：
    ```bash
    uv run pytest aixcoding/tests -n0 -q -m "not integration and not gc_calibration"
-   uv run python aixcoding/tools/check_docs.py
+   uv run python aixcoding/tools/check_docs.py --closure
    ```
 4. 取定制点全景：`uv run python aixcoding/tools/gen_customizations.py --report`——升级期间它是地图（各源 design 登记表为语义源）；
 
@@ -42,9 +42,11 @@
 git merge <目标ref>   # release tag（如 v0.32.2）或镜像头 origin/main_iCode，以批次 design 记录为准
 ```
 
-- 冲突点**逐个对照登记表**定位定制点——以**文件路径 + 符号**为主键；`C` id 已随 customization-registry
-  批次冻结（显式持有于登记行，增删/排序不再漂移），仍以文件+符号为升级定位主键、id 为沟通标识
-  （**冻结前的历史引用可能已 stale**——现行文档引用以 report 输出为准）；不允许"整体接受一方"式解决；
+- 冲突点**逐个对照登记表**定位定制点——以**文件路径 + 符号**为主键；旧 `C###` 永久保留，新定制点使用
+  `<batch-slug>:<point-slug>`，仍以文件+符号为升级定位主键、完整 id 为沟通标识；不允许"整体接受一方"式解决；
+- 并行批次冲突按 ADR-0024 分级：M0（独立目录与语义 ID）直接合并；M1（旧数字撞号或同批重复局部 ID）
+  仅修未合并批次，按确定性保留字算法改号并用 `check_id_only.py --base <修复前revision> --batch <批次>` 做只读差异证明；
+  M2（相同 `(落点, 锚)`、R2 或 ADR 决策语义分歧）停等责任人，不得机械改号；
 - 已知冲突高发区（文件 + 符号主键）：
   | 定制点（文件 + 符号） | 冲突形态 |
   |---|---|
@@ -54,6 +56,10 @@ git merge <目标ref>   # release tag（如 v0.32.2）或镜像头 origin/main_i
   现无定制登记残留，上游重构该文件时直接以上游为准。）
 - 坑：git 冲突输出对中文文件名默认八进制转义，人工核对用 `git -c core.quotepath=off ...`；
 - 坑：`except A, B:`（PEP 758，py3.14）是本仓 ruff format 强制输出，**不要**被编辑器/linter"修复"。
+- **定制手册解耦（2026-11-11 责任人裁决）**：`aixcoding/manual/` 是完整定制手册，升级批次
+  **不做**上游 `docs/` → manual 的内容对账；手册跟进上游由独立的手册批次处理（diff 评估、
+  去链/措辞定制重放、`check_links.py`、wheel/PDF 重出）。升级批次仍需核对
+  `BUNDLED_DOCS_PATH`、`BUNDLED_DOCS_PREFIX` 与 force-include 目标路径三者一致（捆绑机制，非内容对账）。
 
 ## 3. 结构层（anchor 核对）
 
@@ -75,7 +81,7 @@ git merge <目标ref>   # release tag（如 v0.32.2）或镜像头 origin/main_i
 uv run python aixcoding/tools/verify.py --full
 # 定制侧求稳变体（串行）与治理门
 uv run pytest aixcoding/tests -n0 -q -m "not integration and not gc_calibration"
-uv run python aixcoding/tools/check_docs.py
+uv run python aixcoding/tools/check_docs.py --closure
 uv run python aixcoding/tools/check_import_boundaries.py
 uv run python aixcoding/tools/gen_customizations.py --strict
 BASE=$(git merge-base origin/main_iCode HEAD)
@@ -88,6 +94,8 @@ uv run ty check --error-on-warning --python-platform linux src/chrys   # darwin/
 - `gen_customizations --strict` 对账失败是**期望信号**：marker 增删/锚漂移/计数变化须同步各源 design 登记表（改登记行属 R10 重签范围；id 不随跟改漂移）；产物 freshness 义务已随 `CUSTOMIZATIONS.md` 退役（customization-registry 批次）；
 - R2/R3 以**新 merge-base** 跑：升级 PR 中上游文件改动必须 ⊆ 已签认 R2 表并集（merge 引入的上游自身变化不算"我们的改动"——merge 后 diff 区间重新从新分叉点起算）；
 - 关键链路人工验证（TUI 冒烟：`uv run aixcoding-cli`，F6 查看 aixcoding tab）。
+- `aixcoding/manual/` 有内容或捆绑契约变化时，重建 wheel 并运行 `scripts/check_wheel.py` 验证逐文件清单；
+  同步执行 F8 手册冒烟，桌面 MD/PDF 按 user-manual 批次既定链路重出。
 
 ## 5. 淘汰检查
 
@@ -146,4 +154,4 @@ uv run ty check --error-on-warning --python-platform linux src/chrys   # darwin/
 
 ## 8. 双轨期注意
 
-本 runbook 只管新分支 `main_aixcoding_cli`。旧分支 `main_aixcoding_cli_0.28.0_final` 按冻结条款服役（阶段二 DoD 满足日起只修阻塞级 bug），**不随本 runbook 升级**；其功能按 ROADMAP 阶段三逐特性迁入新分支。
+本 runbook 只管新分支 `main_aixcoding_cli`。旧分支 `main_aixcoding_cli_0.28.0_final` 按冻结条款服役（阶段二 DoD 满足日起只修阻塞级 bug），**不随本 runbook 升级**；其功能迁入项由责任人自行跟踪，不再维护仓库内集中路线台账（ADR-0024）。

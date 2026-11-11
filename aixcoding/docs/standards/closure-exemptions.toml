@@ -1,0 +1,18 @@
+# Frozen legacy batch-file gaps approved by ADR-0024 at origin/main_aixcoding_cli@95e23add.
+# This list normally only shrinks: adding a batch or missing filename requires a new signed ADR.
+
+[exemptions]
+agents-md-note = ["requirements.md", "test-plan.md", "plan.md", "verification.md", "self-review.md"]
+auth = ["requirements.md"]
+auth-isolation-mock-ports = ["requirements.md", "design.md", "test-plan.md"]
+restructure = ["requirements.md", "design.md", "test-plan.md", "verification.md", "self-review.md"]
+upstream-ci = ["requirements.md", "test-plan.md", "plan.md", "self-review.md"]
+branding-and-command = ["plan.md"]
+catalog-auth-gating = ["plan.md"]
+customization-registry = ["plan.md"]
+docs-reorg = ["plan.md"]
+exemption-governance = ["plan.md"]
+internal-installer = ["plan.md"]
+logo-branding = ["plan.md"]
+"upstream-merge-v0.32.2" = ["plan.md"]
+windows-matrix = ["plan.md"]

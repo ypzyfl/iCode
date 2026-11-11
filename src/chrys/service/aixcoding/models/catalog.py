@@ -13,10 +13,12 @@ between two sources:
   and its contents become server-owned.  A failed sync changes nothing.
 * **Until that first success the directory's content is untouched** — no
   credential (never logged in) or every fetch failed so far, so the files
-  on disk are whatever the user or an installer left there.  The read-only
-  gate does not wait for a sync, though: a source is always named, which
-  is what :func:`is_catalog_managed` answers, so model configuration is
-  read-only from the first start.
+  on disk are whatever the user or an installer left there.  With auto-sync
+  enabled the read-only gate does not wait for a sync: a source is always
+  named, which is what :func:`is_catalog_managed` answers, so model
+  configuration is read-only from the first start.  With auto-sync disabled
+  (LOCAL's default) and no state file the directory stays the user's own —
+  see :func:`auto_sync_enabled`.
 
 "Synced once" is sticky: the state file marks the directory as server-owned, so
 a later failed fetch (offline start) degrades to the previous catalog instead of
@@ -214,6 +216,20 @@ def catalog_tier() -> str:
     return load_config().environment
 
 
+def auto_sync_enabled() -> bool:
+    """Whether startup/login/poll sync the catalog without being asked.
+
+    ``[model_catalog] auto_sync`` overrides every tier when set explicitly;
+    unset, the tier decides: LOCAL is for self-managed model files (the
+    mock's models cannot really infer), dev/prod keep server-owned sync.
+    Read through ``load_config``'s cache — fixed for the process lifetime.
+    """
+    configured = load_config().model_catalog.auto_sync
+    if configured is not None:
+        return configured
+    return catalog_tier() != "local"
+
+
 def catalog_base_url() -> str:
     """Return the shared TOML base, falling back to the deployment tier."""
     configured = load_config().model_catalog.base_url
@@ -275,8 +291,18 @@ def is_catalog_managed() -> bool:
 
     True once a source is configured or a catalog has ever been applied, which
     is what makes the directory read-only.
+
+    A successful sync sticks (the state file): server-owned from then on,
+    whatever the switch says now. Otherwise auto-sync decides: disabled
+    (LOCAL's default) means the directory is the user's own; enabled keeps
+    the source-configured rule — ``catalog_url`` alone made LOCAL managed
+    from the first start, so that branch must be skipped when sync is off.
     """
-    return bool(catalog_url()) or read_catalog_state() is not None
+    if read_catalog_state() is not None:
+        return True
+    if not auto_sync_enabled():
+        return False
+    return bool(catalog_url())
 
 
 def require_catalog_writable() -> None:
@@ -812,6 +838,12 @@ def sync_catalog_blocking(*, timeout: float = _DEFAULT_FETCH_TIMEOUT) -> Catalog
     loop there would be wrong, so the sync is skipped.
     """
     try:
+        if not auto_sync_enabled():
+            _detail_log.log(
+                _DETAIL_LEVEL,
+                "模型目录自动同步已停用（local 默认或 auto_sync = false）；保留本地模型列表。",
+            )
+            return None
         if not catalog_url():
             return None
         try:
@@ -1062,6 +1094,12 @@ def start_sync_runtime(
     """
     global _runtime, _last_wiring
     _last_wiring = (registry, refresh_ui)
+    if not auto_sync_enabled():
+        _detail_log.log(
+            _DETAIL_LEVEL,
+            "模型目录自动同步已停用（local 默认或 auto_sync = false）；不启动轮询。",
+        )
+        return False
     if not catalog_url():
         _detail_log.log(_DETAIL_LEVEL, "模型目录同步未启动：未配置目录来源。")
         return False

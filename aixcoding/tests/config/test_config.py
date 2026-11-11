@@ -148,3 +148,30 @@ def test_old_environment_names_are_ignored(name: str, tmp_path: Path, monkeypatc
     cfg = load_config(tmp_path)
     assert cfg.environment == "prod"
     assert capsys.readouterr().err == ""
+
+
+def test_auto_sync_unset_defaults_to_none(tmp_path: Path):
+    write_toml(tmp_path, '[model_catalog]\nbase_url = "http://catalog.example/csas"\n')
+    assert load_config(tmp_path).model_catalog.auto_sync is None
+
+
+@pytest.mark.parametrize("raw", ["true", "false"])
+def test_auto_sync_parsed(tmp_path: Path, raw: str):
+    write_toml(tmp_path, f"[model_catalog]\nauto_sync = {raw}\n")
+    assert load_config(tmp_path).model_catalog.auto_sync is (raw == "true")
+
+
+def test_auto_sync_invalid_warns_and_falls_back(tmp_path: Path, capsys):
+    write_toml(tmp_path, '[model_catalog]\nauto_sync = "yes"\n')
+    cfg = load_config(tmp_path)
+    assert cfg.model_catalog.auto_sync is None
+    assert "invalid model_catalog.auto_sync" in capsys.readouterr().err
+
+
+def test_bad_base_url_does_not_discard_auto_sync(tmp_path: Path, capsys):
+    """Per-field degrade: a bad base_url must not silently drop an explicit auto_sync."""
+    write_toml(tmp_path, "[model_catalog]\nbase_url = 42\nauto_sync = true\n")
+    cfg = load_config(tmp_path)
+    assert cfg.model_catalog.base_url == ""
+    assert cfg.model_catalog.auto_sync is True
+    assert "invalid model_catalog.base_url" in capsys.readouterr().err

@@ -96,11 +96,18 @@ def _load_model_catalog(data: dict) -> ModelCatalogConfig:
     if not isinstance(section, dict):
         _warn("invalid [model_catalog] section; using the deployment tier base")
         return ModelCatalogConfig()
-    raw = section.get("base_url", "")
-    if not isinstance(raw, str):
+    # Per-field degrade: one bad key must not discard the other — a bad
+    # base_url dropping an explicit auto_sync would silently fall back to
+    # the tier default (catalog-auto-sync design).
+    base_url = section.get("base_url", "")
+    if not isinstance(base_url, str):
         _warn("invalid model_catalog.base_url; using the deployment tier base")
-        return ModelCatalogConfig()
-    return ModelCatalogConfig(base_url=raw.strip())
+        base_url = ""
+    auto_sync = section.get("auto_sync")
+    if auto_sync is not None and not isinstance(auto_sync, bool):
+        _warn("invalid model_catalog.auto_sync; using the tier default")
+        auto_sync = None
+    return ModelCatalogConfig(base_url=base_url.strip(), auto_sync=auto_sync)
 
 
 @cache

@@ -17,7 +17,7 @@ the customization-registry batch):
   an expected count; longest-anchor-first resolves anchor-prefix overlap
   within a file;
 - errors (exit 1): marker without registration (code before design), count
-  mismatch, duplicate/malformed id (active + retired high-water), ambiguous
+  mismatch, duplicate/malformed id (active + retired uniqueness), ambiguous
   anchor, missing landing file; ``--strict`` additionally fails orphan
   registrations (registered but not implemented) — the CI posture;
 - warnings: orphan registrations in the default (local) mode, unsigned design
@@ -30,7 +30,7 @@ immutable snapshot (no freshness obligation).
 
 **Archaeology** (``--repo <path>``) — scans a foreign checkout (e.g. the
 legacy branch copy) and prints/writes a candidate report instead. No
-registration parsing, no reconciliation (ROADMAP §4 input).
+registration parsing, no reconciliation (archaeology inventory input).
 
 Usage (repo root)::
 
@@ -54,16 +54,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from aixcoding.tools import _common as common
 
 REG_SECTION = "定制点登记预告"
-ID_RE = re.compile(r"C\d{3}")
+LEGACY_ID_RE = re.compile(r"C\d{3}")
 ID_RANGE_RE = re.compile(r"(C\d{3})\s*[-–]\s*(C\d{3})")
+SEMANTIC_ID_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*:[a-z0-9]+(?:-[a-z0-9]+)*")
+LEGACY_M1_POINT_RE = re.compile(r"legacy-c\d{3}(?:-m1-\d+)?")
 
 
 def expand_ids(cell: str) -> list[str]:
-    """Expand an id cell: 'C001' → [C001]; 'C009-C012' (hyphen or en dash) → [C009..C012].
-
-    Twin-group rows register the whole member range so every member id stays
-    addressable; malformed cells return [] (the row is then flagged elsewhere).
-    """
+    """Expand legacy ranges; semantic ids and legacy singletons stay single entries."""
     cell = cell.strip()
     if not cell:
         return []
@@ -101,7 +99,7 @@ class Registration:
 
     design: str  # docs-relative posix path of the design.md
     cid: str  # id cell verbatim (may be a range like C009-C012); display label
-    ids: list[str]  # expanded member ids (uniqueness / high-water scope)
+    ids: list[str]  # expanded legacy range members or one semantic/legacy id (uniqueness scope)
     landing: str  # 落点: the upstream file that carries the marker(s)
     anchor: str  # marker 锚: verbatim prefix of the marker comment body
     count: int  # 预期计数 (twin group size; default 1)
@@ -110,7 +108,7 @@ class Registration:
 
 @dataclass
 class Retired:
-    """A tombstone row (### 退役记录): the id is spent forever (high-water)."""
+    """A tombstone row (### 退役记录): the id is spent forever and never reused."""
 
     design: str
     cid: str
@@ -285,15 +283,25 @@ def match_markers_to_regs(
     errors: list[str] = []
     warnings: list[str] = []
 
-    # --- id uniqueness & format across all designs (active + retired high-water) ---
+    # --- full-id uniqueness and legacy/semantic format validation ---
     seen: dict[str, str] = {}
     for entry in [*regs, *retired]:
         if not entry.ids:
             errors.append(f"{entry.design}: registration row without a parseable id: 落点 {entry.landing}")
             continue
+        design_parts = entry.design.split("/")
+        expected_batch = design_parts[3] if len(design_parts) == 5 and design_parts[2] == "batches" else ""
         for cid in entry.ids:
-            if ID_RE.fullmatch(cid) is None:
-                errors.append(f"{entry.design}: malformed id `{cid}` (expected C###)")
+            if LEGACY_ID_RE.fullmatch(cid):
+                pass
+            elif SEMANTIC_ID_RE.fullmatch(cid):
+                batch, point = cid.split(":", 1)
+                if batch != expected_batch:
+                    errors.append(f"{entry.design}: id `{cid}` batch prefix must be `{expected_batch}`")
+                if point.startswith("legacy-") and LEGACY_M1_POINT_RE.fullmatch(point) is None:
+                    errors.append(f"{entry.design}: id `{cid}` uses reserved legacy- prefix outside M1 form")
+            else:
+                errors.append(f"{entry.design}: malformed id `{cid}` (expected C### or <batch>:<point>)")
                 continue
             if cid in seen:
                 errors.append(f"{entry.design}: duplicate id `{cid}` (already used by {seen[cid]})")
@@ -301,9 +309,9 @@ def match_markers_to_regs(
                 seen[cid] = entry.design
     errors.extend(
         f"{r.design} {r.cid}: id range holds {len(r.ids)} member id(s) but 预期计数 is {r.count} "
-        f"— twin-group row must keep them equal"
+        f"— legacy twin-group range must keep them equal"
         for r in regs
-        if r.ids and len(r.ids) != r.count
+        if r.ids and ID_RANGE_RE.fullmatch(r.cid) and len(r.ids) != r.count
     )
 
     # --- landing files must exist ---
@@ -514,7 +522,7 @@ def run_archaeology(repo: Path, out: Path | None) -> int:
         f"| {h.text.replace('|', chr(92) + '|')} | {h.module or '—'} |"
         for h in hits
     )
-    lines += ["", "## 定制资产清单（ROADMAP §4 盘点输入）", ""]
+    lines += ["", "## 定制资产清单（考古盘点）", ""]
     lines.extend(f"- `{p}`" for p in custom_assets)
 
     report = "\n".join(lines) + "\n"

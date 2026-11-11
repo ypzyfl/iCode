@@ -1,12 +1,13 @@
-# ADR-<四位编号>：<标题>
+# ADR-<batch-slug>--<decision-slug>：<标题>
 
 <!--
 签认规则（R10）：责任人本人编辑本头部（状态→已确认、填日期，确认意见可选），AI 不得代填。
-签认后修改正文需重新签认；被取代时由新 ADR 回指，本文状态行改为：被取代（被 ADR-0009 取代）——括号内即后继编号（check_docs 按此格式校验）。
+签认后修改正文需重新签认；被取代时由新 ADR 回指，本文状态行改为：被取代（被 ADR-<batch-slug>--<decision-slug> 取代）——括号内即后继 ID（check_docs 按此格式校验）。
 校验：uv run python aixcoding/tools/check_docs.py
 
-命名与编号：NNNN-标题.md，取目录现有最大编号+1；编号被引用后不改号；
-并行撞号罕见且必然被 git 同名冲突暴露，暴露早期重新编号即可。
+命名与编号：文件统一放 standards/adr/<batch-slug>--<decision-slug>.md，H1 加 ADR- 前缀；
+batch-slug 必须对应既有批次目录，决策 slug 在本批次内稳定且唯一。旧 NNNN-标题.md 保持兼容，
+ADR-0023/0024 是最后两个旧数字编号；新 ADR 不再取全局数字高水位。
 
 ADR 判定 checklist（出 ADR 的门槛，任一"是"；粒度是决策不是功能）：
 ① 有被认真考虑但否决的备选方案

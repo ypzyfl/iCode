@@ -39,6 +39,25 @@ def _reset_catalog_sync_singleton() -> None:
 
 
 @pytest.fixture(autouse=True)
+def _default_prod_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the config snapshot to prod defaults for every catalog test.
+
+    ``load_config()`` with no argument reads the real per-machine
+    ``aixcoding.toml`` — a local tier there would disable auto-sync and
+    break the whole suite on a developer's machine (catalog-auto-sync).
+    Tests needing another tier/switch re-stub ``catalog_module.load_config``
+    themselves; the tier-drift test restores the real loader explicitly.
+    """
+    from chrys.service.aixcoding.models import catalog as catalog_module
+
+    snapshot = SimpleNamespace(
+        environment="prod",
+        model_catalog=SimpleNamespace(base_url="", auto_sync=None),
+    )
+    monkeypatch.setattr(catalog_module, "load_config", lambda: snapshot)
+
+
+@pytest.fixture(autouse=True)
 def _verified_login_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
     """Pre-verification defaults to a verified login (catalog-auth-gating).
 

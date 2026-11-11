@@ -5,20 +5,19 @@
 
 ## 状态
 
-- 阶段：**已实施**（代码与文档随 `98b30006` 落地；PR #98 审阅中，POSIX cwd 修复
-  `b7de350b`、peer review 处置 `bd9c9439`）
+- 阶段：**已实施**（代码随 PR #98 合并；2026-11-10 由 parallel-batch-governance 批次补做历史闭环缺口）
 - 前置：`batches/guard-hooks` 已签认并已实施（commit `87934228`）
-- 挂起：PR CI 上游 `ci.yml` 全量分片与 peer review F-R4/F-R5 裁决（见下）
+- 挂起：parallel-batch-governance 的提交、PR 与双 CI；GLM-5.3 增量复审已通过，最终 closure 已 OK
 
 ## 任务清单
 
 | # | 任务 | 落点 | 状态 |
 |---|---|---|---|
-| 1 | 文档管线（requirements / design / test-plan / plan / adr-0001）+ INDEX 登记 | `aixcoding/docs/batches/guard-switches/` | 完成（design 已签认） |
+| 1 | 文档管线（requirements / design / test-plan / plan / ADR-0023） | `aixcoding/docs/batches/guard-switches/` | 完成（design 与 ADR 均已签认） |
 | 2 | `_guard_core.py` 回移状态三段并合成严格校验（C2/C3） | `src/chrys/kernel/aixcoding/guard/pack/_guard_core.py` | 完成（98b30006） |
 | 3 | 移植 `guardctl.py`（改文案 / ty 忽略 / env） | `.../pack/guardctl.py` | 完成（98b30006） |
 | 4 | 移植 `guardctl.cmd`、替换 `_launcher.ps1`（绝对路径） | `.../pack/` | 完成（98b30006） |
-| 5 | `rules.json` 改 `allow_outside_workspace: true`（C1/ADR-0001） | `.../pack/rules.json` | 完成（98b30006） |
+| 5 | `rules.json` 改 `allow_outside_workspace: true`（C1/ADR-0023） | `.../pack/rules.json` | 完成（98b30006） |
 | 6 | `pack/.gitignore` 忽略 `guard_state.json` | `.../pack/.gitignore` | 完成（98b30006） |
 | 7 | 安装器 payload 8 文件 | `.../guard/guard_install.py` | 完成（98b30006） |
 | 8 | 手工安装器 payload 8 文件 | `aixcoding/tools/guard_install_merge.py` | 完成（98b30006） |
@@ -28,8 +27,8 @@
 | 12 | 部署验证写限制态状态文件 | `aixcoding/tests/guard/verify_guard_deployed.py` | 完成（98b30006） |
 | 13 | `.gitattributes` +1 行（C142，R2）；CI guard job +`PYTHONUTF8` | 仓库根 / `.github/workflows/aixcoding-tests.yml` | 完成（98b30006） |
 | 14 | 文档：`SWITCHES.md` 新增；`README`/`OPERATIONS`/`PORTING`/`MANUAL_TESTS` 增补 | `.../rule-pack/` | 完成（98b30006） |
-| 15 | 验证：自检 + 部署验证 + `chrys_test --smart` + ruff/format/ty + `check_docs` + `gen_customizations --strict` | — | 完成（self-review/verification 留痕） |
-| 16 | 双 AI 自审 → `self-review.md` → 责任人签认 | 本目录 | 完成（签认 2026-11-05） |
+| 15 | 补做验证并落盘 verification（PR #98 合并时缺失，不倒填历史结论） | 本目录 | 完成（2026-11-10 补做，见 verification.md V1） |
+| 16 | 补做双 AI 自审、ADR-0023 与 self-review 责任人签认 | 本目录 + 全局 ADR 池 | 完成（GLM-5.3 评审；责任人签认 2026-11-10；F1/F3 按裁决修复） |
 
 ## 续接入口
 

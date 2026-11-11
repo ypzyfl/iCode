@@ -19,12 +19,13 @@ iCode-fork/
 │   │   └── telemetry/ 等          #     适配层模块（批次待迁，进度见 batches/restructure/plan.md）
 │   └── app/aixcoding/             #   app 档（引用宿主 UI 设施的定制界面）
 │       └── tui/                   #     产品 UI（被 app 接线点同层调用；批次待迁）
-├── aixcoding/                    # 开发资产与分发物料，不进 wheel
-│   ├── docs/                     #   standards/（规范族+全局 ADR+模板+评审清单）、INDEX.md（目录导航）、
-│   │                             #   batches/<name>/（全部批次/专项目录平铺，见 DEVELOPMENT.md §6 与 ADR-0016）
+├── aixcoding/                    # 开发资产、定制手册源与分发物料（manual 经 force-include 进 wheel，其余不进）
+│   ├── docs/                     #   standards/（规范族+全局 ADR+模板+评审清单）、
+│   │                             #   batches/<name>/（全部批次/专项目录平铺，见 DEVELOPMENT.md §6 与 ADR-0016/0024）
 │   ├── tests/                    #   【唯一】定制测试落点（显式运行）
 │   ├── mock/                     #   【唯一】自建 mock 专区（纯实现，契约测试在 tests/mock/）
-│   ├── tools/                    #   开发工具脚本（校验/脚手架等，如 check_docs.py）
+│   ├── tools/                    #   开发工具脚本（check_docs.py、docs_report.py 等只读校验/导航）
+│   ├── manual/                   #   【唯一】定制用户使用手册源（zh-Hans/en/index.yaml；F8 手册捆绑源）
 │   ├── release/                  #   【唯一】随制品分发物料落点（安装器脚本、用户安装手册；ADR-0020）
 │   ├── __init__.py               #   命名空间锚点（例外登记见 §8）
 │   └── README.md                 #   专区导览
@@ -33,7 +34,7 @@ iCode-fork/
 │   ├── ci.yml                    # 上游 CI（仅 PR 至 main 触发；发布链路 CD 经 workflow_call 复用）
 │   ├── aixcoding-tests.yml       # 定制质量门（lint + 定制测试 + mock 契约测试 + 文档签认校验）
 │   └── aixcoding-upstream-ci.yml # 上游 CI 桥接（PR 至 main_aixcoding_cli 经 workflow_call 跑上游全套，见 docs/batches/upstream-ci/）
-└── pyproject.toml                # packages 仅 ["src/chrys"]（上游原状）
+└── pyproject.toml                # packages 仅 ["src/chrys"]；manual 另经 force-include 进 wheel
 ```
 
 ## 2. 落点判定
@@ -42,7 +43,8 @@ iCode-fork/
 
 | 问题 | 落点 |
 |---|---|
-| 会进发布包（被产品运行时用到）？ | `src/chrys/{tier}/aixcoding/`（按依赖落位，档位判据见 §3；ADR-0011） |
+| 是定制用户使用手册源（双语 Markdown + `index.yaml`）？ | `aixcoding/manual/`（先于产品代码与普通文档判定；纯数据资源经 force-include 进 wheel，勿改上游 `docs/`，见 `batches/user-manual/design.md`） |
+| 是会进发布包的产品代码（被产品运行时 import）？ | `src/chrys/{tier}/aixcoding/`（按依赖落位，档位判据见 §3；ADR-0011） |
 | 是测试？ | `aixcoding/tests/` |
 | 是 mock（模拟外部后端服务）？ | `aixcoding/mock/` |
 | 是随制品分发的物料（安装器脚本、用户安装手册等分发给最终用户的资产）？ | `aixcoding/release/`（先于"文档"判定——安装手册等分发文档按此行命中，ADR-0020） |
@@ -66,13 +68,14 @@ iCode-fork/
 - **例外（结构性挂接边）**：包内个别模块对宿主的向上挂接（进程入口、钩子注册，非业务库依赖）不改变整包档位——历史上经 `_DAG_EDGE_ALLOWLIST` 豁免（ADR-0011 决策 2/5），**该通道已随 launcher 退役整体移除（ADR-0013）；替代路径是内联接线（挂接模块按 ADR-0011 判据落 app 档，或入口直接调用——auth-logging 批次 `ensure_file_sink` 入口接线即先例），重建前任何向上 import 均为架构违规；豁免通道原则上不再重建——豁免机制是升级摩擦的永久来源，确需重建时属架构决策，须 ADR（含理由）+ 责任人签认，不得以任何形式先行登记**。
 - 依赖上涨 → test_layering 红 → 挪档（反馈回路闭环）；`tui` 的依赖边界：仅限宿主 UI 基础设施（对话框基类、控件、绑定展示、主题），**不得**引用 service / orchestration 业务逻辑。
 
-## 4. 根 `aixcoding/`（开发资产与分发物料）
+## 4. 根 `aixcoding/`（开发资产、定制手册源与分发物料）
 
-- 目录构成：`docs/`、`tests/`、`mock/`、`tools/`、`release/` 与 README（例外登记见 §8）；**不放任何产品代码**。
-- `release/` 承载**随制品分发物料**（安装器脚本、用户安装手册）——经内网镜像分发给最终用户的资产，非开发过程消费；不进 wheel 与本目录其余部分一致（设立决策与备选否决见 ADR-0020）。
-- 不进 wheel 的机制是 `pyproject.toml` 的 `packages = ["src/chrys"]`——与目录内有无 `__init__.py` 无关。
+- 目录构成：`docs/`、`tests/`、`mock/`、`tools/`、`manual/`、`release/` 与 README（例外登记见 §8）；**不放任何产品代码**。
+- `manual/` 承载**定制用户使用手册源**（`zh-Hans/`、`en/`、`index.yaml`），是开发资产与 wheel 数据源，不是过程文档或安装手册；上游 `docs/` 保持零定制。开发机经 `CHRYS_DOCS_ROOT` 读取本目录，构建时经 force-include 复制到 `chrys/app/tui/screens/guides/_docs/`（user-manual 批次）。
+- `release/` 承载**随制品分发物料**（安装器脚本、用户安装手册）——经内网镜像分发给最终用户的资产，非开发过程消费；本目录自身不进 wheel（设立决策与备选否决见 ADR-0020）。
+- 除上述 manual 数据复制例外外，不进 wheel 的机制是 `pyproject.toml` 的 `packages = ["src/chrys"]`——与目录内有无 `__init__.py` 无关。
 - **import 机制**：`aixcoding/tests/conftest.py` 负责把仓库根加入 `sys.path`，此后开发资产以 `aixcoding.mock.<name>` 等包路径导入（mock 专区结构见 §6）。测试目录自身**不加** `__init__.py`（保持 pytest 的无包收集模式）。
-- 产品代码（打包运行时）**不得** import `aixcoding.*`——根命名空间只存在于开发仓库内，wheel 里没有它。产品代码只 import `chrys.{tier}.aixcoding.*`。
+- 产品代码（打包运行时）**不得** import `aixcoding.*`——wheel 里没有可 import 的根 `aixcoding` 包；manual 的数据复制不形成 import 路径。产品代码只 import `chrys.{tier}.aixcoding.*`。
 
 ## 5. `aixcoding/tests/`（定制测试唯一落点）
 
@@ -125,7 +128,7 @@ aixcoding/mock/<name>/            # 命名：无前缀服务名（auth / update 
 | 代码 | 门禁 |
 |---|---|
 | 产品定制代码（`src/chrys/*/aixcoding/`） | 上游 `ci.yml` 全套（ruff / ty / test / compileall 随 `src/`、`src/chrys` 路径自动覆盖），经桥接 `aixcoding-upstream-ci.yml` 在 PR 至 main_aixcoding_cli 时实际生效（ci.yml 自身仅 PR 至 main 触发） |
-| 定制测试 + mock + 文档（`aixcoding/`） | 独立 workflow `aixcoding-tests.yml`，三层结构（windows-matrix 批次，2026-11-01）：`test` 双 OS 矩阵跑 `pytest aixcoding/tests`（ubuntu + windows，DPAPI 平台真实用例 Windows 侧实际执行）；`govern` 单 Linux 跑 `ruff check/format aixcoding/` + `check_docs.py` + 治理三工具；`gate` 保名汇总 |
+| 定制测试 + mock + 文档（`aixcoding/`） | 独立 workflow `aixcoding-tests.yml`，三层结构（windows-matrix 批次，2026-11-01）：`test` 双 OS 矩阵跑 `pytest aixcoding/tests`（ubuntu + windows，DPAPI 平台真实用例 Windows 侧实际执行）；`govern` 单 Linux 跑 `ruff check/format aixcoding/` + `check_docs.py --closure` + 治理三工具；`gate` 保名汇总 |
 
 - 触发条件：`aixcoding-tests.yml` 为 PR + push 至 main_aixcoding_cli（Linux 侧实测 38 秒–5 分钟；Windows 侧首跑时长待录）；桥接 `aixcoding-upstream-ci.yml` **仅 PR 触发**（对齐上游 ci.yml 惯例，合并 push 不重复跑；ci.yml 自身仅 PR 至 main 触发），单次拉起上游全套 17 job（多 OS 分片 + architecture + build + wheel 探测）+ 汇总 gate（`AIxCoding upstream gate`，分支保护必过 check 的落点），实测约 11–12 分钟。定制门已扩 Windows 矩阵：`test`/`govern` 并行执行，`gate`（保名 `AIxCoding quality gate`，分支保护必过 check 的落点）fail-closed 聚合两者。
 - ty 对齐上游惯例：只查 `src/chrys`，不查测试与 mock。
@@ -147,5 +150,7 @@ aixcoding/mock/<name>/            # 命名：无前缀服务名（auth / update 
 | mock 子包 | 无前缀服务名：`auth`、`update`、`model_catalog`、`telemetry` |
 | 测试文件 | `test_*.py`；契约测试随被测 mock 命名（`test_<name>_server.py`） |
 | mock 公开 API | `create_server(...)`（factory）/ `main()`（CLI）；配置状态类 `Mock*Config` / `Mock*State` |
-| 功能文档目录 | `batches/` 下小写中划线 `<feature-name>/`；文档文件名固定（requirements/design/test-plan/plan/verification.md，见 DEVELOPMENT.md §6） |
+| 功能文档目录 | `batches/` 下小写中划线 `<feature-name>/`；六件固定为 requirements/design/test-plan/plan/verification/self-review.md（见 DEVELOPMENT.md §6） |
+| 新定制点 ID | `<batch-slug>:<point-slug>`，批次前缀等于 design 所在目录；旧 `C###` 与区间保留（ADR-0024） |
+| 新 ADR | 全局 `standards/adr/<batch-slug>--<decision-slug>.md`，H1 为 `ADR-<batch-slug>--<decision-slug>`；旧数字 ADR 保留 |
 | 文档 | 中文（团队工作语言）；规范族与 ADR 在 `docs/standards/` |

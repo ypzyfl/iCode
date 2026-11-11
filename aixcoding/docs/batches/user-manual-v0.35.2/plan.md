@@ -28,7 +28,8 @@ design.md 待责任人签认（签认字段 AI 不代填）。当前分支：`fo
 - [x] 手册契约测试 26 passed（foundation/invoker/workflows/providers）
 - [x] wheel 重建 + 重装测试 venv + 捆绑 64=64 MD5 + 0.35.2 新内容抽查
 - [x] 桌面交付：md/PDF/官方汇编/桌面 wheel 同步
-- [x] 六件套 + INDEX 登记（本文档体系）
+- [x] 六件套（本文档体系）；批次登记后由 `docs_report.py` 自动全景承载（合并 main 的
+      parallel-batch-governance 51534b53 已物理删除 INDEX.md 台账，人工登记行作废）
 - [x] 双 AI 评审第一轮（Claude Code / GLM-5.3-flash；1 blocker + 1 suggestion + 3 nit）
 - [x] **F1 扩围处置（评审后）**：六件套如实登记 en 追平 22 整文件 + 混入 hunk + zh CHANNEL
       处（requirements/design/plan/verification 补录；F2 清单补正，F3/F4 修正，F5 登记不修）
@@ -44,6 +45,12 @@ design.md 待责任人签认（签认字段 AI 不代填）。当前分支：`fo
 | 1 | docs/ 镜像追平 | **手册批次同步应用官方 docs diff**（纯官方原文、不加标记），取代"仅随代码升级批次更新"口径 | docs 8 文件已应用，`git diff v0.35.2 -- docs` 归零；SKILL §八.8 已改写 |
 | 2 | 评审 F1（en 追平未登记，blocker） | **扩围**：六件套如实重写、全部改动随本批次提交（否决拆批与"按现状提交+补录"） | 本文档体系已补录（见待办第 F1 项） |
 | 3 | 评审 F3（icode-run.md 链接文件名）/ F5（aixcoding-launch.py 根目录未跟踪） | **登记不修** | F3 见 self-review 未修项；F5 提交时显式排除 |
+
+- **（PR #112 冲突处置，2026-11-11）** main 侧 parallel-batch-governance（51534b53）物理删除
+  `aixcoding/docs/INDEX.md`/`ROADMAP.md`（台账改 `docs_report.py` 自动全景 + 语义 ID），与本
+  分支的 INDEX 登记行构成 modify/delete 冲突——经责任人指示按"**接受删除**"处置（`git rm`），
+  本批次登记改由 `docs_report.py` 全景承载（实测已列出本批次六件）；`check_docs --closure`、
+  `gen_customizations --strict` 全绿。
 
 ## 挂起与备忘
 
