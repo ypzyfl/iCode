@@ -7,8 +7,9 @@
 已合并最新 `main_aixcoding_cli`（`a35e57e3`，C153 与 logo-branding C145-C152 不撞号，
 strict 105/146/0），合并后定制测试与上游 LLM 层测试全绿。**已合并（2026-11-11 同步）**：
 PR #110（fix/authorization-hint-retry → main_aixcoding_cli）已合并，merge commit `95e23add`。
-候选-1（commit body 补"评审处置"要素）：AI 建议不修（规范三要素已齐，落点在 PR 描述
-与活文档；amend 需改写已合并历史），裁决待责任人。
+候选-1（commit body 补"评审处置"要素）：**责任人裁决接受不修（2026-11-11）**——PR #110
+已合并，amend 需 force-push 改写已合并历史，不可行；评审处置以 verification.md 末节
+（两轮 peer review 记录）与 PR #110 为准。
 
 ## 待办
 
