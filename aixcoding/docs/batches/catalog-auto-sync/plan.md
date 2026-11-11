@@ -1,7 +1,8 @@
 # 计划：catalog-auto-sync
 
-状态：**评审收敛、双签认齐全、closure 全绿，待提交**（特性分支 + PR，git 写操作逐条授权）。
-Smart Test 按责任人指示暂时跳过（2026-11-11）。
+状态：**已合并**（PR #114，merge commit `d52626f1`，2026-11-11；特性分支 `feat/catalog-auto-sync`）。
+Smart Test 按责任人指示暂时跳过（2026-11-11）；该验证面已由后续 upstream-merge-v0.35.2
+批次的 fork-full 全量覆盖（时序在本批合并之后），无残留验证债。
 
 ## 任务清单
 
@@ -16,7 +17,7 @@ Smart Test 按责任人指示暂时跳过（2026-11-11）。
   - [x] 文档：`mock/model_catalog/README.md` 自管操作说明四块 + 总 `mock/README.md` 一句与指针
 - [x] 验证落盘 verification.md（110 passed；ruff；双规范校验；Smart Test 跳过注明）
 - [x] 双 AI 评审（文档轮 P1-P4 + 实施轮 ①-④ + 增量复审）→ self-review.md 已签认 → closure 全绿
-- [ ] 提交：特性分支 + PR（逐步授权）
+- [x] 提交：特性分支 + PR（逐步授权）→ 已推送、建 PR #114 并合并（merge commit `d52626f1`，2026-11-11）
 
 ## 续接入口
 

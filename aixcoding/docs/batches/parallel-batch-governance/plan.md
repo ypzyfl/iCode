@@ -4,7 +4,7 @@
 
 ## 状态
 
-工具、测试、规范与根文档原子切换已实施，INDEX/ROADMAP 已物理删除，豁免清单经责任人确认迁至 `standards/closure-exemptions.toml`。GLM-5.3 实施评审与增量复审收敛，S1 已修正；周彬已于 2026-11-10 签认本批 self-review。责任人后续要求补齐所有该跑测试，统一 `verify.py --smart` 已实际执行：定制 605 passed / 51 skipped，上游 tests 35854 passed / 737 skipped，architecture 1247 passed / 3 skipped / 1 deselected，Summary 均 PASSED。closure、strict、ruff/format、import 边界、R2/R3、guard 验证与 mock + TUI 手动冒烟全绿。当前只待提交、PR 与 AIxCoding Tests / Upstream CI 双 CI。
+工具、测试、规范与根文档原子切换已实施，INDEX/ROADMAP 已物理删除，豁免清单经责任人确认迁至 `standards/closure-exemptions.toml`。GLM-5.3 实施评审与增量复审收敛，S1 已修正；周彬已于 2026-11-10 签认本批 self-review。责任人后续要求补齐所有该跑测试，统一 `verify.py --smart` 已实际执行：定制 605 passed / 51 skipped，上游 tests 35854 passed / 737 skipped，architecture 1247 passed / 3 skipped / 1 deselected，Summary 均 PASSED。closure、strict、ruff/format、import 边界、R2/R3、guard 验证与 mock + TUI 手动冒烟全绿。提交与 PR 已闭环（2026-11-11 同步）：PR #113（feat/parallel-batch-governance → main_aixcoding_cli）双 CI 绿后合并，merge commit `f17498b3`。
 
 ## 待办
 
@@ -24,7 +24,7 @@
 - [x] 编制 test-plan，覆盖双格式 ID、M0/M1/M2 场景、closure 四项门禁、INDEX/ROADMAP 物理删除与引用清理、导航零写入/防复用、有目录微改动纳入/无目录微改动排除的边界，以及新增缺件微改动目录 closure 失败、无目录豁免不触发六件门禁的增量分流。
 - [x] 按签认范围实施工具、测试、规范和根文档原子切换；物理删除 INDEX 与 ROADMAP，README 速查表加入批次目录全景 / 定制点全景两条相邻命令入口并删除旧路线入口，注明无目录微改动查 GitHub merged PR。
 - [x] 实施 guard-switches 存量修复：ADR-0023 迁移、3 个文件旧引用与 H1 更新、verification 补做和 plan 更正均完成；GLM-5.3 第二 AI 评审与责任人签认已完成，F1/F3 按责任人裁决修复。
-- [ ] 最终 closure、Smart Test、完整定制/上游/架构套件、strict、ruff/format、import 边界、R2/R3 和 guard 验证均已通过；待提交与 PR 后确认 AIxCoding Tests / Upstream CI 双 CI。
+- [x] 最终 closure、Smart Test、完整定制/上游/架构套件、strict、ruff/format、import 边界、R2/R3 和 guard 验证均已通过；AIxCoding Tests / Upstream CI 双 CI 绿后经 PR #113 合并（merge commit `f17498b3`，2026-11-11 同步）。
 - [x] GLM-5.3 实施评审与增量复审均完成，F1-F5 已处置、S1 已修正、评审收敛；周彬已于 2026-11-10 签认本批 self-review。
 - [x] 按责任人 2026-11-10 补充要求，以 user-manual 批次为依据同步 README、DIRECTORY、DEVELOPMENT 与 UPGRADE-RUNBOOK 的 `manual/` 落点、wheel 例外、安装/使用手册区分和升级对账义务。
 

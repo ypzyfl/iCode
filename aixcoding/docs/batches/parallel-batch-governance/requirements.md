@@ -63,7 +63,7 @@
 - [x] 存量缺口以 `origin/main_aixcoding_cli@95e23add` 盘点并落入 `standards/closure-exemptions.toml`，清单外新批次零豁免；常态只减不增，补齐文件同 PR 删除豁免，新增/扩大须另出 ADR 并签认；R13 第⑤类及 SELF/PEER 两份评审模板同步。规则生效后 §6 豁免微改动不新建 batches 目录，需要目录即走完整管线；新增缺件微改动目录 closure 报错，无目录豁免不触发六件门禁。
 - [x] `guard-switches` 存量修复完成：ADR-0023 由责任人本人实际日期补签、self-review/verification 补做并如实记录历史缺口、plan 虚假完成陈述更正、3 个文件内 6 处旧引用及 ADR H1 清零、closure 无豁免命中；最终完整 closure 验证在修复后执行。
 - [x] 新测试使用行为名的规则进入规范；本批不批量重命名旧测试。
-- [ ] 定制工具测试、ruff/format、`check_docs.py`、`gen_customizations.py --strict` 与 Smart Test 均已通过（证据见 verification.md V9）；**PR 双 CI 绿（待提交与 PR 后确认）**。
+- [x] 定制工具测试、ruff/format、`check_docs.py`、`gen_customizations.py --strict` 与 Smart Test 均已通过（证据见 verification.md V9）；**PR 双 CI 绿（PR #113 双 CI 绿后合并，merge commit `f17498b3`；2026-11-11 回填）**。
 
 ## 开放问题
 
