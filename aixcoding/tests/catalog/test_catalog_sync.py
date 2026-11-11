@@ -278,12 +278,18 @@ async def test_a_failing_callback_does_not_kill_the_loop(monkeypatch: pytest.Mon
         catalog_module.stop_sync_runtime()
 
 
-def test_the_tier_is_auths_tier(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_tier_is_auths_tier(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """One shared deployment environment drives auth and the model catalog."""
     from chrys.kernel.aixcoding.auth import environments
     from chrys.kernel.aixcoding.auth.types import Environment
     from chrys.service.aixcoding.config import load_config
     from chrys.service.aixcoding.config import loader as config_loader
+
+    # Undo the conftest's prod-default stub: this test drives the real loader
+    # through the environment variable. The loader's directory is pinned to an
+    # empty tmp_path so a per-machine TOML's base_url cannot leak in either.
+    monkeypatch.setattr(catalog_module, "load_config", load_config)
+    monkeypatch.setattr(config_loader, "_resolve_config_dir", lambda _d=None: tmp_path)
 
     expected_tiers = {tier.value for tier in Environment}
     assert set(catalog_module._CATALOG_BASES) == set(config_loader.VALID_ENVIRONMENTS) == expected_tiers
