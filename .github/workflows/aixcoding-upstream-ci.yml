@@ -21,9 +21,10 @@ permissions:
   contents: read
 
 jobs:
-  # Doc-only PRs (every changed file matching docs) skip the ~11-minute
-  # upstream matrix: touching nothing but docs leaves upstream code
-  # identical to upstream's own green main. The skip decision lives at job
+  # Doc-only PRs (every changed file matching docs — incl. the data-only
+  # aixcoding/manual/ handbook tree, index.yaml etc., never runtime code)
+  # skip the ~11-minute upstream matrix: touching nothing but docs leaves
+  # upstream code identical to upstream's own green main. The skip decision lives at job
   # level on purpose: the branch-protection required check is the JOB-LEVEL
   # "AIxCoding upstream gate" run name, so the gate job must always run and
   # report — a workflow-level paths-ignore would leave the required check
@@ -48,7 +49,7 @@ jobs:
         run: |
           git -c core.quotePath=off diff --name-only "${{ github.event.pull_request.base.sha }}" HEAD > /tmp/changed.txt
           test -s /tmp/changed.txt
-          if grep -qvE '(\.md$|^docs/|^aixcoding/docs/)' /tmp/changed.txt; then
+          if grep -qvE '(\.md$|^docs/|^aixcoding/docs/|^aixcoding/manual/)' /tmp/changed.txt; then
             echo "doc_only=false" >> "$GITHUB_OUTPUT"
           else
             echo "doc_only=true" >> "$GITHUB_OUTPUT"
