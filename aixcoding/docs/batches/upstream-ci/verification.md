@@ -85,7 +85,25 @@
 
 **peer review（2026-10-28）4 候选处置**：C1 中文文件名误判（quotePath 默认转义使 `.md$` 不匹配——ADR 即中文命名，实测探针在案）已修（`-c core.quotePath=off`）；C2 空 diff 判纯文档已修（`test -s`，fail-closed）；C3 本留痕缺失即本节；C4 R2 表条目/行数未同步已修（design 表行更新为 84 行口径 + 收窄描述；初写 87 系笔误，负责人复核纠正）。
 
+## 2026-11-11 doc-only 白名单扩围（aixcoding/manual/ 整目录）
+
+**触发实证**：PR #117（`docs/manual-0.35.2`，0.35.2 手册同步，80 改动文件）——79 个文件匹配原正则，唯一漏网 `aixcoding/manual/index.yaml`（非 `.md` 结尾、不在 `docs/` / `aixcoding/docs/` 前缀下）→ `filter` 判 `doc_only=false` → 全套矩阵照跑：Upstream CI run #116（head `c787fdd`，2026-11-11）**11 分 57 秒**，run #117（head `9252a5e`）同因复跑。本地同款 `git diff --name-only` + 正则复现确认 80 文件中仅此 1 个不匹配。
+
+**改动**：filter 正则 `(\.md$|^docs/|^aixcoding/docs/)` 追加 `|^aixcoding/manual/`（workflow 51 行 + 头部注释同步，注释 3 行换 4 行，总行数 84→85）；design 备选表 / R2 表联动追加。责任人 2026-11-11 裁定：manual 目录全为文档（含 `index.yaml`），无代码、不影响程序功能，整目录白名单。
+
+**本地验证**（2026-11-11，Windows，`PYTHONPATH=`、`PYTHONUTF8=1`）：
+
+| 命令 | 结果摘要 |
+|---|---|
+| 正则复现（PR #117 的 80 文件 vs 新正则） | 不匹配 0 个（原正则 1 个：`aixcoding/manual/index.yaml`） |
+| `uv run pytest tests/architecture/test_workflow_action_pins.py -n0 -q` | **27 passed** in 4.91s |
+| `uv run python aixcoding/tools/check_docs.py` | OK（24 ADR / 39 design / 38 self-review） |
+| `uv run python aixcoding/tools/check_r2_diff.py --base 2fd777f6` | OK（upstream_changed=85，该 yml 在批准池内） |
+| `uv run python aixcoding/tools/check_r3_markers.py --base 2fd777f6` | OK（marker_checked=82 / exempt=3） |
+| `uv run python aixcoding/tools/gen_customizations.py --strict` | check OK（109 rows / 150 markers / 0 warning） |
+
 ## 未验证事项
 
 - **doc-only 直通路径的远程首跑**（2026-10-28 收窄批）：`filter` 判 `true` → `ci` skipped → `gate` 报 "doc-only PR: upstream matrix skipped by design" 直绿、PR 可合并——PR #66 自身改 `.yml` 照跑全套（filter=false 路径已实证），`true` 路径待首个纯文档 PR 观察闭环；
+- **manual 白名单扩围的远程首跑**（2026-11-11 扩围批）：本批合入后首个 manual-only PR 观察同上直通路径——与上一条同观察点，PR #117（修复合入后其分支再 push）即为首个候选；
 - `actions/checkout@3d3c42e5` ↔ `v7.0.1` 的 SHA↔tag 对应关系（本机网络阻断未核，与仓库既有 12 处 pin 逐字符一致）。
