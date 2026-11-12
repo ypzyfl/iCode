@@ -21,6 +21,7 @@ iCode-fork/
 │       └── tui/                   #     产品 UI（被 app 接线点同层调用；批次待迁）
 ├── aixcoding/                    # 开发资产、定制手册源与分发物料（manual 经 force-include 进 wheel，其余不进）
 │   ├── docs/                     #   standards/（规范族+全局 ADR+模板+评审清单）、
+│   │                             #   madr/（轻量决策记录，ADR-decision-log--dual-tier-decision-records）、
 │   │                             #   batches/<name>/（全部批次/专项目录平铺，见 DEVELOPMENT.md §6 与 ADR-0016/0024）
 │   ├── tests/                    #   【唯一】定制测试落点（显式运行）
 │   ├── mock/                     #   【唯一】自建 mock 专区（纯实现，契约测试在 tests/mock/）
@@ -48,6 +49,7 @@ iCode-fork/
 | 是测试？ | `aixcoding/tests/` |
 | 是 mock（模拟外部后端服务）？ | `aixcoding/mock/` |
 | 是随制品分发的物料（安装器脚本、用户安装手册等分发给最终用户的资产）？ | `aixcoding/release/`（先于"文档"判定——安装手册等分发文档按此行命中，ADR-0020） |
+| 是轻量决策记录（MADR 条目 `YYYY-MM-DD-主题.md`，或目录级 `README.md` 使用说明）？ | `aixcoding/docs/madr/`（ADR 轻量下位档：日期命名、4–5 行模板、append-only；ADR-decision-log--dual-tier-decision-records） |
 | 是文档？ | `aixcoding/docs/`（规范族进 `standards/`，其余一律 `batches/<name>/`，见 ADR-0016；非随制品分发） |
 | 是开发工具脚本（校验、脚手架等）？ | `aixcoding/tools/` |
 | 以上都不是 | 停下：先在方案中论证归属，必要时修订本文 |
