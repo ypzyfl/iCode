@@ -35,6 +35,7 @@
    uv run python aixcoding/tools/check_docs.py --closure
    ```
 4. 取定制点全景：`uv run python aixcoding/tools/gen_customizations.py --report`——升级期间它是地图（各源 design 登记表为语义源）；
+5. madr/ 低频审计：扫描 `aixcoding/docs/madr/` 条目，向责任人呈报一行结论（该升格的滞留条目 / 同主题堆积 / 可疑档位 / 条目频率——持续月均 >5 条建议重估裁决形态），处置裁决留档于升级批次文档（ADR-decision-log--dual-tier-decision-records 机制 5）；
 
 ## 2. 文本层（merge 与冲突）
 
