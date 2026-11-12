@@ -244,8 +244,11 @@ python aixcoding/tools/check_docs.py
 
 - [x] 评审第一轮修复后的增量复审（2026-11-10，同一评审 AI）——3 blocker 修复经独立复现确认，
   新增 N1/N2/N3 已处置或登记，结论收敛（记录见 self-review 第二轮节）；
-- [ ] Linux 侧 `check_wheel.py` 正式门禁输出——**非本批次动作**：责任人裁决不改 CI，等
-  `aixcoding-upstream-ci` 桥接自然覆盖（届时以 CI 日志为准，本文件不再回填）；
+- [ ] Linux 侧 `check_wheel.py` 正式门禁输出——**非本批次动作**：责任人裁决不改 CI；原承诺
+  “等 `aixcoding-upstream-ci` 桥接自然覆盖（届时以 CI 日志为准，本文件不再回填）”**经
+  upstream-ci-tiering 批次（2026-11-12）修订**为：等该批次的 **nightly 兜底全量**（含
+  build+wheel 探测）自然覆盖，首次实际覆盖后回填验证结果（manual-only PR 在新口径下跳过
+  PR 时上游矩阵，故桥接不再于手册 PR 时触发）；
 - [ ] 双轨同源对账（增量复审 N3）：从 `aixcoding/manual/` 重出桌面 MD/PDF 做字符级对账，
   登记为下个手册批次待办（plan「挂起与备忘」）。
 

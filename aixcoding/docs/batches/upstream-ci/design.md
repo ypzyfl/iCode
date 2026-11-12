@@ -62,3 +62,9 @@ R1 自查：GitHub 平台硬约束下无其他落点；文件为纯新增，上�
 ## ADR 判定
 
 四问：①否决备选——操作层选型已记上表，机制级无新否决；②撤销代价——单文件可即删，低；③约束未来工作模式——无新约束（复用机制即上游惯例）；④依赖上游非公开接口——无（workflow_call 与 ci.yml 的 on 配置均为公开接口）。结论：不出 ADR。
+
+> 修订记录：2026-11-12 upstream-ci-tiering 批次（ADR-upstream-ci-tiering--pr-gate-tiering）——
+> 本批确立的 doc-only 判定被“影响分类器 `upstream_touched`”取代：跳过口径由“是否纯文档”改为
+> “是否触及上游影响面”（纯定制代码 PR 亦跳过）；新增 nightly schedule 与 workflow_dispatch
+> 全量兜底；gate 状态机强化为 fail-closed 两合法态。本文为原桥接机制的决策快照，现行触发语义
+> 以 `aixcoding/docs/batches/upstream-ci-tiering/design.md` 与 DIRECTORY §7 为准。
