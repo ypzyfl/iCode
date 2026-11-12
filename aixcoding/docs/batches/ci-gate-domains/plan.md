@@ -4,8 +4,10 @@
 
 ## 状态
 
-批次主体已合并（PR #123 → `800bb778`，2026-11-12）；收尾阶段——纯文档回填 PR 进行中
-（兼作定制双域跳过三件套验证载体），push run 与首个 nightly 观察待完成。
+**收官**（2026-11-13）：批次功能全部上线（PR #123/#124）并经四重真实流量实证——FORCE 全量
+自证、纯文档跳过 ~1 分钟（PR #124 三件套）、push 恒全跑双证（#201/#204，范围=定制双域）、
+nightly 三域覆盖（Tests #207 + Upstream #134）；user-manual 遗留口径已核销。仅剩本回填
+文档的收尾 PR。
 
 ## 待办
 
@@ -27,8 +29,12 @@
 - [x] 合并后收尾之回填 PR 三件套：**已实证**（PR #124 / Tests #202：filter 33s 判双 false →
       test/guard 零 runner skipped → gate 7s 直绿，run 总 48s；Upstream #131 同款 49s；
       纯文档 PR 总等待 ~1 分钟）
-- [ ] push run 恒全跑观察（PR #124 合并后触发）；首个 nightly（UTC 18:00）观察与
-      user-manual 口径核销
+- [x] push run 恒全跑观察（范围=定制双域，upstream 无 push 触发仅 nightly/dispatch 兜底）：
+      **双证成立**（#201 约 2.5 分钟 success 首证；#204 8/8 success——filter 判非 PR 事件
+      双域全跑，总约 9.5 分钟，macos 排队占大头）
+- [x] 首个 nightly 三域覆盖与 user-manual 口径核销：**完成**（Tests #207 success 2m37s +
+      Upstream #134 success 13m11s，2026-11-12 深夜执行——schedule 高峰延迟近 5h，平台已知
+      行为；user-manual 遗留口径已核销）——**批次全部验收项闭环**
 
 ## 挂起与备忘
 

@@ -52,11 +52,36 @@ PR #123 合并（`800bb778`）后，以纯文档回填 PR 实证**定制双域�
 - 两个 run 并行，纯文档 PR 总门禁等待**约 1 分钟**（优化前双 CI 全量约 23 分钟）。
 - 验收标准"真实纯文档 PR 端到端"达成，无需额外临时验证 PR。
 
-## 待远程验证（合并后，到点回填）
+## 2026-11-12 push run 恒全跑实证（双证；范围=定制双域，不含 upstream）
 
-- **本批 PR（R1 FORCE 自证）**：触及 `aixcoding-tests.yml` 与 `ci_impact.py` → 定制双域全跑
-  + upstream 全量（判定器 FORCE）；filter 日志记录 probe 版本门限与 `--domains` 输出校验；
-  gate 输出各域状态。
-- **closure 前置**：新 ADR 签认（草案会被 closure 拒绝）→ closure 转绿。
-- **合并后**：①纯文档回填 PR 三件套（filter 双 false → test/guard skipped → gate 直绿，各域
-  状态输出可见）；②push run 恒全跑观察；③首个 nightly（UTC 18:00）定制域覆盖 + 与桥接同点。
+- **Tests #201**（push，PR #123 合并触发，`800bb778`）：success，约 2.5 分钟——首证。
+- **Tests #204**（push，PR #124 合并触发，`2d998f34`）：**8/8 jobs 全 success**——filter 40s
+  判非 PR 事件 → 双域恒 true → `Custom tests` 双 OS（43/67s）+ `Guard hooks` 三 OS
+  （24/41/28s）+ `govern`（27s）全量执行 → gate 8s success；总耗时约 9.5 分钟（macos
+  runner 排队占大头，各 job 实际执行均数十秒）。
+- 双证成立：**push 至主干 → 定制双域恒全跑**（纯文档合并同样全跑 test/guard/govern，兜住
+  PR 阶段射程漏判）。**范围注意**：upstream 域不在 push 兜底内——桥接无 push 触发器
+  （upstream-ci 批次设计：不为合并重复烧上游矩阵），上游套件的兜底仅 nightly/dispatch
+  （24h 执行上界 + 观察责任，ADR 兜底层次原意）。
+
+## 2026-11-13 首个 nightly 双绿（批次收官实证）
+
+- **AIxCoding Tests #207**（schedule，2026-11-12 22:58 UTC 执行——GitHub schedule 高峰延迟
+  近 5 小时，cron 定义仍为 UTC 18:00，平台已知行为）：**success，2m37s**——定制双域全量
+  （非 PR 事件直全跑，主干 tip `d9e261f1`）。
+- **Upstream CI #134**（schedule，23:08 UTC）：**success，13m11s**——upstream 域 nightly
+  唯一防线的首次执行，全量含 build + wheel 探测。
+- **user-manual 口径核销**：首个 nightly 的 build+wheel 覆盖完成（check_wheel 对
+  `aixcoding/manual` 逐文件核对在 #134 内执行），user-manual 批次"等 nightly 兜底，首次
+  覆盖后回填"的遗留口径同步核销（其 verification.md 本轮回填）。
+- **批次全部验收项闭环**：FORCE 全量自证（PR #123）、纯文档跳过三件套（PR #124，~1 分钟）、
+  push 恒全跑双证（#201/#204，范围=定制双域）、nightly 三域覆盖（#207/#134）。
+
+## 待远程验证（已全部完成，无遗留项）
+
+- ~~本批 PR（R1 FORCE 自证）~~ **完成**：PR #123 双 CI 全绿（见"远程验证结果"节——Tests
+  #200 8/8 含 filter/gate 各域状态；Upstream #130）。
+- ~~closure 前置~~ **完成**：新 ADR 已签认，closure 转绿（本地复跑 OK）。
+- ~~合并后三项~~ **全部完成**：①纯文档回填 PR 三件套（PR #124，见"跳过链路真实验证"节）；
+  ②push run 恒全跑双证（#201/#204，见"push run 恒全跑实证"节）；③首个 nightly 双绿
+  （#207/#134，见"首个 nightly 双绿"节）。
