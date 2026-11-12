@@ -33,7 +33,7 @@ iCode-fork/
 ├── tests/                        # 纯上游测试，零定制文件
 ├── .github/workflows/
 │   ├── ci.yml                    # 上游 CI（仅 PR 至 main 触发；发布链路 CD 经 workflow_call 复用）
-│   ├── aixcoding-tests.yml       # 定制质量门（lint + 定制测试 + mock 契约测试 + 文档签认校验）
+│   ├── aixcoding-tests.yml       # 定制质量门（compliance 恒跑 + aixcoding-tests/guard-deploy 按射程 + push/nightly 全跑兜底，见 docs/batches/ci-gate-domains/）
 │   └── aixcoding-upstream-ci.yml # 上游 CI 桥接（PR 按需（影响分类器）+ nightly/dispatch 兜底，经 workflow_call 跑上游全套，见 docs/batches/upstream-ci/ 与 upstream-ci-tiering/）
 └── pyproject.toml                # packages 仅 ["src/chrys"]；manual 另经 force-include 进 wheel
 ```
@@ -125,15 +125,28 @@ aixcoding/mock/<name>/            # 命名：无前缀服务名（auth / update 
 
 ## 7. CI 质量门
 
-> 过渡期：`aixcoding-tests.yml` 待建（`batches/restructure/plan.md` U3）；本节描述建成后状态。
+> 检查域模型（ci-gate-domains 批次，2026-11-12）：**四个检查域 + 两个聚合 required check**；
+> "检查域"回答做什么/何时触发，"聚合门"回答分支保护等哪个结果；域名描述被运行的检查套件。
+> 旧 L0/L1/L2 数字分层术语以此映射收尾：L0→compliance、L1-test→aixcoding-tests、
+> L1-guard→guard-deploy、L2→upstream（ADR-ci-gate-domains--check-domains-model）。
 
-| 代码 | 门禁 |
-|---|---|
-| 产品定制代码（`src/chrys/*/aixcoding/`） | **静态门**：`aixcoding-tests.yml` govern 补位（ruff/format + ty 单 runner 显式三平台 + compileall，仅定制产品路径，upstream-ci-tiering 批次）；**上游回归**：触及上游影响面时经桥接跑上游 `ci.yml` 全套（test/build/wheel 等），纯定制 PR 跳过（按需分层，ADR-upstream-ci-tiering--pr-gate-tiering） |
-| 定制测试 + mock + 文档（`aixcoding/`） | 独立 workflow `aixcoding-tests.yml`，三层结构（windows-matrix 批次，2026-11-01）：`test` 双 OS 矩阵跑 `pytest aixcoding/tests`（ubuntu + windows，DPAPI 平台真实用例 Windows 侧实际执行）；`govern` 单 Linux 跑 `ruff check/format aixcoding/ + 定制产品路径` + 定制产品 ty 三平台/compileall + `check_docs.py --closure` + 治理三工具；`gate` 保名汇总 |
+| 检查域 | 内容 | 触发策略 | 聚合去向 |
+|---|---|---|---|
+| `compliance` | `aixcoding-tests.yml` 的 `govern`：ruff check/format（`aixcoding/` + 定制产品路径）+ 定制产品 ty 三平台/compileall（upstream-ci-tiering 补位）+ `check_docs.py --closure` + 治理三工具 | 恒跑 | `AIxCoding quality gate` |
+| `aixcoding-tests` | `test` 双 OS 矩阵跑 `pytest aixcoding/tests`（DPAPI 平台真实用例 Windows 侧实际执行） | 按射程（分类器 `--domains`：测试资产/定制产品代码/mock/工具代码/测试环境文件/上游产品源码；纯文档跳过，"文档即验证输入"9 文件例外） | `AIxCoding quality gate` |
+| `guard-deploy` | `guard` 三 OS：真实安装 guard 规则包 → stdlib 自检 → MANUAL_TESTS 语料回放 | 按射程（guard 安装器/规则包/语料/部署验证 + 共享环境文件） | `AIxCoding quality gate` |
+| `upstream` | 桥接 `aixcoding-upstream-ci.yml` 复用上游 `ci.yml` 全套约 20 job（多 OS 分片 + architecture + build + wheel） | 按影响面（分类器 upstream 模式，upstream-ci-tiering 批次） | `AIxCoding upstream gate` |
 
-- 触发条件：`aixcoding-tests.yml` 为 PR + push 至 main_aixcoding_cli（Linux 侧实测 38 秒–5 分钟；Windows 侧首跑时长待录）；桥接 `aixcoding-upstream-ci.yml` 为 **PR 按需 + nightly + 手动**（upstream-ci-tiering 批次，2026-11-12）：PR 由影响分类器（`aixcoding/tools/ci_impact.py`）判定 `upstream_touched`——改动全部落在定制资产/文档豁免集则跳过上游矩阵（gate 直绿，required check 语义不变），其余全量；nightly schedule（每日 UTC 18:00）与 workflow_dispatch 对主干合并树全量兜底（合并 push 仍不重复跑）。单次全量拉起上游全套约 20 job（多 OS 分片 + architecture + build + wheel 探测）+ 汇总 gate（`AIxCoding upstream gate`，分支保护必过 check 的落点），实测约 11–12 分钟。定制门已扩 Windows 矩阵：`test`/`govern` 并行执行，`gate`（保名 `AIxCoding quality gate`，分支保护必过 check 的落点）fail-closed 聚合两者。
-- ty 对齐上游惯例：只查 `src/chrys`，不查测试与 mock；定制产品路径在 govern 显式 `--python-platform` 三平台（linux/darwin/win32）各跑一次。
+- 触发条件：`aixcoding-tests.yml` 为 PR（按射程）+ push 至 main_aixcoding_cli（**定制双域恒
+  全跑**，每次合并即全量兜底）+ nightly schedule（每日 UTC 18:00）/ dispatch（非 PR 事件直
+  全跑）；`aixcoding-upstream-ci.yml` 为 PR 按影响面 + nightly/dispatch（合并 push 不重复跑，
+  当年有意决策）。射程规则单点登记于 `aixcoding/tools/ci_impact.py`（域集合输出、未知路径
+  全域 fail-closed）；concurrency 按 `ref + event_name` 分组（push 与 nightly 不互取消）。
+  gate 恒跑保名、fail-closed：每域 `(命中∧success) ∨ (未命中∧skipped)`，输出各域状态。
+- ty 对齐上游惯例：只查 `src/chrys`，不查测试与 mock；定制产品路径在 govern 显式
+  `--python-platform` 三平台（linux/darwin/win32）各跑一次。
+- 兜底层次：定制双域 = push 全跑 + nightly（空窗/环境漂移/push 失败复测）；upstream =
+  nightly/dispatch 唯一防线（24h 执行上界 + 观察责任）。均为合并后兜底，不替代 PR 保守触发。
 
 ## 8. 例外登记（对应 DEVELOPMENT.md §10）
 
