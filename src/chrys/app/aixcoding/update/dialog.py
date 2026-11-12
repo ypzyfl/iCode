@@ -3,11 +3,11 @@
 """The update confirmation dialog (design §3.3).
 
 A normal release offers three answers — update now, remind on the next
-launch, skip this version — with Escape and a backdrop click counting as
-"remind" (the dialog shows again on the next start).  A
-``forceUpgrade`` release offers update now only and cannot be dismissed
-any other way (design Q5): the check runs at startup, so there is no
-unsaved work to protect.
+launch, skip this version; a ``forceUpgrade`` release offers update now
+only (design Q5).  Both variants are strictly modal (design revision 17):
+Escape and backdrop clicks are swallowed, so a button press is the only
+exit.  The normal release keeps an explicit cancel path — "remind on the
+next launch" — and its body keeps the save-your-work warning.
 
 Text follows the aixcoding TUI house style (``login.py``): plain string
 constants, no i18n pipeline.
@@ -72,8 +72,8 @@ class UpdateConfirmDialog(BaseDialog[str]):
     """
 
     BINDINGS: ClassVar[list] = [
-        # Escape is the dialog's own channel so the force variant can hold it
-        # shut (ask_user's noop-pattern); the normal variant answers "later".
+        # Swallow Escape for both variants (ask_user's noop-pattern); the
+        # priority binding keeps the key from bubbling to the app.
         Binding("escape", "answer_escape", show=False, priority=True),
         # Button-to-button keyboard switching rides the ConfirmDialog house
         # pattern (confirm.py): left/right move the focus directly — Tab does
@@ -83,7 +83,7 @@ class UpdateConfirmDialog(BaseDialog[str]):
     ]
 
     def __init__(self, update: AppUpdate, on_result: Callable[[str], None]) -> None:
-        super().__init__(dismiss_on_backdrop=not update.force_upgrade)
+        super().__init__(dismiss_on_backdrop=False)
         self._update = update
         self._on_result = on_result
         self._answered = False
@@ -153,16 +153,19 @@ class UpdateConfirmDialog(BaseDialog[str]):
         buttons[(index + step) % len(buttons)].focus()
 
     def action_answer_escape(self) -> None:
-        """Escape answers "later" — except on a force upgrade, which stays shut."""
-        if not self._update.force_upgrade:
-            self.dismiss_when_topmost(LATER)
+        """Escape is a no-op for both variants (design §3.3, revision 17).
+
+        The priority binding still swallows the key so it cannot bubble to
+        the app; an explicit button press is the only way out.
+        """
 
     def _before_dismiss(self, _result: object | None = None) -> None:
         """Deliver the answer exactly once, on every dismissal path (design §3.3).
 
-        ``BaseDialog.dismiss`` funnels backdrop clicks and button presses
-        through here, so a None result (an untaken path) still counts as
-        "later" — the dialog never leaves the flow without an answer.
+        ``BaseDialog.dismiss`` funnels every close through here.  With Escape
+        and backdrop clicks swallowed only button presses reach it, but a None
+        result still counts as "later" as a defensive fallback so the flow
+        never waits on a dialog that closed without an answer.
         """
         if self._answered:
             return

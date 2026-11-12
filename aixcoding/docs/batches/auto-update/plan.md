@@ -24,6 +24,12 @@ duplicate id；本批两个登记点已后移为 **C172 / C173**，全库 `--str
 恢复 `check OK — 116 / 161 / 19 design(s) / 7 retired / 0 warning`。
 文中的 111/152/0 保留为历史门禁与「相对基线 +2/+2」口径，差异说明
 与最终复跑证据见 verification.md「责任人裁决：本批后移」。
+**弹框严格模态（2026-11-12 责任人裁决「按 B 执行」＝design 修订十七）**：
+明确不推翻 ADR-0005/0010、**不支持英文**（i18n 例外程序不启动，文案
+维持纯中文常量）；两种弹框统一 `dismiss_on_backdrop=False` + Esc noop，
+按钮为唯一退出路径。改动仅 `dialog.py` / `test_dialog.py` 与本批
+六件文档；零上游文件、R2 清单未变、零登记号、零新增豁免、不重签。
+证据见 verification.md「弹框严格模态（修订十七）」。
 
 ## 待办
 
@@ -70,6 +76,12 @@ duplicate id；本批两个登记点已后移为 **C172 / C173**，全库 `--str
       `plan.md` / `self-review.md` / `verification.md` / `test-plan.md`
       与 `runner.py` 注释同步，`--strict` 恢复 OK；R2 清单未变、不重签。
       证据与最终门禁复跑见 verification.md「责任人裁决：本批后移」。
+- [x] **弹框退出通道统一（design 修订十七，2026-11-12 责任人裁决
+      「按 B 执行」）**：两种弹框 `dismiss_on_backdrop=False` + Esc noop，
+      按钮为唯一退出路径；明确不支持英文、不启动 i18n 例外程序；
+      design 追加修订记录、不重签，零上游/零登记号/零新增豁免。
+      证据见 verification.md「弹框严格模态（修订十七）」。
+- [ ] 普通版本 Esc/点击外部不关的手工冒烟实机复核（修订十七新增口径）
 
 ## 挂起与备忘
 

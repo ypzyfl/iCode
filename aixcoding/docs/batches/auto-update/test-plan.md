@@ -18,6 +18,19 @@
 | 等待-执行-重启序（端到端） | `test_runner.py`（假命令写标记文件）+ Windows 实机冒烟 | 集成+手工 |
 | 上游零回归 / strict 零漂移 | `pytest aixcoding/tests` + `gen_customizations --strict` + Smart Test | 门禁 |
 
+> 2026-11-12 补记（design 修订十七，活文档追加）：上表「弹框三选项
+> + 强更单选项不可取消（Esc/backdrop）」扩张为**两种变体统一严格
+> 模态**。`test_dialog.py` 现覆盖：普通版三选项、强更单选项、
+> `test_escape_does_not_close_either_variant`（两种变体按 Esc 后
+> `answers == []` 且弹框仍在）、
+> `test_backdrop_click_does_not_close_either_variant`（两种变体
+> `dismiss_on_backdrop is False` + `pilot.click(offset=(0,0))` 后
+> 不产生回答）、按钮回答与重复 dismiss 恰好一答。手工冒烟 2
+> 「强更单选项 + Esc/点击外部不关」仍成立（单选项实测已做）；
+> 新增冒烟口径：普通版本按 Esc / 点击外部同样不关，只能经按钮退出
+> （design 修订十七，待责任人实机复核）。本批 R13 豁免清单仍为
+> 2 类，未新增。
+
 ## 关键夹具
 
 - **mock server 桩**：`from aixcoding.mock.update.server import MockUpdateConfig,

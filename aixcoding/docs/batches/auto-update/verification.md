@@ -503,3 +503,81 @@ $ git diff --cached --check     → OK
 - 本轮按授权以显式路径 `git add` 上述改动；**未 commit / 未 push**。
 - 特性分支 `feat/aixcoding-auto-update-v2`；旧分支
   `feat/aixcoding-auto-update` 与提交 `5396dfe1` 保留作备份。
+
+## 弹框严格模态（修订十七，2026-11-12）
+
+责任人裁决「按 B 执行」：两种更新弹框统一严格模态，Esc 与点击外部
+均不关闭，按钮为唯一退出路径；同时明确**不支持英文**、不推翻
+ADR-0005/0010、不启动 i18n 例外程序。上文各历史节中的「Esc/点击外部
+＝下次提醒」「强更框 Esc/backdrop 不可关」「backdrop/Esc/按钮全部经
+同一漏斗」等陈述均为修订十七前快照，按 R10 不改写，现行状态以
+本节与 design 修订（十七）为准。
+
+### 改动清单
+
+| 落点 | 改动 |
+|---|---|
+| `src/chrys/app/aixcoding/update/dialog.py` | `dismiss_on_backdrop=False`（原 `not force_upgrade`）；`action_answer_escape()` 改为两种变体共用 noop、保留 `priority=True` binding 吞 Esc 防冒泡；模块 docstring、BINDINGS 注释、`_before_dismiss` 注释同步新不变量 |
+| `aixcoding/tests/auto_update/test_dialog.py` | 反转 `test_escape_counts_as_later_on_normal_release` → `test_escape_does_not_close_either_variant`（两种变体按 Esc 后 `answers == []` 且 `app.screen is dialog`）；新增 `test_backdrop_click_does_not_close_either_variant`（`_dismiss_on_backdrop is False` + `pilot.click(offset=(0,0))` 后不产生回答）；强更单选项、按钮回答、重复 dismiss 恰好一答等原用例不变 |
+| `design.md` | 追加修订（十七），取代 §3.3 / §9 / §13 的原退出口径，原行不改写 |
+| `requirements.md`、`test-plan.md`、`self-review.md`、`plan.md`、`verification.md` | 追加补记，声明现行口径与历史快照边界 |
+
+`test_dialog.py` 用例 7→8；backdrop 点击用例有效性由上游
+`tests/app/tui/behaviors/test_click_outside_dismiss.py:150-156`
+反证（gate 打开时同一 `pilot.click(offset=(0,0))` 会 dismiss）。
+
+### 不变量与边界
+
+- 普通版本「下次提醒 / 跳过此版本」仍是显式取消路径；「未保存工作
+  保护」由弹框文案与按钮承载，不再依赖 Esc/背景点击。
+- `_before_dismiss` 的 `None → LATER` 兜底保留为防御；Esc/backdrop
+  封死后实际不可达，`flow.py::_ask` 的 `answered` future 只由按钮
+  `deliver`，不会产生孤儿回答或挂死。
+- 零上游文件、R2 清单（3 个上游文件及行数）未变、零 `locales`/
+  pot/po/oracle、零 `pyproject.toml`、零登记号、`--strict` 无波动、
+  零新增 R13 豁免；按 DEVELOPMENT §4.1 不触发重签，头部签认字段
+  保持责任人 2026-11-12 本人落盘值。
+
+### 机器验证（2026-11-12 最终态，9 项全绿）
+
+```
+$ uv run python aixcoding/tools/check_docs.py --closure
+  scanned 24 ADR(s), 42 design(s), 41 self-review(s) → OK
+$ uv run python aixcoding/tools/gen_customizations.py --strict
+  check OK — 116 registration row(s) / 161 marker(s) across 19 design(s),
+             7 retired id(s), 0 warning(s)
+$ uv run python aixcoding/tools/check_r2_diff.py --base HEAD
+  check_r2_diff: OK
+$ uv run python aixcoding/tools/check_r3_markers.py --base HEAD
+  base=HEAD upstream_changed=0 marker_checked=0 exempt=3 → OK
+$ uv run ruff check --no-fix src/ tests/ aixcoding/tests/
+  All checks passed!
+$ uv run ruff format --check src/ tests/ aixcoding/tests/
+  2812 files already formatted
+$ uv run pytest aixcoding/tests/auto_update/ -n0 -q
+  65 passed in 6.11s
+$ uv run pytest aixcoding/tests -m "not integration and not gc_calibration" -q
+  715 passed, 47 skipped in 17.08s
+$ git diff --check                 → OK
+  EXIT CODES: 0 0 0 0 0 0 0 0 0
+$ uv run ty check --error-on-warning --python-platform {darwin,linux,win32} src/chrys
+  All checks passed! ×3（三平台分别实跑，exit 0）
+```
+
+`test_dialog.py` 7→8 用例（`auto_update` 64→65 passed），全量定制
+714→715 passed；`--strict` 仍 116/161/0（本轮未新增登记点或 marker）。
+`check_r3_markers` 的 `upstream_changed=0` 印证本轮零上游文件改动。
+
+如实申报：**未重跑 Smart Test 全量** —— 本轮改动限于
+`src/chrys/app/aixcoding/update/dialog.py` 与 `aixcoding/tests/auto_update/`
+两个定制路径，按归属目录复跑 auto_update 与 aixcoding 全量；本批定稿
+全量证据仍见上文「最终态 Smart Test」。Windows 分支行为（`pilot.click`
+backdrop / Esc noop）由 PR #119 的 Windows CI 复跑确认，本地 darwin
+只能验证 POSIX 侧；按 DEVELOPMENT §7，CI 结果证据归 PR checks，不回写
+仓库文档。
+
+### 签认与 git 状态
+
+- design 用追加修订记录落法（责任人裁决「追加修订记录」），不重签；
+  AI 未代填任何签认字段。
+- 本轮**未执行 git 写操作**；提交说明另备，未 commit / 未 push。

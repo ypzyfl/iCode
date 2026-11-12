@@ -124,18 +124,39 @@ async def test_focused_button_carries_a_visible_inline_highlight() -> None:
         assert now.styles.background != fill, "the blurred button rests dark like the others"
 
 
-async def test_escape_counts_as_later_on_normal_release() -> None:
-    app = _Harness()
-    async with app.run_test() as pilot:
-        answers: list[str] = []
-        dialog = UpdateConfirmDialog(_update(), answers.append)
-        app.push_screen(dialog)
-        await pilot.pause()
+async def test_escape_does_not_close_either_variant() -> None:
+    """Revision 17: Escape is a no-op on both variants; a button is the only exit."""
+    for force in (False, True):
+        app = _Harness()
+        async with app.run_test() as pilot:
+            answers: list[str] = []
+            dialog = UpdateConfirmDialog(_update(force=force), answers.append)
+            app.push_screen(dialog)
+            await pilot.pause()
 
-        await pilot.press("escape")
-        await pilot.pause()
+            await pilot.press("escape")
+            await pilot.pause()
 
-        assert answers == [LATER]
+            assert answers == [], "escape must not answer the update dialog"
+            assert app.screen is dialog, "the dialog must stay on top"
+
+
+async def test_backdrop_click_does_not_close_either_variant() -> None:
+    """Revision 17: both variants keep dismiss_on_backdrop=False."""
+    for force in (False, True):
+        app = _Harness()
+        async with app.run_test() as pilot:
+            answers: list[str] = []
+            dialog = UpdateConfirmDialog(_update(force=force), answers.append)
+            app.push_screen(dialog)
+            await pilot.pause()
+
+            assert dialog._dismiss_on_backdrop is False
+            await pilot.click(offset=(0, 0))
+            await pilot.pause()
+
+            assert answers == [], "a backdrop click must not answer the update dialog"
+            assert app.screen is dialog, "the dialog must stay on top"
 
 
 async def test_force_upgrade_is_single_option_and_holds_shut() -> None:
