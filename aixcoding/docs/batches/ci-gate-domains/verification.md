@@ -36,6 +36,22 @@
   先例模式，具体失败 job 未细核，如实留痕）。
 - PR #123 双 required check 全绿，可合并。
 
+## 2026-11-12 跳过链路真实验证（PR #124，docs/ci-gate-domains-backfill）
+
+PR #123 合并（`800bb778`）后，以纯文档回填 PR 实证**定制双域跳过三件套**（批次验收最后一
+条实证项）：
+
+- **AIxCoding Tests**（run #202，`f26644a1`）：**success，总耗时 48 秒**（PR #123 全量时约
+  7 分钟）——`filter` 33s success（判双域 touched=false）→ `Custom tests`/`Guard hooks`
+  matrix job **skipped**（零 runner 分配、零步骤；PR checks 列表显示未展开的
+  `${{ matrix.os }}` 模板占位属 GitHub 对未实例化 matrix job 的平台显示行为，实际执行的
+  run 中名字正常展开，required check 为恒跑 gate 不受影响）→ `govern` 38s 照跑 →
+  `AIxCoding quality gate` **7s 直绿**。
+- **Upstream CI**（run #131）：success，49 秒（filter=false / ci skipped / gate 直绿，同
+  PR #122 先例）。
+- 两个 run 并行，纯文档 PR 总门禁等待**约 1 分钟**（优化前双 CI 全量约 23 分钟）。
+- 验收标准"真实纯文档 PR 端到端"达成，无需额外临时验证 PR。
+
 ## 待远程验证（合并后，到点回填）
 
 - **本批 PR（R1 FORCE 自证）**：触及 `aixcoding-tests.yml` 与 `ci_impact.py` → 定制双域全跑

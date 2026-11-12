@@ -24,8 +24,11 @@
 - [x] PR 流程（逐条授权）：add/commit/push → PR #123 → 双 CI 全绿（Tests #200 8/8：filter
       FORCE/版本门限/三 OS guard/gate 状态机全实证；Upstream #130 attempt 2 success）→
       verification 已回填；待合并
-- [ ] 合并后收尾（PR #123 已合并）：纯文档回填 PR 三件套验证（分支已建、进行中）；push run
-      恒全跑观察；首个 nightly（UTC 18:00）观察与 user-manual 口径核销
+- [x] 合并后收尾之回填 PR 三件套：**已实证**（PR #124 / Tests #202：filter 33s 判双 false →
+      test/guard 零 runner skipped → gate 7s 直绿，run 总 48s；Upstream #131 同款 49s；
+      纯文档 PR 总等待 ~1 分钟）
+- [ ] push run 恒全跑观察（PR #124 合并后触发）；首个 nightly（UTC 18:00）观察与
+      user-manual 口径核销
 
 ## 挂起与备忘
 
