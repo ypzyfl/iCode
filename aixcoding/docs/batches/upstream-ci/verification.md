@@ -106,4 +106,5 @@
 
 - **doc-only 直通路径的远程首跑**（2026-10-28 收窄批）：`filter` 判 `true` → `ci` skipped → `gate` 报 "doc-only PR: upstream matrix skipped by design" 直绿、PR 可合并——PR #66 自身改 `.yml` 照跑全套（filter=false 路径已实证），`true` 路径待首个纯文档 PR 观察闭环；
 - **manual 白名单扩围的远程首跑**（2026-11-11 扩围批）：本批合入后首个 manual-only PR 观察同上直通路径——与上一条同观察点，PR #117（修复合入后其分支再 push）即为首个候选；
-- `actions/checkout@3d3c42e5` ↔ `v7.0.1` 的 SHA↔tag 对应关系（本机网络阻断未核，与仓库既有 12 处 pin 逐字符一致）。
+- ~~`actions/checkout@3d3c42e5` ↔ `v7.0.1` 的 SHA↔tag 对应关系~~ **2026-11-12 已核实**：upstream-ci-tiering 批次实施评审经 GitHub API 验证（签名匹配）——checkout v7.0.1 = `3d3c42e5…` ✓、setup-python v7.0.0 = `5fda3b95…` ✓（一并覆盖该批复用的 setup-python pin）。
+- **2026-11-12 注记**：doc-only 判定已被 upstream-ci-tiering 批次的影响分类器取代（含 nightly/dispatch 兜底与 gate 状态机强化），上述“doc-only 直通路径”“manual 白名单扩围首跑”观察点由新口径下的 touched=false 链路验证承接（见 `aixcoding/docs/batches/upstream-ci-tiering/` 验收时点说明）。

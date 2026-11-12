@@ -61,3 +61,9 @@ R1 自查：GitHub 平台硬约束下无其他落点（否决过的改 ci.yml �
 ## ADR 判定
 
 四问：①否决备选——操作层选型已记上表，机制级无新否决（ADR-0004 在案）；②撤销代价——单文件可即删，低；③约束未来工作模式——base 锚点纪律（main_iCode 纯镜像）将固化进升级 runbook，属流程文档非 ADR 级；④依赖上游非公开接口——无（公开 Actions/分支约定）。结论：不出 ADR。
+
+> 修订记录：2026-11-12 upstream-ci-tiering 批次——本 workflow 的治理 job（现名 `govern`，
+> windows-matrix 三层结构）新增定制产品静态检查补位：`src/chrys/{tier}/aixcoding/` 的
+> ruff/format、ty（单 runner 显式三平台）、compileall。背景：纯定制 PR 跳过上游套件后，原由
+> 上游 ci.yml 承担的定制产品静态门改由本门承担（ADR-0004 已加 append-only 注记；
+> ADR-upstream-ci-tiering--pr-gate-tiering）。

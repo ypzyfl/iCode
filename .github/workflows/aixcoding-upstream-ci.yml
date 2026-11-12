@@ -5,13 +5,23 @@ name: AIxCoding Upstream CI
 # main_aixcoding_cli would never run the full upstream matrix (lint + OS
 # shards + architecture) without this shim. It reuses ci.yml through its
 # workflow_call trigger (the same mechanism cd.yml uses) instead of editing
-# the upstream file; PR-triggered only, matching upstream's own convention
-# (upstream ci.yml has no push trigger either).
-# Design & sign-off: aixcoding/docs/batches/upstream-ci/design.md
+# the upstream file.
+# Design & sign-off: aixcoding/docs/batches/upstream-ci/design.md (bridge)
+#
+# Tiered gating (upstream-ci-tiering batch,
+# ADR-upstream-ci-tiering--pr-gate-tiering): the skip decision is now
+# "upstream surface touched?" (impact), not "doc-only?" (form) — PRs changing
+# only custom assets (aixcoding/, src/chrys/{tier}/aixcoding/, docs) skip the
+# matrix. Nightly schedule + workflow_dispatch run the full suite on the
+# trunk as the automatic backstop (default branch = main_aixcoding_cli, so
+# github.sha is the trunk tip and ci.yml's build_ref fallback needs no input).
 
 on:
   pull_request:
     branches: [main_aixcoding_cli]
+  schedule:
+    - cron: "0 18 * * *" # daily 02:00 Beijing: full trunk suite (backstop)
+  workflow_dispatch:
 
 concurrency:
   group: aixcoding-upstream-ci-${{ github.ref }}
@@ -21,53 +31,81 @@ permissions:
   contents: read
 
 jobs:
-  # Doc-only PRs (every changed file matching docs — incl. the data-only
-  # aixcoding/manual/ handbook tree, index.yaml etc., never runtime code)
-  # skip the ~11-minute upstream matrix: touching nothing but docs leaves
-  # upstream code identical to upstream's own green main. The skip decision lives at job
-  # level on purpose: the branch-protection required check is the JOB-LEVEL
-  # "AIxCoding upstream gate" run name, so the gate job must always run and
-  # report — a workflow-level paths-ignore would leave the required check
-  # skipped and block doc-only PRs from merging (verification.md, required-
-  # check semantics).
+  # The skip decision lives at job level on purpose: the branch-protection
+  # required check is the JOB-LEVEL "AIxCoding upstream gate" run name, so the
+  # gate job must always run and report — a workflow-level paths-ignore would
+  # leave the required check skipped and block skippable PRs from merging
+  # (upstream-ci verification.md, required-check semantics).
   filter:
     runs-on: ubuntu-slim
     outputs:
-      doc_only: ${{ steps.f.outputs.doc_only }}
+      upstream_touched: ${{ steps.f.outputs.upstream_touched }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - id: f
-        # Fail-closed: the diff lands in a file first so a failing git diff
-        # aborts this job under set -e (an `if <pipeline>` condition position
-        # is exempt) — the gate then fails on the skipped matrix instead of
-        # waving the PR through. quotePath=off keeps non-ASCII (Chinese) doc
-        # names matchable — with the default quoting their lines end in `"`
-        # and `.md$` never matches (peer review C1); an empty diff likewise
-        # aborts instead of counting as doc-only (C2).
+      - id: probe
+        # Single-implementation classifier (aixcoding/tools/ci_impact.py):
+        # prefer the runner's own python3, fall back to the repo-pinned
+        # setup-python — no shell mirror of the rules, no drift surface.
         run: |
-          git -c core.quotePath=off diff --name-only "${{ github.event.pull_request.base.sha }}" HEAD > /tmp/changed.txt
-          test -s /tmp/changed.txt
-          if grep -qvE '(\.md$|^docs/|^aixcoding/docs/|^aixcoding/manual/)' /tmp/changed.txt; then
-            echo "doc_only=false" >> "$GITHUB_OUTPUT"
+          if command -v python3 >/dev/null 2>&1; then
+            echo "missing=false" >> "$GITHUB_OUTPUT"
           else
-            echo "doc_only=true" >> "$GITHUB_OUTPUT"
+            echo "missing=true" >> "$GITHUB_OUTPUT"
           fi
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        if: steps.probe.outputs.missing == 'true'
+        with:
+          python-version-file: .python-version
+          allow-prereleases: true
+      - id: f
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        # Fail-closed throughout: a failing git diff aborts under set -e; an
+        # empty diff aborts instead of counting as skippable (upstream-ci C2);
+        # the classifier verdict is accepted only as the exact (exit code,
+        # stdout) pairs below — anything else fails this job, and the gate
+        # then refuses to go green on a skipped matrix.
+        run: |
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            echo "upstream_touched=true" >> "$GITHUB_OUTPUT"
+            echo "non-PR event ($EVENT_NAME): full upstream suite by design (nightly/dispatch backstop)"
+            exit 0
+          fi
+          # --no-renames: an upstream file moved into a custom dir keeps its
+          # source deletion in the list (rename-collapse would mask it).
+          git -c core.quotePath=off diff --name-only --no-renames "$BASE_SHA" HEAD > /tmp/changed.txt
+          test -s /tmp/changed.txt
+          rc=0
+          python3 aixcoding/tools/ci_impact.py /tmp/changed.txt > /tmp/verdict.txt || rc=$?
+          case "$rc:$(cat /tmp/verdict.txt)" in
+            "0:upstream_touched=false")
+              echo "upstream_touched=false" >> "$GITHUB_OUTPUT"
+              ;;
+            "10:upstream_touched=true")
+              echo "upstream_touched=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "classifier failed or malformed verdict (rc=$rc):" >&2
+              cat /tmp/verdict.txt >&2
+              exit 1
+              ;;
+          esac
   ci:
     needs: filter
-    if: needs.filter.outputs.doc_only == 'false'
+    if: needs.filter.outputs.upstream_touched == 'true'
     # No build_ref input: ci.yml checks out `inputs.build_ref || github.sha`,
     # which under workflow_call is this bridge's triggering commit (the PR
-    # merge ref) — exactly what we want.
+    # merge ref, or the trunk tip for schedule/dispatch) — what we want.
     uses: ./.github/workflows/ci.yml
   gate:
     # One stable required-check name for the whole matrix: needs.ci.result
     # aggregates every job of the called workflow, so upstream job renames
-    # or shard changes never break the branch-protection rule. (Required
-    # checks match job-level check runs, not workflow names.) Always runs —
-    # doc-only PRs report success straight from the filter, everything else
-    # still requires the full upstream suite to be green.
+    # or shard changes never break the branch-protection rule. Always runs.
+    # Exactly two legal states: touched+ci=success, or untouched+ci=skipped.
+    # filter failure / missing output / cancelled ci never go green.
     name: AIxCoding upstream gate
     needs: [filter, ci]
     if: always()
@@ -75,11 +113,15 @@ jobs:
     steps:
       - name: Verify the upstream suite
         env:
-          DOC_ONLY: ${{ needs.filter.outputs.doc_only }}
+          FILTER_RESULT: ${{ needs.filter.result }}
+          TOUCHED: ${{ needs.filter.outputs.upstream_touched }}
           CI_RESULT: ${{ needs.ci.result }}
         run: |
-          if [ "$DOC_ONLY" = "true" ]; then
-            echo "doc-only PR: upstream matrix skipped by design"
+          test "$FILTER_RESULT" = "success"
+          if [ "$TOUCHED" = "false" ]; then
+            test "$CI_RESULT" = "skipped"
+            echo "no upstream surface touched: matrix skipped by design (nightly backstop)"
             exit 0
           fi
+          test "$TOUCHED" = "true"
           test "$CI_RESULT" = "success"

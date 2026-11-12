@@ -34,7 +34,7 @@ iCode-fork/
 ├── .github/workflows/
 │   ├── ci.yml                    # 上游 CI（仅 PR 至 main 触发；发布链路 CD 经 workflow_call 复用）
 │   ├── aixcoding-tests.yml       # 定制质量门（lint + 定制测试 + mock 契约测试 + 文档签认校验）
-│   └── aixcoding-upstream-ci.yml # 上游 CI 桥接（PR 至 main_aixcoding_cli 经 workflow_call 跑上游全套，见 docs/batches/upstream-ci/）
+│   └── aixcoding-upstream-ci.yml # 上游 CI 桥接（PR 按需（影响分类器）+ nightly/dispatch 兜底，经 workflow_call 跑上游全套，见 docs/batches/upstream-ci/ 与 upstream-ci-tiering/）
 └── pyproject.toml                # packages 仅 ["src/chrys"]；manual 另经 force-include 进 wheel
 ```
 
@@ -129,11 +129,11 @@ aixcoding/mock/<name>/            # 命名：无前缀服务名（auth / update 
 
 | 代码 | 门禁 |
 |---|---|
-| 产品定制代码（`src/chrys/*/aixcoding/`） | 上游 `ci.yml` 全套（ruff / ty / test / compileall 随 `src/`、`src/chrys` 路径自动覆盖），经桥接 `aixcoding-upstream-ci.yml` 在 PR 至 main_aixcoding_cli 时实际生效（ci.yml 自身仅 PR 至 main 触发） |
-| 定制测试 + mock + 文档（`aixcoding/`） | 独立 workflow `aixcoding-tests.yml`，三层结构（windows-matrix 批次，2026-11-01）：`test` 双 OS 矩阵跑 `pytest aixcoding/tests`（ubuntu + windows，DPAPI 平台真实用例 Windows 侧实际执行）；`govern` 单 Linux 跑 `ruff check/format aixcoding/` + `check_docs.py --closure` + 治理三工具；`gate` 保名汇总 |
+| 产品定制代码（`src/chrys/*/aixcoding/`） | **静态门**：`aixcoding-tests.yml` govern 补位（ruff/format + ty 单 runner 显式三平台 + compileall，仅定制产品路径，upstream-ci-tiering 批次）；**上游回归**：触及上游影响面时经桥接跑上游 `ci.yml` 全套（test/build/wheel 等），纯定制 PR 跳过（按需分层，ADR-upstream-ci-tiering--pr-gate-tiering） |
+| 定制测试 + mock + 文档（`aixcoding/`） | 独立 workflow `aixcoding-tests.yml`，三层结构（windows-matrix 批次，2026-11-01）：`test` 双 OS 矩阵跑 `pytest aixcoding/tests`（ubuntu + windows，DPAPI 平台真实用例 Windows 侧实际执行）；`govern` 单 Linux 跑 `ruff check/format aixcoding/ + 定制产品路径` + 定制产品 ty 三平台/compileall + `check_docs.py --closure` + 治理三工具；`gate` 保名汇总 |
 
-- 触发条件：`aixcoding-tests.yml` 为 PR + push 至 main_aixcoding_cli（Linux 侧实测 38 秒–5 分钟；Windows 侧首跑时长待录）；桥接 `aixcoding-upstream-ci.yml` **仅 PR 触发**（对齐上游 ci.yml 惯例，合并 push 不重复跑；ci.yml 自身仅 PR 至 main 触发），单次拉起上游全套 17 job（多 OS 分片 + architecture + build + wheel 探测）+ 汇总 gate（`AIxCoding upstream gate`，分支保护必过 check 的落点），实测约 11–12 分钟。定制门已扩 Windows 矩阵：`test`/`govern` 并行执行，`gate`（保名 `AIxCoding quality gate`，分支保护必过 check 的落点）fail-closed 聚合两者。
-- ty 对齐上游惯例：只查 `src/chrys`，不查测试与 mock。
+- 触发条件：`aixcoding-tests.yml` 为 PR + push 至 main_aixcoding_cli（Linux 侧实测 38 秒–5 分钟；Windows 侧首跑时长待录）；桥接 `aixcoding-upstream-ci.yml` 为 **PR 按需 + nightly + 手动**（upstream-ci-tiering 批次，2026-11-12）：PR 由影响分类器（`aixcoding/tools/ci_impact.py`）判定 `upstream_touched`——改动全部落在定制资产/文档豁免集则跳过上游矩阵（gate 直绿，required check 语义不变），其余全量；nightly schedule（每日 UTC 18:00）与 workflow_dispatch 对主干合并树全量兜底（合并 push 仍不重复跑）。单次全量拉起上游全套约 20 job（多 OS 分片 + architecture + build + wheel 探测）+ 汇总 gate（`AIxCoding upstream gate`，分支保护必过 check 的落点），实测约 11–12 分钟。定制门已扩 Windows 矩阵：`test`/`govern` 并行执行，`gate`（保名 `AIxCoding quality gate`，分支保护必过 check 的落点）fail-closed 聚合两者。
+- ty 对齐上游惯例：只查 `src/chrys`，不查测试与 mock；定制产品路径在 govern 显式 `--python-platform` 三平台（linux/darwin/win32）各跑一次。
 
 ## 8. 例外登记（对应 DEVELOPMENT.md §10）
 

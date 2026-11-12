@@ -125,9 +125,27 @@ jobs:
       - run: uv sync
 
       # --- ADR-0004 quality gate, lint + docs steps ------------------------
-      - run: uv run ruff check aixcoding/
-      - run: uv run ruff format --check aixcoding/
+      # upstream-ci-tiering backfill: pure-custom PRs skip the upstream suite,
+      # which used to carry ruff/format for src/chrys/{tier}/aixcoding/ —
+      # those checks now run here on the custom paths (same pyproject config).
+      - name: Collect custom product paths
+        run: |
+          CUSTOM_SRC=$(find src/chrys -mindepth 2 -maxdepth 2 -type d -name aixcoding | tr '\n' ' ')
+          test -n "$CUSTOM_SRC"
+          echo "CUSTOM_SRC=$CUSTOM_SRC" >> "$GITHUB_ENV"
+      - run: uv run ruff check aixcoding/ $CUSTOM_SRC
+      - run: uv run ruff format --check aixcoding/ $CUSTOM_SRC
       - run: uv run python aixcoding/tools/check_docs.py --closure
+
+      # --- Custom product static checks (upstream-ci-tiering backfill) -------
+      # ty with explicit three-platform views (upstream AGENTS.md convention):
+      # the custom layer is platform-sensitive (DPAPI/win32 branches in
+      # auth/crypto.py etc.), a single default-platform pass would silently
+      # drop the win32 type view (peer review F1).
+      - run: uv run ty check --error-on-warning --python-platform linux $CUSTOM_SRC
+      - run: uv run ty check --error-on-warning --python-platform darwin $CUSTOM_SRC
+      - run: uv run ty check --error-on-warning --python-platform win32 $CUSTOM_SRC
+      - run: uv run python -m compileall -q $CUSTOM_SRC
 
       # --- Governance tools (aixcoding/docs/batches/devtools) ---------------
       - run: uv run python aixcoding/tools/check_import_boundaries.py
