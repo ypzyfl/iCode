@@ -21,7 +21,8 @@
 - [x] F1/F2 责任人拍板：均不修（2026-11-12）；F3 已回填
 - [x] 签认：新 ADR、upstream-ci/ci-gate design 重签、self-review（均 2026-11-12 完成）；
       增量复审通过（CodeBuddy BM:GLM-5.3，无新增 blocker，签认后正文零漂移）
-- [ ] 本批 PR（FORCE 全量自证）CI 日志回填 verification
+- [x] 本批 PR（FORCE 全量自证）CI 日志回填 verification——PR #121 双 CI 全绿（Tests #194
+      success；Upstream #126 attempt 2 success，filter 正反双证据闭环；macOS TUI flaky 在案）
 - [ ] 合并后：dispatch 手动全量一次；临时验证 PR 验 touched=false 链路；首个 nightly 回填 user-manual
 
 ## 挂起与备忘

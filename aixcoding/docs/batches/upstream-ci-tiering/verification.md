@@ -31,7 +31,23 @@
 - 修复：probe 改为“存在且 ≥3.14”版本门限（短路 + 条件表达式写法经外部评审核实）；
   **当前 runner 恒走 setup-python 兜底**（每 PR 约 +10s）——“优先 runner python3”的设计
   初衷在镜像升级 3.14+ 前不生效，留痕避免“探测存在却总走兜底”的困惑（外部评审补充建议②）。
-- 同 PR 闭环修复；追加提交后 CI 复跑结果：（待回填）。
+- 同 PR 闭环修复（`8aef7946`）；复跑结果见下节。
+
+## 2026-11-12 远程验证结果（PR #121，双 CI 全绿）
+
+- **AIxCoding Tests**（run 43167844286，#194，`8aef7946`）：**success**（attempt 1）——govern
+  的 L1 静态补位（定制产品路径 ruff/format、ty 三平台、compileall）在 CI 实际执行且全绿。
+- **Upstream CI**（run 43167844202，#126）：**success**（attempt 2）。filter job 42s 成功：
+  probe 判 missing=true（系统 python3=3.12 < 3.14）→ setup-python 实际执行 21s（装 3.14.10）→
+  分类器 FORCE 命中（本批触及桥接自身）→ 全量矩阵真实执行——与 run #125（missing=false →
+  跳过 setup-python → SyntaxError）构成正反双证据，requirements 开放问题“ubuntu-slim 是否
+  自带可用 python3”闭环。
+- **flaky 在案**：attempt 1 的 macOS `tests/app/tui/widgets/test_trajectory_overview.py::
+  test_overview_findings_are_display_only_and_arrow_keys_scroll`（scroll_offset.y 断言）失败，
+  rerun 转绿——时序敏感 TUI 交互测试偶发，本批零产品代码改动（本地该文件 14 passed /
+  1 skipped 佐证），与本批无关。
+- PR #121 双 required check（AIxCoding quality gate / AIxCoding upstream gate）全绿，待合并；
+  合并后挂账项见下节。
 
 ## 待远程验证（本批 PR 与合并后，到点回填）
 
