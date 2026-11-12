@@ -99,6 +99,21 @@
 > 零上游文件、R2 清单（3 个上游文件及行数）未变、零 locales/pot/po、
 > 零登记号、零新增豁免；按 DEVELOPMENT §4.1 不触发重签，头部签认
 > 字段保持责任人 2026-11-12 本人落盘值。本条由 AI 追加、git 留痕。
+> 2026-11-12（十八）local tier 去 `/csas`（责任人裁决「确认只改 mock」
+> ＋「local 对应的也去掉」）：`_TIER_BASES["local"]` 由
+> `http://127.0.0.1:7778/csas` 改为 `http://127.0.0.1:7778`，与
+> `catalog.py::_CATALOG_BASES["local"]`（origin 直出、无前缀）同构；
+> 本地 mock 的 `API_PREFIX` 同步由 `/csas/api/v2` 改为 `/api/v2`
+> （`RELEASE_ROUTE` 由常量派生），`test_client.py` 三处 `_point_at`
+> 与 tier 期望值同步，路径描述四处同步。**`/csas` 是 dev/prod 真实
+> 部署主机的前缀，不属于冻结的 `api/v2/releases/check` 路径段**（§0
+> 前置事实 2、§2 表 prod/dev 行、requirements 冻结契约原文均不改）；
+> 镜像根取 base 的 origin，本改动对其零影响。§2 表 local 行
+> `http://127.0.0.1:7778/csas` 为修订十八前快照，按 R10 不改写，
+> 现行值以本条与 verification.md「local tier 去 /csas」为准。
+> 他人批次文档（`batches/mock/`、`batches/devtools/` 考古报告）与
+> 只提端口不带路径的引用按 R6 一律不动。零上游文件、R2 清单未变、
+> 零登记号、零新增豁免，按 §4.1 不触发重签。本条由 AI 追加、git 留痕。
 
 ## 0. 前置事实
 
@@ -202,6 +217,13 @@ local 指向 update mock：
 | prod | `http://82.187.34.98/csas` | 与 auth（`environments.py:42`）/ catalog（`catalog.py:122`）同主机 |
 | dev | `http://81.89.182.150/csas` | 同上（`environments.py:41` / `catalog.py:121`） |
 | local | `http://127.0.0.1:7778/csas` | `aixcoding/mock/update/` 默认端口（非 auth 的 7777、非 0.28 telemetry-mock 的 4321） |
+
+> 2026-11-12 补记（修订十八，记录档追加，不改已签认原行）：上表
+> **local 行的现行值为 `http://127.0.0.1:7778`**（无 `/csas`），
+> 与 `catalog.py` 的 local 同构——本地 mock 从 origin 直出、不
+> 模拟真实部署主机的前缀；prod/dev 两行不变。`/csas` 属部署前缀，
+> 不属于冻结路径段，故 §0 前置事实 2 的 `GET {base}/api/v2/
+> releases/check` 口径本就正确、无需改动。
 
 完整检测 URL ＝ base + `api/v2/releases/check`（`catalog_url()` 同构拼接）。
 优先级：`[update].base_url`（TOML）> tier 默认（`catalog_base_url()` 同构；不设

@@ -31,6 +31,16 @@
   + `ETag`（`If-None-Match` 命中 → `304`）；无更新 → `204`；**客户端不做本地版本比较**
   （`204`/`200` 之外不判断）。mock：`aixcoding/mock/update/`（含 error/garbage/缺字段/
   强制推送等演练模式）。
+
+> 2026-11-12 补记（design 修订十八，活文档追加，冻结契约原文不改写）：
+> 上面的完整 URL 是 **prod/dev 真实部署**形态——`/csas` 是这两台
+> 主机的部署前缀，冻结的**路径段恒为 `api/v2/releases/check`**
+> （与 design §0 前置事实 2 的 `GET {base}/api/v2/releases/check`
+> 一致）。本地 `environment=local` 指向 `http://127.0.0.1:7778`
+> （origin 直出、无 `/csas`，与 `catalog.py` 的 local 同构），
+> 配套本地 mock 的端点同步改为 `/api/v2/releases/check`。
+> 下方「后端就绪状态」的 502 探测记录针对 PROD/DEV 真实主机，
+> 属历史快照，不受本次改动影响。
 - **配置契约（ADR-0022 第 7 条）**：`~/.chrys/aixcoding.toml` 的 `[update].base_url`，
   复用顶层 `environment`（`AIXCODING_ENVIRONMENT`，local/dev/prod，默认 prod）；
   环境变量 > TOML；重启生效。

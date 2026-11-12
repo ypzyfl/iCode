@@ -67,10 +67,12 @@ _BODY_LOG_LIMIT = 2000
 #: Release-check base per deployment tier, keyed by the shared environment
 #: the same way the model catalog keys its ``_CATALOG_BASES`` — dev and prod
 #: are auth's own hosts (``kernel/aixcoding/auth/environments.py``) under
-#: the ``/csas`` prefix; local is the loopback update mock
-#: (``aixcoding/mock/update/``, port 7778 — not auth's 7777).
+#: the ``/csas`` prefix.  Like ``catalog.py``, ``local`` is the loopback mock
+#: served straight off the origin with no prefix (``aixcoding/mock/update/``,
+#: port 7778 — not auth's 7777): the deployment prefix belongs to the real
+#: hosts, not to the frozen ``api/v2/releases/check`` path.
 _TIER_BASES: dict[str, str] = {
-    "local": "http://127.0.0.1:7778/csas",
+    "local": "http://127.0.0.1:7778",
     "dev": "http://81.89.182.150/csas",
     "prod": "http://82.187.34.98/csas",
 }

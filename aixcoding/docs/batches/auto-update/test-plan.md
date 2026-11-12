@@ -18,6 +18,14 @@
 | 等待-执行-重启序（端到端） | `test_runner.py`（假命令写标记文件）+ Windows 实机冒烟 | 集成+手工 |
 | 上游零回归 / strict 零漂移 | `pytest aixcoding/tests` + `gen_customizations --strict` + Smart Test | 门禁 |
 
+> 2026-11-12 补记（design 修订十八）：`test_client.py` 的
+> `test_tier_bases` 中 local 期望改为 `http://127.0.0.1:7778`
+> （无 `/csas`），三处 mock 夹具 `_point_at` 不再补前缀；
+> `test_update_server.py` 全部用 `RELEASE_ROUTE` 常量构造 URL，
+> 随 `API_PREFIX` 自动跟随、无需改动。dev/prod 期望值与显式
+> `base_url` 覆盖用例均不变（部署前缀保留）。手工冒烟 1 的
+> 「local tier + mock」口径不变，仅端点路径少一层 `/csas`。
+
 > 2026-11-12 补记（design 修订十七，活文档追加）：上表「弹框三选项
 > + 强更单选项不可取消（Esc/backdrop）」扩张为**两种变体统一严格
 > 模态**。`test_dialog.py` 现覆盖：普通版三选项、强更单选项、

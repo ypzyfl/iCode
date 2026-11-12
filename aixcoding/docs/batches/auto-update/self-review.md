@@ -41,6 +41,15 @@ AI 的自查结论不是签认；签认前 block 条目必须全数闭环。
 > 「Esc/点击外部＝下次提醒」「强更框 Esc/backdrop 不可关」等陈述
 > 均为修订十七前快照，按 R10 不改写；现状见本节与
 > verification.md「弹框严格模态（修订十七）」。
+> 2026-11-12（七）责任人裁决「确认只改 mock」＋「local 对应的
+> 也去掉」：`client.py::_TIER_BASES["local"]` 与本地 mock
+> `API_PREFIX` 两端同步去 `/csas`，路径描述四处、
+> `test_client.py` 三处夹具与 tier 期望同步；freeze 的
+> `api/v2/releases/check` 路径段、dev/prod 部署前缀、显式
+> `base_url` 覆盖、镜像根 origin 派生、他人批次与考古快照
+> 一律不动。design 修订（十八）＋五件活文档补记；零上游
+> 文件、R2 清单未变、零登记号、零新增豁免，按 §4.1 不重签。
+> 证据见 verification.md「local tier 去 /csas（修订十八）」。
 
 ## 2026-11-12 评审结论：通过
 

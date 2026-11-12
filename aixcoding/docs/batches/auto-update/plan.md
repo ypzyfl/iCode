@@ -30,6 +30,13 @@ duplicate id；本批两个登记点已后移为 **C172 / C173**，全库 `--str
 按钮为唯一退出路径。改动仅 `dialog.py` / `test_dialog.py` 与本批
 六件文档；零上游文件、R2 清单未变、零登记号、零新增豁免、不重签。
 证据见 verification.md「弹框严格模态（修订十七）」。
+**local tier 去 `/csas`（2026-11-12 责任人裁决「确认只改 mock」
+＋「local 对应的也去掉」＝design 修订十八）**：`client.py`
+local base 与本地 mock `API_PREFIX` 两端同步去前缀，路径描述
+与 `test_client.py` 夹具/期望同步；冻结路径段、dev/prod 部署
+前缀、显式覆盖、镜像根、他人批次与考古快照一律不动。零上游
+文件、R2 清单未变、不重签。证据见 verification.md
+「local tier 去 /csas（修订十八）」。
 
 ## 待办
 
@@ -82,6 +89,11 @@ duplicate id；本批两个登记点已后移为 **C172 / C173**，全库 `--str
       design 追加修订记录、不重签，零上游/零登记号/零新增豁免。
       证据见 verification.md「弹框严格模态（修订十七）」。
 - [ ] 普通版本 Esc/点击外部不关的手工冒烟实机复核（修订十七新增口径）
+- [x] **local tier 去 `/csas`（design 修订十八，2026-11-12）**：
+      `client.py` local base 与本地 mock 路由两端同步去前缀，
+      `test_client.py` 夹具/期望与四处路径描述同步；冻结路径段、
+      dev/prod、显式覆盖、镜像根、他人批次/考古快照零改动；
+      不重签。证据见 verification.md「local tier 去 /csas」。
 
 ## 挂起与备忘
 

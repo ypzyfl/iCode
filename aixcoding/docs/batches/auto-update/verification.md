@@ -581,3 +581,84 @@ backdrop / Esc noop）由 PR #119 的 Windows CI 复跑确认，本地 darwin
 - design 用追加修订记录落法（责任人裁决「追加修订记录」），不重签；
   AI 未代填任何签认字段。
 - 本轮**未执行 git 写操作**；提交说明另备，未 commit / 未 push。
+
+## local tier 去 /csas（修订十八，2026-11-12）
+
+责任人裁决「确认只改 mock」＋「local 对应的也去掉」。`catalog.py`
+的 local base 是 `http://127.0.0.1:7777`（origin 直出、无 `/csas`），
+dev/prod 才带部署前缀；本批 local 原先写成
+`http://127.0.0.1:7778/csas`，与既有形态不一致。本次两端配对修正。
+
+### 改动清单（6 个代码/mock 文件、12 处）
+
+| 落点 | 改动 |
+|---|---|
+| `src/chrys/service/aixcoding/update/client.py` | `_TIER_BASES["local"]` → `http://127.0.0.1:7778`；tier 表注释补「local 从 origin 直出、前缀属真实主机而非冻结路径」 |
+| `aixcoding/mock/update/server.py` | `API_PREFIX` `/csas/api/v2` → `/api/v2`（`RELEASE_ROUTE` 与 `:579` 日志由常量派生，自动跟随）；模块 docstring 同步 |
+| `aixcoding/mock/update/__init__.py`、`README.md`（2 处）、`aixcoding/mock/__main__.py:90` | 端点路径描述四处同步 |
+| `aixcoding/tests/auto_update/test_client.py` | 三处 `_point_at` 去掉 `/csas` 后缀；`test_tier_bases` 的 local 期望改 `http://127.0.0.1:7778` |
+
+`aixcoding/tests/mock/test_update_server.py` 的 6 处 URL 全部由
+`update_server.RELEASE_ROUTE` 常量构造，**零改动自动跟随**；
+`test_client.py:156` 的 `check_url()` 断言由 `expected` 拼接，同样
+自动跟随。
+
+### 明确不动的引用
+
+- **冻结路径段** `api/v2/releases/check` 未变；`/csas` 是 dev/prod
+  真实部署主机的前缀，不是 wire 契约的一部分（`design.md §0`
+  前置事实 2 的 `GET {base}/api/v2/releases/check` 本就正确）。
+- `client.py` dev/prod、`test_client.py` dev/prod/unknown 期望与显式
+  `base_url` 覆盖（`http://10.0.0.9/csas`）、`test_runner.py` 三处
+  prod 形态 base、`catalog.py` / `auth/environments.py` 的 tier 地址
+  全部保留。镜像根取 base 的 **origin**，`/csas` 本就不参与，零影响。
+- `requirements.md:28` 冻结契约原文与 `:49` 的 PROD/DEV 502 探测
+  记录属真实部署与历史快照，按 R10 不改写，另以补记说明分界。
+- 按 R6 未触碰他人批次与考古快照：
+  `aixcoding/docs/batches/mock/verification.md:40`、
+  `batches/mock/design.md:100`、
+  `batches/devtools/archaeology-report-0.28.0.md`（4 处）；
+  另约 20 处只提端口 `7778` 不带路径的引用不受影响。
+- 零上游文件、R2 清单（3 个上游文件及行数）未变、零登记号、
+  `--strict` 无波动、零新增 R13 豁免；按 DEVELOPMENT §4.1 不触发
+  重签，AI 未代填任何签认字段。
+
+### 机器验证（2026-11-12 最终态，10 项全绿）
+
+```
+$ uv run python aixcoding/tools/check_docs.py --closure
+  scanned 24 ADR(s), 42 design(s), 41 self-review(s) → OK
+$ uv run python aixcoding/tools/gen_customizations.py --strict
+  check OK — 116 registration row(s) / 161 marker(s) across 19 design(s),
+             7 retired id(s), 0 warning(s)
+$ uv run python aixcoding/tools/check_r2_diff.py --base HEAD        → OK
+$ uv run python aixcoding/tools/check_r3_markers.py --base HEAD
+  base=HEAD upstream_changed=0 marker_checked=0 exempt=3 → OK
+$ uv run ruff check --no-fix src/ tests/ aixcoding/tests/ aixcoding/mock/
+  All checks passed!
+$ uv run ruff format --check src/ tests/ aixcoding/tests/ aixcoding/mock/
+  2827 files already formatted
+$ uv run pytest aixcoding/tests/auto_update/ aixcoding/tests/mock/ -n0 -q
+  152 passed, 2 skipped in 21.84s
+$ uv run pytest aixcoding/tests -m "not integration and not gc_calibration" -q
+  715 passed, 47 skipped in 20.51s
+$ uv run ty check --error-on-warning --python-platform {darwin,linux,win32} src/chrys
+  All checks passed! ×3
+$ git diff --check                 → OK
+  EXIT CODES: 0 0 0 0 0 0 0 0 0 0
+```
+
+`check_r3_markers` 的 `upstream_changed=0` 再次印证零上游文件改动。
+本地 mock 端点变更由 `aixcoding/tests/mock/` 全套（含 launcher 组合
+服务）覆盖，均通过。
+
+如实申报：**未重跑 Smart Test 全量** —— 本轮改动限于定制目录的
+local tier 地址与本地 mock 路由，按归属目录复跑 auto_update / mock
+两套与 aixcoding 全量；本批定稿全量证据仍见上文「最终态 Smart
+Test」。真实 prod/dev 端点未改，无需内网联调复验。
+
+### 签认与 git 状态
+
+- design 用追加修订（十八）落法、不重签（§4.1，R2 清单未变）；
+  五件活文档以补记同步，历史快照原行不改写。
+- 本轮**未执行 git 写操作**；提交说明另备，未 commit / 未 push。

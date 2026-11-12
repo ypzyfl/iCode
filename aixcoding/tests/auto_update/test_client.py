@@ -60,7 +60,7 @@ def _point_at(monkeypatch: pytest.MonkeyPatch, base_url: str) -> None:
 
 
 async def _check(monkeypatch: pytest.MonkeyPatch, server: Any) -> AppUpdate | None:
-    _point_at(monkeypatch, f"{server.mock_config.base_url}/csas")
+    _point_at(monkeypatch, server.mock_config.base_url)
     return await check_for_update(current_version=CURRENT)
 
 
@@ -109,7 +109,7 @@ async def test_invalid_current_version_makes_no_request(
     monkeypatch: pytest.MonkeyPatch, mock_factory: Callable[..., Any]
 ) -> None:
     server = mock_factory(version="0.36.0")
-    _point_at(monkeypatch, f"{server.mock_config.base_url}/csas")
+    _point_at(monkeypatch, server.mock_config.base_url)
 
     assert await check_for_update(current_version="not-semver") is None
     assert server.mock_state.requests() == [], "an unbuildable query must not reach the wire"
@@ -131,7 +131,7 @@ async def test_total_timeout_bounds_a_slow_answer(
     monkeypatch: pytest.MonkeyPatch, mock_factory: Callable[..., Any]
 ) -> None:
     server = mock_factory(version="0.36.0", slow_ms=4000)
-    _point_at(monkeypatch, f"{server.mock_config.base_url}/csas")
+    _point_at(monkeypatch, server.mock_config.base_url)
     monkeypatch.setattr(client_module, "_TIMEOUT_SECONDS", 0.3)
 
     started = time.monotonic()
@@ -142,7 +142,7 @@ async def test_total_timeout_bounds_a_slow_answer(
 @pytest.mark.parametrize(
     ("environment", "expected"),
     [
-        pytest.param("local", "http://127.0.0.1:7778/csas", id="local-mock"),
+        pytest.param("local", "http://127.0.0.1:7778", id="local-mock"),
         pytest.param("dev", "http://81.89.182.150/csas", id="dev"),
         pytest.param("prod", "http://82.187.34.98/csas", id="prod"),
         pytest.param("unknown", "http://82.187.34.98/csas", id="unknown-falls-back-to-prod"),
