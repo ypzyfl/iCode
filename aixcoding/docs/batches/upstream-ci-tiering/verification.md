@@ -19,6 +19,20 @@
 | `uv run python aixcoding/tools/check_docs.py` | OK（26 ADR / 43 design / 41 self-review） |
 | `uv run pytest tests/architecture/test_workflow_action_pins.py -n0 -q` | **27 passed**（workflow 改动的 pins 守卫） |
 
+## 2026-11-12 远程首跑失败与修复（run #125 / PR #121）
+
+- 现象：Upstream CI run 43164817281 于约 22 秒失败——filter job 分类器步骤报
+  `SyntaxError: multiple exception types must be parenthesized`（`_common.py:155`）；
+  gate 按 fail-closed 正确拒绝放行（设计语义验证成立）。
+- 根因：`ubuntu-slim` 系统 python3 **存在但为 3.12**；`_common.py:155` 为 PEP 758 无括号
+  多异常语法（3.14+，本仓 ruff format 强制输出，**不可反向“修复”该行**）。probe 仅探测
+  存在性、未探测版本 → setup-python 被跳过 → 分类器在 3.12 下 import 即炸。本地全绿因
+  uv 环境即 3.14，远程系统 python 版本面未覆盖（外部评审核实证据链吻合）。
+- 修复：probe 改为“存在且 ≥3.14”版本门限（短路 + 条件表达式写法经外部评审核实）；
+  **当前 runner 恒走 setup-python 兜底**（每 PR 约 +10s）——“优先 runner python3”的设计
+  初衷在镜像升级 3.14+ 前不生效，留痕避免“探测存在却总走兜底”的困惑（外部评审补充建议②）。
+- 同 PR 闭环修复；追加提交后 CI 复跑结果：（待回填）。
+
 ## 待远程验证（本批 PR 与合并后，到点回填）
 
 - **本批 PR（FORCE 全量自证）**：触及桥接 workflow → 预期 filter 判 touched=true、上游全套

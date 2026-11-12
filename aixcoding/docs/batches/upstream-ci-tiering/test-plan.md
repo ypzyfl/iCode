@@ -64,7 +64,8 @@
 - 分类器退出码约定：0=touched=false（stdout 须精确输出 `upstream_touched=false`）；
   约定码 10=touched=true（stdout 精确输出 `upstream_touched=true`）；其余=错误。
   shell 显式捕获并逐分支校验 stdout 字样，任何不匹配即 fail（决策 2）。
-- runner 无 python3 → setup-python 兜底分支（决策 1）；实施时实测留痕。
+- runner python3 缺失或版本 <3.14 → setup-python 兜底分支（决策 1；2026-11-12 远程首跑实证
+  当前 ubuntu-slim 系统 python3=3.12，恒走兜底，详见 verification.md）。
 - 非 PR 事件（schedule/dispatch）→ 不执行 diff，直接 touched=true。
 
 ## 手工验证步骤

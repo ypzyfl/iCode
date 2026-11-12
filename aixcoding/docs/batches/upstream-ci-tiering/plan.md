@@ -26,7 +26,10 @@
 
 ## 挂起与备忘
 
-- `ubuntu-slim` 的 python3 实测：本批 PR 的 filter 日志留痕（不可用则 setup-python 分支生效）。
+- ~~`ubuntu-slim` 的 python3 实测~~ **已闭环**（2026-11-12，run #125 首跑）：系统 python3=3.12
+  < 3.14（`_common.py` PEP 758 语法），probe 已改为版本门限，当前 runner 恒走 setup-python
+  兜底（+10s）；复跑后 filter 日志将显示 missing=true，与首跑 missing=false 构成正反双证据
+  （requirements 开放问题随之闭环）。
 - touched=false 真实链路证据：合并后临时验证 PR（design 验收时点说明），不在本批 PR 内完成。
 - nightly 失败通知通道实测：合并后首个到点或故障演练。
 - git 写操作逐条授权；本批 PR 走特性分支 + PR 流程（目标 main_aixcoding_cli）。

@@ -67,6 +67,10 @@ nightly（schedule，每日）/ workflow_dispatch：filter 直接 touched=true�
 双实现漂移风险（评审已举出 `aixcoding-*.yml` 漂移实例）从源头消除，一致性门禁亦随之不需要。
 实施首步实测 `ubuntu-slim` 的 python3 并在 verification 留痕。
 
+> 修订记录（2026-11-12 远程首跑实证，run #125）：`ubuntu-slim` 系统 python3 = 3.12 < 3.14
+> （`_common.py` 含 PEP 758 语法），探测由存在性细化为“存在且 ≥3.14”版本门限；当前 runner
+> 恒走 setup-python 兜底（约 +10s）。根因与修复详见 verification.md 对应节。
+
 ### 决策 2：filter 与 gate 的 fail-closed 强化
 
 - diff 命令加 `--no-renames`：上游文件 rename 进定制目录时源路径删除参与判定，杜绝折叠误判。
