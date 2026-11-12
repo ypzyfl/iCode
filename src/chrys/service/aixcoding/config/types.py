@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from chrys.kernel.aixcoding.diagnostics.config import DiagnosticsConfig
 
@@ -19,9 +19,17 @@ class ModelCatalogConfig:
 
 
 @dataclass(frozen=True)
+class UpdateConfig:
+    """``[update]`` section: the release-check base URL (ADR-0022 reserved key)."""
+
+    base_url: str = ""
+
+
+@dataclass(frozen=True)
 class AixcodingConfig:
     """One process-wide configuration snapshot."""
 
     environment: str
     diagnostics: DiagnosticsConfig
     model_catalog: ModelCatalogConfig
+    update: UpdateConfig = field(default_factory=UpdateConfig)
