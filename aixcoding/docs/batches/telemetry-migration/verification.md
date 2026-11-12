@@ -634,3 +634,24 @@ CodeBuddy `kimi-k3.1-pro` 原 session `01a1cd80-abc2-7513-8cd4-b0fdcc46e722` 于
 补审 N1（nonblocking）：`tests/architecture/test_layering.py` 已在 15:07 / t129 补充签认中批准（`design.md` 该段明确列出同一路径与所有权登记目的），与 `890e2ec7` 中 +8/−0 一致。已把该已授权路径追加进本批 R2「文件」列，未追加其他文件，未改 design 头部本人签认字段。
 
 [self-review.md](self-review.md) 正文已追加上述补审证据，并更正「签认栏留空」等过时当前时态；头部四字段保持责任人填写原样。`plan.md` 第 81 项保持未勾选。统一验证、上游 Smart Test 0 项、Python 3.14.8≠3.14.10、T08 与生产对账仍不得记为通过。
+
+### 本地收尾与验收前置
+
+2026-11-12 收尾由本线程 Codex 执行。核对四份文档及实际差异，确认 N1 仅同步既有 R2 授权，暂存的 `self-review.md` 与 17:28 归档逐字节一致。正常本地提交 `9dd573eb` 归档 design、plan、verification 和 self-review。原签认字段保持原样。 `check_docs.py --closure` 与暂存差异空白检查均退出 0。未推送。
+
+为补足上一轮只传定制测试路径导致上游选中 0 项的缺口，按本批四个直接变更的上游测试及清单路径运行：
+
+```sh
+AIXCODING_EXTENSION_BASE_URL=https://telemetry.invalid \
+  uv run --offline --no-sync --no-python-downloads python aixcoding/tools/verify.py --upstream-smart --paths \
+  tests/architecture/test_layering.py tests/architecture/trajectory_wait_manifest.json \
+  tests/orchestration/engine/test_settings_reload.py tests/orchestration/engine/test_web_search_budget.py
+```
+
+日志为 `/tmp/icode-telemetry-probe.7glV33/closeout-upstream-smart.log`。统一入口退出 **1**。上游常规 **37 passed**（退出 0），架构 **504 passed、2 failed**（退出 1）。两项失败均为 `tests/architecture/test_chrys_test.py::test_lowered_priority_reaches_the_processes_tests_start`。参数 `15` 在 `os.setpriority()` 遇到 `PermissionError: [Errno 1] Operation not permitted`。参数 `None` 因降优先级失败时的 `Could not lower the CPU priority` 提示混入标准输出，整数解析抛出 `ValueError`。本次未重复已知端口绑定失败的完整定制套件。上一轮定制结果仍为 **612 passed、47 skipped、71 failed、17 errors**，88 项均在绑定处遇到权限拒绝。历史进程枚举、TUI worker 退出和解释器路径差异尚待覆盖对应路径。该上游定向运行不能关闭完整统一验证。
+
+| 待验收项 | 本轮核查与后续条件 |
+| --- | --- |
+| 目标 Python 与统一验证 | `uv python list --only-installed --offline` 列出 3.14.8 和 3.14.9，未列出目标 3.14.10。仓库 `.venv/bin/python` 仍为 3.14.8。下一次应使用已有 3.14.10 的获准测试 runner，允许本机测试端口绑定、进程优先级调整及进程枚举，以锁定依赖跑 `verify.py --smart --paths`。路径由 `git diff --name-only a752020b..890e2ec7` 获取。验收时须核对定制、上游常规和架构实际运行结果。若只能使用本机，则另行批准在独立位置安装 3.14.10 和准备锁定依赖，不改全局解释器或锁文件。 |
+| T08 | 核对本地分支、远端跟踪 refs 和标签。0.35.2 合并的纯上游父提交为 `2fd777f6`，其 `pyproject.toml` 确认为 0.35.2。当前本地 refs 无可用的后续基线。对配置的 `origin` 进行只读 `git ls-remote` 退出 128，GitHub DNS 解析失败。取得后续上游 ref 或源码归档后，先用隔离副本逐文件检查本批 23 个上游变更路径及注册锚点，再复用原编码器与 fixture 跑全量埋点契约。记录实际适配文件、行数、语义差异和耗时。需要扩大上游修改时先走 R2。 |
+| 生产对账 | 本轮只准备核对步骤。由有内网只读权限的人员提供同一灰度版本与时间窗中已获准的真实样本，按会话、请求、工具调用关联键与发送侧 mock 对拍口径核对入库条数、缺省字段和重复终态去重。记录采样范围与聚合差异，避免在日志或文档落凭据、原始代码和完整标识。当前未取得生产数据，未进行生产探测或写入。 |
