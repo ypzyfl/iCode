@@ -4,8 +4,8 @@
 
 ## 状态
 
-实施阶段（requirements 定案 2026-11-12；design 签认 2026-11-12；三轮外部评审
-F1-F6/N1-N4/M1-M2 全闭环；test-plan 已落盘）。
+批次主体已合并（PR #123 → `800bb778`，2026-11-12）；收尾阶段——纯文档回填 PR 进行中
+（兼作定制双域跳过三件套验证载体），push run 与首个 nightly 观察待完成。
 
 ## 待办
 
@@ -19,9 +19,13 @@ F1-F6/N1-N4/M1-M2 全闭环；test-plan 已落盘）。
 - [x] 外部 AI 评审实施 diff：**完成**（评审 AI Kimi-K3.1-Pro × 实施开发 GLM-5.3，不同源
       合规——0 技术 blocker，S1/S2 已修并经增量复审闭环；评审标识误标根因=初稿抄错实施
       开发 AI，责任人澄清分阶段事实后已更正记录）
-- [ ] 签认（责任人）：design 重签（三处正文修订）、self-review、新 ADR → closure 复跑转绿
-- [ ] PR 流程（逐条授权）：add/commit/push → 网页 PR → CI 证据回填
-- [ ] 合并后：纯文档回填 PR 三件套验证；push run 观察；首个 nightly 观察
+- [x] 签认（责任人）：design 重签（三处正文修订）、self-review、新 ADR——均已完成
+      （2026-11-12），closure 复跑 OK
+- [x] PR 流程（逐条授权）：add/commit/push → PR #123 → 双 CI 全绿（Tests #200 8/8：filter
+      FORCE/版本门限/三 OS guard/gate 状态机全实证；Upstream #130 attempt 2 success）→
+      verification 已回填；待合并
+- [ ] 合并后收尾（PR #123 已合并）：纯文档回填 PR 三件套验证（分支已建、进行中）；push run
+      恒全跑观察；首个 nightly（UTC 18:00）观察与 user-manual 口径核销
 
 ## 挂起与备忘
 
