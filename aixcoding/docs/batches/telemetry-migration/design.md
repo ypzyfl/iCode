@@ -250,6 +250,7 @@ ACP prompt 入站校验 ide-name、ide-version、function-name、selected-agent�
 | `tests/orchestration/engine/test_web_search_budget.py` | 本轮批准的回归适配 | 隔离独立上报，保留搜索调用上限及第二轮恢复断言 |
 | `src/chrys/orchestration/engine/rollback.py` | 非零回滚与后台归属保存 | 当前相对 `a752020b` 为 +14/−9。在非零回滚（`target_turn > 0`）中，于快照替换和恢复前暂停新的后台保存，并等待已接纳的写入完成，恢复后再开放。此路径已由 2026-11-12 14:47（上海时间，UTC+8）授权，并代为落盘于下文「2026-11-12 新增 R2 范围补充签认（非零 rollback 与后台保存竞态）」。本行只把同一已授权范围同步进本表「文件」列，供机器门禁读取，不扩大范围，不修改头部本人签认字段。 |
 | `src/chrys/orchestration/engine/session_lifecycle.py` | 非零回滚与后台归属保存 | 当前相对 `a752020b` 为 +32/−7。为后台改动归属保存增加互斥与暂停范围，使受暂停或过期的刷新不把旧历史写回；保存由 `finish_close` 排空。此路径已由 2026-11-12 14:47（上海时间，UTC+8）授权，并代为落盘于下文「2026-11-12 新增 R2 范围补充签认（非零 rollback 与后台保存竞态）」。本行只把同一已授权范围同步进本表「文件」列，供机器门禁读取，不扩大范围，不修改头部本人签认字段。 |
+| `tests/architecture/test_layering.py` | 回滚修复的任务所有权登记 | 当前相对 `a752020b` 为 +8/−0。在 `test_background_tasks_have_declared_owners` 增加一条任务所有权记录，键为 `("session_lifecycle", "SessionLifecycle", "refresh_mutation_attribution")`，计数为 1。此路径已由 2026-11-12 15:07（上海时间，UTC+8）授权，并落盘于下文「2026-11-12 新增 R2 范围补充签认（回滚修复的任务所有权与等待清单登记）」。本行只把同一已授权范围同步进本表「文件」列，供本批机器读表自包含，不扩大范围，不修改头部本人签认字段。 |
 
 生成清单在原附件基础上已登记发送模块等待 +18/−0，以及随后批准的 7 个新增等待和 2 个 wrapper 重分类 +21/−2。本轮请求边界刷新 Git 缓存，生成器在同一文件增列 1 条 thread_pool 等待，既有等待规则保持原值。逐项依据见 [verification.md](verification.md#补充等待清单)。
 
