@@ -199,7 +199,15 @@ def test_wrapper_download_failure_tallies_and_stops(tmp_path: Path) -> None:
 
 def test_spawn_wrapper_detaches_without_blocking(tmp_path: Path) -> None:
     marker = tmp_path / "touched"
-    process = spawn_wrapper(["sh", "-c", f"echo ok > {marker}"])
+    # A Python child, not `sh -c`: a POSIX shell eats the backslashes in a
+    # Windows tmp_path (PR #119). The point under test is the detach itself.
+    process = spawn_wrapper(
+        [
+            sys.executable,
+            "-c",
+            f"from pathlib import Path; Path({str(marker)!r}).write_text('ok', encoding='utf-8')",
+        ]
+    )
     try:
         assert process.pid > 0
         for _ in range(100):
