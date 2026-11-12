@@ -39,6 +39,15 @@
 > （design 修订十七，待责任人实机复核）。本批 R13 豁免清单仍为
 > 2 类，未新增。
 
+> 2026-11-12 补记（design 修订十九，Peer Review 推荐方案 A）：
+> `test_runner.py` 三处 `skipif(WIN32)` 的 reason 由「Windows twin
+> runs on Windows CI」改为如实口径——POSIX 三条 `file://` e2e
+> 并无 Windows 同构孪生，Windows CI 仅覆盖
+> `test_windows_wrapper_shape` 命令串断言，真实 console
+> 等待-执行-重启链路仍属手工冒烟 8。上表「等待-执行-重启序
+> （端到端）」的 Windows 列口径不变；用例数量、断言内容与
+> R13 豁免条目数均未变（仅改 reason 文本）。
+
 ## 关键夹具
 
 - **mock server 桩**：`from aixcoding.mock.update.server import MockUpdateConfig,
@@ -60,6 +69,9 @@
 - 本批 R13 豁免共 2 类（R13 ②类 lint：C173 `pyproject.toml` 目录级条目；
   R13 ③类测试：本节平台 skipif）。`self-review.md` R13 项已追加补记汇总
   两类；PR 变更导览「新增豁免清单」须逐条列 2 条（见 plan.md 待办）。
+- 修订十九仅改 `skipif` 的 reason 文本，skip 条件、豁免类别与条目数
+  （C173 + 本节平台 skipif 共 2 类）零变更；`pyproject.toml` 的
+  C173 就地注释零改动。
 
 ## 手工冒烟（verification.md 落证据）
 

@@ -662,3 +662,87 @@ Test」。真实 prod/dev 端点未改，无需内网联调复验。
 - design 用追加修订（十八）落法、不重签（§4.1，R2 清单未变）；
   五件活文档以补记同步，历史快照原行不改写。
 - 本轮**未执行 git 写操作**；提交说明另备，未 commit / 未 push。
+
+## Peer Review 推荐方案 A 修复（design 修订十九，2026-11-12）
+
+### 依据与处置
+
+责任人粘贴 Peer Review 裁决报告并授权「按推荐帮我修改吧」。评审基线
+`d764f4d5..951f8884`（4 提交、28 文件 +3975/-8）；本机只读复核确认
+finding-A/B/C/D 与 design 已签认正文的措辞差均成立。按推荐方案 A：
+
+- **finding-A**（修）：`aixcoding/tests/auto_update/test_runner.py` 三处
+  `skipif(WIN32)` 的 reason 原称「Windows twin runs on Windows CI」，实际
+  Windows CI 只有 `test_windows_wrapper_shape` 命令串断言、POSIX 三条
+  `file://` e2e 并无同构孪生；改为如实口径（真实 console e2e 属冒烟 8）。
+- **finding-C**（修）：`src/chrys/app/aixcoding/update/commands.py`
+  `mirror_root()` docstring 删去「flow 判定更新命令不可用」的不实说法，
+  改述 base 不可解析时得到相对 `/install.sh|/install.ps1`、由 wrapper
+  下载失败分支计数并停止兜底。
+- **finding-B**（锚定）：`src/chrys/app/aixcoding/update/runner.py`
+  `build_windows_wrapper()` docstring 显式写明镜像安装脚本必须 `throw`
+  失败——`exit 1` 在 `Invoke-Expression` 内会终止 powershell 进程、绕过
+  catch，导致失败计数与停止提示同时丢失。核对
+  `aixcoding/release/install-internal-mirror.ps1`：13 处 `throw`、
+  零处裸 `exit 1`，现行脚本符合约定。命令串零改动。
+- **finding-D**（留记录、驳回修复必要性）：POSIX `tmp=$(mktemp) || exit 1`
+  不追加失败计数，按评审建议不改代码；理由写入 design 修订（十九）。
+- **design 修订（十九）**：覆盖六处历史快照措辞差（§3.3 文案走 i18n、
+  §3.3 `on_confirm` 签名与答案交付、§3.3/§9/§13 Esc 与 backdrop 口径、
+  §2/§3.6 tier 表落点、§12 locales 回滚条目、§3.4 两平台「绝不使用
+  管道」与 Windows `IRM | IEX` 实际形态），并声明 §12 现行 R2 三文件
+  （`app/tui/app.py` +4/C172、`trajectory_wait_manifest.json` 生成产物、
+  `pyproject.toml` +3/C173）与 R13 就地注释状态；原行按 R10 不改写。
+
+### 改动清单（8 个文件，本文件在内）
+
+代码/测试 3 个（`test_runner.py` 三处 reason、`commands.py` docstring、
+`runner.py` docstring），design 1 个（修订十九），活文档补记 4 个
+（`test-plan.md`、`self-review.md`、`plan.md`、本文件）。`check_r2_diff`
+运行时本文件尚未补记，故报 `changed=7`。零上游文件、零登记号、
+零新增 R13 豁免、零 i18n/pot/po。
+
+### 机器验证（2026-11-12 最终态，12 项全绿）
+
+```
+$ uv run python aixcoding/tools/check_docs.py --closure
+  scanned 24 ADR(s), 42 design(s), 41 self-review(s) → OK
+$ uv run python aixcoding/tools/gen_customizations.py --strict
+  check OK — 116 / 161 / 19 design(s) / 7 retired / 0 warning(s)
+$ uv run python aixcoding/tools/check_r2_diff.py --base HEAD
+  base=HEAD changed=7 upstream_changed=0 approved_pool=104 → OK
+$ uv run python aixcoding/tools/check_r3_markers.py --base HEAD
+  base=HEAD upstream_changed=0 marker_checked=0 exempt=3 → OK
+$ uv run ruff check --no-fix src/ tests/ aixcoding/tests/ aixcoding/mock/
+  All checks passed!
+$ uv run ruff format --check src/ tests/ aixcoding/tests/ aixcoding/mock/
+  2827 files already formatted
+$ uv run pytest aixcoding/tests/auto_update/ aixcoding/tests/mock/ -n0 -q
+  152 passed, 2 skipped in 27.44s
+$ uv run pytest aixcoding/tests -m "not integration and not gc_calibration" -q
+  715 passed, 47 skipped in 21.26s
+$ uv run ty check --error-on-warning --python-platform {darwin,linux,win32} src/chrys
+  All checks passed! ×3
+$ git diff --check                 → OK
+  EXIT CODES: 0 ×12
+```
+
+`check_r3_markers` 的 `upstream_changed=0` 与 `check_r2_diff` 的
+`upstream_changed=0` 再次印证零上游改动；`--strict` 计数与修订十八后
+一致，登记号 C172/C173 未动。本文件补记完成后复跑：
+`check_docs --closure` OK、`--strict` OK、
+`check_r2_diff base=HEAD changed=8 upstream_changed=0` OK、
+`check_r3_markers` OK、`git diff --check` OK（12 项门禁结论不变）。
+
+如实申报：**未重跑 Smart Test 全量**——本轮只改 docstring、测试
+`skipif` reason 与批次活文档，按归属目录复跑 auto_update / mock 两套与
+aixcoding 全量；定稿全量证据仍见上文「最终态 Smart Test」。Windows 实机
+冒烟 8、真实内网联调、普通版本 Esc/backdrop 不关的实机复核仍未做；
+PR CI 结论以网页 checks 为准。评审 HOWTO ②「换 AI 交叉」为 Q1 建议非
+强制，同源 AI 评审独立性弱，是否补异源交叉由责任人裁决，方案 A 不补。
+
+### 签认与 git 状态
+
+- design 以追加修订（十九）落法、不重签（§4.1，R2 清单 3 个上游文件
+  及各自行数未变）；四件活文档以补记同步，已签认原行不改写。
+- 本轮**未执行 git 写操作**；提交说明另备，未 commit / 未 push。

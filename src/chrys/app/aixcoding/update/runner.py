@@ -91,6 +91,12 @@ def build_windows_wrapper(install_url: str, relaunch: str, parent_pid: int, fail
     trailing ``Invoke-Expression``): a 404 then becomes a terminating error
     the catch block tallies, instead of a silent non-terminating one that
     falls through into the relaunch.
+
+    The mirrored install script must signal failure with ``throw``, never
+    ``exit 1``: an ``exit`` inside ``Invoke-Expression`` terminates the whole
+    PowerShell process before the catch block can append the failure tally.
+    The shipped ``aixcoding/release/install-internal-mirror.ps1`` follows that
+    contract on every failure path (design §3.4, revision 19).
     """
     script = (
         f"while (Get-Process -Id {parent_pid} -ErrorAction SilentlyContinue) "

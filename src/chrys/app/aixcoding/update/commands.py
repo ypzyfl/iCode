@@ -24,8 +24,11 @@ MIRROR_PATH = "/aixcoding/file/aixcoding"
 def mirror_root() -> str:
     """The file-mirror root derived from the release-check base's origin.
 
-    Empty when the configured base does not parse — the flow then treats
-    the update command as unavailable instead of running a broken one.
+    Empty when the configured base does not parse.  ``install_script_url()``
+    then yields a relative ``/install.sh`` (or ``/install.ps1``); there is no
+    flow-level "command unavailable" check — the wrapper's download fails, and
+    its failure branch tallies the attempt and stops instead of relaunching
+    (design §3.4/§3.6).
     """
     split = urlsplit(resolve_check_base())
     if not split.scheme or not split.netloc:

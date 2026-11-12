@@ -37,6 +37,15 @@ local base 与本地 mock `API_PREFIX` 两端同步去前缀，路径描述
 前缀、显式覆盖、镜像根、他人批次与考古快照一律不动。零上游
 文件、R2 清单未变、不重签。证据见 verification.md
 「local tier 去 /csas（修订十八）」。
+**Peer Review 推荐方案 A（2026-11-12 责任人授权「按推荐帮我修改吧」
+＝design 修订十九）**：评审基线 `d764f4d5..951f8884`；finding-A 三处
+`skipif` reason 改如实口径、finding-C 修 `mirror_root` docstring、
+finding-B 在 Windows wrapper 锚定安装脚本 `throw` 约定、finding-D
+按建议驳回修复必要性仅留记录；design 追加修订（十九）覆盖六处
+已签认正文的历史快照措辞差、§12 现行 R2 三文件与 R13 就地注释
+状态（原行按 R10 不改写、不重签）。零上游文件、R2 清单未变、
+零登记号、零新增豁免。证据见 verification.md
+「Peer Review 推荐方案 A 修复」。
 
 ## 待办
 
@@ -57,10 +66,12 @@ local base 与本地 mock `API_PREFIX` 两端同步去前缀，路径描述
 - [x] 责任人重签 design.md 头部签认字段（R2 清单变更＝修订六缩减 +
       修订十四新增 pyproject.toml，DEVELOPMENT §4.1；头部日期已由本人
       落盘为 2026-11-12）
-- [ ] 责任人复核修订七～十四正文，以及几处与实施态不符的表述
-      （§3.3 文案走 i18n、§2/§3.6 tier 表落点、§12 locales 回滚条目、
-      §3.4 两平台"绝不使用管道"措辞与 Windows 实际形态）——
-      属已签认正文的措辞复核，不影响本批提交，可在 PR 评审期处理
+- [ ] 责任人在 PR 评审期确认 design 修订（十九）的措辞差覆盖：
+      六处历史快照（§3.3 文案走 i18n 与 `on_confirm` 签名、
+      §3.3/§9/§13 Esc 与 backdrop 口径、§2/§3.6 tier 表落点、
+      §12 locales 回滚条目、§3.4 两平台"绝不使用管道"与
+      Windows `IRM | IEX` 实际形态）已按 R10 保留原行、以追加
+      修订记录列明现行口径；不影响本批提交
 - [x] 责任人签认 self-review.md（R10，头部已落盘「已确认 / 2026-11-12」）
 - [ ] Windows 实机冒烟（test-plan 冒烟 8，命令串断言已由 CI 覆盖）
 - [ ] 真实内网全链路联调（后端就绪后，verification.md「待补」）
@@ -94,6 +105,11 @@ local base 与本地 mock `API_PREFIX` 两端同步去前缀，路径描述
       `test_client.py` 夹具/期望与四处路径描述同步；冻结路径段、
       dev/prod、显式覆盖、镜像根、他人批次/考古快照零改动；
       不重签。证据见 verification.md「local tier 去 /csas」。
+- [x] **Peer Review 推荐方案 A（design 修订十九，2026-11-12）**：
+      finding-A/B/C 修复、finding-D 留记录驳回、design 修订（十九）
+      与四件活文档补记；门禁证据见 verification.md
+      「Peer Review 推荐方案 A 修复」。零上游、零登记号、
+      零新增豁免、不重签。
 
 ## 挂起与备忘
 

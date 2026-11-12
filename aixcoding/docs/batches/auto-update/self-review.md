@@ -50,6 +50,28 @@ AI 的自查结论不是签认；签认前 block 条目必须全数闭环。
 > 一律不动。design 修订（十八）＋五件活文档补记；零上游
 > 文件、R2 清单未变、零登记号、零新增豁免，按 §4.1 不重签。
 > 证据见 verification.md「local tier 去 /csas（修订十八）」。
+> 2026-11-12（八）责任人粘贴 Peer Review 裁决报告并授权「按推荐
+> 帮我修改吧」（推荐方案 A，design 修订十九）：评审基线
+> `d764f4d5..951f8884`（4 提交、28 文件 +3975/-8），本机只读
+> 复核 finding-A/B/C/D 与 design 措辞差均成立。处置：
+> ① A：`test_runner.py` 三处 `skipif` reason 改如实口径（Windows
+> CI 仅命令串断言、真实 console e2e 属冒烟 8）；
+> ② C：`commands.py::mirror_root()` docstring 去掉「flow 判定
+> 更新命令不可用」的不实说法，改述相对 URL 与 wrapper 失败兜底；
+> ③ B：`runner.py::build_windows_wrapper()` 锚定安装脚本必须
+> 以 `throw` 失败、`exit 1` 会绕过 catch 的约定；
+> ④ D：`mktemp || exit 1` 不计数按评审建议驳回修复必要性，
+> 仅留记录、代码零改动；
+> ⑤ design 追加修订（十九）列明六处历史快照措辞差与
+> §12 现行 R2 三文件，原行按 R10 不改写、不重签。
+> **R13 就地注释**：本轮仅改定制目录两处 docstring 与测试
+> reason，无新中文常量、无新 `subprocess` 调用，`pyproject.toml`
+> 的 C173 就地注释与 2 类豁免条目数零改动。
+> 评审 HOWTO ②「换 AI 交叉」为 Q1 建议非强制；本次同源 AI
+> 独立性弱，是否补异源交叉由责任人裁决，方案 A 不补。
+> 零上游文件、R2 清单（3 个上游文件及行数）未变、零登记号、
+> 零新增豁免，按 §4.1 不触发重签。证据见 verification.md
+> 「Peer Review 推荐方案 A 修复」。
 
 ## 2026-11-12 评审结论：通过
 

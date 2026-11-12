@@ -112,7 +112,13 @@ def test_relaunch_argv_falls_back_to_argv0(monkeypatch: pytest.MonkeyPatch) -> N
     assert len(argv) == 1 and Path(argv[0]).is_absolute()
 
 
-@pytest.mark.skipif(WIN32, reason="the POSIX wrapper order needs sh; the Windows twin runs on Windows CI")
+@pytest.mark.skipif(
+    WIN32,
+    reason=(
+        "POSIX wrapper e2e needs sh; Windows CI asserts the command string only, "
+        "real-console e2e is manual smoke item 8"
+    ),
+)
 def test_wrapper_runs_wait_execute_relaunch_in_order(tmp_path: Path) -> None:
     """End-to-end with a stand-in install script: wait, download, run, relaunch."""
     done = tmp_path / "done"
@@ -142,7 +148,13 @@ def test_wrapper_runs_wait_execute_relaunch_in_order(tmp_path: Path) -> None:
             wrapper.kill()
 
 
-@pytest.mark.skipif(WIN32, reason="the POSIX wrapper order needs sh; the Windows twin runs on Windows CI")
+@pytest.mark.skipif(
+    WIN32,
+    reason=(
+        "POSIX wrapper e2e needs sh; Windows CI asserts the command string only, "
+        "real-console e2e is manual smoke item 8"
+    ),
+)
 def test_wrapper_script_failure_tallies_and_stops(tmp_path: Path) -> None:
     """A failing install script appends one tally line and does not relaunch (design Q4/D2)."""
     relaunched = tmp_path / "relaunched"
@@ -170,7 +182,13 @@ def test_wrapper_script_failure_tallies_and_stops(tmp_path: Path) -> None:
             wrapper.kill()
 
 
-@pytest.mark.skipif(WIN32, reason="the POSIX wrapper order needs sh; the Windows twin runs on Windows CI")
+@pytest.mark.skipif(
+    WIN32,
+    reason=(
+        "POSIX wrapper e2e needs sh; Windows CI asserts the command string only, "
+        "real-console e2e is manual smoke item 8"
+    ),
+)
 def test_wrapper_download_failure_tallies_and_stops(tmp_path: Path) -> None:
     """A failed download must not masquerade as success (first manual smoke, design §3.4 revision 8)."""
     relaunched = tmp_path / "relaunched"

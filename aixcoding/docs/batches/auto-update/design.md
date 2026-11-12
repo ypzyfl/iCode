@@ -114,6 +114,62 @@
 > 他人批次文档（`batches/mock/`、`batches/devtools/` 考古报告）与
 > 只提端口不带路径的引用按 R6 一律不动。零上游文件、R2 清单未变、
 > 零登记号、零新增豁免，按 §4.1 不触发重签。本条由 AI 追加、git 留痕。
+> 2026-11-12（十九）Peer Review 推荐方案 A 处置（责任人粘贴裁决报告
+> 并授权「按推荐帮我修改吧」）：评审基线 `d764f4d5..951f8884`（4 提交、
+> 28 文件 +3975/-8），finding-A/B/C/D 与 design 措辞差经只读复核成立。
+> ① **finding-A**：`test_runner.py` 三处 `skipif(WIN32)` 的 reason 原称
+> 「Windows twin runs on Windows CI」，与实施态不符——Windows CI 只跑
+> `test_windows_wrapper_shape` 命令串断言，POSIX 三条 `file://` e2e 并无
+> Windows 同构孪生；改为如实措辞（POSIX e2e 需要 sh、Windows CI 仅断言
+> 命令串、真实 console e2e 属手工冒烟 8）。R13 豁免条目数不变。
+> ② **finding-C**：`commands.py::mirror_root()` docstring 原称 base 不可
+> 解析时「flow 判定更新命令不可用」；实际 flow 无此检查，
+> `install_script_url()` 退化为相对 `/install.sh|/install.ps1`，由 wrapper
+> 下载失败分支计数并停止兜底。改为如实描述（§3.4/§3.6）。
+> ③ **finding-B**：Windows wrapper 的 `IRM | IEX` + catch 失败计数依赖
+> 镜像安装脚本以 `throw` 报错；若脚本改 `exit 1`，`IEX` 内直接终止
+> powershell 进程、绕过 catch，计数与停止提示同时丢失。该约定此前只隐含
+> 在 `aixcoding/release/install-internal-mirror.ps1`（实测全部失败路径
+> 均为 `throw`、无裸 `exit 1`），现于 `build_windows_wrapper()` docstring
+> 显式锚定。注释级变更，不改命令串、不新增豁免。
+> ④ **finding-D**：`tmp=$(mktemp) || exit 1` 不追加失败计数——按评审建议
+> **驳回修复必要性**，仅留记录：该路径是宿主无可用临时目录时的极端兜底，
+> 不进入安装/重启，计入 D2「连续失败」反而可能误触发 skip-today。代码零
+> 改动。
+> ⑤ 已签认正文六处历史快照措辞差，按 R10 **原行不改写**，现行口径统一
+> 以本条为准：
+> - §3.3:282 文案「msg() 借壳 key + en fallback + zh-Hans po」→ 实为
+>   `login.py` 同构纯中文常量（修订六/十七）；
+> - §3.3:280/:293 构造参数 `on_confirm: Callable[[], None]` 与「按钮动作
+>   经 on_confirm 回调」→ 实为 `on_result: Callable[[str], None]`，
+>   `flow._ask` 用 future + `deliver`，答案只由按钮交付、不靠 dismiss；
+>   `_before_dismiss` 的 `None → LATER` 兜底在严格模态下不可达；
+> - §3.3:285-286、§9 假设表首行、§13 验收第 5 条的「普通版 Esc/点击
+>   外部＝下次提醒」「强更框可被 Esc 逃逸」→ 两种弹框统一严格模态
+>   （修订十七）；
+> - §2:210 与 §3.6:361 的「tier 表归 commands.py」→ `_TIER_BASES` 实
+>   位于 `service/aixcoding/update/client.py`，`commands.py` 仅承担镜像根
+>   派生；local 现行值见修订十八；
+> - §12:490 回滚「上游 1 处接线行（C172）+ locales 生成条目随 i18n
+>   流水线刷新」→ locales 已于修订六取消、不再生成；
+> - §3.4:308-312「两平台绝不使用管道」→ 仅 POSIX 为先下载后执行；
+>   Windows 仍为 `IRM | IEX` 管道，靠 `-ErrorAction Stop` 挂在下载本体
+>   与安装脚本 `throw` 约定保证 catch 计数（见本条③）。
+> ⑥ **§12 回滚现行 R2 清单**（三个上游文件，行数与登记号均未变）：
+> `src/chrys/app/tui/app.py`（+4，C172）、
+> `tests/architecture/trajectory_wait_manifest.json`（守卫生成产物、JSON
+> 免 marker）、`pyproject.toml`（+3，C173 目录级 RUF001/S603 豁免）；
+> revert 批次 PR 即净，其余全部为 aixcoding 树内新增，用户侧
+> `aixcoding-update.json` 残留无害。
+> ⑦ R13 就地注释：本轮仅改 `src/chrys/app/aixcoding/update/` 内两处
+> docstring 与测试 reason，无新中文常量、无新 `subprocess` 调用，
+> `pyproject.toml` 的 C173 就地注释与豁免条目数零改动。
+> ⑧ 评审 HOWTO ②「换 AI 交叉」为 Q1 建议非强制；本次同源 AI 独立性弱，
+> 是否补异源交叉由责任人裁决，推荐方案 A 不补。
+> 零上游文件、R2 清单（3 个上游文件及各自行数）未变、零登记号、
+> 零新增豁免，按 DEVELOPMENT §4.1 不触发重签，头部签认字段保持责任人
+> 2026-11-12 本人落盘值。本条由 AI 追加、git 留痕，证据见
+> verification.md「Peer Review 推荐方案 A 修复」。
 
 ## 0. 前置事实
 
