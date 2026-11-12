@@ -636,8 +636,17 @@ def _assemble_stack(
             use_route_session_context=use_route_session_context,
         ),
     )
+    # AIxCoding telemetry: assemble model middleware (src/chrys/service/aixcoding/telemetry)
+    telemetry_middleware = None
+    try:
+        from chrys.service.aixcoding.telemetry.model import build_middleware
+
+        telemetry_middleware = build_middleware(parent_session_id or session_id)
+    except Exception:
+        pass
     return ToolLoopLayer(
-        ChatMiddlewareLayer(wire_client),
+        # AIxCoding telemetry: install model middleware (src/chrys/service/aixcoding/telemetry)
+        ChatMiddlewareLayer(wire_client, middleware=telemetry_middleware),
         max_iterations=max_iterations,
         max_consecutive_errors=max_consecutive_errors,
         tool_result_ceiling_tokens=tool_result_ceiling_tokens,

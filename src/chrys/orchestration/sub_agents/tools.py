@@ -433,7 +433,15 @@ class SubAgentTools:
                 route_parts=(tool_name, profile.name),
                 model_profile=sub_active_profile,
             )
-            client = await create_client(
+            # AIxCoding telemetry: build agent context (src/chrys/service/aixcoding/telemetry)
+            client_factory = create_client
+            try:
+                from chrys.service.aixcoding.telemetry.model import for_agent_build
+
+                client_factory = for_agent_build(create_client, profile.name, self._workspace_cwd)
+            except Exception:
+                pass
+            client = await client_factory(
                 sub_active_profile,
                 session_id=sub_agent_session_id,
                 parent_session_id=self._session_id,

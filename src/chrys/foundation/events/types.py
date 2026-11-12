@@ -660,7 +660,12 @@ class InvocationToolCallStart(InvocationEvent):
     provider: str = ""
     provider_item_type: str = ""
     provider_call_id: str = ""
+    # AIxCoding telemetry: declare tool start (src/chrys/service/aixcoding/telemetry)
     provider_status: str = ""
+    tool_operation_id: str | None = None
+    model_source_id: str | None = None
+    agent_profile_name: str = ""
+    workspace_cwd: str = ""
 
 
 @dataclass
@@ -730,7 +735,9 @@ class InvocationToolCallResult(InvocationEvent):
     provider: str = ""
     provider_item_type: str = ""
     provider_call_id: str = ""
+    # AIxCoding telemetry: declare tool result (src/chrys/service/aixcoding/telemetry)
     provider_status: str = ""
+    tool_operation_id: str | None = None
 
 
 @dataclass

@@ -347,6 +347,8 @@ class ToolEventMiddleware(FunctionMiddleware):
 
         # Pre-execution mutation tracking
         _meta = context.metadata if isinstance(context.metadata, dict) else {}
+        # AIxCoding telemetry: capture tool operation (src/chrys/service/aixcoding/telemetry)
+        operation_id = tool_operation_id(_meta)
         pre_rejected = bool(_meta.get(_APPROVAL_REJECTED_KEY))
         mut_ctx = None
         if not pre_rejected:
@@ -368,6 +370,11 @@ class ToolEventMiddleware(FunctionMiddleware):
                     origin=origin,
                     tool_name=tool_name,
                     tool_kind=tool_kind,
+                    # AIxCoding telemetry: publish local start (src/chrys/service/aixcoding/telemetry)
+                    provider_call_id=provider_call_id,
+                    tool_operation_id=operation_id,
+                    agent_profile_name=self._profile_name or "",
+                    workspace_cwd=self._workspace_cwd or "",
                     args=args,
                     call_id=call_id,
                     session_id=self._session_id,
@@ -737,6 +744,9 @@ class ToolEventMiddleware(FunctionMiddleware):
                             origin=origin,
                             tool_name=tool_name,
                             call_id=call_id,
+                            # AIxCoding telemetry: publish local result (src/chrys/service/aixcoding/telemetry)
+                            provider_call_id=provider_call_id,
+                            tool_operation_id=operation_id,
                             result=result_text,
                             image_contents=result_images,
                             duration_ms=duration_ms,

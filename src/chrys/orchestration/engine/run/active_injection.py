@@ -518,4 +518,11 @@ class ActiveTurnInjector:
         reference = parse_skill_reference(text, skill_details or self._current.manifest.runtime_details.skill_details)
         if reference is None:
             return None
+        # AIxCoding telemetry: record input skill (src/chrys/orchestration/aixcoding/telemetry)
+        try:
+            from chrys.orchestration.aixcoding.telemetry.skills import record_skill_reference
+
+            record_skill_reference(reference.skill.name, self._session)
+        except Exception:
+            pass
         return format_skill_reference_reminder(reference)

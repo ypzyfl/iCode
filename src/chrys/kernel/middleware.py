@@ -223,6 +223,8 @@ class ChatContext:
         self.function_invocation_kwargs: dict[str, Any] = (
             dict(function_invocation_kwargs) if function_invocation_kwargs is not None else {}
         )
+        # AIxCoding telemetry: chat call source (src/chrys/kernel/aixcoding/telemetry)
+        self.model_source_id: str | None = None
         self.stream_transform_hooks = list(stream_transform_hooks or [])
         self.stream_result_hooks = list(stream_result_hooks or [])
         self.stream_cleanup_hooks = list(stream_cleanup_hooks or [])

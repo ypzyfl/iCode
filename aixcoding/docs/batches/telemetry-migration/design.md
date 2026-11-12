@@ -3,8 +3,8 @@
 - 编写日期：2026-11-11
 - 状态：已确认
 - 责任人：兰荣达
-- 确认日期：2026-11-11
-- 确认意见：已复核 §4.2/§4.4 补充与 R2 附件改动，确认
+- 确认日期：2026-11-12
+- 确认意见：已复核
 - 旧报文基线：`019d12b13374d15e14241cbdc0895af4184821c9`，`main_aixcoding_cli_0.28.0_final`，0.28.0。
 - 目标工程基线：`10ec90eefc75274ba9b1acd8c25f4a39964234b1`，`main_aixcoding_cli_0.35.2` 的起点，0.35.2。
 - 需求、验收矩阵和当前进度见 [requirements.md](requirements.md)、[test-plan.md](test-plan.md)、[plan.md](plan.md)。设计决策见 `ADR-telemetry-migration--compatibility-adapter`。
@@ -234,20 +234,26 @@ ACP prompt 入站校验 ide-name、ide-version、function-name、selected-agent�
 | slash span/workspace | 保留旧编码和缺省规则，普通输入和追加输入各录制一组 | 后续若修改 slash 的归属口径，单独列入差异裁决 |
 | 新版新增工具及旁路调用 | 按工具类型与实际 invocation 分开记录覆盖 | 不虚构旧版 oracle，不以缺省值伪造完整统计 |
 
-## 7. 上游改动清单（R2）
+## 上游改动清单（R2）
 
 签认范围为 [R2 逐行审阅稿](r2-review.md)。附件按文件列出原行、拟增删行、R3 标记、保留上游的理由及对应验收，含 **17 个产品源码文件 +179/−19 行**和 **1 个生成清单 +19/−14 行**。行数包括 39 条源码标记。目标基线为 `10ec90ee`。定制文件范围见 §3.2。本次不申请第三方依赖。
 
-| 上游边界 | 选择及验收 |
-| --- | --- |
-| 引擎生命周期 | 在已有 bus 注册与释放边界接入。首轮、恢复和关闭覆盖 T07 |
-| 模型组栈与执行上下文 | 三个构建入口只交付真实 Agent 和工作区。统一工厂装配 middleware，invoker 绑定实际 pass。三协议、跨入口、并发和重试覆盖 T01、T05、T06 |
-| 本地工具 | 模型最终响应、kernel operation 与工具事件形成同一关联链。复用事件上的逐次快照，覆盖无轨迹、审批改参和 Workflow 恢复 |
-| 托管工具 | 观察点捕获真实来源，展示层携带来源，已有事件出口发送。失败、延迟和 GET 续读按 §4.3 验收 |
-| 技能与 ACP | 普通/追加输入沿用旧触发时点。ACP prompt 作用域仅为当前请求捕获选定 Agent 与响应元数据，覆盖 T04 |
-| wait manifest | 按上游工具生成，逐条审阅新建或重新打开的等待。生成差异在同一附件内 |
+| 文件 | 上游边界 | 选择及验收 |
+| --- | --- | --- |
+| `src/chrys/orchestration/engine/engine.py` | 引擎生命周期 | 在已有 bus 注册与释放边界接入。首轮、恢复和关闭覆盖 T07 |
+| `src/chrys/kernel/middleware.py` + `src/chrys/orchestration/engine/build/builder.py` + `src/chrys/orchestration/invoker/kernel.py` + `src/chrys/orchestration/sub_agents/tools.py` + `src/chrys/orchestration/workflows/agent_node_build.py` + `src/chrys/service/llm/clients.py` | 模型组栈与执行上下文 | 三个构建入口只交付真实 Agent 和工作区。统一工厂装配 middleware，invoker 绑定实际 pass。三协议、跨入口、并发和重试覆盖 T01、T05、T06 |
+| `src/chrys/foundation/events/types.py` + `src/chrys/kernel/loop.py` + `src/chrys/service/agent_middleware/events/tool_events.py` + `src/chrys/service/agent_middleware/events/sub_agent_events.py` | 本地工具 | 模型最终响应、kernel operation 与工具事件形成同一关联链。复用事件上的逐次快照，覆盖无轨迹、审批改参和 Workflow 恢复 |
+| `src/chrys/orchestration/engine/run/bindings.py` + `src/chrys/service/agent_middleware/events/hosted_tools.py` + `src/chrys/service/agent_middleware/response_validation.py` | 托管工具 | 观察点捕获真实来源，展示层携带来源，已有事件出口发送。失败、延迟和 GET 续读按 §4.3 验收 |
+| `src/chrys/app/acp/server.py` + `src/chrys/orchestration/engine/run/active_injection.py` + `src/chrys/orchestration/engine/run/runner.py` | 技能与 ACP | 普通/追加输入沿用旧触发时点。ACP prompt 作用域仅为当前请求捕获选定 Agent 与响应元数据，覆盖 T04 |
+| `tests/architecture/trajectory_wait_manifest.json` | wait manifest | 按上游工具生成，逐条审阅新建或重新打开的等待。生成差异在同一附件内 |
+| `tests/orchestration/engine/test_settings_reload.py` | 本轮批准的回归适配 | 分开验证请求体和每次请求的埋点标识 |
+| `tests/orchestration/engine/test_web_search_budget.py` | 本轮批准的回归适配 | 隔离独立上报，保留搜索调用上限及第二轮恢复断言 |
+| `src/chrys/orchestration/engine/rollback.py` | 非零回滚与后台归属保存 | 当前相对 `a752020b` 为 +14/−9。在非零回滚（`target_turn > 0`）中，于快照替换和恢复前暂停新的后台保存，并等待已接纳的写入完成，恢复后再开放。此路径已由 2026-11-12 14:47（上海时间，UTC+8）授权，并代为落盘于下文「2026-11-12 新增 R2 范围补充签认（非零 rollback 与后台保存竞态）」。本行只把同一已授权范围同步进本表「文件」列，供机器门禁读取，不扩大范围，不修改头部本人签认字段。 |
+| `src/chrys/orchestration/engine/session_lifecycle.py` | 非零回滚与后台归属保存 | 当前相对 `a752020b` 为 +32/−7。为后台改动归属保存增加互斥与暂停范围，使受暂停或过期的刷新不把旧历史写回；保存由 `finish_close` 排空。此路径已由 2026-11-12 14:47（上海时间，UTC+8）授权，并代为落盘于下文「2026-11-12 新增 R2 范围补充签认（非零 rollback 与后台保存竞态）」。本行只把同一已授权范围同步进本表「文件」列，供机器门禁读取，不扩大范围，不修改头部本人签认字段。 |
 
-### 7.1 R12 基线对比
+生成清单在原附件基础上已登记发送模块等待 +18/−0，以及随后批准的 7 个新增等待和 2 个 wrapper 重分类 +21/−2。本轮请求边界刷新 Git 缓存，生成器在同一文件增列 1 条 thread_pool 等待，既有等待规则保持原值。逐项依据见 [verification.md](verification.md#补充等待清单)。
+
+## 7.1 R12 基线对比
 
 | 维度 | 0.28.0 已核对形态 | 0.35.2 本次签认形态 |
 | --- | --- | --- |
@@ -259,7 +265,7 @@ ACP prompt 入站校验 ide-name、ide-version、function-name、selected-agent�
 
 纯 Hook、代理及运行时替换的否决依据见 §2。当前方案的可验收收益是把报文规则集中、让接线和历史差异可逐项核对。文件数和跨版本成本以实际演练结果为准。
 
-### 7.2 上游行为与失效检测
+## 7.2 上游行为与失效检测
 
 | 假设 | 失效检测 |
 | --- | --- |
@@ -283,6 +289,8 @@ ACP prompt 入站校验 ide-name、ide-version、function-name、selected-agent�
 | telemetry-migration:tools-build-agent-context | src/chrys/orchestration/sub_agents/tools.py | AIxCoding telemetry: build agent context (src/chrys/service/aixcoding/telemetry) | 1 | sub-agent create_client | 中 | 〔上游替代〕上游提供等价能力并通过 T01,T05,T06 对拍 |
 | telemetry-migration:agent-node-build-build-agent-context | src/chrys/orchestration/workflows/agent_node_build.py | AIxCoding telemetry: build agent context (src/chrys/service/aixcoding/telemetry) | 1 | build_kernel_node create_client | 中 | 〔上游替代〕上游提供等价能力并通过 T01,T05,T06 对拍 |
 | telemetry-migration:middleware-chat-call-source | src/chrys/kernel/middleware.py | AIxCoding telemetry: chat call source (src/chrys/kernel/aixcoding/telemetry) | 1 | ChatContext.__init__ | 高 | 〔上游替代〕上游提供等价能力并通过 T06 对拍 |
+| telemetry-migration:reload-test-payload | tests/orchestration/engine/test_settings_reload.py | AIxCoding telemetry: compare reload payloads separately from per-request identity | 1 | test_manual_reload_next_provider_request | 低 | 移除模型请求埋点后恢复原断言 |
+| telemetry-migration:web-budget-test-transport | tests/orchestration/engine/test_web_search_budget.py | AIxCoding telemetry: isolate independent reports from the web search socket mock | 1 | test_each_pass_gets_a_fresh_web_search_budget | 低 | 移除独立上报后删除测试内传输替身 |
 | telemetry-migration:loop-bind-tool-source | src/chrys/kernel/loop.py | AIxCoding telemetry: bind tool source (src/chrys/kernel/aixcoding/telemetry) | 1 | _stamp_function_call_operations | 高 | 〔上游替代〕上游提供等价能力并通过 T06 对拍 |
 | telemetry-migration:types-declare-tool-start | src/chrys/foundation/events/types.py | AIxCoding telemetry: declare tool start (src/chrys/service/aixcoding/telemetry) | 1 | InvocationToolCallStart | 中 | 〔上游替代〕上游提供等价能力并通过 T06 对拍 |
 | telemetry-migration:types-declare-tool-result | src/chrys/foundation/events/types.py | AIxCoding telemetry: declare tool result (src/chrys/service/aixcoding/telemetry) | 1 | InvocationToolCallResult | 中 | 〔上游替代〕上游提供等价能力并通过 T06 对拍 |
@@ -312,6 +320,11 @@ ACP prompt 入站校验 ide-name、ide-version、function-name、selected-agent�
 | telemetry-migration:server-bind-desktop-scope | src/chrys/app/acp/server.py | AIxCoding telemetry: bind desktop scope (src/chrys/app/aixcoding/telemetry) | 1 | ChrysAcpServer.prompt run | 中 | 〔上游替代〕上游提供等价能力并通过 T04 对拍 |
 | telemetry-migration:server-merge-normal-response | src/chrys/app/acp/server.py | AIxCoding telemetry: merge normal response (src/chrys/app/aixcoding/telemetry) | 1 | ChrysAcpServer.prompt end_turn | 中 | 〔上游替代〕上游提供等价能力并通过 T04 对拍 |
 | telemetry-migration:server-merge-cancelled-response | src/chrys/app/acp/server.py | AIxCoding telemetry: merge cancelled response (src/chrys/app/aixcoding/telemetry) | 1 | ChrysAcpServer.prompt cancelled | 中 | 〔上游替代〕上游提供等价能力并通过 T04 对拍 |
+| telemetry-migration:rollback-fence-attribution-saves | src/chrys/orchestration/engine/rollback.py | AIxCoding rollback: fence attribution saves (src/chrys/orchestration/engine/session_lifecycle.py) | 1 | RollbackController.on_user_rollback | 高 | 上游协调快照替换与后台归属保存，受控交错回归通过 |
+| telemetry-migration:lifecycle-own-attribution-save-fence | src/chrys/orchestration/engine/session_lifecycle.py | AIxCoding rollback: own the save fence (src/chrys/orchestration/engine/session_lifecycle.py) | 1 | SessionLifecycle.__init__ | 高 | 同上 |
+| telemetry-migration:lifecycle-drain-attribution-saves | src/chrys/orchestration/engine/session_lifecycle.py | AIxCoding rollback: drain attribution writes (src/chrys/orchestration/engine/session_lifecycle.py) | 1 | SessionLifecycle.pause_mutation_attribution_saves | 高 | 同上 |
+| telemetry-migration:lifecycle-fence-attribution-writes | src/chrys/orchestration/engine/session_lifecycle.py | AIxCoding rollback: fence attribution writes (src/chrys/orchestration/engine/session_lifecycle.py) | 1 | SessionLifecycle.refresh_mutation_attribution | 高 | 同上 |
+| telemetry-migration:layering-declare-attribution-save-owner | tests/architecture/test_layering.py | AIxCoding rollback: declare attribution save ownership (src/chrys/orchestration/engine/session_lifecycle.py) | 1 | test_background_tasks_have_declared_owners | 低 | 上游接管保存任务的生命周期与所有权登记 |
 
 ## 8. 对拍与可靠性
 
@@ -355,3 +368,32 @@ ACP prompt 入站校验 ide-name、ide-version、function-name、selected-agent�
 目标基线已核实：`service/llm/clients.py::_assemble_stack`、`service/llm/request_tracking.py`、`service/agent_middleware/events/{tool_events,sub_agent_events,hook_dispatch}.py`、`foundation/events/{types,bus}.py`、`foundation/trajectory/context.py`、`app/acp/server.py`。源码读取使用 git show 固定提交，不切换工作区。
 
 实施后待验收的边界包括取消与迟到事件、托管终态重建、三协议字段对拍、后端缺省关联字段的处理和跨版本适配成本。验证证据及已录制样本见 [verification.md](verification.md)。
+
+
+## 2026-11-12 新增 R2 范围补充签认（非零 rollback 与后台保存竞态）
+
+
+- 责任人：兰荣达
+- 状态：已确认
+- 确认日期：2026-11-12
+- 确认范围（仅限本段列出的路径与目的）：
+  - `src/chrys/orchestration/engine/session_lifecycle.py`：为后台改动归属保存增加互斥与暂停范围，使受暂停或过期的刷新不把旧历史写回。
+  - `src/chrys/orchestration/engine/rollback.py`：在非零回滚（`target_turn > 0`）中，于快照替换和恢复前暂停新的后台保存，并等待已接纳的写入完成；恢复后再开放。
+- 修法意图：暂停新的后台保存、等待已有保存完成、替换快照并恢复后再开放。具体最小实现由实施代理判断，本确认不锁定行数或函数级写法。
+- 确认意见：授权确认上述新增 R2 范围，用于实施非零 rollback 与后台保存竞态的最小修复及定向回归。本确认不包括 `trajectory_wait_manifest.json` 的新增或扩大等待项，实现后如有实际清单差异须另行报批。
+
+## 2026-11-12 新增 R2 范围补充签认（回滚修复的任务所有权与等待清单登记）
+
+本段只确认下述新增登记范围，不替代、不修改、不覆盖上文头部于 2026-11-12 11:06（上海时间）由兰荣达本人落盘的原签认字段（状态「已确认」、责任人「兰荣达」、确认日期「2026-11-12」、确认意见「已复核」），也不修改或覆盖上文「2026-11-12 新增 R2 范围补充签认（非零 rollback 与后台保存竞态）」于 14:47 的代为落盘记录，也不构成全量验收或其他未知范围授权。
+
+- 责任人：兰荣达
+- 状态：已确认
+- 确认日期：2026-11-12
+- 确认范围（仅限本段列出的路径与目的，且仅覆盖本轮非零回滚修复所必需的登记）：
+  - `tests/architecture/test_layering.py`：在 `test_background_tasks_have_declared_owners` 增加一条任务所有权记录，键为 `("session_lifecycle", "SessionLifecycle", "refresh_mutation_attribution")`，计数为 1。用于声明该刷新在保存结束前持有异步锁、取消由 `finish_close` 排空后传播、非零回滚通过同一把锁等待其结束。实际说明文字按门禁真实语义撰写，不预先锁定行数。
+  - `tests/architecture/trajectory_wait_manifest.json`：按 2026-11-12 15:08（上海时间）对当前工作区已登记清单与源码的内存对账结果，写入下列候选差异（文本 +6/−1；等待条目 2925→2928）。对账使用仓库扫描器 `tests.support.trajectory_wait_inventory` 的 `build_manifest` / `encode_manifest`，只把候选写到 `/tmp`，未写入仓库清单。候选仅涉及下列三处函数，新规则与未变位置沿用的规则均为默认 `unresolved`：
+    - `chrys.orchestration.engine.rollback:RollbackController.on_user_rollback`：在序号 7 插入 `async_context` / `async with pause_saves`，原序号 7 的执行 wrapper 移到序号 8，目标仍为 `chrys.orchestration.engine.rollback.RollbackController._execute_user_rollback_with_permit`；序号 1–6 的表达式与规则未变。
+    - `chrys.orchestration.engine.session_lifecycle:SessionLifecycle.pause_mutation_attribution_saves`：新增该函数及序号 1 的 `sync_primitive` / `async with self._attribution_save_lock`。
+    - `chrys.orchestration.engine.session_lifecycle:SessionLifecycle.refresh_mutation_attribution`：原序号 2 的 `await self._writer.save_current_session()`（`awaitable`）替换为同一把锁的 `sync_primitive`；新增序号 3 的 `wrapper` / `await finish_close(asyncio.create_task(self._writer.save_current_session()))`，目标为 `chrys.foundation.util.once_close.finish_close`；序号 1 的 `thread_pool` 表达式未变。
+    生成器因函数等待数变化共重新打开 12 个位置（含上列变更及 `on_user_rollback:1–6`、`refresh_mutation_attribution:1`）。实施时须按扫描器生成的实际候选写入上述三处，不得盲改其他模块、不得凭过期行号改清单，也不得删除测试、放宽断言或用无关基准掩盖门禁失败。
+- 确认意见：授权确认上述登记，用于关闭本轮回滚修复的任务所有权与等待清单门禁。不包括全量验收、统一验证、T08、生产对账，或其他未列明范围。若实施中出现额外未知差异，不得捎带登记，须另行报批。

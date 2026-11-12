@@ -338,16 +338,21 @@ class RollbackController:
             if prepared is None:
                 return
             target_turn, rolled_back_user_text = prepared
-            await self._execute_user_rollback_with_permit(
-                event,
-                sid=sid,
-                session_generation=session_generation,
-                transition_owner=transition_owner,
-                target_turn=target_turn,
-                rolled_back_user_text=rolled_back_user_text,
-                atomic_copy_file=atomic_copy_file,
-                lock_timeout_seconds=lock_timeout_seconds,
+            # AIxCoding rollback: fence attribution saves (src/chrys/orchestration/engine/session_lifecycle.py)
+            pause_saves = (
+                self._lifecycle.pause_mutation_attribution_saves() if target_turn > 0 else contextlib.nullcontext()
             )
+            async with pause_saves:
+                await self._execute_user_rollback_with_permit(
+                    event,
+                    sid=sid,
+                    session_generation=session_generation,
+                    transition_owner=transition_owner,
+                    target_turn=target_turn,
+                    rolled_back_user_text=rolled_back_user_text,
+                    atomic_copy_file=atomic_copy_file,
+                    lock_timeout_seconds=lock_timeout_seconds,
+                )
         finally:
             self._permits.finish_session_transition(transition_owner)
 

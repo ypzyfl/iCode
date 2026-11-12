@@ -22,6 +22,8 @@ import chrys.orchestration.engine.build.builder as builder_module
 from chrys.foundation.events.bus import EventBus
 from chrys.foundation.events.types import InvocationToolCallResult, UserMessage
 from chrys.foundation.models.workspace import Workspace
+from chrys.orchestration.aixcoding.telemetry import lifecycle
+from chrys.service.aixcoding.telemetry.delivery import TelemetryDelivery
 from chrys.service.llm.mock import MockChatClient, MockResponse
 from chrys.service.profiles.agents.schema import AgentProfile, ApprovalConfig, CompactionConfig, ToolsConfig
 from chrys.service.state.store import JsonFileStateStore
@@ -46,6 +48,12 @@ async def _exa_hit(request: httpx.Request) -> httpx.Response:
 async def test_each_pass_gets_a_fresh_web_search_budget(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, agent_engine: AgentEngineFactory
 ) -> None:
+    # AIxCoding telemetry: isolate independent reports from the web search socket mock
+    def delivery(base_url: str, **kwargs) -> TelemetryDelivery:
+        transport = httpx.MockTransport(lambda _request: httpx.Response(204))
+        return TelemetryDelivery(base_url, client=httpx.AsyncClient(transport=transport), **kwargs)
+
+    monkeypatch.setattr(lifecycle, "TelemetryDelivery", delivery)
     settings, models = make_mock_settings_and_registry(stream=False)
     profile = AgentProfile(
         name="WebSearcher",

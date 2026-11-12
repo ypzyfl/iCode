@@ -291,6 +291,14 @@ class KernelConversation:
         invocation_token = invocation_routing_key.set(invocation_id)
         # The tool calls of this pass start background commands for, and sleep on those of, this agent.
         scope_token = current_scope.set(TaskScope.of(request.origin))
+        # AIxCoding telemetry: bind pass (src/chrys/kernel/aixcoding/telemetry)
+        reset_telemetry_pass: Callable[[], None] | None = None
+        try:
+            from chrys.kernel.aixcoding.telemetry.context import bind_pass
+
+            reset_telemetry_pass = bind_pass(request.origin, handle.pass_id)
+        except Exception:
+            pass
         response: AgentResponse[Any] | None = None
         error: Exception | None = None
         cancellation: asyncio.CancelledError | None = None
@@ -392,6 +400,9 @@ class KernelConversation:
                 # Pair only the cancellation this pass issued, never the
                 # operation shell's or an external caller's cancellation count.
                 task.uncancel()
+            # AIxCoding telemetry: reset pass (src/chrys/kernel/aixcoding/telemetry)
+            if reset_telemetry_pass is not None:
+                reset_telemetry_pass()
             current_invocation_origin.reset(origin_token)
             invocation_routing_key.reset(invocation_token)
             current_scope.reset(scope_token)

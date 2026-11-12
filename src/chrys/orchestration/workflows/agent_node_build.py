@@ -210,7 +210,15 @@ async def build_kernel_node(
         raise RuntimeError("A kernel workflow node requires a model binding.")
     profile = binding.agent
     chat_options = effective_chat_options(model)
-    client = await create_client(
+    # AIxCoding telemetry: build agent context (src/chrys/service/aixcoding/telemetry)
+    client_factory = create_client
+    try:
+        from chrys.service.aixcoding.telemetry.model import for_agent_build
+
+        client_factory = for_agent_build(create_client, profile.name, res.workspace.primary_cwd)
+    except Exception:
+        pass
+    client = await client_factory(
         model,
         session_id=derive_llm_route_session_id(
             session_id,

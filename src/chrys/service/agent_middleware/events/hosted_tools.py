@@ -81,6 +81,8 @@ class HostedToolView:
     phase: str
     retry_safety: str
     metadata: dict[str, Any]
+    # AIxCoding telemetry: hosted view source (src/chrys/service/aixcoding/telemetry)
+    model_source_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -523,7 +525,14 @@ def get_hosted_adapter(family: str) -> GenericHostedAdapter:
 
 def adapt_hosted_tool(call: Content | None, result: Content | None = None) -> HostedToolView:
     """Adapt a canonical hosted call and optional paired result."""
-    return get_hosted_adapter(_family_for(call or result)).adapt(call, result)
+    # AIxCoding telemetry: adapt hosted source (src/chrys/kernel/aixcoding/telemetry)
+    view = get_hosted_adapter(_family_for(call or result)).adapt(call, result)
+    try:
+        from chrys.kernel.aixcoding.telemetry.provenance import hosted_source
+
+        return replace(view, model_source_id=hosted_source(call, result))
+    except Exception:
+        return view
 
 
 def hosted_replay_status(view: HostedToolView, *, has_result: bool) -> str:

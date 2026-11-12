@@ -563,7 +563,14 @@ class ChrysAcpServer:
         **kwargs: Any,
     ) -> acp_schema.PromptResponse:
         """Run one ACP prompt turn."""
-        _ = kwargs
+        # AIxCoding telemetry: prepare desktop scope (src/chrys/app/aixcoding/telemetry)
+        desktop_scope = None
+        try:
+            from chrys.app.aixcoding.telemetry.acp import prompt_scope
+
+            desktop_scope = prompt_scope(session_id, kwargs)
+        except Exception:
+            pass
         if self._client is None:
             raise internal_error({"details": "ACP client connection is not ready."})
         user_message_id = _validated_message_id(message_id)
@@ -593,13 +600,18 @@ class ChrysAcpServer:
             async for event in session.host.iter_turn_events(message):
                 yield event
 
-        turn = await self._run_turn(session_id, start)
+        # AIxCoding telemetry: bind desktop scope (src/chrys/app/aixcoding/telemetry)
+        with desktop_scope if desktop_scope is not None else contextlib.nullcontext() as desktop:
+            turn = await self._run_turn(session_id, start)
         if isinstance(turn.outcome, EndTurn):
             return acp_schema.PromptResponse(
                 stopReason="end_turn",
                 userMessageId=user_message_id,
                 usage=acp_schema.Usage.model_validate(turn.turn_usage),
-                field_meta=with_chrys_metadata(None, turn.response_meta()),
+                # AIxCoding telemetry: merge normal response (src/chrys/app/aixcoding/telemetry)
+                field_meta=with_chrys_metadata(
+                    desktop.response_meta() if desktop is not None else None, turn.response_meta()
+                ),
             )
         if isinstance(turn.outcome, Refused):
             return acp_schema.PromptResponse(
@@ -613,7 +625,10 @@ class ChrysAcpServer:
                 stopReason="cancelled",
                 userMessageId=user_message_id,
                 usage=acp_schema.Usage.model_validate(turn.turn_usage),
-                field_meta=with_chrys_metadata(None, turn.response_meta()),
+                # AIxCoding telemetry: merge cancelled response (src/chrys/app/aixcoding/telemetry)
+                field_meta=with_chrys_metadata(
+                    desktop.response_meta() if desktop is not None else None, turn.response_meta()
+                ),
             )
         if isinstance(turn.outcome, Errored):
             raise _turn_failed(turn, turn.outcome.error)

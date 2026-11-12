@@ -10,7 +10,7 @@ import copy
 import logging
 import os
 import shutil
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import AsyncGenerator, Awaitable, Callable, Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -42,6 +42,7 @@ from chrys.foundation.platform import safe_getcwd
 from chrys.foundation.platform.files import surrogate_safe_text, unlink_with_retry
 from chrys.foundation.trajectory.event_types import RuntimeFinishReason as TrajectoryRuntimeFinishReason
 from chrys.foundation.util.lock import FileLock
+from chrys.foundation.util.once_close import finish_close
 from chrys.foundation.util.session_ids import session_short_id
 from chrys.orchestration.engine.state import lifecycle_permits
 from chrys.orchestration.engine.state.active_session import session_pin_overrides
@@ -376,6 +377,9 @@ class SessionLifecycle:
         self._loader = loader
         self._permits = permits
         self._writer = writer
+        # AIxCoding rollback: own the save fence (src/chrys/orchestration/engine/session_lifecycle.py)
+        self._attribution_save_lock = asyncio.Lock()
+        self._attribution_saves_paused = False
         self._turn_state = turn_state
         self._usage_publisher = usage_publisher
         self._bus = bus
@@ -846,6 +850,18 @@ class SessionLifecycle:
         if release_lock:
             self._session.guard.release()
 
+    # AIxCoding rollback: drain attribution writes (src/chrys/orchestration/engine/session_lifecycle.py)
+    @contextlib.asynccontextmanager
+    async def pause_mutation_attribution_saves(self) -> AsyncGenerator[None]:
+        """Drain admitted saves before rollback and defer others until restore."""
+        self._attribution_saves_paused = True
+        try:
+            async with self._attribution_save_lock:
+                pass
+            yield
+        finally:
+            self._attribution_saves_paused = False
+
     async def refresh_mutation_attribution(self, *, force: bool = False) -> bool:
         """Reclassify the live mutation log against peer registry claims.
 
@@ -861,6 +877,7 @@ class SessionLifecycle:
         tracker = self._session.mutation_tracker
         if coordinator is None or tracker is None:
             return False
+        generation = self._permits.session_generation
         loop = asyncio.get_running_loop()
         try:
             changed = await loop.run_in_executor(
@@ -870,6 +887,7 @@ class SessionLifecycle:
         except Exception:
             logger.debug("Mutation attribution refresh failed", exc_info=True)
             return False
+        # AIxCoding rollback: fence attribution writes (src/chrys/orchestration/engine/session_lifecycle.py)
         # The coordinator's flag, not this call's return value: a
         # finalize-time reclassify may have changed rows earlier with no
         # saver, and its signature update makes this very call report
@@ -877,12 +895,19 @@ class SessionLifecycle:
         # a primary save deletes the recovery sidecar, which mid-turn is the
         # only durable copy of committed-but-unmerged tool exchanges.  The
         # flag stays set, and the turn-end save persists the reclassification.
-        if (
-            not (self._current.loaded is not None and self._current.loaded.bindings.state.running)
-            and self._session.mutation_coordinator is not None
-            and self._session.mutation_coordinator.consume_unsaved_reclassification()
-        ):
-            await self._writer.save_current_session()
+        if self._attribution_saves_paused:
+            return changed
+        async with self._attribution_save_lock:
+            if (
+                not self._attribution_saves_paused
+                and self._permits.session_generation == generation
+                and self._session.mutation_coordinator is coordinator
+                and self._session.mutation_tracker is tracker
+                and not (self._current.loaded is not None and self._current.loaded.bindings.state.running)
+                and coordinator.consume_unsaved_reclassification()
+            ):
+                # A cancelled diff worker must not release the lock while its write is still in flight.
+                await finish_close(asyncio.create_task(self._writer.save_current_session()))
         return changed
 
     async def on_session_fork(self, event: SessionFork) -> None:

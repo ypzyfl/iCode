@@ -480,7 +480,15 @@ async def build_agent(
         # only used by opt-in raw HTTP logging; normal transport construction stays
         # unchanged.
         invocation_publishers = InvocationPublishers(bus)
-        client = await create_client(
+        # AIxCoding telemetry: build agent context (src/chrys/service/aixcoding/telemetry)
+        client_factory = create_client
+        try:
+            from chrys.service.aixcoding.telemetry.model import for_agent_build
+
+            client_factory = for_agent_build(create_client, profile.name, runtime.cwd)
+        except Exception:
+            pass
+        client = await client_factory(
             active_profile,
             on_intermediate_text=on_intermediate,
             session_id=session_id,

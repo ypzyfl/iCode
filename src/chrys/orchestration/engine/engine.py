@@ -551,6 +551,13 @@ class AgentEngine:
         await self._bus.subscribe(InvocationResumed, self._on_sub_agent_unpaused)
         await self._bus.subscribe(InvocationAborted, self._on_sub_agent_unpaused)
         await self._bus.subscribe(InvocationCascadeAborted, self._on_sub_agent_unpaused)
+        # AIxCoding telemetry: attach bus (src/chrys/orchestration/aixcoding/telemetry)
+        try:
+            from chrys.orchestration.aixcoding.telemetry.lifecycle import attach
+
+            await attach(self._bus)
+        except Exception:
+            pass
         await self._workflows.subscribe()
         await self._side_questions.subscribe()
         if self._hook_confirmations is not None:
@@ -597,6 +604,13 @@ class AgentEngine:
             finally:
                 await self._lifecycle.shutdown()
         finally:
+            # AIxCoding telemetry: detach bus (src/chrys/orchestration/aixcoding/telemetry)
+            try:
+                from chrys.orchestration.aixcoding.telemetry.lifecycle import detach
+
+                await detach(self._bus)
+            except Exception:
+                pass
             if self._hook_confirmations is not None:
                 # After the release: what still waits on a question ends unavailable, and no answer is taken after.
                 await self._hook_confirmations.close()

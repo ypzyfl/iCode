@@ -340,7 +340,8 @@ class ResponseValidationMiddleware(ChatMiddleware):
             if commit not in self._hosted_commit_keys_in_flight:
                 self._hosted_commit_keys_in_flight.append(commit)
 
-    async def _observe_failed_response(self, error: ProviderResponseError) -> None:
+    # AIxCoding telemetry: failed observation source (src/chrys/service/aixcoding/telemetry)
+    async def _observe_failed_response(self, error: ProviderResponseError, source_id: str | None) -> None:
         """Count the hosted work a failed response showed but never yielded.
 
         The adapter raised before the response landed, so this is the only
@@ -348,11 +349,23 @@ class ResponseValidationMiddleware(ChatMiddleware):
         """
         if contents := list(error.observed_contents):
             self._observe_hosted_contents(contents)
-            await self._notify_contents_observed(contents, is_final=True, failed=True)
+            # AIxCoding telemetry: forward failure source (src/chrys/service/aixcoding/telemetry)
+            await self._notify_contents_observed(contents, is_final=True, failed=True, source_id=source_id)
 
-    async def _notify_contents_observed(self, contents: Sequence[Any], *, is_final: bool, failed: bool = False) -> None:
+    # AIxCoding telemetry: observation source parameter (src/chrys/service/aixcoding/telemetry)
+    async def _notify_contents_observed(
+        self, contents: Sequence[Any], *, is_final: bool, failed: bool = False, source_id: str | None = None
+    ) -> None:
         if self._observation_hook is None or in_internal_side_call():
             return
+        # AIxCoding telemetry: remember hosted source (src/chrys/kernel/aixcoding/telemetry)
+        if source_id is not None:
+            try:
+                from chrys.kernel.aixcoding.telemetry.provenance import remember_hosted_source
+
+                remember_hosted_source(contents, source_id)
+            except Exception:
+                pass
         try:
             await self._observation_hook.observe_contents(contents, is_final=is_final, failed=failed)
         except Exception:
@@ -407,7 +420,8 @@ class ResponseValidationMiddleware(ChatMiddleware):
         try:
             await call_next()
         except ProviderResponseError as error:
-            await self._observe_failed_response(error)
+            # AIxCoding telemetry: bind blocking failure (src/chrys/service/aixcoding/telemetry)
+            await self._observe_failed_response(error, context.model_source_id)
             raise
         result = context.result
         if context.stream:
@@ -419,19 +433,27 @@ class ResponseValidationMiddleware(ChatMiddleware):
                 # A provider stream that failed after showing hosted work:
                 # the error carries what never reached an update.
                 if isinstance(error := _stream_error_of(stream), ProviderResponseError):
-                    await self._observe_failed_response(error)
+                    # AIxCoding telemetry: bind stream failure (src/chrys/service/aixcoding/telemetry)
+                    await self._observe_failed_response(error, context.model_source_id)
 
             async def _conclude(response: ChatResponse) -> None:
                 await self._conclude(context, response, validation)
 
-            stream.with_transform_hook(self._observe_update)
+            # AIxCoding telemetry: capture stream source (src/chrys/service/aixcoding/telemetry)
+            async def _observe(update: ChatResponseUpdate) -> ChatResponseUpdate | None:
+                return await self._observe_update(update, context.model_source_id)
+
+            stream.with_transform_hook(_observe)
             stream.with_cleanup_hook(_observe_failure)
             stream.with_result_hook(_conclude)
             return
         if isinstance(result, ChatResponse):
             await self._conclude(context, result, validation)
 
-    async def _observe_update(self, update: ChatResponseUpdate) -> ChatResponseUpdate | None:
+    # AIxCoding telemetry: stream source parameter (src/chrys/service/aixcoding/telemetry)
+    async def _observe_update(
+        self, update: ChatResponseUpdate, source_id: str | None = None
+    ) -> ChatResponseUpdate | None:
         """Record the hosted work one streamed update shows, as it arrives."""
         if isinstance(evidence := update.raw_representation, HeldHostedEvidence):
             # Hosted work the adapter holds behind an unfinished call already
@@ -441,14 +463,16 @@ class ResponseValidationMiddleware(ChatMiddleware):
             return ChatResponseUpdate.transport_heartbeat()
         contents = list(update.contents or [])
         self._observe_hosted_contents(contents)
-        await self._notify_contents_observed(contents, is_final=False)
+        # AIxCoding telemetry: forward stream source (src/chrys/service/aixcoding/telemetry)
+        await self._notify_contents_observed(contents, is_final=False, source_id=source_id)
         return None
 
     async def _conclude(self, context: ChatContext, response: ChatResponse, validation: ValidationTrace | None) -> None:
         """Judge a landed response: keep it, or fail the turn with the reason."""
         contents = [content for message in response.messages or [] for content in message.contents]
         self._observe_hosted_contents(contents)
-        await self._notify_contents_observed(contents, is_final=True)
+        # AIxCoding telemetry: forward terminal source (src/chrys/service/aixcoding/telemetry)
+        await self._notify_contents_observed(contents, is_final=True, source_id=context.model_source_id)
         if response.continuation_token is not None:
             # A background response still running: the poll that finishes it is judged.
             await self._notify_attempt_accepted(response.messages or [])

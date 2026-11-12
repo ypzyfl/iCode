@@ -1819,6 +1819,14 @@ def test_background_tasks_have_declared_owners() -> None:
             "SessionLifecycle",
             "_start_locked._report_trajectory_activation_failure._publish_warning",
         ): (1, "activation callback local set"),
+        # AIxCoding rollback: declare attribution save ownership (src/chrys/orchestration/engine/session_lifecycle.py)
+        ("session_lifecycle", "SessionLifecycle", "refresh_mutation_attribution"): (
+            1,
+            (
+                "attribution refresh owns the write and holds the save lock until finish_close drains it, even on "
+                "cancellation. Nonzero rollback waits on the same lock before replacing the snapshot"
+            ),
+        ),
         ("side_questions", "SideQuestions", "request"): (
             1,
             "tracked request; user cancellation, rollback or session end cancels it with a bounded cleanup grace period",

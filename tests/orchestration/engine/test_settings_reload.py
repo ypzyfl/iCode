@@ -771,7 +771,18 @@ async def test_manual_reload_next_provider_request(
         assert b"probe" in payloads[1]
         assert b"manual-reload-server-instructions" in payloads[1]
         if style == "chat_completions":
-            assert payloads[0] == payloads[1]
+            # AIxCoding telemetry: compare reload payloads separately from per-request identity
+            if "telemetry" in control or "telemetry" in refreshed:
+                before = control.pop("telemetry")
+                after = refreshed.pop("telemetry")
+                before_id = before.pop("requestId")
+                after_id = after.pop("requestId")
+                assert before_id and after_id and before_id != after_id
+                assert bool(before.pop("spanId", None)) == bool(after.pop("spanId", None))
+                assert control == refreshed
+                assert before == after
+            else:
+                assert payloads[0] == payloads[1]
         else:
             for payload in (control, refreshed):
                 payload["wire_system"] = [

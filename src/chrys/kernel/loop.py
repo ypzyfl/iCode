@@ -528,6 +528,13 @@ def _stamp_function_call_operations(response: ChatResponse, function_calls: Sequ
     for function_call in function_calls:
         operation_id = new_analytics_id()
         function_call.additional_properties[OPERATION_ID_KEY] = operation_id
+        # AIxCoding telemetry: bind tool source (src/chrys/kernel/aixcoding/telemetry)
+        try:
+            from .aixcoding.telemetry.provenance import bind_tool_operation_source
+
+            bind_tool_operation_source(function_call, operation_id)
+        except Exception:
+            pass
         operation_by_identity[id(function_call)] = operation_id
         if function_call.call_id:
             operation_by_call_id[function_call.call_id] = operation_id

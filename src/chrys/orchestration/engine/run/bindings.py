@@ -444,7 +444,9 @@ class TurnBindings:
                     provider=view.provider,
                     provider_item_type=view.provider_item_type,
                     provider_call_id=view.provider_call_id,
+                    # AIxCoding telemetry: publish hosted source (src/chrys/service/aixcoding/telemetry)
                     provider_status=view.provider_status,
+                    model_source_id=view.model_source_id,
                     tool_kind=HOSTED_TOOL_DEFAULT_KIND_BY_FAMILY.get(view.family, ""),
                     args=view.arguments,
                     session_id=self._session_id,
