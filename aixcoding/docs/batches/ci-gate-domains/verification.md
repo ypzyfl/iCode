@@ -23,7 +23,36 @@
 任意 Call 参数会把断言字符串（如 `is_upstream("tests/support/ci.py")`）当路径，收紧为
 "REPO_ROOT 根 Div 链 + `_read` 调用"两真实消费形态 + 仓库真实存在过滤后，噪音清零。
 
-## 待远程验证（本批 PR 与合并后，到点回填）
+## 2026-11-12 远程验证结果（PR #123，双 CI 全绿）
+
+- **AIxCoding Tests**（run #200，`4a3bdc5e`）：**8/8 jobs 全 success**——`filter` 33s
+  success（R1 FORCE 命中：`aixcoding-tests.yml` + `ci_impact.py` 改动 → 双域 touched=true；
+  python3≥3.14 版本门限探测与 setup-python 步骤实际执行成功）；`govern`（16 业务步骤含 ty
+  三平台/compileall）success；`Custom tests` 双 OS success；`Guard hooks` 三 OS success（安装/
+  自检/MANUAL_TESTS 语料回放全链路）；`AIxCoding quality gate` success——**R1 FORCE 自证与
+  gate 逐域状态机首次远程实证**。
+- **Upstream CI**（run #130）：**success**（attempt 2）——`ci_impact.py` 命中 upstream 门
+  FORCE（两门共用判定器）→ 全量真实执行；attempt 1 失败后重跑转绿（同 PR #121 macOS flaky
+  先例模式，具体失败 job 未细核，如实留痕）。
+- PR #123 双 required check 全绿，可合并。
+
+## 2026-11-12 跳过链路真实验证（PR #124，docs/ci-gate-domains-backfill）
+
+PR #123 合并（`800bb778`）后，以纯文档回填 PR 实证**定制双域跳过三件套**（批次验收最后一
+条实证项）：
+
+- **AIxCoding Tests**（run #202，`f26644a1`）：**success，总耗时 48 秒**（PR #123 全量时约
+  7 分钟）——`filter` 33s success（判双域 touched=false）→ `Custom tests`/`Guard hooks`
+  matrix job **skipped**（零 runner 分配、零步骤；PR checks 列表显示未展开的
+  `${{ matrix.os }}` 模板占位属 GitHub 对未实例化 matrix job 的平台显示行为，实际执行的
+  run 中名字正常展开，required check 为恒跑 gate 不受影响）→ `govern` 38s 照跑 →
+  `AIxCoding quality gate` **7s 直绿**。
+- **Upstream CI**（run #131）：success，49 秒（filter=false / ci skipped / gate 直绿，同
+  PR #122 先例）。
+- 两个 run 并行，纯文档 PR 总门禁等待**约 1 分钟**（优化前双 CI 全量约 23 分钟）。
+- 验收标准"真实纯文档 PR 端到端"达成，无需额外临时验证 PR。
+
+## 待远程验证（合并后，到点回填）
 
 - **本批 PR（R1 FORCE 自证）**：触及 `aixcoding-tests.yml` 与 `ci_impact.py` → 定制双域全跑
   + upstream 全量（判定器 FORCE）；filter 日志记录 probe 版本门限与 `--domains` 输出校验；
