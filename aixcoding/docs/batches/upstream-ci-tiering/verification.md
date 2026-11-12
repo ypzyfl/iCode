@@ -49,6 +49,21 @@
 - PR #121 双 required check（AIxCoding quality gate / AIxCoding upstream gate）全绿，待合并；
   合并后挂账项见下节。
 
+## 2026-11-12 跳过链路真实验证（PR #122，docs/tiering-backfill）
+
+PR #121 合并（d0eab821）后，以纯文档回填 PR 实证 `upstream_touched=false` 三件套（design
+验收时点说明的首选路径，无需临时 PR）：
+
+- **Upstream CI run #127**（43172421459，`5453b9bc`）：**success，总耗时 64 秒**（全量
+  约 23 分钟）——`filter` success 47s（判 `upstream_touched=false`）→ `ci` **skipped**
+  （零 runner 分配、零步骤）→ `AIxCoding upstream gate` success 4s 直绿，PR 可合并。
+  required check 语义实测不变。
+- **AIxCoding Tests**（run #197，43172421471）：success——L0+L1 照常恒跑（govern 26s、
+  guard 三 OS 19/19/45s、test 双 OS 29/83s、gate 4s，全套约 3 分钟）；纯文档 PR 的总门禁
+  等待从约 23 分钟降至约 3 分钟（并行关键路径）。
+- 验收标准第 1 条（纯定制 PR 跳过 + gate 直绿）与第 10 条（真实端到端）就此闭环，无需
+  合并后临时验证 PR。
+
 ## 待远程验证（本批 PR 与合并后，到点回填）
 
 - **本批 PR（FORCE 全量自证）**：触及桥接 workflow → 预期 filter 判 touched=true、上游全套

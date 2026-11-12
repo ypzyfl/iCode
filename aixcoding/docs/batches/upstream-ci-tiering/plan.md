@@ -23,7 +23,11 @@
       增量复审通过（CodeBuddy BM:GLM-5.3，无新增 blocker，签认后正文零漂移）
 - [x] 本批 PR（FORCE 全量自证）CI 日志回填 verification——PR #121 双 CI 全绿（Tests #194
       success；Upstream #126 attempt 2 success，filter 正反双证据闭环；macOS TUI flaky 在案）
-- [ ] 合并后：dispatch 手动全量一次；临时验证 PR 验 touched=false 链路；首个 nightly 回填 user-manual
+- [x] 合并后：临时验证 PR 验 touched=false 链路——**已提前闭环**（PR #122 纯文档回填 PR
+      实测：filter 47s 判 false / ci skipped / gate 4s 直绿，run #127 总 64s；验收标准
+      1/10 达成，无需临时 PR）
+- [ ] 合并后：dispatch 手动全量一次；首个 nightly 回填 user-manual（nightly 首跑
+      2026-11-13 北京 02:00）
 
 ## 挂起与备忘
 
