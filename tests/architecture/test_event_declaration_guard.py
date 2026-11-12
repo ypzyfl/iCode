@@ -49,6 +49,12 @@ _INVOCATION_PAYLOAD_IDS = {
     "wait_id",
 }
 
+# AIxCoding telemetry: register tool report payload IDs (src/chrys/service/aixcoding/telemetry)
+_TOOL_REPORT_PAYLOAD_IDS = {
+    "InvocationToolCallStart": {"model_source_id", "tool_operation_id"},
+    "InvocationToolCallResult": {"tool_operation_id"},
+}
+
 
 # Supported grammar (the finite declaration contract for foundation/events):
 # Module: string docstrings; Import/ImportFrom, with future annotations first;
@@ -387,7 +393,9 @@ def _check_invocation_event_family(source: str) -> None:
         identities = {
             field for field in fields - (envelope & {"event_id", "session_id"}) if field.endswith(("_id", "_ids"))
         }
-        assert identities <= _INVOCATION_PAYLOAD_IDS, f"{name}: route facts through origin, not a second identity"
+        assert identities <= _INVOCATION_PAYLOAD_IDS | _TOOL_REPORT_PAYLOAD_IDS.get(name, set()), (
+            f"{name}: route facts through origin, not a second identity"
+        )
         if name == "InvocationEvent" or "origin" in _declared_event_fields(node, classes):
             origins = [
                 field
@@ -602,7 +610,9 @@ def _check_runtime_invocation_event_family(module: ModuleType, classes: dict[str
                 for field in effective - (envelope & {"event_id", "session_id"})
                 if field.endswith(("_id", "_ids"))
             }
-            assert identities <= _INVOCATION_PAYLOAD_IDS, f"{name}: runtime second payload identity"
+            assert identities <= _INVOCATION_PAYLOAD_IDS | _TOOL_REPORT_PAYLOAD_IDS.get(name, set()), (
+                f"{name}: runtime second payload identity"
+            )
         else:
             if name in _INVOCATION_COMMAND_FIELDS:
                 assert fields - envelope == _INVOCATION_COMMAND_FIELDS[name], f"{name}: runtime command fields"

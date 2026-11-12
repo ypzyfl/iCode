@@ -655,3 +655,14 @@ AIXCODING_EXTENSION_BASE_URL=https://telemetry.invalid \
 | 目标 Python 与统一验证 | `uv python list --only-installed --offline` 列出 3.14.8 和 3.14.9，未列出目标 3.14.10。仓库 `.venv/bin/python` 仍为 3.14.8。下一次应使用已有 3.14.10 的获准测试 runner，允许本机测试端口绑定、进程优先级调整及进程枚举，以锁定依赖跑 `verify.py --smart --paths`。路径由 `git diff --name-only a752020b..890e2ec7` 获取。验收时须核对定制、上游常规和架构实际运行结果。若只能使用本机，则另行批准在独立位置安装 3.14.10 和准备锁定依赖，不改全局解释器或锁文件。 |
 | T08 | 核对本地分支、远端跟踪 refs 和标签。0.35.2 合并的纯上游父提交为 `2fd777f6`，其 `pyproject.toml` 确认为 0.35.2。当前本地 refs 无可用的后续基线。对配置的 `origin` 进行只读 `git ls-remote` 退出 128，GitHub DNS 解析失败。取得后续上游 ref 或源码归档后，先用隔离副本逐文件检查本批 23 个上游变更路径及注册锚点，再复用原编码器与 fixture 跑全量埋点契约。记录实际适配文件、行数、语义差异和耗时。需要扩大上游修改时先走 R2。 |
 | 生产对账 | 本轮只准备核对步骤。由有内网只读权限的人员提供同一灰度版本与时间窗中已获准的真实样本，按会话、请求、工具调用关联键与发送侧 mock 对拍口径核对入库条数、缺省字段和重复终态去重。记录采样范围与聚合差异，避免在日志或文档落凭据、原始代码和完整标识。当前未取得生产数据，未进行生产探测或写入。 |
+
+### CI 架构门禁修复
+
+[GitHub Actions 架构任务](https://github.com/ypzyfl/iCode/actions/runs/43204561610/job/131136335692) 报告 3 项失败、1248 项通过。两项来自工具事件的静态和运行时声明检查，一项来自三个包装工厂的客户端所有权检查。用户在看到两文件候选补丁后明确要求「开始修改，然后 git 提交」。本轮按该范围修改两份架构测试并登记标记，签认字段保持原样。
+
+- `tests/architecture/test_event_declaration_guard.py`（+12/−2）按事件类型登记已有的报文关联字段。开始事件允许 `model_source_id` 与 `tool_operation_id`，结果事件允许 `tool_operation_id`。静态与运行时检查继续拒绝额外调用身份并约束 `origin`。
+- `tests/architecture/test_hygiene_llm_client_owners.py`（+28/−3）识别同一作用域内包装后实际执行的工厂调用。三个生产调用点沿用现有关闭所有权登记，新增用例验证无登记的包装调用仍会失败。
+
+现有 Python 3.14.8 下，使用 `uv run --offline --no-sync --no-python-downloads` 执行。修复前在原工作区复现 3 项失败。修复后运行 `pytest -n0 -q --tb=short -p no:cacheprovider tests/architecture/{test_event_declaration_guard,test_hygiene_llm_client_owners,test_test_hygiene,test_trajectory_wait_inventory}.py`，退出 0，**307 项通过**。Ruff 检查和格式检查通过。
+
+埋点专项首跑 61 项通过、6 项失败。失败用例读取本机 `~/.chrys` 下的钩子配置，沙箱拒绝相关写入。随后在同一沙箱内通过测试进程的 platform 配置注入，使用独立临时配置和数据目录复跑 `aixcoding/tests/telemetry`，退出 0，**67 项通过**。统一验证、GitHub Actions 复跑及内网对账仍待完成。

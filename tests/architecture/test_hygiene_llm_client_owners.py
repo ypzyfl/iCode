@@ -71,9 +71,24 @@ def _calls_with_scope(tree: ast.Module) -> Iterator[tuple[str, ast.Call, ast.AST
     yield from visit(tree, (), None)
 
 
+# AIxCoding telemetry: track wrapped client factories (src/chrys/service/aixcoding/telemetry)
 def _factory_call_sites(path: Path, source: str) -> Iterator[tuple[str, ast.Call, ast.AST | None]]:
-    for scope, call, parent in _calls_with_scope(_tree(path, source)):
-        if _called_name(call) in (_FACTORY, _SCOPED_FACTORY):
+    calls = list(_calls_with_scope(_tree(path, source)))
+    wrapped: set[tuple[str, str]] = set()
+    for scope, call, parent in calls:
+        if (
+            _called_name(call) == "for_agent_build"
+            and call.args
+            and isinstance(call.args[0], ast.Name | ast.Attribute)
+            and ast.unparse(call.args[0]).rsplit(".", 1)[-1] == _FACTORY
+            and isinstance(parent, ast.Assign)
+            and parent.value is call
+        ):
+            wrapped.update((scope, target.id) for target in parent.targets if isinstance(target, ast.Name))
+    for scope, call, parent in calls:
+        if _called_name(call) in (_FACTORY, _SCOPED_FACTORY) or (
+            isinstance(call.func, ast.Name) and (scope, call.func.id) in wrapped
+        ):
             yield f"{path.as_posix()}::{scope}", call, parent
 
 
@@ -106,7 +121,7 @@ def test_llm_client_owner_allowlist_entries_are_live() -> None:
         key
         for path, source in sources.items()
         for key, call, _parent in _factory_call_sites(path, source)
-        if _called_name(call) == _FACTORY
+        if _called_name(call) != _SCOPED_FACTORY
     }
     problems = [
         _meta_guard_problem(
@@ -176,3 +191,13 @@ def test_llm_client_owner_guard_keys_nested_scopes_by_their_full_path() -> None:
     )
     with pytest.raises(AssertionError, match=r"ApprovalJudge\._get_client\.nested opens an LLM client"):
         _assert_llm_clients_have_reviewed_owners({Path("src/chrys/service/approval/judge.py"): source})
+
+
+def test_llm_client_owner_guard_rejects_unreviewed_wrapped_client() -> None:
+    source = (
+        "async def build(profile):\n"
+        "    factory = for_agent_build(create_client, 'Code', '/tmp')\n"
+        "    return await factory(profile)\n"
+    )
+    with pytest.raises(AssertionError, match="no reviewed close owner"):
+        _assert_llm_clients_have_reviewed_owners({_UNREVIEWED: source})

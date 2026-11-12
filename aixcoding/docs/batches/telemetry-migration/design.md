@@ -251,6 +251,10 @@ ACP prompt 入站校验 ide-name、ide-version、function-name、selected-agent�
 | `src/chrys/orchestration/engine/rollback.py` | 非零回滚与后台归属保存 | 当前相对 `a752020b` 为 +14/−9。在非零回滚（`target_turn > 0`）中，于快照替换和恢复前暂停新的后台保存，并等待已接纳的写入完成，恢复后再开放。此路径已由 2026-11-12 14:47（上海时间，UTC+8）授权，并代为落盘于下文「2026-11-12 新增 R2 范围补充签认（非零 rollback 与后台保存竞态）」。本行只把同一已授权范围同步进本表「文件」列，供机器门禁读取，不扩大范围，不修改头部本人签认字段。 |
 | `src/chrys/orchestration/engine/session_lifecycle.py` | 非零回滚与后台归属保存 | 当前相对 `a752020b` 为 +32/−7。为后台改动归属保存增加互斥与暂停范围，使受暂停或过期的刷新不把旧历史写回；保存由 `finish_close` 排空。此路径已由 2026-11-12 14:47（上海时间，UTC+8）授权，并代为落盘于下文「2026-11-12 新增 R2 范围补充签认（非零 rollback 与后台保存竞态）」。本行只把同一已授权范围同步进本表「文件」列，供机器门禁读取，不扩大范围，不修改头部本人签认字段。 |
 | `tests/architecture/test_layering.py` | 回滚修复的任务所有权登记 | 当前相对 `a752020b` 为 +8/−0。在 `test_background_tasks_have_declared_owners` 增加一条任务所有权记录，键为 `("session_lifecycle", "SessionLifecycle", "refresh_mutation_attribution")`，计数为 1。此路径已由 2026-11-12 15:07（上海时间，UTC+8）授权，并落盘于下文「2026-11-12 新增 R2 范围补充签认（回滚修复的任务所有权与等待清单登记）」。本行只把同一已授权范围同步进本表「文件」列，供本批机器读表自包含，不扩大范围，不修改头部本人签认字段。 |
+| `tests/architecture/test_event_declaration_guard.py` | 工具事件报文关联 | +12/−2。按事件类型登记已存在的工具报文关联字段，静态和运行时检查继续要求用 `origin` 路由。 |
+| `tests/architecture/test_hygiene_llm_client_owners.py` | 模型客户端关闭所有权 | +28/−3。识别 `for_agent_build(create_client, ...)` 返回后在同一作用域实际调用的工厂，复用现有关闭所有权登记。 |
+
+两份架构测试的本轮范围和授权记录见 [CI 架构门禁修复](verification.md#ci-架构门禁修复)。
 
 生成清单在原附件基础上已登记发送模块等待 +18/−0，以及随后批准的 7 个新增等待和 2 个 wrapper 重分类 +21/−2。本轮请求边界刷新 Git 缓存，生成器在同一文件增列 1 条 thread_pool 等待，既有等待规则保持原值。逐项依据见 [verification.md](verification.md#补充等待清单)。
 
@@ -326,6 +330,8 @@ ACP prompt 入站校验 ide-name、ide-version、function-name、selected-agent�
 | telemetry-migration:lifecycle-drain-attribution-saves | src/chrys/orchestration/engine/session_lifecycle.py | AIxCoding rollback: drain attribution writes (src/chrys/orchestration/engine/session_lifecycle.py) | 1 | SessionLifecycle.pause_mutation_attribution_saves | 高 | 同上 |
 | telemetry-migration:lifecycle-fence-attribution-writes | src/chrys/orchestration/engine/session_lifecycle.py | AIxCoding rollback: fence attribution writes (src/chrys/orchestration/engine/session_lifecycle.py) | 1 | SessionLifecycle.refresh_mutation_attribution | 高 | 同上 |
 | telemetry-migration:layering-declare-attribution-save-owner | tests/architecture/test_layering.py | AIxCoding rollback: declare attribution save ownership (src/chrys/orchestration/engine/session_lifecycle.py) | 1 | test_background_tasks_have_declared_owners | 低 | 上游接管保存任务的生命周期与所有权登记 |
+| telemetry-migration:event-guard-tool-report-payload-ids | tests/architecture/test_event_declaration_guard.py | AIxCoding telemetry: register tool report payload IDs (src/chrys/service/aixcoding/telemetry) | 1 | _TOOL_REPORT_PAYLOAD_IDS | 中 | 上游事件声明机制支持等价的按事件字段登记 |
+| telemetry-migration:owner-guard-wrapped-client-factories | tests/architecture/test_hygiene_llm_client_owners.py | AIxCoding telemetry: track wrapped client factories (src/chrys/service/aixcoding/telemetry) | 1 | _factory_call_sites | 中 | 上游检查可识别包装工厂的实际调用 |
 
 ## 8. 对拍与可靠性
 
