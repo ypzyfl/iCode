@@ -11,7 +11,8 @@
 - 确认日期：2026-11-12
 - 确认意见：无特别意见
 
-> 本文为决策时点快照；现行规则以 `DIRECTORY.md §7` 与 `DEVELOPMENT.md §6` 为准。
+> 本文为决策时点快照；现行规则以 `DIRECTORY.md §7` 与 ADR-ci-gate-domains--check-domains-model
+> （检查域模型，取代本文数字分层术语 L0/L1/L2）为准。
 
 ## 背景
 
@@ -82,3 +83,8 @@
 - gate 名（`AIxCoding upstream gate` / `AIxCoding quality gate`）与恒跑语义不变，分支保护
   零改动。
 - user-manual 批次遗留缺口改由 nightly 承接并回填；nightly 观察责任随本决策生效。
+- **检查域模型注记（2026-11-12，append-only）**：本文的数字分层术语（L0/L1/L2）经
+  ci-gate-domains 批次演进出"四检查域 + 两聚合门"模型：L0→compliance、L1 的 test→
+  aixcoding-tests（拆分为独立域并改按需触发）、L1 的 guard→guard-deploy（同）、L2→
+  upstream；两个 required check 名称与本文确立的分类器、gate 状态机、nightly/dispatch
+  兜底机制继续有效。详见 ADR-ci-gate-domains--check-domains-model。

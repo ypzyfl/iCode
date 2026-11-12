@@ -11,16 +11,78 @@ on:
     branches: [main_aixcoding_cli]
   push:
     branches: [main_aixcoding_cli]
+  schedule:
+    - cron: "0 18 * * *" # daily 02:00 Beijing: full custom domains on trunk (backstop)
+  workflow_dispatch:
 
+# ci-gate-domains: event-name suffix keeps push and nightly on the same ref from
+# cancelling each other (nightly is the independent re-check after a push run
+# fails or gets cancelled).
 concurrency:
-  group: aixcoding-tests-${{ github.ref }}
+  group: aixcoding-tests-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
+  # ci-gate-domains batch: domain-scope filter — single-implementation
+  # classifier (aixcoding/tools/ci_impact.py --domains), same pattern as the
+  # upstream bridge. Non-PR events (push/schedule/dispatch) always run both
+  # custom domains (trunk full-suite backstop, never reads base.sha).
+  filter:
+    runs-on: ubuntu-slim
+    outputs:
+      test_touched: ${{ steps.f.outputs.test_touched }}
+      guard_touched: ${{ steps.f.outputs.guard_touched }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: probe
+        # VERSION gate, not existence: _common.py uses PEP 758 (Python 3.14+),
+        # ubuntu-slim's system python3 is 3.12 (upstream-ci-tiering run #125) —
+        # the pinned setup-python is the effective path on current runners.
+        run: |
+          if command -v python3 >/dev/null 2>&1 && python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 14) else 1)'; then
+            echo "missing=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "missing=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        if: steps.probe.outputs.missing == 'true'
+        with:
+          python-version-file: .python-version
+          allow-prereleases: true
+      - id: f
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        # Fail-closed: classifier failure aborts under set -e; the verdict must
+        # be exactly two lines with legal values (whitelisted combinations) —
+        # anything else fails this job and the gate refuses to go green.
+        run: |
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            echo "test_touched=true" >> "$GITHUB_OUTPUT"
+            echo "guard_touched=true" >> "$GITHUB_OUTPUT"
+            echo "non-PR event ($EVENT_NAME): both custom domains by design (trunk backstop)"
+            exit 0
+          fi
+          git -c core.quotePath=off diff --name-only --no-renames "$BASE_SHA" HEAD > /tmp/changed.txt
+          test -s /tmp/changed.txt
+          python3 aixcoding/tools/ci_impact.py --domains /tmp/changed.txt > /tmp/domains.txt
+          [ "$(wc -l < /tmp/domains.txt)" = "2" ] || { cat /tmp/domains.txt >&2; exit 1; }
+          tt=$(sed -n 's/^test_touched=//p' /tmp/domains.txt)
+          gt=$(sed -n 's/^guard_touched=//p' /tmp/domains.txt)
+          case "$tt$gt" in
+            truetrue | truefalse | falsetrue | falsefalse) ;;
+            *) echo "malformed classifier output: '$tt' / '$gt'" >&2; exit 1 ;;
+          esac
+          echo "test_touched=$tt" >> "$GITHUB_OUTPUT"
+          echo "guard_touched=$gt" >> "$GITHUB_OUTPUT"
   test:
+    needs: filter
+    if: needs.filter.outputs.test_touched == 'true'
     name: Custom tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
@@ -75,6 +137,8 @@ jobs:
     # stdlib; platform differences can only surface in path resolution and the
     # config dir, so all three OSes run it (same rationale as the legacy branch).
     name: Guard hooks (${{ matrix.os }})
+    needs: filter
+    if: needs.filter.outputs.guard_touched == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     env:
@@ -165,22 +229,42 @@ jobs:
           uv run python aixcoding/tools/check_r3_markers.py --base "$BASE"
 
   gate:
-    # One stable required-check name for the whole matrix: needs.test.result
-    # aggregates every matrix leg, so job renames or OS additions never break
-    # the branch-protection rule. (Required checks match job-level check
-    # runs, not workflow names.) Always runs and fail-closed: both results
-    # must be exactly "success" — failure, cancelled and skipped all fail.
+    # One stable required-check name for the whole matrix (branch-protection
+    # matches job-level check runs). Always runs and fail-closed. Per-domain
+    # state machine (ci-gate-domains): compliance (govern) must always be
+    # success; each on-demand domain must be exactly (touched && success) or
+    # (untouched && skipped) — filter failure / missing output / cancelled
+    # never go green. The step echoes each domain's outcome so a green gate
+    # shows what actually ran.
     name: AIxCoding quality gate
-    needs: [test, govern, guard]
+    needs: [filter, test, govern, guard]
     if: always()
     runs-on: ubuntu-slim
     steps:
       - name: Verify tests and governance
         env:
+          FILTER_RESULT: ${{ needs.filter.result }}
+          TEST_TOUCHED: ${{ needs.filter.outputs.test_touched }}
+          GUARD_TOUCHED: ${{ needs.filter.outputs.guard_touched }}
           TEST_RESULT: ${{ needs.test.result }}
           GOVERN_RESULT: ${{ needs.govern.result }}
           GUARD_RESULT: ${{ needs.guard.result }}
         run: |
-          test "$TEST_RESULT" = "success"
+          test "$FILTER_RESULT" = "success"
           test "$GOVERN_RESULT" = "success"
-          test "$GUARD_RESULT" = "success"
+          if [ "$TEST_TOUCHED" = "false" ]; then
+            test "$TEST_RESULT" = "skipped"
+            echo "aixcoding-tests domain: skipped by scope (push/nightly backstop)"
+          else
+            test "$TEST_TOUCHED" = "true"
+            test "$TEST_RESULT" = "success"
+            echo "aixcoding-tests domain: success"
+          fi
+          if [ "$GUARD_TOUCHED" = "false" ]; then
+            test "$GUARD_RESULT" = "skipped"
+            echo "guard-deploy domain: skipped by scope (push/nightly backstop)"
+          else
+            test "$GUARD_TOUCHED" = "true"
+            test "$GUARD_RESULT" = "success"
+            echo "guard-deploy domain: success"
+          fi
