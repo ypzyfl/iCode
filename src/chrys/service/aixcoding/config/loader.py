@@ -20,7 +20,7 @@ from chrys.kernel.aixcoding.diagnostics.config import (
     LoggingConfig,
 )
 
-from .types import AixcodingConfig, ModelCatalogConfig
+from .types import AixcodingConfig, ModelCatalogConfig, UpdateConfig
 
 CONFIG_FILE_NAME = "aixcoding.toml"
 ENVIRONMENT_VARIABLE = "AIXCODING_ENVIRONMENT"
@@ -110,6 +110,18 @@ def _load_model_catalog(data: dict) -> ModelCatalogConfig:
     return ModelCatalogConfig(base_url=base_url.strip(), auto_sync=auto_sync)
 
 
+def _load_update(data: dict) -> UpdateConfig:
+    section = data.get("update", {})
+    if not isinstance(section, dict):
+        _warn("invalid [update] section; using the deployment tier base")
+        return UpdateConfig()
+    base_url = section.get("base_url", "")
+    if not isinstance(base_url, str):
+        _warn("invalid update.base_url; using the deployment tier base")
+        base_url = ""
+    return UpdateConfig(base_url=base_url.strip())
+
+
 @cache
 def load_config(config_dir: Path | None = None) -> AixcodingConfig:
     """Return one fail-safe snapshot; environment variables override TOML."""
@@ -127,4 +139,5 @@ def load_config(config_dir: Path | None = None) -> AixcodingConfig:
         environment=_resolve_environment(data, source),
         diagnostics=_load_diagnostics(data, source),
         model_catalog=_load_model_catalog(data),
+        update=_load_update(data),
     )
