@@ -4,6 +4,12 @@
 
 For steps to change settings in the terminal user interface (TUI) and when those changes take effect, see [Configure iCode settings](../guides/configuration/settings.md).
 
+## Inspect enterprise telemetry requests
+
+Start iCode with `AIXCODING_TELEMETRY_LOG_PAYLOAD=1` to capture independent enterprise telemetry POSTs. In the terminal UI, open **F6 → aixcoding → Telemetry reports**. Select a request and use **Copy report** to copy the full JSON. Each record includes the URL, endpoint, peer IP and port when available, request body, HTTP status or failure type, and elapsed time.
+
+The same records are written to `aixcoding-logs/aixcoding.detail.log` in the iCode configuration directory. Request fields retain their original values, including any tool input or code in the payload. Authentication headers are excluded. Remove the environment variable before starting iCode to turn capture off.
+
 ## File locations and format
 
 | Configuration source | macOS / Linux | Windows | Purpose |

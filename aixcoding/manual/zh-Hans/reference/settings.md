@@ -4,6 +4,12 @@
 
 在终端用户界面（Terminal User Interface，TUI）中修改设置的步骤和生效时间，见[配置 iCode 设置](../guides/configuration/settings.md)。
 
+## 查看企业埋点上报
+
+设置环境变量 `AIXCODING_TELEMETRY_LOG_PAYLOAD=1` 后启动 iCode，即可记录独立的企业埋点 POST。在终端界面打开 **F6 → aixcoding → Telemetry reports**，选中请求后可查看完整 JSON，点 **Copy report** 可复制。详情包括 URL、接口、可取得的对端 IP 和端口、请求体、HTTP 状态或失败类型，以及耗时。
+
+同一记录也写入 iCode 配置目录下的 `aixcoding-logs/aixcoding.detail.log`。请求字段保留原值，包括载荷中的工具输入或代码片段。认证请求头不采集。启动前移除该环境变量即可停止记录。
+
 ## 文件位置与格式
 
 | 配置来源 | macOS / Linux | Windows | 用途 |
