@@ -31,10 +31,12 @@ iCode-fork/
 │   ├── __init__.py               #   命名空间锚点（例外登记见 §8）
 │   └── README.md                 #   专区导览
 ├── tests/                        # 纯上游测试，零定制文件
-├── .github/workflows/
-│   ├── ci.yml                    # 上游 CI（仅 PR 至 main 触发；发布链路 CD 经 workflow_call 复用）
-│   ├── aixcoding-tests.yml       # 定制质量门（compliance 恒跑 + aixcoding-tests/guard-deploy 按射程 + push/nightly 全跑兜底，见 docs/batches/ci-gate-domains/）
-│   └── aixcoding-upstream-ci.yml # 上游 CI 桥接（PR 按需（影响分类器）+ nightly/dispatch 兜底，经 workflow_call 跑上游全套，见 docs/batches/upstream-ci/ 与 upstream-ci-tiering/）
+├── .github/
+│   ├── CODEOWNERS                    # 定制治理：全仓库 code owner（分支保护 code-owner review 依据；GitHub 仅识别 root/.github/docs 三处，与定制 workflow 同区）
+│   └── workflows/
+│       ├── ci.yml                    # 上游 CI（仅 PR 至 main 触发；发布链路 CD 经 workflow_call 复用）
+│       ├── aixcoding-tests.yml       # 定制质量门（compliance 恒跑 + aixcoding-tests/guard-deploy 按射程 + push/nightly 全跑兜底，见 docs/batches/ci-gate-domains/）
+│       └── aixcoding-upstream-ci.yml # 上游 CI 桥接（PR 按需（影响分类器）+ nightly/dispatch 兜底，经 workflow_call 跑上游全套，见 docs/batches/upstream-ci/ 与 upstream-ci-tiering/）
 └── pyproject.toml                # packages 仅 ["src/chrys"]；manual 另经 force-include 进 wheel
 ```
 
