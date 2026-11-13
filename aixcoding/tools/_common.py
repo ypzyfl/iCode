@@ -35,7 +35,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # --- file classification -----------------------------------------------------
 
 CUSTOM_PATH_PREFIXES = ("aixcoding/",)
-CUSTOM_EXACT_PATHS = (".github/workflows/aixcoding-tests.yml", ".github/workflows/aixcoding-upstream-ci.yml")
+CUSTOM_EXACT_PATHS = (
+    ".github/workflows/aixcoding-tests.yml",
+    ".github/workflows/aixcoding-upstream-ci.yml",
+    ".github/CODEOWNERS",
+)
 # ADR-0011: custom product code lands in src/chrys/{tier}/aixcoding/ (tier = kernel/service/orchestration/app).
 CUSTOM_SRC_TIER_RE = re.compile(r"^src/chrys/[^/]+/aixcoding(/|$)")
 
