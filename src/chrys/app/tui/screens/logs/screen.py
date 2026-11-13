@@ -14,6 +14,8 @@ from textual.css.query import NoMatches
 from textual.timer import Timer
 from textual.widgets import RichLog, TabbedContent, TabPane
 
+# AIxCoding Telemetry log detail pane import (src/chrys/app/aixcoding/tui/telemetry_logs.py)
+from chrys.app.aixcoding.tui.telemetry_logs import TelemetryLogButton
 from chrys.app.tui.binding_display import CLOSE_BINDING, COPY_BINDING, localized_binding
 from chrys.app.tui.clipboard import copy_text_to_clipboards
 from chrys.app.tui.copy_messages import COPIED_TITLE
@@ -323,6 +325,9 @@ class LogViewerScreen(BaseDialog[None]):
             with TabbedContent(id="lv-tabs"):
                 for module in MODULE_ORDER:
                     with TabPane(module, id=f"lv-tab-{module}"), VerticalGroup(classes="lv-log-stack"):
+                        # AIxCoding Telemetry log detail pane slot (src/chrys/app/aixcoding/tui/telemetry_logs.py)
+                        if module == "aixcoding":
+                            yield TelemetryLogButton()
                         yield _make_log_widget(module)
                         yield HatchedEmptyState(
                             self._empty_label(module),
