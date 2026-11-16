@@ -45,6 +45,30 @@ def test_fresh_install_writes_template_and_payload(tmp_path: Path) -> None:
     assert installed_guard_hooks(hooks_dir) == (True, [])
 
 
+def test_managed_entries_ship_disabled_and_resist_manual_enabling(tmp_path: Path) -> None:
+    """本版本出厂停用：安装后两个受管条目 enabled 均为 false，现场手改会被模板拉回。
+
+    安装器每次启动按 id 用模板块整块覆盖（``merge_guard_entries``），所以已装旧版
+    护栏的机器升级后首个启动即同步为停用；这正是 hooks.yaml 模板注释承诺的行为。
+    """
+
+    def enabled_by_id(hooks_file: Path) -> dict[str, object]:
+        document = yaml.safe_load(hooks_file.read_text(encoding="utf-8-sig"))
+        return {str(entry["id"]): entry.get("enabled", True) for entry in document["hooks"]}
+
+    hooks_dir = tmp_path / "hooks"
+    report = install_guard_hooks(hooks_dir=hooks_dir)
+    assert enabled_by_id(report.hooks_file) == dict.fromkeys(MANAGED_HOOK_IDS, False)
+
+    # 现场手改回 true：下次启动重装按模板拉回（集中控制的临时关闭，不允许现场私自恢复）。
+    text = report.hooks_file.read_text(encoding="utf-8-sig")
+    assert "enabled: false" in text
+    report.hooks_file.write_text(text.replace("enabled: false", "enabled: true"), encoding="utf-8")
+
+    install_guard_hooks(hooks_dir=hooks_dir)
+    assert enabled_by_id(report.hooks_file) == dict.fromkeys(MANAGED_HOOK_IDS, False)
+
+
 def test_reinstall_is_idempotent_and_overwrites_payload(tmp_path: Path) -> None:
     hooks_dir = tmp_path / "hooks"
     install_guard_hooks(hooks_dir=hooks_dir)

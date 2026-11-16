@@ -36,8 +36,14 @@ hooks:
   # 提示词层拦截：IN-01 ~ IN-09。
   # on_error: block + timeout_seconds: 120 即规则表的"失败兜底"：子进程超时、
   # 崩溃或引擎异常时本轮请求直接被拦下，而不是静默放行。
+  # 本版本出厂停用（临时关闭，现场反馈误拦截影响正常使用）：enabled 恒为 false，
+  # hook 引擎加载时过滤停用条目，不启动子进程，不拦截也不留痕（guardctl 的引擎
+  # 开关在此期间不参与判定）。安装器每次启动都按模板整块覆盖同名受管条目，已装
+  # 旧版的机器升级后首个启动即停用，手改本行也会被拉回；
+  # 恢复方式：把下面两处 enabled 改回 true 重新发版。
   - id: security-prompt-guard
     event: user_prompt_submit
+    enabled: false
     description: 提示词层安全拦截（反编译/攻击工具、注入 payload、任意 IP 与内网资产、合规类，命中即打断并提示）
     run:
       type: command
@@ -60,6 +66,7 @@ hooks:
   # 工具调用前拦截：T-* 全量规则。
   - id: security-tool-guard
     event: before_tool_call
+    enabled: false
     description: 工具调用前安全拦截（Shell/PowerShell/Python、文件系统、网络、MCP、敏感信息）
     run:
       type: command
