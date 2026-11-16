@@ -402,6 +402,17 @@ def _positive_int(value: object) -> int:
     return max(0, number)
 
 
+#: The server nests three options inside ``models[]`` entries while iCode
+#: keeps them as flat ``ModelProfile`` fields. Only these aliases are copied:
+#: everything else in the nested objects (notably ``completionOptions.reasoning``)
+#: has no consumer on this side and is deliberately left behind.
+_CATALOG_NESTED_FIELDS: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
+    ("completionOptions", (("maxTokens", "max_output_tokens"),)),
+    ("capabilities", (("uploadImage", "vision"),)),
+    ("requestOptions", (("verifySsl", "verify_ssl"),)),
+)
+
+
 def translate_models_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Translate the server's ``models`` payload into iCode-native items.
 
@@ -440,6 +451,13 @@ def translate_models_payload(payload: dict[str, Any]) -> dict[str, Any]:
         context_length = _positive_int(entry.get("contextLength"))
         if context_length:
             item["max_context_tokens"] = context_length
+        for group, aliases in _CATALOG_NESTED_FIELDS:
+            nested = entry.get(group)
+            if not isinstance(nested, dict):
+                continue
+            for source, target in aliases:
+                if source in nested:
+                    item[target] = nested[source]
         items.append(item)
 
     # The server's shape carries no version and no default: the caller

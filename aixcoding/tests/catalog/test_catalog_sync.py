@@ -19,6 +19,7 @@ import threading
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
@@ -438,6 +439,156 @@ def test_publish_fault_injection_mkdir_fails(
         assert sync_catalog_blocking() is None
     assert "同步模型目录失败" not in caplog.text, "方案六: technical records stay off the main volume"
     assert any("同步模型目录失败" in r.getMessage() for r in detail_capture)
+
+
+# ── Server nested-field translation (catalog-field-mapping) ───────────────
+
+
+def _nested_catalog_payload() -> dict[str, Any]:
+    """The wire shape frozen in this batch's design, decoys included."""
+    return {
+        "models": [
+            {
+                "title": "  GPT-4o mini ",
+                "provider": "openrouter",
+                "model": "openai/gpt-4o-mini",
+                "apiBase": "http://127.0.0.1:7777/v1",
+                "contextLength": 128000,
+                "completionOptions": {"maxTokens": 16000, "reasoning": True},
+                "capabilities": {"uploadImage": True},
+                "requestOptions": {"verifySsl": False},
+                "apiKey": "not-a-credential-channel",
+            }
+        ],
+        "aa": {"test": "as"},
+    }
+
+
+def test_translation_maps_nested_catalog_fields_and_ignores_decoys() -> None:
+    """Three nested options reach their native profile keys; decoys do not."""
+    payload = _nested_catalog_payload()
+    item = catalog_module.translate_models_payload(payload)["items"][0]
+
+    assert item["max_output_tokens"] == 16000
+    assert item["vision"] is True
+    assert item["verify_ssl"] is False
+    # The pre-existing top-level translation is unchanged.
+    assert item["name"] == "GPT-4o mini"
+    assert item["model_id"] == "openai/gpt-4o-mini"
+    assert item["base_url"] == "http://127.0.0.1:7777/v1"
+    assert item["max_context_tokens"] == 128000
+    assert item["provider"] == catalog_module.CONTINUE_PROVIDER == "openai"
+    for key in (
+        "completionOptions",
+        "capabilities",
+        "requestOptions",
+        "reasoning",
+        "aa",
+        "apiKey",
+        "api_key",
+    ):
+        assert key not in item, f"{key} must not be copied into a profile"
+
+    profile = catalog_module.parse_catalog(payload).items[0]
+    assert profile.max_output_tokens == 16000
+    assert profile.vision is True
+    assert profile.verify_ssl is False
+    assert profile.provider == "openai"
+    assert not profile.api_key
+
+
+@pytest.mark.parametrize("shape", [None, [], "wrong", 0])
+def test_nested_catalog_blocks_that_are_not_objects_are_skipped(shape: object) -> None:
+    """A malformed nested block contributes nothing, not a half-written item."""
+    payload: dict[str, Any] = {
+        "models": [
+            {
+                "model": "openai/gpt-4o-mini",
+                "completionOptions": shape,
+                "capabilities": shape,
+                "requestOptions": {"verifySsl": False},
+            }
+        ]
+    }
+    item = catalog_module.translate_models_payload(payload)["items"][0]
+    assert "max_output_tokens" not in item
+    assert "vision" not in item
+    assert item["verify_ssl"] is False, "the one well-formed block is still applied"
+
+
+def test_nested_catalog_blocks_with_missing_keys_keep_profile_defaults() -> None:
+    """Only keys that are present are copied; the rest keep dataclass defaults."""
+    from chrys.service.profiles.models.schema import DEFAULT_MAX_OUTPUT_TOKENS
+
+    payload: dict[str, Any] = {
+        "models": [
+            {
+                "model": "openai/gpt-4o-mini",
+                "completionOptions": {"reasoning": True},
+                "capabilities": {},
+                "requestOptions": {},
+            }
+        ]
+    }
+    item = catalog_module.translate_models_payload(payload)["items"][0]
+    assert "max_output_tokens" not in item
+    assert "vision" not in item
+    assert "verify_ssl" not in item
+    assert "reasoning" not in item
+    profile = catalog_module.parse_catalog(payload).items[0]
+    assert profile.max_output_tokens == DEFAULT_MAX_OUTPUT_TOKENS
+    assert profile.vision is False
+    assert profile.verify_ssl is True
+
+
+def test_translated_profile_is_published_and_reloaded_with_the_three_fields(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The mapping survives serialization and the real YAML loader."""
+    from chrys.service.profiles.models.loader import load_profile_from_yaml
+
+    directory = _wire_disk(monkeypatch, tmp_path)
+    catalog = catalog_module.parse_catalog(_nested_catalog_payload())
+    catalog_module.apply_catalog(catalog)
+    path = directory / f"{catalog.items[0].id}.yaml"
+    published = path.read_text(encoding="utf-8")
+    assert "max_output_tokens" in published
+    assert "vision" in published
+    assert "verify_ssl" in published
+    assert "reasoning" not in published
+
+    reloaded = load_profile_from_yaml(path)
+    assert reloaded.provider == "openai"
+    assert reloaded.max_output_tokens == 16000
+    assert reloaded.vision is True
+    assert reloaded.verify_ssl is False
+
+
+def test_null_nested_value_falls_back_to_default_after_yaml_roundtrip(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """An explicit null is a present key: copied verbatim, then the loader's
+    ``coerce_bool(None)`` restores the default — no crash, end state as if absent."""
+    from chrys.service.profiles.models.loader import load_profile_from_yaml
+
+    payload: dict[str, Any] = {
+        "models": [
+            {
+                "model": "openai/gpt-4o-mini",
+                "requestOptions": {"verifySsl": None},
+            }
+        ]
+    }
+    item = catalog_module.translate_models_payload(payload)["items"][0]
+    assert item["verify_ssl"] is None, "a present null key is copied verbatim"
+
+    catalog = catalog_module.parse_catalog(payload)
+    assert catalog.items[0].verify_ssl is None, "parse_catalog checks no types on this field"
+
+    directory = _wire_disk(monkeypatch, tmp_path)
+    catalog_module.apply_catalog(catalog)
+    reloaded = load_profile_from_yaml(directory / f"{catalog.items[0].id}.yaml")
+    assert reloaded.verify_ssl is True, "coerce_bool(None) keeps the dataclass default"
 
 
 def test_infinite_context_length_is_absorbed() -> None:
