@@ -64,6 +64,8 @@ import httpx
 
 from chrys.foundation.text.yaml_io import dump_yaml
 from chrys.service.aixcoding.config import load_config
+from chrys.service.profiles.file_scan import read_profile_mapping
+from chrys.service.profiles.models.loader import load_profile_from_yaml
 from chrys.service.profiles.models.registry import ModelProfileRegistry
 from chrys.service.profiles.models.schema import (
     API_STYLE_CHAT_COMPLETIONS,
@@ -82,6 +84,12 @@ _detail_log = logging.getLogger("aixcoding.detail.catalog")
 #: AIxCoding detail logging: level of the file-only channel; mirrors
 #: ``DETAIL_LEVEL`` in diagnostics.logging_support (ADR-0017), as auth does.
 _DETAIL_LEVEL = 5
+
+#: Marker injected into profiles written by a server sync (catalog-custom-coexist).
+#: Only a literal ``True`` marks a file as server-owned and therefore deletable;
+#: absent / false / non-bool means a user's own profile, which a sync preserves.
+#: The key is sync-only metadata: ``ModelProfile`` / the loader never see it.
+_SYNCED_FROM_SERVER_KEY = "synced_from_server"
 
 #: Fork-private configuration contract: read and parsed by this module alone
 #: (never declared in the settings system), so they carry the ``AIXCODING_``
@@ -194,6 +202,10 @@ class CatalogSyncResult:
     profile_ids: tuple[str, ...]
     default_profile_id: str = ""
     previous_profile_ids: tuple[str, ...] = ()
+    #: User profiles kept on disk (no server marker), for the in-memory snapshot.
+    preserved_profiles: tuple[ModelProfile, ...] = ()
+    #: Server ids that overwrote a same-id user profile, for the post-sync warning.
+    overwritten_custom_ids: tuple[str, ...] = ()
 
     @property
     def removed_profile_ids(self) -> tuple[str, ...]:
@@ -728,11 +740,68 @@ def _remove_orphan_tmp(directory: Path) -> None:
 
 
 def _write_profile(path: Path, profile: ModelProfile) -> None:
-    """Serialize *profile* to *path* (final or staging — same content)."""
-    path.write_text(dump_yaml(_profile_to_dict(profile)), encoding="utf-8")
+    """Serialize *profile* to *path* (final or staging — same content).
+
+    Server-sync writes carry the ``synced_from_server`` marker so a later sync
+    can tell them from a user's own profile. The key is injected into the YAML
+    mapping only: ``ModelProfile`` and the loader stay unaware of it.
+    """
+    data = _profile_to_dict(profile)
+    data[_SYNCED_FROM_SERVER_KEY] = True
+    path.write_text(dump_yaml(data), encoding="utf-8")
     if profile.api_key:
         # Credentials were supplied by the catalog: keep them off group/other.
         path.chmod(0o600)
+
+
+def _is_server_synced(path: Path) -> bool:
+    """Whether *path* carries the server marker.
+
+    Malformed YAML, a non-mapping document or any read error is treated as
+    "not server-owned" (conservative: never delete a file we cannot prove came
+    from the catalog).
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+        return read_profile_mapping(text).get(_SYNCED_FROM_SERVER_KEY) is True
+    except OSError, UnicodeError, ValueError, RuntimeError:
+        return False
+
+
+def _server_owned_names(directory: Path) -> set[str]:
+    """Filenames under *directory* that carry the server marker."""
+    names: set[str] = set()
+    for pattern in ("*.yaml", "*.yml"):
+        for path in directory.glob(pattern):
+            if _is_server_synced(path):
+                names.add(path.name)
+    return names
+
+
+def _load_custom_profiles(directory: Path) -> tuple[tuple[str, ModelProfile], ...]:
+    """Load unmarked files as ``(filename stem, profile)`` pairs.
+
+    The stem is the file's on-disk identity: a sync writes ``<id>.yaml``, so
+    ``os.replace`` overwrites by *filename*, not by the profile's explicit id.
+    Callers must classify collisions/preservation by the stem. An unreadable
+    or malformed file is skipped (with a detail log) but never deleted — a
+    broken user file is still the user's file.
+    """
+    found: list[tuple[str, ModelProfile]] = []
+    for pattern in ("*.yaml", "*.yml"):
+        for path in sorted(directory.glob(pattern)):
+            if _is_server_synced(path):
+                continue
+            try:
+                found.append((path.stem, load_profile_from_yaml(path)))
+            except Exception:
+                _detail_log.log(
+                    _DETAIL_LEVEL,
+                    "自定义模型配置 %s 无法加载；保留文件但本次同步不纳入内存列表。",
+                    path,
+                    exc_info=True,
+                )
+    return tuple(found)
 
 
 def _profile_to_dict(profile: ModelProfile) -> dict[str, Any]:
@@ -768,6 +837,21 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
     directory = catalog_directory()
     previous_state = read_catalog_state()
     previous_ids = previous_state.profile_ids if previous_state else ()
+    # Classify before writing: a file is server-owned only when it carries the
+    # marker. Everything else is the user's own and survives this sync. Collect
+    # the kept profiles for the in-memory snapshot and detect filename collisions
+    # (a user file with a server id as its stem will be overwritten) for the
+    # warning. The comparison uses the file's stem, not the profile's explicit
+    # id: a sync writes <id>.yaml, so os.replace overwrites by filename.
+    server_owned: set[str] = set()
+    custom_files: tuple[tuple[str, ModelProfile], ...] = ()
+    if directory.is_dir():
+        server_owned = _server_owned_names(directory)
+        custom_files = _load_custom_profiles(directory)
+    server_ids = {profile.id for profile in catalog.items}
+    # A filename is overwritten iff its stem is a server id; kept otherwise.
+    overwritten = tuple(stem for stem, _ in custom_files if stem in server_ids)
+    preserved_profiles = tuple(profile for stem, profile in custom_files if stem not in server_ids)
     try:
         directory.mkdir(parents=True, exist_ok=True)
         _remove_orphan_tmp(directory)
@@ -780,11 +864,11 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
         for tmp_path, final_path in staged:
             os.replace(tmp_path, final_path)
 
+        # Only files we previously wrote (marker present) that the new catalog
+        # no longer contains are removed. Unmarked user files are never touched.
         final_names = {f"{profile.id}.yaml" for profile in catalog.items}
-        for pattern in ("*.yaml", "*.yml"):
-            for path in sorted(directory.glob(pattern)):
-                if path.name not in final_names:
-                    path.unlink()
+        for name in server_owned - final_names:
+            (directory / name).unlink()
 
         write_catalog_state(
             CatalogState(
@@ -813,14 +897,25 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
         profile_ids=catalog.profile_ids(),
         default_profile_id=catalog.default_profile_id,
         previous_profile_ids=previous_ids,
+        preserved_profiles=preserved_profiles,
+        overwritten_custom_ids=overwritten,
     )
     _detail_log.log(
         _DETAIL_LEVEL,
-        "已应用模型目录 %s：来自 %s，共 %d 个模型配置。",
+        "已应用模型目录 %s：来自 %s，共 %d 个模型配置；保留 %d 个自定义模型。",
         catalog.version,
-        len(catalog.items),
         source,
+        len(catalog.items),
+        len(result.preserved_profiles),
     )
+    # Warn only after the whole sync succeeded: the overwrite already happened
+    # (os.replace), and a failed publish must not claim a change that did not land.
+    if overwritten:
+        _detail_log.log(
+            _DETAIL_LEVEL,
+            "以下自定义模型与后端模型 id 相同，已被后端版本覆盖：%s。",
+            ", ".join(overwritten),
+        )
     return result
 
 
@@ -1066,7 +1161,9 @@ class _SyncRuntime:
         if registry is None or refresh_ui is None:
             return
         try:
-            registry.install_snapshot(catalog.items)
+            # Server items plus user profiles preserved on disk: without the
+            # latter a poll would erase them from memory though the files remain.
+            registry.install_snapshot((*catalog.items, *result.preserved_profiles))
         except Exception:
             _detail_log.log(_DETAIL_LEVEL, "模型目录注册表安装失败；下次同步将重试。", exc_info=True)
             return

@@ -737,8 +737,10 @@ def test_publish_fault_injection_stale_delete_fails(monkeypatch: pytest.MonkeyPa
 
     directory = _wire_disk(monkeypatch, tmp_path)
     directory.mkdir()
-    (directory / "a.yaml").write_text("name: A\n", encoding="utf-8")
-    (directory / "stale.yaml").write_text("name: Stale\n", encoding="utf-8")
+    # stale.yaml is a previous server-owned profile: it carries the marker, so
+    # a sync may delete it (an unmarked file would be the user's and preserved).
+    (directory / "a.yaml").write_text("name: A\nsynced_from_server: true\n", encoding="utf-8")
+    (directory / "stale.yaml").write_text("name: Stale\nsynced_from_server: true\n", encoding="utf-8")
 
     real_unlink = _Path.unlink
 
@@ -1445,3 +1447,155 @@ def test_reload_window_rollback_recovers_on_next_snapshot(tmp_path: Path) -> Non
 
     assert registry.install_snapshot((_profile("a"), _profile("c"))) == 2
     assert sorted(registry.list_ids()) == ["a", "c"], "the next sync heals the window"
+
+
+# ── catalog-custom-coexist: synced marker + custom profile preservation ────
+
+
+def test_synced_profile_yaml_carries_marker_and_loader_ignores_it(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Server writes carry the marker; the loader ignores it as unknown metadata."""
+    from chrys.service.profiles.models.loader import load_profile_from_yaml
+
+    directory = _wire_disk(monkeypatch, tmp_path)
+    catalog_module.apply_catalog(_catalog("a"))
+    path = directory / "a.yaml"
+    assert catalog_module._is_server_synced(path) is True
+    assert "synced_from_server: true" in path.read_text(encoding="utf-8")
+
+    loaded = load_profile_from_yaml(path)
+    assert loaded.id == "a"
+    assert not hasattr(loaded, "synced_from_server"), "the marker never becomes a ModelProfile field"
+
+
+def test_apply_catalog_deletes_only_synced_and_preserves_custom(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A marked profile absent from the new catalog is deleted; an unmarked one survives."""
+    directory = _wire_disk(monkeypatch, tmp_path)
+    directory.mkdir()
+    (directory / "old.yaml").write_text("name: Old\nsynced_from_server: true\n", encoding="utf-8")
+    (directory / "mine.yaml").write_text("name: Mine\nprovider: openai\nmodel_id: mine-m\n", encoding="utf-8")
+
+    result = catalog_module.apply_catalog(_catalog("server-a"))
+
+    assert not (directory / "old.yaml").exists(), "server-owned file absent from catalog is removed"
+    assert (directory / "mine.yaml").exists(), "unmarked user file is preserved"
+    assert (directory / "server-a.yaml").exists()
+    assert [p.id for p in result.preserved_profiles] == ["mine"]
+
+
+@pytest.mark.parametrize("marker", ["false", "'true'", "1", "null"])
+def test_non_true_marker_is_treated_as_custom(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, marker: str) -> None:
+    """Only a literal boolean True marks a server file; everything else is the user's."""
+    directory = _wire_disk(monkeypatch, tmp_path)
+    directory.mkdir()
+    (directory / "mine.yaml").write_text(
+        f"name: Mine\nprovider: openai\nmodel_id: m\nsynced_from_server: {marker}\n", encoding="utf-8"
+    )
+    result = catalog_module.apply_catalog(_catalog("s"))
+    assert (directory / "mine.yaml").exists()
+    assert [p.id for p in result.preserved_profiles] == ["mine"]
+
+
+def test_conflict_backend_overwrites_and_logs(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, detail_capture: list[logging.LogRecord]
+) -> None:
+    """A same-id user profile is overwritten by the backend and warned about afterwards."""
+    directory = _wire_disk(monkeypatch, tmp_path)
+    directory.mkdir()
+    (directory / "a.yaml").write_text("id: a\nname: Mine\nprovider: openai\nmodel_id: mine-m\n", encoding="utf-8")
+
+    result = catalog_module.apply_catalog(_catalog("a"))
+
+    assert result.overwritten_custom_ids == ("a",)
+    assert result.preserved_profiles == (), "the overwritten id is not preserved in memory"
+    assert "synced_from_server: true" in (directory / "a.yaml").read_text(encoding="utf-8")
+    warnings = [r.getMessage() for r in detail_capture if "已被后端版本覆盖" in r.getMessage()]
+    assert warnings and "a" in warnings[0]
+    assert all(r.name == "aixcoding.detail.catalog" for r in detail_capture)
+
+
+def test_conflict_and_preservation_use_filename_not_explicit_id(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """F2: os.replace overwrites by filename, so the stem — not the YAML id — decides.
+
+    Two misclassifications are pinned: a stem that collides with a server id is
+    overwritten even when the YAML declares a different id; a file whose YAML id
+    collides but whose stem does not survives and stays in the snapshot.
+    """
+    directory = _wire_disk(monkeypatch, tmp_path)
+    directory.mkdir()
+    # Case 1: stem collides with server id "a" but the YAML declares another id.
+    (directory / "a.yaml").write_text("id: mine-alias\nname: Mine\nprovider: openai\nmodel_id: m\n", encoding="utf-8")
+    # Case 2: YAML declares the server id but the stem does not collide.
+    (directory / "keep.yaml").write_text("id: a\nname: Keep\nprovider: openai\nmodel_id: k\n", encoding="utf-8")
+
+    result = catalog_module.apply_catalog(_catalog("a"))
+
+    assert result.overwritten_custom_ids == ("a",), "only the colliding filename is overwritten"
+    assert "id: a" in (directory / "keep.yaml").read_text(encoding="utf-8"), "keep.yaml is untouched by os.replace"
+    assert [p.id for p in result.preserved_profiles] == ["a"], "keyed by stem: keep.yaml survives with its YAML id"
+
+
+def test_state_profile_ids_stay_backend_only(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The state file keeps only backend ids even when a custom profile is preserved."""
+    directory = _wire_disk(monkeypatch, tmp_path)
+    directory.mkdir()
+    (directory / "mine.yaml").write_text("name: Mine\nprovider: openai\nmodel_id: mine-m\n", encoding="utf-8")
+    catalog_module.apply_catalog(_catalog("a"))
+    state = catalog_module.read_catalog_state()
+    assert state is not None
+    assert state.profile_ids == ("a",), "the user's profile never enters the state file"
+
+
+def test_fingerprint_ignores_custom_profiles(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Changing a user's profile does not change the backend catalog fingerprint."""
+    first = catalog_module._coerce_version(_catalog("a"))
+    directory = _wire_disk(monkeypatch, tmp_path)
+    directory.mkdir()
+    (directory / "mine.yaml").write_text("name: Mine\nprovider: openai\nmodel_id: mine-m\n", encoding="utf-8")
+    catalog_module.apply_catalog(_catalog("a"))
+    (directory / "mine.yaml").write_text("name: Mine edited\nprovider: openai\nmodel_id: mine-m\n", encoding="utf-8")
+    catalog_module.apply_catalog(_catalog("a"))
+    assert catalog_module._coerce_version(_catalog("a")) == first
+
+
+def test_install_snapshot_stays_in_memory(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """F3: installing a snapshot never touches the disk (design's zero-IO assumption).
+
+    A write trap on Path.write_text / os.replace fires on any disk write during
+    the snapshot install; the registry must work purely in memory.
+    """
+    import os
+    from pathlib import Path as _Path
+
+    directory = tmp_path / "models"
+    directory.mkdir()
+    registry = ModelProfileRegistry()
+    assert registry.load_profiles(directory) == 0
+
+    def _trap_write_text(self: _Path, data: str, *args: object, **kwargs: object) -> int:
+        raise AssertionError(f"snapshot install wrote to disk: {self}")
+
+    def _trap_replace(src: object, dst: object) -> None:
+        raise AssertionError(f"snapshot install called os.replace: {dst}")
+
+    monkeypatch.setattr(_Path, "write_text", _trap_write_text)
+    monkeypatch.setattr(os, "replace", _trap_replace)
+    assert registry.install_snapshot((_profile("a"), _profile("mine"))) == 2
+    assert sorted(registry.list_ids()) == ["a", "mine"]
+
+
+def test_snapshot_includes_preserved_custom_profiles(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A poll's snapshot installs backend items plus the preserved user profiles."""
+    directory = _wire_disk(monkeypatch, tmp_path)
+    directory.mkdir()
+    (directory / "mine.yaml").write_text("name: Mine\nprovider: openai\nmodel_id: mine-m\n", encoding="utf-8")
+    result = catalog_module.apply_catalog(_catalog("a"))
+    registry = ModelProfileRegistry()
+    runtime = catalog_module._SyncRuntime(registry, lambda _result: None, timeout=1.0)
+    runtime._publish(_catalog("a"), result)
+    assert sorted(registry.list_ids()) == ["a", "mine"], "both backend and preserved user profiles are installed"
