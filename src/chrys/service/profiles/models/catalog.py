@@ -2,15 +2,16 @@
 
 """Server-owned model catalog.
 
-``~/.chrys/models/`` has exactly one owner at a time, and there is no merge
-between two sources:
+``~/.chrys/models/`` holds server-synced and user-authored profiles together:
 
 * **A catalog source is configured** (``CHRYS_MODEL_CATALOG_URL``, or a host
-  pushing a catalog over ACP).  Every successful sync *replaces the directory
-  wholesale* — files the catalog no longer contains are deleted — and the
-  directory stops being user-editable.  A failed sync changes nothing.
-* **No catalog source is configured.**  The directory is the user's own, as it
-  has always been: editable, never touched by this module.
+  pushing a catalog over ACP).  Every successful sync rewrites the served
+  profiles, each carrying a ``synced_from_server: true`` marker, and removes
+  only marked files the catalog no longer contains. Unmarked YAML files are the
+  user's own and survive every sync; the registry re-scans the directory
+  afterwards so they stay visible.  A failed sync changes nothing.
+* **No catalog source is configured.**  Every file is the user's own, editable
+  and never touched by this module.
 
 "Synced once" is sticky: the state file marks the directory as server-owned, so
 a later failed fetch (offline start) degrades to the previous catalog instead of
@@ -39,6 +40,7 @@ from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
+import yaml
 
 from chrys.foundation.text.yaml_io import dump_yaml
 from chrys.service.profiles.models.schema import (
@@ -617,19 +619,43 @@ async def fetch_catalog(url: str | None = None, *, timeout: float = _DEFAULT_FET
     return catalog
 
 
-def _clear_directory(directory: Path) -> int:
-    """Delete every profile file in *directory*.  Returns the count removed."""
+#: Written only into YAML files a server sync produced. A file without it is
+#: the user's own and must survive every sync. This is sync-only metadata:
+#: ``ModelProfile`` never carries it and the profile loader ignores it.
+_SYNCED_FROM_SERVER_KEY = "synced_from_server"
+
+
+def _is_server_synced(path: Path) -> bool:
+    """Whether *path* was written by a server sync.
+
+    Anything we cannot prove is ours is treated as the user's file: a damaged,
+    foreign or unreadable YAML must never be deleted by a sync. Only a literal
+    ``true`` counts, so ``false`` and non-boolean values stay conservative too.
+    """
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except OSError, UnicodeError, yaml.YAMLError:
+        return False
+    return isinstance(data, dict) and data.get(_SYNCED_FROM_SERVER_KEY) is True
+
+
+def _clear_stale_server_profiles(directory: Path, final_names: set[str]) -> int:
+    """Delete only server-written profiles the new catalog no longer contains."""
     removed = 0
     for pattern in ("*.yaml", "*.yml"):
         for path in sorted(directory.glob(pattern)):
+            if path.name in final_names or not _is_server_synced(path):
+                continue
             path.unlink()
             removed += 1
     return removed
 
 
 def _write_profile(directory: Path, profile: ModelProfile) -> Path:
+    data = _profile_to_dict(profile)
+    data[_SYNCED_FROM_SERVER_KEY] = True
     path = directory / f"{profile.id}.yaml"
-    path.write_text(dump_yaml(_profile_to_dict(profile)), encoding="utf-8")
+    path.write_text(dump_yaml(data), encoding="utf-8")
     if profile.api_key:
         # Credentials were supplied by the catalog: keep them off group/other.
         path.chmod(0o600)
@@ -643,16 +669,19 @@ def _profile_to_dict(profile: ModelProfile) -> dict[str, Any]:
 
 
 def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> CatalogSyncResult:
-    """Replace the whole model directory with *catalog*.
+    """Write *catalog* while leaving the user's own profiles alone.
 
-    The catalog is authoritative: every existing profile file is removed first,
-    then the catalog's profiles are written.  Nothing is merged and nothing
-    outside the catalog survives into the registry.
+    Only files a previous server sync wrote (they carry
+    ``synced_from_server: true``) are removed when the catalog drops them;
+    unmarked YAML files are the user's and are never touched. A user profile
+    sharing an id with a served model is overwritten by the server version.
+
+    ``ModelProfileRegistry.replace_profiles()`` re-scans the directory after a
+    sync, so preserved custom profiles also stay visible in the TUI.
 
     Raises:
         ModelCatalogError: if the catalog is unusable or the directory cannot
-            be written.  The directory is only cleared after validation, so a
-            failure here leaves the previous catalog in place.
+            be written.  The directory is only changed after validation.
     """
     if not catalog.items:
         raise ModelCatalogError("Cannot apply an empty model catalog.")
@@ -662,7 +691,13 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
 
     previous_state = read_catalog_state()
     previous_ids = previous_state.profile_ids if previous_state else ()
-    _clear_directory(directory)
+    final_names = {f"{profile.id}.yaml" for profile in catalog.items}
+    overwritten = tuple(
+        sorted(
+            path.stem for path in directory.glob("*.yaml") if path.name in final_names and not _is_server_synced(path)
+        )
+    )
+    _clear_stale_server_profiles(directory, final_names)
     for profile in catalog.items:
         _write_profile(directory, profile)
 
@@ -688,6 +723,8 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
         len(catalog.items),
         source,
     )
+    if overwritten:
+        logger.warning("Server models overwrote same-id custom profiles: %s", ", ".join(overwritten))
     return result
 
 
