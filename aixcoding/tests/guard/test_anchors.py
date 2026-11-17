@@ -107,7 +107,7 @@ def test_guard_hooks_yaml_loads_under_the_upstream_contract() -> None:
         assert hook.execution.mode == "blocking"
         assert hook.execution.on_error == "block"
         assert hook.run.type in {"command", "script"}
-        # 本版本出厂停用：模板两个条目 enabled 均为 false（hook 引擎不启动子进程）。
+        # Shipped disabled: both template entries are enabled: false (no child process).
         assert hook.enabled is False
 
 
