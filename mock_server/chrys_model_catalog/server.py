@@ -170,6 +170,32 @@ def _format_auth_headers(headers: Any) -> str:
 #: What the mock answers with — generic enough to be safe in any context.
 LLM_MOCK_REPLY = "Acknowledged by the chrys model-catalog mock LLM."
 
+#: Never logged: runtime telemetry metadata carries no model parameter and
+#: would put session/request ids in the log for no benefit.
+_LLM_PARAM_OMITTED_KEYS = frozenset({"telemetry"})
+
+#: Keys that can carry prompt text or tool schemas: only their shape is logged,
+#: never their content — whatever type the client happens to send them as.
+_LLM_PARAM_SUMMARY_KEYS = frozenset({"messages", "tools"})
+
+
+def _llm_params_for_log(body: dict[str, Any]) -> dict[str, Any]:
+    """Reduce one chat body to the model parameters worth logging."""
+    params: dict[str, Any] = {}
+    for key, value in body.items():
+        if key in _LLM_PARAM_OMITTED_KEYS:
+            continue
+        if key == "messages" and isinstance(value, list):
+            roles = [str(message.get("role") or "?") if isinstance(message, dict) else "?" for message in value]
+            params[key] = f"<{len(value)} message(s): {', '.join(roles) or 'none'}>"
+        elif key == "tools" and isinstance(value, list):
+            params[key] = f"<{len(value)} tool(s)>"
+        elif key in _LLM_PARAM_SUMMARY_KEYS:
+            params[key] = f"<omitted {type(value).__name__}>"
+        else:
+            params[key] = value
+    return params
+
 
 def _llm_completion_body(model: str) -> dict[str, Any]:
     """One minimal, valid ChatCompletion the OpenAI SDK accepts."""
@@ -342,22 +368,33 @@ def build_handler_class() -> type[BaseHTTPRequestHandler]:
             self._send_json(200, server.state.snapshot())
 
         def _serve_llm_chat(self) -> None:
-            """Answer like OpenAI.
+            """Answer like OpenAI and log the model parameters the client sent.
 
-            No extra logging here: ``_dispatch`` already logs every request
-            line together with its credential headers — ``token``,
-            ``Authorization``, anything auth-shaped, values masked — which is
-            all the mock is watched for. The payload is not logged.
+            ``_dispatch`` logs the request line with masked credential headers;
+            this adds the wire parameters so a local run shows what the client
+            sent (``model``, ``max_tokens``, ``stream``, ...). Message text and
+            tool schemas stay out of the log — only counts and roles are
+            reported — and runtime metadata such as ``telemetry`` is dropped
+            entirely, keeping long contexts readable and avoiding a second copy
+            of prompt content on disk.
             """
             body = self._read_llm_body()
             if body is None:
                 self._send_json(400, {"error": "chat request body must be a JSON object"})
                 return
+            self._log_llm_params(body)
             model = str(body.get("model") or "mock-model")
             if body.get("stream") is True:
                 self._send_llm_stream(model)
             else:
                 self._send_json(200, _llm_completion_body(model))
+
+        def _log_llm_params(self, body: dict[str, Any]) -> None:
+            """Log model parameters only: no telemetry, no prompt/tool content."""
+            logger.info(
+                "LLM request params: %s",
+                json.dumps(_llm_params_for_log(body), ensure_ascii=False, sort_keys=True, default=str),
+            )
 
         def _read_llm_body(self) -> dict[str, Any] | None:
             """Read one chat request body; ``MAX_LLM_BODY_BYTES`` keeps it bounded."""

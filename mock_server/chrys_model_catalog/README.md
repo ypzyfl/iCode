@@ -32,7 +32,7 @@ CHRYS_AUTH_ENVIRONMENT=local uv run icode
 |---|---|---|
 | GET | `/llm/api/v1/continue-config/dispatch` | 当前模式下的目录 payload（query 参数被忽略，客户端拼的 `scopeType`/`userId` 不影响响应） |
 | POST | `/mock/control` | `{"mode": "error", "delay": 8}` 运行时切换故障模式；响应体带回 mode / revision / version / 请求数 |
-| POST | `/v1/chat/completions` | LLM chat mock：请求行的统一日志只带出**认证头**（`token` / `Authorization` / 含 auth/key/secret 等字样的头，值打码，没有则显示 `(no credential header)`），不打印载荷；再按 `stream` 回最小合法 ChatCompletion 或 SSE 流。把 `config_new.json` 里模型的 `apiBase` 指到 `http://127.0.0.1:7777/v1` 即可走这条 |
+| POST | `/v1/chat/completions` | LLM chat mock：请求行日志带出**认证头**（`token` / `Authorization` / 含 auth/key/secret 等字样的头，值打码，没有则显示 `(no credential header)`）；另打印一行 `LLM request params`，含客户端实际发送的模型参数（`model`、`max_tokens`、`stream` 等）：`messages` / `tools` 只报条数与角色、正文与工具定义不入日志，`telemetry` 等运行时元数据整键不打印；再按 `stream` 回最小合法 ChatCompletion 或 SSE 流。把 `config_new.json` 里模型的 `apiBase` 指到 `http://127.0.0.1:7777/v1` 即可走这条 |
 
 只留这两条 —— 外加默认同端口挂载的登录 mock：`POST /api/v1/auth/device/code`、
 `POST /api/v1/auth/device/token`、`POST /api/v1/user/info`、`GET /device/verify`。
@@ -56,12 +56,19 @@ payload 形状是**服务端自己的**，不是 iCode 的 `ModelProfile`：
 ```
 
 接口返回什么不由我们决定，所以转换放在客户端
-（`catalog.translate_models_payload()`，规则见
-`docs/model-catalog-sync-details.md` §1.1）：`title` → `name`（trim）、
-`model` → `model_id` 兼派生 `id`、`apiBase` → `base_url`、
-`contextLength` → `max_context_tokens`；`provider` / `api_style` 写死（下发模型
-全部走 OpenRouter）；`apiKey` 与 `api_key` **都不使用** —— 服务端不下发凭据，
-profile 里也不留，发消息时按 `base_url` 注入（`service/llm/clients.py`）。
+（`catalog.translate_models_payload()`）：**只取 iCode 支持、有消费方的字段**——
+`title` → `name`、`model` → `model_id`（并派生 `id`）、`apiBase` → `base_url`、
+`contextLength` → `max_context_tokens`、`completionOptions.maxTokens` →
+`max_output_tokens`、`capabilities.uploadImage` → `vision`、
+`requestOptions.verifySsl` → `verify_ssl`。服务端下发的 `provider: "openrouter"`
+**被忽略**（iCode 不注册该 provider），落盘固定为 `CONTINUE_PROVIDER = "openai"`，
+请求仍走 OpenAI 兼容 wire。后端只用 `capabilities.uploadImage` 表达视觉能力，
+**不下发顶层 `vision`**，落盘的 `vision` 一律由上述转换得到。
+`completionOptions` / `capabilities` / `requestOptions` 整块（只取上面列出的子字段）、
+`completionOptions.reasoning`、`apiKey` / `api_key` 都不落盘：iCode 没有对应字段或
+消费方，凭据在发消息时按 `base_url` 注入（`service/llm/clients.py`）。同步**只从
+`models` 数组取值**：`aa` 是故意留在 payload 顶层的干扰项，不是模型字段，
+客户端一律忽略。
 
 ## 故障模式
 

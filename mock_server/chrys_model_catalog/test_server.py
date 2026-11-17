@@ -248,3 +248,30 @@ async def test_llm_chat_streaming(mock: RunningCatalogMock, direct_route: None) 
     assert "chat.completion.chunk" in text
     assert catalog_server.LLM_MOCK_REPLY in text
     assert text.endswith("data: [DONE]\n\n")
+
+
+def test_llm_params_log_drops_telemetry_and_prompt_content() -> None:
+    """The parameter line carries model settings, not provenance or prompt text."""
+    params = catalog_server._llm_params_for_log(
+        {
+            "model": "openai/gpt-4o-mini",
+            "max_completion_tokens": 16000,
+            "stream": False,
+            "messages": [
+                {"role": "system", "content": "SECRET SYSTEM PROMPT"},
+                {"role": "user", "content": "SECRET USER PROMPT"},
+            ],
+            "tools": [{"type": "function", "function": {"name": "read_file"}}],
+            "telemetry": {"sessionId": "b997cdd0ace95fb6ab7aaf71bba3952a"},
+        }
+    )
+    assert params == {
+        "model": "openai/gpt-4o-mini",
+        "max_completion_tokens": 16000,
+        "stream": False,
+        "messages": "<2 message(s): system, user>",
+        "tools": "<1 tool(s)>",
+    }
+    assert "telemetry" not in params
+    assert "SECRET" not in str(params)
+    assert catalog_server._llm_params_for_log({"messages": "SECRET"}) == {"messages": "<omitted str>"}

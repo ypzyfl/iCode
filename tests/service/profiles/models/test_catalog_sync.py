@@ -200,3 +200,55 @@ def test_replace_profiles_forgets_deleted_profiles(tmp_path: Path) -> None:
     (directory / "b.yaml").unlink()
     assert registry.replace_profiles(directory) == 1
     assert sorted(registry.list_ids()) == ["a"]
+
+
+def test_translation_writes_only_fields_the_profile_consumes() -> None:
+    """Server-only values must not be stored: no verbatim blocks, no reasoning."""
+    from chrys.service.profiles.models.catalog import parse_catalog, translate_models_payload
+    from chrys.service.profiles.models.serializer import profile_to_dict
+
+    payload = {
+        "models": [
+            {
+                "title": "GPT-4o mini",
+                "provider": "openrouter",
+                "model": "openai/gpt-4o-mini",
+                "apiBase": "https://example.test/v1",
+                "contextLength": 128000,
+                # The server expresses vision only via capabilities.uploadImage.
+                "completionOptions": {"maxTokens": 16000, "reasoning": True},
+                "capabilities": {"uploadImage": True},
+                "requestOptions": {"verifySsl": False},
+                "apiKey": "never-stored",
+            }
+        ],
+        # Deliberate top-level decoy: sync reads only ``models``, so this is ignored.
+        "aa": {"test": "as"},
+    }
+    items = translate_models_payload(payload)["items"]
+    assert items == [
+        {
+            "provider": "openai",
+            "vision": True,
+            "verify_ssl": False,
+            "id": "openai-gpt-4o-mini",
+            "model_id": "openai/gpt-4o-mini",
+            "name": "GPT-4o mini",
+            "base_url": "https://example.test/v1",
+            "max_context_tokens": 128000,
+            "max_output_tokens": 16000,
+        }
+    ]
+
+    profile = parse_catalog({"items": items}).items[0]
+    # ``provider`` is the dataclass default and is omitted by the serializer.
+    assert profile_to_dict(profile) == {
+        "id": "openai-gpt-4o-mini",
+        "name": "GPT-4o mini",
+        "model_id": "openai/gpt-4o-mini",
+        "max_context_tokens": 128000,
+        "max_output_tokens": 16000,
+        "base_url": "https://example.test/v1",
+        "vision": True,
+        "verify_ssl": False,
+    }

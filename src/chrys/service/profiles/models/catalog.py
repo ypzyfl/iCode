@@ -42,7 +42,6 @@ import httpx
 
 from chrys.foundation.text.yaml_io import dump_yaml
 from chrys.service.profiles.models.schema import (
-    API_STYLE_CHAT_COMPLETIONS,
     VALID_API_STYLES,
     VALID_PROVIDERS,
     ModelProfile,
@@ -292,15 +291,19 @@ def _coerce_version(catalog: ModelCatalog) -> str:
 
 # ── Server payload translation ───────────────────────────────────────────
 # The server speaks its own client's shape: a ``models`` array of ``title`` /
-# ``model`` / ``apiBase`` / ``contextLength``, with no id and no wire fields
-# (docs/model-catalog-sync-details.md §1.1). It is not ours to change, so the
-# translation lives here: what the payload cannot carry is filled in from the
-# one assumption that makes it derivable — every served model is reached
-# through OpenRouter.
+# ``model`` / ``provider`` / ``apiBase`` / ``contextLength`` /
+# ``completionOptions`` / ``capabilities``, with no id and no wire fields.
+# Only the values iCode consumes are translated: keys already naming a
+# ModelProfile field are copied, the aliases rename the rest, and the nested
+# entries with consumers fill in their profile fields. Everything else
+# is ignored — there is no profile field for it and nothing reads it, so
+# persisting it would only keep a second, drifting copy of data already held.
 
+#: The served catalog names its own client's provider ("openrouter"), which is
+#: not a provider iCode registers. Every served model is reached over the
+#: OpenAI-compatible wire, so the served value is ignored and profiles are
+#: written with this fixed provider instead.
 CONTINUE_PROVIDER = "openai"
-CONTINUE_API_STYLE = API_STYLE_CHAT_COMPLETIONS
-CONTINUE_BASE_URL = "https://openrouter.ai/api/v1"
 
 
 def derive_profile_id(model: str) -> str:
@@ -323,19 +326,47 @@ def _unique_profile_id(base: str, taken: set[str]) -> str:
     return f"{base}-{suffix}"
 
 
-def _positive_int(value: object) -> int:
-    """One payload number, or 0 when it is absent or not a positive integer."""
-    if not isinstance(value, int | float | str):
-        return 0
-    try:
-        number = int(value)
-    except ValueError:
-        return 0
-    return max(0, number)
+#: Server keys whose values land on a profile field under the same meaning but
+#: a different spelling.  Everything else is copied when the key already is a
+#: profile field name; that set comes from :class:`ModelProfile`, so unknown
+#: server keys are ignored instead of being stored for their own sake.
+_CATALOG_FIELD_ALIASES: tuple[tuple[str, str], ...] = (
+    ("title", "name"),
+    ("model", "model_id"),
+    ("apiBase", "base_url"),
+    ("contextLength", "max_context_tokens"),
+)
+
+#: Entries of nested server objects that have a consumer on the profile.
+#: ``completionOptions.reasoning`` and the rest of ``requestOptions`` have none,
+#: so they are not mirrored.
+_CATALOG_NESTED_ALIASES: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
+    ("completionOptions", (("maxTokens", "max_output_tokens"),)),
+    ("capabilities", (("uploadImage", "vision"),)),
+    ("requestOptions", (("verifySsl", "verify_ssl"),)),
+)
+
+#: Never taken from the payload: ``id`` is derived so filenames stay stable and
+#: safe, ``provider`` is fixed to :data:`CONTINUE_PROVIDER`, and credentials are
+#: not the catalog's to hand out.
+_CATALOG_EXCLUDED_KEYS = frozenset({"id", "provider", "apiKey", "api_key"})
 
 
 def translate_models_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Translate the server's ``models`` payload into iCode-native items.
+
+    Fields :class:`ModelProfile` defines and the runtime consumes are taken as
+    the server sent them — no rewriting, no range checks, no default
+    substituted for a value that is present. Keys already named after a profile
+    field are copied, the aliases rename the differently-spelled ones, and the
+    nested ``maxTokens`` / ``uploadImage`` / ``verifySsl`` entries fill in
+    ``max_output_tokens`` / ``vision`` / ``verify_ssl``. Every other value is
+    ignored, including the three nested blocks as whole objects and
+    ``completionOptions.reasoning``. The served ``provider`` is one of them: it
+    names the server's own client, so :data:`CONTINUE_PROVIDER` is used instead.
+
+    ``apiKey`` is not a credential channel either: the key is resolved at send
+    time from the host's environment (service/llm/clients.py).
 
     Returns the shape :func:`parse_catalog` already accepts, so validation
     stays the single gate — translation adds no second path to it.
@@ -344,6 +375,7 @@ def translate_models_payload(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(entries, list):
         raise ModelCatalogError(f"Server catalog 'models' must be a list, got {type(entries).__name__!r}")
 
+    profile_fields = _profile_field_names() - _CATALOG_EXCLUDED_KEYS
     items: list[dict[str, Any]] = []
     taken: set[str] = set()
     for index, entry in enumerate(entries, start=1):
@@ -354,24 +386,28 @@ def translate_models_payload(payload: dict[str, Any]) -> dict[str, Any]:
             raise ModelCatalogError(f"Catalog item {index} has no 'model' to derive a profile id from")
         profile_id = _unique_profile_id(derive_profile_id(model), taken)
         taken.add(profile_id)
-        item: dict[str, Any] = {
-            "id": profile_id,
-            # The real payload's title carries leading whitespace.
-            "name": str(entry.get("title") or model).strip(),
-            "provider": CONTINUE_PROVIDER,
-            "api_style": CONTINUE_API_STYLE,
-            "model_id": model,
-            # ``apiBase`` is optional and often simply absent; the served
-            # models are reached through OpenRouter either way.
-            "base_url": str(entry.get("apiBase") or "").strip() or CONTINUE_BASE_URL,
-            # No ``api_key`` on purpose: the catalog is not a credential
-            # channel, and a key in the profile file would be one more place
-            # for it to leak. The key is resolved at send time from the host's
-            # environment instead (service/llm/clients.py).
-        }
-        context_length = _positive_int(entry.get("contextLength"))
-        if context_length:
-            item["max_context_tokens"] = context_length
+
+        # A key that already is a profile field name is copied as-is (except
+        # the excluded ones); the aliases below then fill in the fields the
+        # server spells differently.
+        item: dict[str, Any] = {key: value for key, value in entry.items() if key in profile_fields}
+        item["id"] = profile_id
+        item["provider"] = CONTINUE_PROVIDER
+        item["model_id"] = model
+        for source_key, field in _CATALOG_FIELD_ALIASES:
+            if source_key in entry:
+                item[field] = entry[source_key]
+        for source_key, field_aliases in _CATALOG_NESTED_ALIASES:
+            nested = entry.get(source_key)
+            if not isinstance(nested, dict):
+                continue
+            for nested_key, field in field_aliases:
+                if nested_key in nested:
+                    item[field] = nested[nested_key]
+        # ``name`` is the one field the profile cannot do without; the served
+        # title is used verbatim when present.
+        if not item.get("name"):
+            item["name"] = model
         items.append(item)
 
     # The server's shape carries no version and no default: the caller
