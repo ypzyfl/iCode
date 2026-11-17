@@ -174,7 +174,7 @@ class CatalogSyncResult:
 
 
 def catalog_directory() -> Path:
-    """Return the directory a catalog replaces: ``~/.chrys/models``."""
+    """Return the directory catalog profiles live in: ``~/.chrys/models``."""
     from chrys.foundation.platform import get_platform
 
     return get_platform().config_dir / "models"
@@ -256,11 +256,11 @@ def _profile_field_names() -> set[str]:
 def _coerce_version(catalog: ModelCatalog) -> str:
     """Fingerprint the whole item set so a version-less payload still has one.
 
-    Every serialized field is hashed, not just the ids: the catalog owns the
-    directory wholesale, so a change to *any* field — display name, base url,
-    context length — is a change the files have to be rewritten for. Hashing
-    the ids alone would call such a payload "unchanged" and leave the previous
-    values on disk.
+    Every serialized field is hashed, not just the ids: a sync owns the profile
+    fields wholesale, so a change to *any* of them — display name, base url,
+    context length — is a change the served files have to be rewritten for.
+    Hashing the ids alone would call such a payload "unchanged" and leave the
+    previous values on disk.
 
     What is hashed is exactly the profile fields :func:`_write_profile`
     serializes — the ``synced_from_server`` marker it adds is not part of the
