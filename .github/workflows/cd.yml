@@ -82,6 +82,8 @@ jobs:
     name: Build wheel
     needs: [resolve-build, ci]
     runs-on: ubuntu-latest
+    outputs:
+      branch_tag: ${{ steps.release-version.outputs.branch_tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -99,12 +101,12 @@ jobs:
         run: ./scripts/fetch_rg.sh --all
       - run: uv build --wheel
       - name: Check the release tag names the wheel's version
-        # A release uploads this wheel to PyPI under the version it carries and
-        # creates the GitHub release under the tag, so the two must agree
-        # before either happens.
-        if: startsWith(github.ref, 'refs/tags/v') || startsWith(inputs.ref, 'v')
+        # AIxCoding branch release: check the wheel before either release path
+        id: release-version
+        if: inputs.publish_branch_release || startsWith(github.ref, 'refs/tags/v') || startsWith(inputs.ref, 'v')
         env:
           TAG: ${{ inputs.ref || github.ref_name }}
+          PUBLISH_BRANCH_RELEASE: ${{ inputs.publish_branch_release }}
         run: |
           if [[ "$GITHUB_REF" == refs/tags/* && "$TAG" != "$GITHUB_REF_NAME" ]]; then
             echo "::error::this run is on the tag ${GITHUB_REF_NAME} but builds ${TAG}"
@@ -113,7 +115,9 @@ jobs:
           wheel=$(basename dist/icode_tui-*.whl)
           version="${wheel#icode_tui-}"
           version="${version%%-*}"
-          if [ "$TAG" != "v${version}" ]; then
+          if [[ "$PUBLISH_BRANCH_RELEASE" == "true" ]]; then
+            printf 'branch_tag=v%s-cli.%s-%s\n' "$version" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+          elif [ "$TAG" != "v${version}" ]; then
             echo "::error::this release builds ${TAG}, but the wheel's version is ${version}: release the tag v${version}"
             exit 1
           fi
@@ -498,7 +502,6 @@ jobs:
           path: artifacts
 
       - name: Collect release assets
-        id: assets
         run: |
           mkdir release
           # AIxCoding branding: release command artifacts
@@ -515,16 +518,12 @@ jobs:
             fi
           done
           cp artifacts/wheel/*.whl release/
-          wheel=$(basename artifacts/wheel/icode_tui-*.whl)
-          version="${wheel#icode_tui-}"
-          version="${version%%-*}"
-          printf 'branch_tag=v%s-cli.%s-%s\n' "$version" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
           cd release && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
 
       - name: Create release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          tag_name: ${{ inputs.publish_branch_release && steps.assets.outputs.branch_tag || inputs.ref || github.ref_name }}
+          tag_name: ${{ inputs.publish_branch_release && needs.build-wheel.outputs.branch_tag || inputs.ref || github.ref_name }}
           target_commitish: ${{ inputs.publish_branch_release && needs.resolve-build.outputs.ref || '' }}
           prerelease: ${{ inputs.publish_branch_release && 'true' || '' }}
           generate_release_notes: true

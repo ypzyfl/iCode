@@ -8,10 +8,12 @@ from typing import TYPE_CHECKING, ClassVar
 
 from rich.text import Text
 from textual import on
+from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, OptionList, TextArea
 from textual.widgets.option_list import Option
 
+from chrys.app.tui.behaviors.insert_clipboard import INSERT_CLIPBOARD_BINDINGS
 from chrys.app.tui.clipboard import copy_text_to_clipboards
 from chrys.app.tui.screens.dialogs.base import BaseDialog
 from chrys.kernel.aixcoding.diagnostics.telemetry_reports import recent_report_logs, report_logging_enabled
@@ -33,7 +35,10 @@ class TelemetryLogButton(Button):
 
 
 class _TelemetryLogDialog(BaseDialog[None]):
-    BINDINGS: ClassVar[list] = [("escape", "dismiss", "Close")]
+    BINDINGS: ClassVar[list] = [
+        Binding("escape", "dismiss", "Close"),
+        *INSERT_CLIPBOARD_BINDINGS,
+    ]
     DEFAULT_CSS = """
     _TelemetryLogDialog {
         align: center middle;

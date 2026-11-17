@@ -33,5 +33,6 @@
 | cd-branch-release:resolve | `.github/workflows/cd.yml` | AIxCoding branch release: resolve and pin the build ref | 1 | resolve-build | 高（构建来源） | 〔机制退役〕分支发布不再依赖 CD |
 | cd-branch-release:ci | `.github/workflows/cd.yml` | AIxCoding branch release: pass the resolved ref to CI | 1 | ci.with.build_ref | 高（验证来源） | 〔随点迁移〕随 resolve-build |
 | cd-branch-release:wheel | `.github/workflows/cd.yml` | AIxCoding branch release: use the resolved ref for the wheel | 1 | build-wheel checkout | 高（制品来源） | 〔随点迁移〕随 resolve-build |
+| cd-branch-release:wheel-release-version | `.github/workflows/cd.yml` | AIxCoding branch release: check the wheel before either release path | 1 | build-wheel version check | 高（发布版本） | 〔消费者退役〕停止分支预发布 |
 | cd-branch-release:binaries | `.github/workflows/cd.yml` | AIxCoding branch release: use the resolved ref for binaries | 1 | build-binaries checkout | 高（制品来源） | 〔随点迁移〕随 resolve-build |
 | cd-branch-release:publish | `.github/workflows/cd.yml` | AIxCoding branch release: publish opt-in builds as pre-releases | 1 | release | 高（GitHub 发布） | 〔消费者退役〕停止分支预发布 |

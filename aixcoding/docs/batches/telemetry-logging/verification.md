@@ -39,3 +39,7 @@ git diff --check
 - 本机回环实测通过：记下了 `127.0.0.1` 和动态端口，载荷完整，认证 token 未进入日志。此前实施验证中沙箱绑定 `127.0.0.1:0` 失败的记录仍保留在上一节，未改写。
 - 实际运行环境仍为现有 `.venv` 的 Python 3.14.8，项目要求 3.14.10，uv 提示版本不符。
 - `self-review.md` 状态为「已确认」但责任人为空，本轮未改签认字段。文档闭环仍须待责任人签认。
+
+## CI 弹窗快捷键补记
+
+[macOS、Linux、Windows 的首次 CD](https://github.com/ypzyfl/iCode/actions/runs/44032393467) 均报埋点日志弹窗快捷键契约失败。弹窗改用 Textual `Binding` 声明 Escape，并显式复用 `INSERT_CLIPBOARD_BINDINGS`。原弹窗门禁、F6 日志和发布契约回归与门禁合计 76 项通过，见 [CD 验证记录](../cd-branch-release/verification.md#首次-cd-运行的回归修复)。
