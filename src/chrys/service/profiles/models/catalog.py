@@ -2,19 +2,26 @@
 
 """Server-owned model catalog.
 
-``~/.chrys/models/`` has exactly one owner at a time, and there is no merge
-between two sources:
+``~/.chrys/models/`` holds server-synced and user-authored profiles together:
 
 * **A catalog source is configured** (``CHRYS_MODEL_CATALOG_URL``, or a host
-  pushing a catalog over ACP).  Every successful sync *replaces the directory
-  wholesale* — files the catalog no longer contains are deleted — and the
-  directory stops being user-editable.  A failed sync changes nothing.
-* **No catalog source is configured.**  The directory is the user's own, as it
-  has always been: editable, never touched by this module.
+  pushing a catalog over ACP).  Every successful sync rewrites the served
+  profiles, each carrying a ``synced_from_server: true`` marker, and removes
+  only marked files the catalog no longer contains. Any file without that
+  marker — a hand-written YAML that omits it, or one marked ``false`` — is the
+  user's own and survives every sync; the registry re-scans the directory
+  afterwards so it stays visible.  A failed sync changes nothing.
+* **No catalog source is configured.**  Every file is the user's own, editable
+  and never touched by this module.
 
-"Synced once" is sticky: the state file marks the directory as server-owned, so
-a later failed fetch (offline start) degrades to the previous catalog instead of
-silently handing write access back to the user, which the next sync would undo.
+Custom writes (``save_profile()``) leave the file unmarked: only a server sync
+writes the marker.
+
+A sync is sticky through the files, not through this module: the served files
+keep their marker on disk, so a later failed fetch (offline start) degrades to
+the previous catalog instead of turning those files into the user's own, which
+would leave the models the server later drops behind forever. The state file
+records only the last successful sync (version, source, ids) for reporting.
 
 Catalog profiles carry no credentials by default: the host injects provider
 environment variables, matching the desktop host's model-projection behaviour.
@@ -39,10 +46,10 @@ from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
+import yaml
 
 from chrys.foundation.text.yaml_io import dump_yaml
 from chrys.service.profiles.models.schema import (
-    API_STYLE_CHAT_COMPLETIONS,
     VALID_API_STYLES,
     VALID_PROVIDERS,
     ModelProfile,
@@ -129,10 +136,6 @@ class ModelCatalogError(Exception):
     """Raised when a catalog cannot be fetched, parsed or applied."""
 
 
-class ModelCatalogReadOnly(ModelCatalogError):
-    """Raised when a user edit is attempted on a server-owned catalog."""
-
-
 @dataclass(frozen=True)
 class ModelCatalog:
     """One complete, authoritative set of model profiles."""
@@ -171,7 +174,7 @@ class CatalogSyncResult:
 
 
 def catalog_directory() -> Path:
-    """Return the directory a catalog replaces: ``~/.chrys/models``."""
+    """Return the directory catalog profiles live in: ``~/.chrys/models``."""
     from chrys.foundation.platform import get_platform
 
     return get_platform().config_dir / "models"
@@ -246,21 +249,6 @@ def write_catalog_state(state: CatalogState) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def is_catalog_managed() -> bool:
-    """Return whether ``~/.chrys/models`` is owned by a catalog.
-
-    True once a source is configured or a catalog has ever been applied, which
-    is what makes the directory read-only.
-    """
-    return bool(catalog_url()) or read_catalog_state() is not None
-
-
-def require_catalog_writable() -> None:
-    """Reject user edits while a catalog owns the directory."""
-    if is_catalog_managed():
-        raise ModelCatalogReadOnly("Model profiles are managed by the server catalog and cannot be edited locally.")
-
-
 def _profile_field_names() -> set[str]:
     return {field.name for field in fields(ModelProfile)}
 
@@ -268,14 +256,15 @@ def _profile_field_names() -> set[str]:
 def _coerce_version(catalog: ModelCatalog) -> str:
     """Fingerprint the whole item set so a version-less payload still has one.
 
-    Every serialized field is hashed, not just the ids: the catalog owns the
-    directory wholesale, so a change to *any* field — display name, base url,
-    context length — is a change the files have to be rewritten for. Hashing
-    the ids alone would call such a payload "unchanged" and leave the previous
-    values on disk.
+    Every serialized field is hashed, not just the ids: a sync owns the profile
+    fields wholesale, so a change to *any* of them — display name, base url,
+    context length — is a change the served files have to be rewritten for.
+    Hashing the ids alone would call such a payload "unchanged" and leave the
+    previous values on disk.
 
-    What is hashed is exactly what :func:`_write_profile` puts in each YAML, so
-    the fingerprint changes if and only if the directory's content would.
+    What is hashed is exactly the profile fields :func:`_write_profile`
+    serializes — the ``synced_from_server`` marker it adds is not part of the
+    fingerprint — so the fingerprint changes if and only if those fields would.
 
     Order participates: ``items`` is a tuple hashed in its own order, so
     reordering otherwise identical models counts as a change (the rewrite that
@@ -292,15 +281,19 @@ def _coerce_version(catalog: ModelCatalog) -> str:
 
 # ── Server payload translation ───────────────────────────────────────────
 # The server speaks its own client's shape: a ``models`` array of ``title`` /
-# ``model`` / ``apiBase`` / ``contextLength``, with no id and no wire fields
-# (docs/model-catalog-sync-details.md §1.1). It is not ours to change, so the
-# translation lives here: what the payload cannot carry is filled in from the
-# one assumption that makes it derivable — every served model is reached
-# through OpenRouter.
+# ``model`` / ``provider`` / ``apiBase`` / ``contextLength`` /
+# ``completionOptions`` / ``capabilities``, with no id and no wire fields.
+# Only the values iCode consumes are translated: keys already naming a
+# ModelProfile field are copied, the aliases rename the rest, and the nested
+# entries with consumers fill in their profile fields. Everything else
+# is ignored — there is no profile field for it and nothing reads it, so
+# persisting it would only keep a second, drifting copy of data already held.
 
+#: The served catalog names its own client's provider ("openrouter"), which is
+#: not a provider iCode registers. Every served model is reached over the
+#: OpenAI-compatible wire, so the served value is ignored and profiles are
+#: written with this fixed provider instead.
 CONTINUE_PROVIDER = "openai"
-CONTINUE_API_STYLE = API_STYLE_CHAT_COMPLETIONS
-CONTINUE_BASE_URL = "https://openrouter.ai/api/v1"
 
 
 def derive_profile_id(model: str) -> str:
@@ -323,19 +316,104 @@ def _unique_profile_id(base: str, taken: set[str]) -> str:
     return f"{base}-{suffix}"
 
 
-def _positive_int(value: object) -> int:
-    """One payload number, or 0 when it is absent or not a positive integer."""
-    if not isinstance(value, int | float | str):
-        return 0
+#: Server keys whose values land on a profile field under the same meaning but
+#: a different spelling.  Everything else is copied when the key already is a
+#: profile field name; that set comes from :class:`ModelProfile`, so unknown
+#: server keys are ignored instead of being stored for their own sake.
+_CATALOG_FIELD_ALIASES: tuple[tuple[str, str], ...] = (
+    ("title", "name"),
+    ("model", "model_id"),
+    ("apiBase", "base_url"),
+    ("contextLength", "max_context_tokens"),
+)
+
+#: Entries of nested server objects that have a consumer on the profile.
+#: ``completionOptions.reasoning`` and the rest of ``requestOptions`` have none,
+#: so they are not mirrored.
+_CATALOG_NESTED_ALIASES: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
+    ("completionOptions", (("maxTokens", "max_output_tokens"),)),
+    ("capabilities", (("uploadImage", "vision"),)),
+    ("requestOptions", (("verifySsl", "verify_ssl"),)),
+)
+
+#: Never taken from the payload: ``id`` is derived so filenames stay stable and
+#: safe, ``provider`` is fixed to :data:`CONTINUE_PROVIDER`, and credentials are
+#: not the catalog's to hand out.
+_CATALOG_EXCLUDED_KEYS = frozenset({"id", "provider", "apiKey", "api_key"})
+
+#: Flat profile fields the payload supplies as numbers or booleans. ``ModelProfile``
+#: is a plain dataclass with no runtime type checks, so a quoted number or a
+#: misplaced flag would otherwise reach disk unchanged.
+_CATALOG_INT_FIELDS = ("max_context_tokens", "max_output_tokens")
+_CATALOG_BOOL_FIELDS = ("vision", "verify_ssl")
+
+
+def _positive_int(value: object) -> int | None:
+    """Return *value* as a positive integer, or ``None`` when it is not one.
+
+    Booleans are refused even though ``bool`` subclasses ``int``: a JSON
+    ``true`` is a misplaced flag, not a context length of 1. Numeric strings
+    are accepted because the server's own encoder sometimes quotes them.
+    """
+    if isinstance(value, bool):
+        return None
     try:
-        number = int(value)
-    except ValueError:
-        return 0
-    return max(0, number)
+        if isinstance(value, int):
+            number = value
+        elif isinstance(value, float):
+            number = int(value)
+        elif isinstance(value, str):
+            number = int(value.strip())
+        else:
+            return None
+    except ValueError, OverflowError:
+        return None
+    return number if number > 0 else None
+
+
+def _coerce_typed_fields(item: dict[str, Any]) -> None:
+    """Normalize the known numeric/boolean fields in place, dropping bad values.
+
+    A value the server sent with the wrong type is dropped rather than guessed
+    or rejected: the profile then keeps the field's default, and one dirty
+    scalar cannot take the whole sync down.
+    """
+    for field in _CATALOG_INT_FIELDS:
+        if field not in item:
+            continue
+        number = _positive_int(item[field])
+        if number is None:
+            logger.warning("Dropping catalog field %s=%r: not a positive integer.", field, item[field])
+            del item[field]
+        else:
+            item[field] = number
+    for field in _CATALOG_BOOL_FIELDS:
+        if field not in item:
+            continue
+        if not isinstance(item[field], bool):
+            logger.warning("Dropping catalog field %s=%r: not a boolean.", field, item[field])
+            del item[field]
 
 
 def translate_models_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Translate the server's ``models`` payload into iCode-native items.
+
+    Fields :class:`ModelProfile` defines and the runtime consumes are taken
+    from the server, with the few normalizations the real payload needs: the
+    title is trimmed, numeric fields are coerced to positive integers (a
+    non-numeric value is dropped, not guessed), booleans must be real booleans
+    (anything else is dropped), and ``apiBase`` is trimmed — its absence is
+    logged because the request would otherwise silently fall back to the
+    OpenAI default. Keys already named after a profile field are copied, the
+    aliases rename the differently-spelled ones, and the nested ``maxTokens`` /
+    ``uploadImage`` / ``verifySsl`` entries fill in ``max_output_tokens`` /
+    ``vision`` / ``verify_ssl``. Every other value is ignored, including the
+    three nested blocks as whole objects and ``completionOptions.reasoning``.
+    The served ``provider`` is one of them: it names the server's own client,
+    so :data:`CONTINUE_PROVIDER` is used instead.
+
+    ``apiKey`` is not a credential channel either: the key is resolved at send
+    time from the host's environment (service/llm/clients.py).
 
     Returns the shape :func:`parse_catalog` already accepts, so validation
     stays the single gate — translation adds no second path to it.
@@ -344,6 +422,7 @@ def translate_models_payload(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(entries, list):
         raise ModelCatalogError(f"Server catalog 'models' must be a list, got {type(entries).__name__!r}")
 
+    profile_fields = _profile_field_names() - _CATALOG_EXCLUDED_KEYS
     items: list[dict[str, Any]] = []
     taken: set[str] = set()
     for index, entry in enumerate(entries, start=1):
@@ -354,24 +433,36 @@ def translate_models_payload(payload: dict[str, Any]) -> dict[str, Any]:
             raise ModelCatalogError(f"Catalog item {index} has no 'model' to derive a profile id from")
         profile_id = _unique_profile_id(derive_profile_id(model), taken)
         taken.add(profile_id)
-        item: dict[str, Any] = {
-            "id": profile_id,
-            # The real payload's title carries leading whitespace.
-            "name": str(entry.get("title") or model).strip(),
-            "provider": CONTINUE_PROVIDER,
-            "api_style": CONTINUE_API_STYLE,
-            "model_id": model,
-            # ``apiBase`` is optional and often simply absent; the served
-            # models are reached through OpenRouter either way.
-            "base_url": str(entry.get("apiBase") or "").strip() or CONTINUE_BASE_URL,
-            # No ``api_key`` on purpose: the catalog is not a credential
-            # channel, and a key in the profile file would be one more place
-            # for it to leak. The key is resolved at send time from the host's
-            # environment instead (service/llm/clients.py).
-        }
-        context_length = _positive_int(entry.get("contextLength"))
-        if context_length:
-            item["max_context_tokens"] = context_length
+
+        # A key that already is a profile field name is copied as-is (except
+        # the excluded ones); the aliases below then fill in the fields the
+        # server spells differently.
+        item: dict[str, Any] = {key: value for key, value in entry.items() if key in profile_fields}
+        item["id"] = profile_id
+        item["provider"] = CONTINUE_PROVIDER
+        for source_key, field in _CATALOG_FIELD_ALIASES:
+            if source_key in entry:
+                item[field] = entry[source_key]
+        # The ``model`` alias copies the raw value; the stripped one is what the
+        # request must carry, so it is restored after the aliases run.
+        item["model_id"] = model
+        for source_key, field_aliases in _CATALOG_NESTED_ALIASES:
+            nested = entry.get(source_key)
+            if not isinstance(nested, dict):
+                continue
+            for nested_key, field in field_aliases:
+                if nested_key in nested:
+                    item[field] = nested[nested_key]
+        # ``name`` is the one field the profile cannot do without, and the real
+        # payload's title carries leading whitespace.
+        item["name"] = str(item.get("name") or model).strip() or model
+        item["base_url"] = str(item.get("base_url") or "").strip()
+        if not item["base_url"]:
+            # The server is expected to always send apiBase; an empty one would
+            # silently fall back to the OpenAI default (clients.py), so it is
+            # surfaced here instead of only failing at request time.
+            logger.warning("Catalog model %r carries no apiBase; the OpenAI default base URL will be used.", model)
+        _coerce_typed_fields(item)
         items.append(item)
 
     # The server's shape carries no version and no default: the caller
@@ -581,19 +672,57 @@ async def fetch_catalog(url: str | None = None, *, timeout: float = _DEFAULT_FET
     return catalog
 
 
-def _clear_directory(directory: Path) -> int:
-    """Delete every profile file in *directory*.  Returns the count removed."""
+#: Written only into YAML files a server sync produced. A file without it is the
+#: user's own and survives every sync. This is sync-only metadata:
+#: ``ModelProfile`` never carries it and the profile loader ignores it.
+_SYNCED_FROM_SERVER_KEY = "synced_from_server"
+
+
+def _sync_marker(path: Path) -> bool | None:
+    """Return the file's ``synced_from_server`` value, or ``None`` when absent.
+
+    ``None`` covers a missing field, a non-mapping document and an unreadable or
+    malformed file: none of them proves the file is server-owned, so a sync
+    treats them as the user's own. Only a literal ``true`` counts as
+    server-synced; ``false`` and any other value are custom too.
+    """
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except OSError, UnicodeError, yaml.YAMLError:
+        return None
+    if not isinstance(data, dict) or _SYNCED_FROM_SERVER_KEY not in data:
+        return None
+    value = data[_SYNCED_FROM_SERVER_KEY]
+    if value is True:
+        return True
+    if value is False:
+        return False
+    return None
+
+
+def _clear_stale_server_profiles(directory: Path, final_names: set[str]) -> int:
+    """Delete only server-written profiles the new catalog no longer contains.
+
+    A file without ``synced_from_server: true`` — hand-written, marked
+    ``false``, unreadable or malformed — is the user's own and is never removed.
+
+    Returns the number of stale server profiles removed.
+    """
     removed = 0
     for pattern in ("*.yaml", "*.yml"):
         for path in sorted(directory.glob(pattern)):
+            if path.name in final_names or _sync_marker(path) is not True:
+                continue
             path.unlink()
             removed += 1
     return removed
 
 
 def _write_profile(directory: Path, profile: ModelProfile) -> Path:
+    data = _profile_to_dict(profile)
+    data[_SYNCED_FROM_SERVER_KEY] = True
     path = directory / f"{profile.id}.yaml"
-    path.write_text(dump_yaml(_profile_to_dict(profile)), encoding="utf-8")
+    path.write_text(dump_yaml(data), encoding="utf-8")
     if profile.api_key:
         # Credentials were supplied by the catalog: keep them off group/other.
         path.chmod(0o600)
@@ -607,16 +736,24 @@ def _profile_to_dict(profile: ModelProfile) -> dict[str, Any]:
 
 
 def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> CatalogSyncResult:
-    """Replace the whole model directory with *catalog*.
+    """Write *catalog* while leaving the user's own profiles alone.
 
-    The catalog is authoritative: every existing profile file is removed first,
-    then the catalog's profiles are written.  Nothing is merged and nothing
-    outside the catalog survives into the registry.
+    Only files a server sync wrote (they carry ``synced_from_server: true``) are
+    removed when the catalog drops them. Any other YAML — hand-written without
+    the marker, marked ``false``, unreadable or malformed — is the user's own
+    and survives. A user profile sharing an id with a served model is
+    overwritten by the server version.
+
+    Only ``{id}.yaml`` files are written, so only those can be overwritten; a
+    same-id ``{id}.yml`` is never overwritten, but it shadows the served profile
+    after the registry reload, which is logged.
+
+    ``ModelProfileRegistry.replace_profiles()`` re-scans the directory after a
+    sync, so preserved custom profiles also stay visible in the TUI.
 
     Raises:
         ModelCatalogError: if the catalog is unusable or the directory cannot
-            be written.  The directory is only cleared after validation, so a
-            failure here leaves the previous catalog in place.
+            be written.  The directory is only changed after validation.
     """
     if not catalog.items:
         raise ModelCatalogError("Cannot apply an empty model catalog.")
@@ -626,7 +763,22 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
 
     previous_state = read_catalog_state()
     previous_ids = previous_state.profile_ids if previous_state else ()
-    _clear_directory(directory)
+    final_names = {f"{profile.id}.yaml" for profile in catalog.items}
+    overwritten = tuple(
+        sorted(
+            path.stem
+            for path in directory.glob("*.yaml")
+            if path.name in final_names and _sync_marker(path) is not True
+        )
+    )
+    removed_stale = _clear_stale_server_profiles(directory, final_names)
+    # A user's X.yml shadows the server's X.yaml of the same id after the
+    # registry reload (``.yml`` is loaded last), so the ambiguity is surfaced.
+    shadowed = tuple(
+        profile.id
+        for profile in catalog.items
+        if (directory / f"{profile.id}.yml").exists() and _sync_marker(directory / f"{profile.id}.yml") is not True
+    )
     for profile in catalog.items:
         _write_profile(directory, profile)
 
@@ -652,6 +804,15 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
         len(catalog.items),
         source,
     )
+    if removed_stale:
+        logger.info("Removed %d server model profile(s) no longer in the catalog.", removed_stale)
+    if overwritten:
+        logger.warning("Server models overwrote same-id custom profiles: %s", ", ".join(overwritten))
+    if shadowed:
+        logger.warning(
+            "Custom .yml profiles share a served id and will shadow it after reload: %s",
+            ", ".join(shadowed),
+        )
     return result
 
 

@@ -51,6 +51,8 @@ def _user_profiles_dir() -> Path:
 def save_profile(profile: ModelProfile) -> Path:
     """Serialize *profile* to YAML and write to ``~/.chrys/models/{id}.yaml``.
 
+    The file is left unmarked; a catalog sync treats an unmarked file as the
+    user's own. Only a server sync writes the ``synced_from_server`` marker.
     Returns the path written.
     """
     target_dir = _user_profiles_dir()

@@ -121,6 +121,9 @@ def test_save_profile_writes_yaml(fake_config_dir: Path) -> None:
     assert "max_context_tokens" not in loaded
     assert "stream" not in loaded
     assert "vision" not in loaded
+    # The sync marker belongs to server-synced files only: a user save leaves the
+    # file unmarked, which is what tells a later sync the file is the user's own.
+    assert "synced_from_server" not in loaded
 
 
 def test_save_and_load_preserves_env_templates(fake_config_dir: Path) -> None:
