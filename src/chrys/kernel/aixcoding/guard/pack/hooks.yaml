@@ -50,7 +50,7 @@ hooks:
   - id: security-prompt-guard
     event: user_prompt_submit
     enabled: false
-    description: 提示词层安全拦截（反编译/攻击工具、注入 payload、任意 IP 与内网资产、合规类，命中即打断并提示）
+    description: Prompt-layer security interception (decompilers/attack tooling, injection payloads, arbitrary IPs and intranet assets, compliance; a hit interrupts the turn with a notice)
     run:
       type: command
       cwd: ${chrys_home}/hooks
@@ -73,7 +73,7 @@ hooks:
   - id: security-tool-guard
     event: before_tool_call
     enabled: false
-    description: 工具调用前安全拦截（Shell/PowerShell/Python、文件系统、网络、MCP、敏感信息）
+    description: Pre-tool-call security interception (Shell/PowerShell/Python, filesystem, network, MCP, sensitive data)
     run:
       type: command
       cwd: ${chrys_home}/hooks
