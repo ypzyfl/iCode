@@ -2,23 +2,20 @@
 
 """Server-owned model catalog.
 
-``~/.chrys/models/`` holds server-synced and user-authored profiles together,
-but only *new-version* files take part in that coexistence. Every profile YAML
-carries a ``synced_from_server`` marker: ``true`` for a server-synced profile,
-``false`` for a user-authored one.
+``~/.chrys/models/`` holds server-synced and user-authored profiles together:
 
 * **A catalog source is configured** (``CHRYS_MODEL_CATALOG_URL``, or a host
   pushing a catalog over ACP).  Every successful sync rewrites the served
-  profiles as ``synced_from_server: true`` and clears two kinds of file:
-  marked server files the catalog no longer contains, and any file with no
-  marker at all — an old-version config, cleared with no compatibility attempt.
-  Marked custom files (``false``) survive; the registry re-scans the directory
-  afterwards so they stay visible.  A failed sync changes nothing.
+  profiles, each carrying a ``synced_from_server: true`` marker, and removes
+  only marked files the catalog no longer contains. Any file without that
+  marker — a hand-written YAML that omits it, or one marked ``false`` — is the
+  user's own and survives every sync; the registry re-scans the directory
+  afterwards so it stays visible.  A failed sync changes nothing.
 * **No catalog source is configured.**  Every file is the user's own, editable
   and never touched by this module.
 
-Files written before the marker existed are old-version configs: they are not
-preserved as custom profiles and are cleared by the first sync that sees them.
+Custom writes (``save_profile()``) leave the file unmarked: only a server sync
+writes the marker.
 
 "Synced once" is sticky: the state file marks the directory as server-owned, so
 a later failed fetch (offline start) degrades to the previous catalog instead of
@@ -55,7 +52,6 @@ from chrys.service.profiles.models.schema import (
     VALID_PROVIDERS,
     ModelProfile,
 )
-from chrys.service.profiles.models.serializer import SYNCED_FROM_SERVER_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -136,10 +132,6 @@ _DEFAULT_FETCH_TIMEOUT = 3.0
 
 class ModelCatalogError(Exception):
     """Raised when a catalog cannot be fetched, parsed or applied."""
-
-
-class ModelCatalogReadOnly(ModelCatalogError):
-    """Raised when a user edit is attempted on a server-owned catalog."""
 
 
 @dataclass(frozen=True)
@@ -255,21 +247,6 @@ def write_catalog_state(state: CatalogState) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def is_catalog_managed() -> bool:
-    """Return whether ``~/.chrys/models`` is owned by a catalog.
-
-    True once a source is configured or a catalog has ever been applied, which
-    is what makes the directory read-only.
-    """
-    return bool(catalog_url()) or read_catalog_state() is not None
-
-
-def require_catalog_writable() -> None:
-    """Reject user edits while a catalog owns the directory."""
-    if is_catalog_managed():
-        raise ModelCatalogReadOnly("Model profiles are managed by the server catalog and cannot be edited locally.")
-
-
 def _profile_field_names() -> set[str]:
     return {field.name for field in fields(ModelProfile)}
 
@@ -283,8 +260,9 @@ def _coerce_version(catalog: ModelCatalog) -> str:
     the ids alone would call such a payload "unchanged" and leave the previous
     values on disk.
 
-    What is hashed is exactly what :func:`_write_profile` puts in each YAML, so
-    the fingerprint changes if and only if the directory's content would.
+    What is hashed is exactly the profile fields :func:`_write_profile`
+    serializes — the ``synced_from_server`` marker it adds is not part of the
+    fingerprint — so the fingerprint changes if and only if those fields would.
 
     Order participates: ``items`` is a tuple hashed in its own order, so
     reordering otherwise identical models counts as a change (the rewrite that
@@ -460,10 +438,12 @@ def translate_models_payload(payload: dict[str, Any]) -> dict[str, Any]:
         item: dict[str, Any] = {key: value for key, value in entry.items() if key in profile_fields}
         item["id"] = profile_id
         item["provider"] = CONTINUE_PROVIDER
-        item["model_id"] = model
         for source_key, field in _CATALOG_FIELD_ALIASES:
             if source_key in entry:
                 item[field] = entry[source_key]
+        # The ``model`` alias copies the raw value; the stripped one is what the
+        # request must carry, so it is restored after the aliases run.
+        item["model_id"] = model
         for source_key, field_aliases in _CATALOG_NESTED_ALIASES:
             nested = entry.get(source_key)
             if not isinstance(nested, dict):
@@ -690,20 +670,27 @@ async def fetch_catalog(url: str | None = None, *, timeout: float = _DEFAULT_FET
     return catalog
 
 
+#: Written only into YAML files a server sync produced. A file without it is the
+#: user's own and survives every sync. This is sync-only metadata:
+#: ``ModelProfile`` never carries it and the profile loader ignores it.
+_SYNCED_FROM_SERVER_KEY = "synced_from_server"
+
+
 def _sync_marker(path: Path) -> bool | None:
     """Return the file's ``synced_from_server`` value, or ``None`` when absent.
 
     ``None`` covers a missing field, a non-mapping document and an unreadable or
-    malformed file: none of them proves a new-version config, so a sync clears
-    them. Only a literal boolean is meaningful; any other value is old too.
+    malformed file: none of them proves the file is server-owned, so a sync
+    treats them as the user's own. Only a literal ``true`` counts as
+    server-synced; ``false`` and any other value are custom too.
     """
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
     except OSError, UnicodeError, yaml.YAMLError:
         return None
-    if not isinstance(data, dict) or SYNCED_FROM_SERVER_KEY not in data:
+    if not isinstance(data, dict) or _SYNCED_FROM_SERVER_KEY not in data:
         return None
-    value = data[SYNCED_FROM_SERVER_KEY]
+    value = data[_SYNCED_FROM_SERVER_KEY]
     if value is True:
         return True
     if value is False:
@@ -711,35 +698,27 @@ def _sync_marker(path: Path) -> bool | None:
     return None
 
 
-def _clear_obsolete_profiles(directory: Path, final_names: set[str]) -> tuple[int, int]:
-    """Clear old-version configs and server profiles dropped by the new catalog.
+def _clear_stale_server_profiles(directory: Path, final_names: set[str]) -> int:
+    """Delete only server-written profiles the new catalog no longer contains.
 
-    A file with no ``synced_from_server`` field is an old-version config: it is
-    cleared outright, with no compatibility attempt. A file marked ``true``
-    that the new catalog no longer contains is a stale server profile and is
-    cleared too. Custom profiles marked ``false`` always survive.
+    A file without ``synced_from_server: true`` — hand-written, marked
+    ``false``, unreadable or malformed — is the user's own and is never removed.
 
-    Returns ``(cleared_old, removed_stale)``.
+    Returns the number of stale server profiles removed.
     """
-    cleared_old = 0
-    removed_stale = 0
+    removed = 0
     for pattern in ("*.yaml", "*.yml"):
         for path in sorted(directory.glob(pattern)):
-            if path.name in final_names:
+            if path.name in final_names or _sync_marker(path) is not True:
                 continue
-            marker = _sync_marker(path)
-            if marker is None:
-                path.unlink()
-                cleared_old += 1
-            elif marker is True:
-                path.unlink()
-                removed_stale += 1
-    return cleared_old, removed_stale
+            path.unlink()
+            removed += 1
+    return removed
 
 
 def _write_profile(directory: Path, profile: ModelProfile) -> Path:
     data = _profile_to_dict(profile)
-    data[SYNCED_FROM_SERVER_KEY] = True
+    data[_SYNCED_FROM_SERVER_KEY] = True
     path = directory / f"{profile.id}.yaml"
     path.write_text(dump_yaml(data), encoding="utf-8")
     if profile.api_key:
@@ -755,18 +734,17 @@ def _profile_to_dict(profile: ModelProfile) -> dict[str, Any]:
 
 
 def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> CatalogSyncResult:
-    """Write *catalog* while keeping new-version custom profiles.
+    """Write *catalog* while leaving the user's own profiles alone.
 
-    Every new-version YAML carries ``synced_from_server``: ``true`` for a
-    server-synced profile, ``false`` for a user-authored one. Only marked custom
-    profiles survive a sync. A file without the field is an old-version config
-    and is cleared; a marked server profile the catalog drops is removed the
-    same way. A custom profile sharing an id with a served model is overwritten
-    by the server version.
+    Only files a server sync wrote (they carry ``synced_from_server: true``) are
+    removed when the catalog drops them. Any other YAML — hand-written without
+    the marker, marked ``false``, unreadable or malformed — is the user's own
+    and survives. A user profile sharing an id with a served model is
+    overwritten by the server version.
 
-    Only ``{id}.yaml`` files are written, so only those can be overwritten and
-    warned about; ``.yml`` files are scanned only for old-config and stale
-    server cleanup, never written.
+    Only ``{id}.yaml`` files are written, so only those can be overwritten; a
+    same-id ``{id}.yml`` is never overwritten, but it shadows the served profile
+    after the registry reload, which is logged.
 
     ``ModelProfileRegistry.replace_profiles()`` re-scans the directory after a
     sync, so preserved custom profiles also stay visible in the TUI.
@@ -786,10 +764,19 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
     final_names = {f"{profile.id}.yaml" for profile in catalog.items}
     overwritten = tuple(
         sorted(
-            path.stem for path in directory.glob("*.yaml") if path.name in final_names and _sync_marker(path) is False
+            path.stem
+            for path in directory.glob("*.yaml")
+            if path.name in final_names and _sync_marker(path) is not True
         )
     )
-    cleared_old, removed_stale = _clear_obsolete_profiles(directory, final_names)
+    removed_stale = _clear_stale_server_profiles(directory, final_names)
+    # A user's X.yml shadows the server's X.yaml of the same id after the
+    # registry reload (``.yml`` is loaded last), so the ambiguity is surfaced.
+    shadowed = tuple(
+        profile.id
+        for profile in catalog.items
+        if (directory / f"{profile.id}.yml").exists() and _sync_marker(directory / f"{profile.id}.yml") is not True
+    )
     for profile in catalog.items:
         _write_profile(directory, profile)
 
@@ -815,12 +802,15 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
         len(catalog.items),
         source,
     )
-    if cleared_old:
-        logger.info("Cleared %d old-version model profile(s) with no synced_from_server field.", cleared_old)
     if removed_stale:
         logger.info("Removed %d server model profile(s) no longer in the catalog.", removed_stale)
     if overwritten:
         logger.warning("Server models overwrote same-id custom profiles: %s", ", ".join(overwritten))
+    if shadowed:
+        logger.warning(
+            "Custom .yml profiles share a served id and will shadow it after reload: %s",
+            ", ".join(shadowed),
+        )
     return result
 
 

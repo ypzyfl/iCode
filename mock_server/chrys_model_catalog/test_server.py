@@ -67,22 +67,17 @@ async def test_serves_builtin_sample(mock: RunningCatalogMock, direct_route: Non
     response = await _get(_catalog(mock))
     assert response.status_code == 200
     payload = response.json()
-    assert payload["version"] == "mock-1"
-    assert payload["default_profile_id"]
-    assert [item["id"] for item in payload["items"]] == [
-        "mock-local",
-        "cohere-north-mini-code-free",
-        "deepseek-chat",
-        "glm-4-6",
-        "claude-sonnet-4-5",
-    ]
+    # The mock serves the reference server's own shape: a ``models`` array, with
+    # every other top-level key passed through untouched.
+    assert [entry["model"] for entry in payload["models"]] == ["openai/gpt-4o-mini"]
+    assert payload["aa"] == {"test": "as"}
 
 
 async def test_query_string_is_ignored(mock: RunningCatalogMock, direct_route: None) -> None:
     """The client appends scope/userId query params; they must not change the answer."""
-    response = await _get(f"{_catalog(mock)}?scopeType=global&scopeValue=config&format=json&userId=someone")
-    assert response.status_code == 200
-    assert response.json()["version"] == "mock-1"
+    plain = (await _get(_catalog(mock))).json()
+    with_query = (await _get(f"{_catalog(mock)}?scopeType=global&scopeValue=config&format=json&userId=someone")).json()
+    assert with_query == plain
 
 
 async def test_removed_routes_answer_404(mock: RunningCatalogMock, direct_route: None) -> None:
@@ -114,24 +109,24 @@ async def test_unknown_mode_is_rejected(mock: RunningCatalogMock, direct_route: 
     assert "mode" in response.json()["error"]
 
 
-async def test_empty_mode_serves_no_items(mock: RunningCatalogMock, direct_route: None) -> None:
+async def test_empty_mode_serves_no_models(mock: RunningCatalogMock, direct_route: None) -> None:
     await _control(mock, mode="empty")
-    assert (await _get(_catalog(mock))).json()["items"] == []
+    assert (await _get(_catalog(mock))).json()["models"] == []
 
 
-async def test_invalid_mode_serves_an_unusable_profile(mock: RunningCatalogMock, direct_route: None) -> None:
+async def test_invalid_mode_serves_unusable_models(mock: RunningCatalogMock, direct_route: None) -> None:
     await _control(mock, mode="invalid")
-    items = (await _get(_catalog(mock))).json()["items"]
-    assert len(items) == 1
-    assert "/" in items[0]["id"]
+    models = (await _get(_catalog(mock))).json()["models"]
+    assert len(models) == 2
+    assert all(not str(entry.get("model") or "").strip() for entry in models)
 
 
-async def test_stale_mode_pins_version_and_drifts_content(mock: RunningCatalogMock, direct_route: None) -> None:
+async def test_stale_mode_drifts_title_but_keeps_models(mock: RunningCatalogMock, direct_route: None) -> None:
     await _control(mock, mode="stale")
     first = (await _get(_catalog(mock))).json()
     second = (await _get(_catalog(mock))).json()
-    assert first["version"] == second["version"] != "mock-1"
-    assert first["items"] != second["items"]
+    assert [entry["model"] for entry in first["models"]] == [entry["model"] for entry in second["models"]]
+    assert first["models"] != second["models"], "stale drifts the served title"
 
 
 async def test_slow_mode_stalls_before_answering(
@@ -187,8 +182,10 @@ async def test_sample_payload_is_accepted_by_the_client_parser(mock: RunningCata
 
     payload = (await _get(_catalog(mock))).json()
     catalog = parse_catalog(payload)
-    assert len(catalog.items) == 5
-    assert catalog.version == "mock-1"
+    assert len(catalog.items) == 1
+    assert catalog.items[0].id == "openai-gpt-4o-mini"
+    assert catalog.version, "a version-less payload is fingerprinted"
+    assert catalog.version != "mock-1"
 
 
 async def test_empty_and_invalid_payloads_are_refused_by_the_client_parser(

@@ -266,7 +266,7 @@ def test_translation_trims_title_and_gates_dirty_types(caplog: pytest.LogCapture
                 "models": [
                     {
                         "title": "  GLM-5  ",
-                        "model": "GLM-5",
+                        "model": "  GLM-5  ",
                         "apiBase": "  https://example.test/v1  ",
                         "contextLength": "256000",  # quoted number: coerced
                         "completionOptions": {"maxTokens": "16000"},  # quoted number: coerced
@@ -284,6 +284,7 @@ def test_translation_trims_title_and_gates_dirty_types(caplog: pytest.LogCapture
         )["items"]
 
     assert items[0]["name"] == "GLM-5"
+    assert items[0]["model_id"] == "GLM-5", "the alias must not restore the unpadded model"
     assert items[0]["base_url"] == "https://example.test/v1"
     assert items[0]["max_context_tokens"] == 256000
     assert items[0]["max_output_tokens"] == 16000
@@ -325,10 +326,10 @@ def test_sync_marks_its_yaml_and_loader_ignores_the_marker(tmp_path: Path, monke
     assert not hasattr(loaded, "synced_from_server")
 
 
-def test_sync_clears_old_configs_and_keeps_marked_custom_profiles(
+def test_sync_preserves_custom_profiles_and_removes_only_stale_server_profiles(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Only marked new-version files coexist; unmarked old configs are cleared."""
+    """Unmarked and explicitly-custom files survive; a dropped server model does not."""
     from chrys.service.profiles.models.catalog import ModelCatalog, apply_catalog
     from chrys.service.profiles.models.schema import ModelProfile
 
@@ -336,8 +337,16 @@ def test_sync_clears_old_configs_and_keeps_marked_custom_profiles(
     (tmp_path / "custom.yaml").write_text(
         "id: custom\nname: Custom\nmodel_id: my-model\nsynced_from_server: false\n", encoding="utf-8"
     )
-    # Written before the marker existed: an old-version config, cleared outright.
+    (tmp_path / "custom.yml").write_text(
+        "id: custom-yml\nname: Custom Yml\nmodel_id: my-model\nsynced_from_server: false\n", encoding="utf-8"
+    )
+    # Hand-written without the marker: still the user's, never guessed away.
     (tmp_path / "legacy.yaml").write_text("id: legacy\nname: Legacy\nmodel_id: old\n", encoding="utf-8")
+    (tmp_path / "legacy.yml").write_text("id: legacy-yml\nname: Legacy Yml\nmodel_id: old\n", encoding="utf-8")
+    # A marker with the wrong type does not prove server ownership either.
+    (tmp_path / "string-marker.yml").write_text(
+        'id: string-marker\nname: String Marker\nmodel_id: old\nsynced_from_server: "false"\n', encoding="utf-8"
+    )
     (tmp_path / "stale.yaml").write_text(
         "id: stale\nname: Stale\nmodel_id: old\nsynced_from_server: true\n", encoding="utf-8"
     )
@@ -345,14 +354,20 @@ def test_sync_clears_old_configs_and_keeps_marked_custom_profiles(
     apply_catalog(ModelCatalog(items=(ModelProfile(id="server-a", name="Server A", model_id="a"),)))
 
     assert (tmp_path / "custom.yaml").is_file(), "a marked custom profile survives"
-    assert not (tmp_path / "legacy.yaml").exists(), "an unmarked old config is cleared"
+    assert (tmp_path / "custom.yml").is_file(), "a marked custom .yml survives too"
+    assert (tmp_path / "legacy.yaml").is_file(), "an unmarked hand-written YAML survives"
+    assert (tmp_path / "legacy.yml").is_file(), "an unmarked hand-written .yml survives"
+    assert (tmp_path / "string-marker.yml").is_file(), "a non-boolean marker proves nothing, so it survives"
     assert not (tmp_path / "stale.yaml").exists(), "a dropped server model is removed"
     assert (tmp_path / "server-a.yaml").is_file()
 
     registry = ModelProfileRegistry()
     registry.load_profiles(tmp_path)
     assert "custom" in registry.list_ids(), "preserved profiles stay visible in the TUI"
-    assert "legacy" not in registry.list_ids()
+    assert "custom-yml" in registry.list_ids()
+    assert "legacy" in registry.list_ids()
+    assert "legacy-yml" in registry.list_ids()
+    assert "string-marker" in registry.list_ids()
     assert "stale" not in registry.list_ids()
 
 
@@ -394,3 +409,25 @@ def test_sync_overwrites_a_same_id_custom_profile(
     assert loaded.name == "Server A"
     assert "synced_from_server: true" in (tmp_path / "server-a.yaml").read_text(encoding="utf-8")
     assert "overwrote same-id custom profiles" in caplog.text
+
+
+def test_sync_warns_when_a_custom_yml_shadows_a_served_id(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A marked custom .yml is never overwritten, but it shadows the server model."""
+    import logging
+
+    from chrys.service.profiles.models.catalog import ModelCatalog, apply_catalog
+    from chrys.service.profiles.models.schema import ModelProfile
+
+    monkeypatch.setattr(catalog_module, "catalog_directory", lambda: tmp_path)
+    (tmp_path / "server-a.yml").write_text(
+        "id: server-a\nname: Custom Shadow\nmodel_id: mine\nsynced_from_server: false\n", encoding="utf-8"
+    )
+
+    with caplog.at_level(logging.WARNING):
+        apply_catalog(ModelCatalog(items=(ModelProfile(id="server-a", name="Server A", model_id="a"),)))
+
+    assert (tmp_path / "server-a.yaml").is_file(), "the server file is still written"
+    assert (tmp_path / "server-a.yml").is_file(), "a marked custom .yml is never overwritten"
+    assert "will shadow it after reload" in caplog.text
