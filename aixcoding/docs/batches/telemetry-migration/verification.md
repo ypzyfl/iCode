@@ -666,3 +666,12 @@ AIXCODING_EXTENSION_BASE_URL=https://telemetry.invalid \
 现有 Python 3.14.8 下，使用 `uv run --offline --no-sync --no-python-downloads` 执行。修复前在原工作区复现 3 项失败。修复后运行 `pytest -n0 -q --tb=short -p no:cacheprovider tests/architecture/{test_event_declaration_guard,test_hygiene_llm_client_owners,test_test_hygiene,test_trajectory_wait_inventory}.py`，退出 0，**307 项通过**。Ruff 检查和格式检查通过。
 
 埋点专项首跑 61 项通过、6 项失败。失败用例读取本机 `~/.chrys` 下的钩子配置，沙箱拒绝相关写入。随后在同一沙箱内通过测试进程的 platform 配置注入，使用独立临时配置和数据目录复跑 `aixcoding/tests/telemetry`，退出 0，**67 项通过**。统一验证、GitHub Actions 复跑及内网对账仍待完成。
+
+### 2026-11-17 工具执行计时字段下线
+
+用户确认 `tool-detail/update` 无需上报 `executionStartedAt`、`executionFinishedAt`、`executionDurationMs`。方案 §5 字段表和 §6 差异裁决已更新。开始态和终态均省略这三个键。保留 0.28.0 录制样本，对拍仅从旧版期望的 `tool-detail/update` 请求体剔除这三项，其余字段、端点和顺序仍逐条比较。HTTP mock 同时校验重复工具 ID、终态重建和省略字段。
+
+- 使用现有 `.venv` 的 Python 3.14.8，uv 提示项目要求 3.14.10。改编码前，`pytest -n0 -q aixcoding/tests/telemetry/test_tool_reports.py -k 'recorded_reports or structured_metadata'` 退出 1，两项都因开始态仍含计时字段而失败。
+- 改编码后，`pytest -n0 -q aixcoding/tests/telemetry` 首跑退出 1，66 项通过、6 项失败。失败用例加载了本机 `~/.chrys` 钩子，相关写入被沙箱拒绝。保持原权限，在测试进程内使用 `dataclasses.replace` 将平台的 `config_dir` 和 `data_dir` 指向同一个独立临时目录，清除 `get_platform` 缓存，再用 `pytest.main(["-n0", "-q", "aixcoding/tests/telemetry"])` 复跑，退出 0，**72 项通过**。两次均用 `UV_CACHE_DIR=/tmp/icode-telemetry-timing-uv AIXCODING_EXTENSION_BASE_URL=https://telemetry.invalid uv run --offline --no-sync --no-python-downloads` 启动。内网入库对账仍待验证。
+- 本次五个 Python 文件的 `ruff check --no-fix`、`ruff format --check` 以及 `python aixcoding/tools/check_docs.py --closure` 均退出 0。差异空白检查 `git diff --check` 退出 0。
+- 使用同一 uv 参数运行 `pytest -n0 -q tests/architecture/test_trajectory_wait_inventory.py tests/architecture/test_layering.py`，退出 0，**280 项通过**。

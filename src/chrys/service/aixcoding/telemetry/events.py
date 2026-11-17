@@ -140,7 +140,6 @@ class TelemetryEvents:
             request_id=source.request_id if source else "",
             span_id=source.span_id if source else "",
             parent_span_id=source.parent_span_id if source else "",
-            started_at=event.timestamp.isoformat() if event.timestamp is not None else None,
         )
         self._starts[key] = _Started(tool, common, git)
         if len(self._starts) > _LIMIT:
@@ -173,15 +172,7 @@ class TelemetryEvents:
             if started is not None
             else ToolStart(session_id, event.provider_call_id or event.call_id, event.tool_name, "", {})
         )
-        self.delivery.submit(
-            tool_finished(
-                tool,
-                event.metadata,
-                duration_ms=event.duration_ms,
-                result=event.result,
-                finished_at=event.timestamp.isoformat() if event.timestamp is not None else None,
-            )
-        )
+        self.delivery.submit(tool_finished(tool, event.metadata, result=event.result))
         if started is not None and (
             report := code_save(
                 tool,

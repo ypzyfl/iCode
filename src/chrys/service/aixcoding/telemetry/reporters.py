@@ -1,6 +1,6 @@
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 
-"""Encode independent tool reports using the 0.28.0 wire contract."""
+"""Encode independent tool reports using the enterprise telemetry contract."""
 
 from __future__ import annotations
 
@@ -53,7 +53,6 @@ class ToolStart:
     request_id: str = ""
     span_id: str = ""
     parent_span_id: str = ""
-    started_at: str | None = None
 
     def identity(self) -> dict[str, object]:
         return {"funcId": self.call_id, "funcName": self.tool_name}
@@ -86,9 +85,7 @@ def tool_started(start: ToolStart, *, common: Mapping[str, object], full_mode: b
             save["fileName"] = relative_file_name(path, start.workspace_cwd)
     if start.agent_name:
         save["agentName"] = start.agent_name
-    return Report(TOOL_DETAIL_SAVE, save), Report(
-        TOOL_DETAIL_UPDATE, {**start.identity(), "codeStatus": 3, "executionStartedAt": start.started_at}
-    )
+    return Report(TOOL_DETAIL_SAVE, save), Report(TOOL_DETAIL_UPDATE, {**start.identity(), "codeStatus": 3})
 
 
 def _tool_value(start: ToolStart, full_mode: bool) -> str | None:
@@ -119,9 +116,7 @@ def tool_finished(
     start: ToolStart,
     metadata: Mapping[str, Any],
     *,
-    duration_ms: int,
     result: str = "",
-    finished_at: str | None = None,
 ) -> Report:
     """Encode the terminal update and any recorded file line counts."""
     code_status, failure_type = _outcome(metadata)
@@ -129,13 +124,8 @@ def tool_finished(
         **start.identity(),
         "codeStatus": code_status,
         "status": int(code_status == 1),
-        "executionDurationMs": duration_ms,
         **line_counts(metadata),
     }
-    if start.started_at is not None:
-        payload["executionStartedAt"] = start.started_at
-    if finished_at is not None:
-        payload["executionFinishedAt"] = finished_at
     if failure_type is not None:
         payload["failureType"] = failure_type
     if code_status != 1 and (error := result.strip()):

@@ -18,7 +18,7 @@
 
 验收分为三个等级，实施报告逐项列出，不合并成一个“兼容”结论。
 
-1. 必须一致。接口路径、字段类型、缺省规则、枚举、事件粒度、同次调用关联和逐次编辑算法。
+1. 除 §6 已裁决的差异外，接口路径、字段结构与类型、缺省规则、枚举、事件粒度、同次调用关联和逐次编辑算法必须一致。
 2. 允许自然变化。随机 ID 的具体值、真实运行时间、耗时、目标版本号，以及不同模型响应带来的实际业务值。只允许规范化具体值，不允许隐藏字段缺失、错挂、漏报或重报。
 3. 待确认的历史偏差。旧版缺陷和新版新增能力单独登记，须明确批准后调整口径。
 
@@ -204,7 +204,7 @@ ACP prompt 入站校验 ide-name、ide-version、function-name、selected-agent�
 | --- | --- |
 | 模型 body.telemetry | requestId、sessionId、spanId（有值才写）、eventType=llm、eventSubType=agent/system、channelType、channelName=icode、channelVersion（有值才写）、pluginVersion、projectName、gitRemote/gitBranch/gitRevision/gitOwner/gitRepo（有值才写）；agentName 仅非 desktop 且有实际 profile 时写。parentSpanId 实际未写出 |
 | tool-detail/save | funcId=provider ID 优先/内部 ID fallback，funcName=原工具名，funcType=MCP 1/其余 3，sessionId、requestId/spanId/parentSpanId（关联存在才写）、value、fileName、agentName 和共同字段 |
-| tool-detail/update | funcId、funcName、codeStatus，开始态带 executionStartedAt；终态增加 status=成功1/其余0、executionDurationMs、executionStartedAt/FinishedAt、failureType、funcErrorMessage、originalLines/addedLines/deletedLines（可用时才写） |
+| tool-detail/update | 开始态写 funcId、funcName、codeStatus；终态增加 status=成功1/其余0、failureType、funcErrorMessage、originalLines/addedLines/deletedLines（可用时才写） |
 | 技能 saveOnly | funcType=0、funcName=技能名、sessionId、agentName、共同字段。模型 load_skill 的附加记录可带 requestId/spanId；slash 输入记录不带 requestId、不带 funcId、不发 update |
 | 选定 Agent saveOnly | funcType=1001、funcId=UUID、funcName=所选 Agent 名、agentName=desktop functionName、sessionId、requestId、spanId、共同字段。不输出 agentMarketSkillId，它只是有效性校验条件 |
 | ai-code/save | reportId、filepath、blocks[{snippet,rangeStart,rangeEnd}]、sourceType=edit、inputMethod=ai_generated、sessionId、codeStatus、language、requestId/spanId、agentName、remoteUrl/branch/gitUserName/gitUserEmail 和共同字段 |
@@ -225,10 +225,11 @@ ACP prompt 入站校验 ide-name、ide-version、function-name、selected-agent�
 
 ## 6. 历史偏差及差异裁决
 
-| 项目 | 初始迁移策略 | 必须确认的点 |
+| 项目 | 迁移策略 | 确认事项或裁决 |
 | --- | --- | --- |
 | 产品品牌变化 | LLM 搭车的 channelName 固定 icode；独立上报的 CLI 用 icode、desktop 用旧渠道名；TUI tool-detail 的 channelVersion 取引擎版本 | 新 CLI 品牌不自动改后台维度；旧查询 chrys 分发导致0.0.0的情形标为修正候选 |
 | 取消无 Result | 保留旧 PENDING 观察语义，内部诊断记录取消 | 如要新增 cancelled 终态，单独批准，不能混入等价迁移 |
+| 工具执行计时字段 | `tool-detail/update` 的开始态和终态均省略 `executionStartedAt`、`executionFinishedAt`、`executionDurationMs` | 2026-11-17 确认这三个字段无需上报。对拍保留 0.28.0 原始样本，仅在该端点的期望值中排除这三项 |
 | rollback/fork/replay | 历史展示和恢复不重新上报，实际新执行照报 | 旧已报生成事件不因 rollback 自动撤销，净留存另设指标 |
 | 旧 session latest fallback | 按 §4.3 修正失败和并发错挂，正常和续读按旧口径对拍 | 无法归属时三个关联字段允许缺省。验收检查工具记录条数、状态顺序以及后台按请求关联时缺省字段的处理 |
 | slash span/workspace | 保留旧编码和缺省规则，普通输入和追加输入各录制一组 | 后续若修改 slash 的归属口径，单独列入差异裁决 |

@@ -14,11 +14,15 @@ from aixcoding.tests.telemetry._engine import mock_provider_profile, run_tool_re
 from aixcoding.tests.telemetry._responses import Script, call_item, mcp_item, resp_message
 
 
-def test_consecutive_edits_match_recorded_reports() -> None:
+def test_consecutive_edits_match_recorded_reports_except_removed_timing_fields() -> None:
     from chrys.service.aixcoding.telemetry.reporters import ToolStart, code_save, tool_finished, tool_started
 
     fixture = Path(__file__).with_name("fixtures") / "sdk-retry-and-repeated-edit.json"
     recorded = json.loads(fixture.read_text(encoding="utf-8"))["old_reports"]
+    for report in recorded:
+        if report["path"].endswith("/tool-detail/update"):
+            for field in ("executionStartedAt", "executionFinishedAt", "executionDurationMs"):
+                report["body"].pop(field, None)
     common = {"pluginVersion": "0.28.0", "channelType": "cli", "channelName": "icode", "projectName": "old-work"}
     actual = []
     for index, (before, after) in enumerate((("alpha", "beta"), ("beta", "alpha"))):
@@ -32,11 +36,10 @@ def test_consecutive_edits_match_recorded_reports() -> None:
             agent_name="Code",
             request_id="<requestId-1>",
             parent_span_id="<parentSpanId-2>",
-            started_at="<timestamp>",
         )
         metadata = {"file_snapshot": (before + "\n", after + "\n"), "file_mutation_op": "modify"}
         actual.extend(tool_started(start, common=common))
-        actual.append(tool_finished(start, metadata, duration_ms=0, finished_at="<timestamp>"))
+        actual.append(tool_finished(start, metadata))
         actual.append(code_save(start, metadata, common=common, report_id=f"<reportId-{3 + index}>"))
     assert [
         {"path": f"/csas/telemetry/api/v1/{report.endpoint}", "body": report.payload}
@@ -48,7 +51,7 @@ def test_consecutive_edits_match_recorded_reports() -> None:
 def test_failure_uses_structured_metadata_and_preserves_missing_fields() -> None:
     from chrys.service.aixcoding.telemetry.reporters import ToolStart, code_save, tool_finished, tool_started
 
-    start = ToolStart("s", "local", "write_file", "filesystem.write", {"path": "new.py"}, started_at="start")
+    start = ToolStart("s", "local", "write_file", "filesystem.write", {"path": "new.py"})
     save, pending = tool_started(start, common={}, full_mode=False)
     assert save.payload == {
         "funcId": "local",
@@ -57,16 +60,14 @@ def test_failure_uses_structured_metadata_and_preserves_missing_fields() -> None
         "sessionId": "s",
         "fileName": "new.py",
     }
-    assert pending.payload["codeStatus"] == 3
+    assert pending.payload == {"funcId": "local", "funcName": "write_file", "codeStatus": 3}
     metadata = {"shell_timed_out": True}
-    failed = tool_finished(start, metadata, duration_ms=9, result="Error: timed out")
+    failed = tool_finished(start, metadata, result="Error: timed out")
     assert failed.payload == {
         "funcId": "local",
         "funcName": "write_file",
         "codeStatus": 2,
         "status": 0,
-        "executionDurationMs": 9,
-        "executionStartedAt": "start",
         "failureType": "timeout",
         "funcErrorMessage": "Error: timed out",
     }

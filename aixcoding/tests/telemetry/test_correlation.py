@@ -145,10 +145,9 @@ async def test_same_session_hosted_events_keep_their_actual_sources_when_interle
     assert {body["funcId"] for body in saves} == {"shared-provider-id"}
     updates = [body for path, body in received if path == "tool-detail/update"]
     assert [body["codeStatus"] for body in updates] == [3, 3, 1, 1, 1]
-    assert all("executionStartedAt" in body for body in updates[2:4])
-    assert updates[-1]["funcId"] == "unseen-provider"
-    assert updates[-1]["executionDurationMs"] == 7
-    assert "executionStartedAt" not in updates[-1]
+    assert [body["funcId"] for body in updates] == ["shared-provider-id"] * 4 + ["unseen-provider"]
+    for body in updates:
+        assert {"executionStartedAt", "executionFinishedAt", "executionDurationMs"}.isdisjoint(body)
 
 
 async def test_workflow_retry_does_not_re_report_the_tool_from_the_recovered_attempt(

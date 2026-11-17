@@ -84,7 +84,7 @@ async def test_file_boundaries_on_the_wire(tmp_path, telemetry_engine, telemetry
 def test_raw_binary_snapshots_omit_text_line_counts_and_code() -> None:
     tool = ToolStart("session", "binary", "write_file", "filesystem.write", {"path": "sample.bin"})
     metadata = {"file_snapshot": (b"\x00before", b"\x00after"), "file_mutation_op": "modify"}
-    terminal = tool_finished(tool, metadata, duration_ms=0)
+    terminal = tool_finished(tool, metadata)
     assert terminal.payload["codeStatus"] == 1
     assert not {"originalLines", "addedLines", "deletedLines"}.intersection(terminal.payload)
     assert code_save(tool, metadata, common={}) is None
