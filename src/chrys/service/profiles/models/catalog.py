@@ -17,9 +17,11 @@
 Custom writes (``save_profile()``) leave the file unmarked: only a server sync
 writes the marker.
 
-"Synced once" is sticky: the state file marks the directory as server-owned, so
-a later failed fetch (offline start) degrades to the previous catalog instead of
-silently handing write access back to the user, which the next sync would undo.
+A sync is sticky through the files, not through this module: the served files
+keep their marker on disk, so a later failed fetch (offline start) degrades to
+the previous catalog instead of turning those files into the user's own, which
+would leave the models the server later drops behind forever. The state file
+records only the last successful sync (version, source, ids) for reporting.
 
 Catalog profiles carry no credentials by default: the host injects provider
 environment variables, matching the desktop host's model-projection behaviour.

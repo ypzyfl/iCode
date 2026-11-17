@@ -372,7 +372,7 @@ def test_sync_preserves_custom_profiles_and_removes_only_stale_server_profiles(
 
 
 def test_a_saved_custom_profile_survives_a_later_sync(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The custom write path and the sync agree on the marker, so both coexist."""
+    """A saved profile carries no marker, so a later sync leaves it alone."""
     from chrys.service.profiles.models.catalog import ModelCatalog, apply_catalog
     from chrys.service.profiles.models.schema import ModelProfile
     from chrys.service.profiles.models.serializer import save_profile
