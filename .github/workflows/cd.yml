@@ -13,7 +13,7 @@ on:
         default: main
       # AIxCoding branch release: opt-in dispatch input
       publish_branch_release:
-        description: 'Publish a GitHub pre-release for the selected 0.35.2 branch'
+        description: 'Publish a GitHub pre-release for the selected AIxCoding version branch'
         type: boolean
         default: false
       platform:
@@ -56,9 +56,8 @@ jobs:
           if [[ "$PUBLISH_BRANCH_RELEASE" == "true" ]]; then
             if [[ "$GITHUB_REPOSITORY" != "ypzyfl/iCode" || "$GITHUB_REF_TYPE" != "branch" ||
                   "$BUILD_REF" != "$GITHUB_REF_NAME" ||
-                  ( "$GITHUB_REF_NAME" != "main_aixcoding_cli_0.35.2" &&
-                    "$GITHUB_REF_NAME" != "main_aixcoding_cli_0.35.2_final" ) ]]; then
-              echo "::error::Select the same AIxCoding 0.35.2 branch in the dispatch branch and ref input."
+                  ! "$GITHUB_REF_NAME" =~ ^main_aixcoding_cli_[0-9]+\.[0-9]+\.[0-9]+(_final)?$ ]]; then
+              echo "::error::Select the same AIxCoding version branch in the dispatch branch and ref input."
               exit 1
             fi
             BUILD_REF="$GITHUB_SHA"

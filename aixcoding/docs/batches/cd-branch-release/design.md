@@ -5,6 +5,8 @@
 - 确认日期： 2026-11-17
 - 确认意见：无
 
+> 适用分支已由责任人补签扩展为通用版本分支，见 [补充设计](design-supplement.md)。下文保留首次签认的 0.35.2 范围。
+
 ## 方案概述
 
 在 `ypzyfl/iCode` 的 CD 手动触发界面增加 `publish_branch_release`，缺省关闭。勾选且运行分支与 `ref` 一致时，允许从 `main_aixcoding_cli_0.35.2` 或 `main_aixcoding_cli_0.35.2_final` 创建 GitHub Pre-release。CI、wheel、二进制和发布标签指向同一次触发的 SHA。标签由 wheel 版本、运行 ID 和运行次数生成。上传本次构建的压缩包、wheel 和 SHA256SUMS.txt。正式标签和 PyPI 路径沿用原规则。
