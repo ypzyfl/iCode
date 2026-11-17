@@ -75,13 +75,16 @@ def test_headless_command_reports_first_tool_and_drains_at_exit(
     assert save["requestId"] == first["requestId"]
     assert save["sessionId"] == first["sessionId"] == output["session_id"]
     assert save["channelName"] == "icode"
-    assert "channelVersion" not in save
+    assert first["channelVersion"] == first["pluginVersion"]
+    assert save["channelVersion"] == save["pluginVersion"]
     assert [request.url.path.split("/api/v1/")[1] for request in telemetry_capture.requests] == [
         "tool-detail/save",
         "tool-detail/update",
         "tool-detail/update",
         "ai-code/save",
     ]
+    generated = json.loads(telemetry_capture.requests[-1].content)
+    assert generated["channelVersion"] == generated["pluginVersion"]
     (client,) = telemetry_capture.clients
     assert client.is_closed
 

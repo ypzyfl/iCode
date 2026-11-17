@@ -210,7 +210,7 @@ ACP prompt 入站校验 ide-name、ide-version、function-name、selected-agent�
 | 技能 saveOnly | funcType=0、funcName=技能名、sessionId、agentName、共同字段。模型 load_skill 的附加记录可带 requestId/spanId；slash 输入记录不带 requestId、不带 funcId、不发 update |
 | 选定 Agent saveOnly | funcType=1001、funcId=UUID、funcName=所选 Agent 名、agentName=desktop functionName、sessionId、requestId、spanId、共同字段。不输出 agentMarketSkillId，它只是有效性校验条件 |
 | ai-code/save | reportId、filepath、blocks[{snippet,rangeStart,rangeEnd}]、sourceType=edit、inputMethod=ai_generated、sessionId、codeStatus、language、requestId/spanId、agentName、remoteUrl/branch/gitUserName/gitUserEmail 和共同字段 |
-| 共同字段 | pluginVersion、userId、channelType/channelName/channelVersion、projectName、gitRemote/gitBranch/gitRevision/gitOwner/gitRepo；空值是否省略按旧编码器 |
+| 共同字段 | pluginVersion、userId、channelType/channelName/channelVersion、projectName、gitRemote/gitBranch/gitRevision/gitOwner/gitRepo。CLI 的 channelVersion 等于 pluginVersion；其他渠道使用各自提供的版本，空值仍省略 |
 
 以下细则必须保留。
 
@@ -229,7 +229,8 @@ ACP prompt 入站校验 ide-name、ide-version、function-name、selected-agent�
 
 | 项目 | 迁移策略 | 确认事项或裁决 |
 | --- | --- | --- |
-| 产品品牌变化 | LLM 搭车的 channelName 固定 icode；独立上报的 CLI 用 icode、desktop 用旧渠道名；TUI tool-detail 的 channelVersion 取引擎版本 | 新 CLI 品牌不自动改后台维度；旧查询 chrys 分发导致0.0.0的情形标为修正候选 |
+| 产品品牌变化 | LLM 搭车的 channelName 固定 icode；独立上报的 CLI 用 icode、desktop 用旧渠道名 | 新 CLI 品牌不自动改后台维度；旧查询 chrys 分发导致0.0.0的情形标为修正候选 |
+| CLI 渠道版本 | CLI 的模型埋点及使用共同字段的独立上报均写 `channelVersion = pluginVersion`，覆盖 TUI、headless 和以 CLI 身份运行的 ACP | 新口径允许与 0.28.0 省略该字段的报文不同。桌面等其他渠道仍使用各自版本；`tool-detail/update` 的状态更新报文没有版本字段 |
 | 取消无 Result | 保留旧 PENDING 观察语义，内部诊断记录取消 | 如要新增 cancelled 终态，单独批准，不能混入等价迁移 |
 | 工具执行计时字段 | `tool-detail/update` 的开始态和终态均省略 `executionStartedAt`、`executionFinishedAt`、`executionDurationMs` | 2026-11-17 确认这三个字段无需上报。对拍保留 0.28.0 原始样本，仅在该端点的期望值中排除这三项 |
 | rollback/fork/replay | 历史展示和恢复不重新上报，实际新执行照报 | 旧已报生成事件不因 rollback 自动撤销，净留存另设指标 |

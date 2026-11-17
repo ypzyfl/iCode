@@ -166,6 +166,7 @@ async def test_other_model_protocols_send_the_legacy_telemetry_body(
         "eventSubType": "agent",
         "channelType": "cli",
         "channelName": "icode",
+        "channelVersion": __version__,
         "pluginVersion": __version__,
         "agentName": "TelemetryWriter",
         "projectName": tmp_path.name,

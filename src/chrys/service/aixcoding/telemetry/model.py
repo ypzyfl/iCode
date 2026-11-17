@@ -159,8 +159,8 @@ class TelemetryModelMiddleware(ChatMiddleware):
         }
         if source.span_id:
             payload["spanId"] = source.span_id
-        if channel.version:
-            payload["channelVersion"] = channel.version
+        if channel_version := channel.reported_version(__version__):
+            payload["channelVersion"] = channel_version
         if source.agent_name and channel.type != "desktop":
             payload["agentName"] = source.agent_name
         if source.workspace_cwd:

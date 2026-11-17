@@ -113,6 +113,9 @@ class Channel:
     name: str
     version: str | None = None
 
+    def reported_version(self, plugin_version: str) -> str | None:
+        return plugin_version if self.type == "cli" else self.version
+
 
 def detect_channel(argv: Sequence[str] | None = None) -> Channel:
     args = iter((sys.argv if argv is None else argv)[1:])
@@ -155,7 +158,6 @@ def common_fields(
     channel: Channel,
     user_id: str | None = None,
     git: GitInfo | None = None,
-    tool_detail: bool = False,
     version: str = __version__,
 ) -> dict[str, str]:
     """Encode shared fields from captured facts, without performing I/O."""
@@ -169,10 +171,7 @@ def common_fields(
     }
     if user_id:
         fields["userId"] = user_id
-    channel_version = (
-        version if tool_detail and channel.type == "cli" and channel.name == "icode-tui" else channel.version
-    )
-    if channel_version:
+    if channel_version := channel.reported_version(version):
         fields["channelVersion"] = channel_version
     if git is not None:
         fields.update(

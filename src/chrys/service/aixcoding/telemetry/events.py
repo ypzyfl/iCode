@@ -144,13 +144,10 @@ class TelemetryEvents:
         self._starts[key] = _Started(tool, common, git)
         if len(self._starts) > _LIMIT:
             self._starts.popitem(last=False)
-        tool_common = dict(common)
-        if channel.type == "cli" and channel.name == "icode-tui":
-            tool_common["channelVersion"] = common["pluginVersion"]
-        for report in tool_started(tool, common=tool_common, full_mode=self.settings.full_mode):
+        for report in tool_started(tool, common=common, full_mode=self.settings.full_mode):
             self.delivery.submit(report)
         if tool.tool_name == "load_skill" and isinstance(skill := tool.args.get("skill_name"), str) and skill.strip():
-            self.report_skill(skill.strip(), session_id, agent_name, tool_common, tool.correlation())
+            self.report_skill(skill.strip(), session_id, agent_name, common, tool.correlation())
 
     async def tool_result(self, event: InvocationToolCallResult) -> None:
         session_id = event.session_id or event.origin.session_id
@@ -219,7 +216,6 @@ def report_skill_reference(name: str, session_id: str, agent_name: str, cwd: str
         channel=channel,
         user_id=telemetry_user_id(events.settings),
         git=latest.git if latest is not None and latest.workspace_cwd == cwd else None,
-        tool_detail=True,
     )
     correlation: dict[str, object] = {"spanId": latest.span_id} if latest is not None and latest.span_id else {}
     events.report_skill(name, session_id, agent_name, common, correlation)
@@ -234,7 +230,6 @@ def report_desktop_usage(name: str, source: ModelSource) -> bool:
             channel=source.channel,
             user_id=telemetry_user_id(events.settings),
             git=source.git,
-            tool_detail=True,
         ),
         "funcId": str(uuid4()),
         "funcType": 1001,

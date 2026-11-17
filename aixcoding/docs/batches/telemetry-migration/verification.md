@@ -682,3 +682,11 @@ TUI 自动标题客户端没有构建期工作区，模型埋点此前省略 `pr
 
 - 在真实标题请求链路的 HTTP mock 中，将会话工作区与进程目录分开。修复前，`pytest -n0 -q aixcoding/tests/telemetry/test_model_wire.py -k title_request` 退出 1，报文缺 `projectName`。修复后，同文件 23 项通过，退出 0。回归同时断言项目名、Git 分支和 revision、会话 ID、系统调用类型及无轮次时的 `spanId` 缺省。
 - 使用本页上一节的独立临时配置方式运行 `pytest -n0 -q aixcoding/tests/telemetry`，73 项通过，退出 0。运行 `pytest -n0 -q tests/architecture/test_trajectory_wait_inventory.py tests/architecture/test_layering.py`，280 项通过，退出 0。均使用现有 Python 3.14.8 和 `uv run --offline --no-sync --no-python-downloads`，项目目标仍为 3.14.10。Ruff 检查与格式检查、`check_docs.py --closure`、`git diff --check` 通过。内网入库尚未核对。
+
+### 2026-11-17 CLI 渠道版本口径调整
+
+按新口径，CLI 模型埋点与携带共同字段的独立上报均以 `pluginVersion` 填充 `channelVersion`。非 CLI 渠道继续使用来源版本。旧样本保持原样，工具状态更新报文继续按工具身份与状态字段编码。
+
+- 修复前，`pytest -n0 -q aixcoding/tests/telemetry/test_entrypoints.py -k first_tool` 退出 1，headless 模型请求缺少 `channelVersion`。
+- 修复后，在独立临时配置下执行 `pytest -n0 -q aixcoding/tests/telemetry`，退出 0，73 项通过。headless 实际 HTTP mock 检查模型、工具保存及代码保存三份请求，桌面 ACP 双会话回归检查各自来源版本。实际使用 Python 3.14.8，经 `uv run --offline --no-sync --no-python-downloads` 启动，项目要求 3.14.10。Ruff、文档闭环和差异空白检查均通过。
+- `pytest -n0 -q tests/architecture/test_trajectory_wait_inventory.py::test_wait_manifest_matches_source` 退出 0，一项通过。
