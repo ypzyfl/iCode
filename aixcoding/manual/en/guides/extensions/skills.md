@@ -1,34 +1,34 @@
 # Install and use skills
 
-A skill is a reusable set of instructions that can include reference materials and scripts to extend an agent's ability to handle specific tasks. This guide explains how to install skills for agents of the "Built-in" type, confirm that they have loaded, and use them. Support for skills and their configuration in external ACP agents is determined by the external agent.
+A skill is a reusable set of instructions that can include reference materials and scripts to extend an agent's ability to handle specific tasks. This guide explains how to install skills for agents of the "Built-in" type, confirm that they have loaded, and use them.
 
 ## Skill installation locations
 
 Choose an installation location based on where the skill should be available and whether it needs to be shared:
 
-| Location | When to use it | How iCode loads it |
+| Location | When to use it | How AIxCoding-CLI loads it |
 | --- | --- | --- |
-| iCode user skills directory | Make skills available to all agents of the "Built-in" type in iCode | Always loaded automatically |
-| Agent Skills shared directory | Share skills between iCode and other tools that support Agent Skills | Loaded automatically by default; can be disabled per agent |
+| AIxCoding-CLI user skills directory | Make skills available to all agents of the "Built-in" type in AIxCoding-CLI | Always loaded automatically |
+| Agent Skills shared directory | Share skills between AIxCoding-CLI and other tools that support Agent Skills | Loaded automatically by default; can be disabled per agent |
 | `<working-directory>/.agents/skills` | Make skills available only in the current working directory | Loaded only after you turn on “Load project skills”; can also be disabled per agent |
 | Custom directory | Load skills from a specific location | Must be added manually to the corresponding agent's configuration |
 
-Here, `<working-directory>` is the current working directory. Skills in a working directory come with the repository, so iCode does not load them until you turn on “Load project skills” under “Settings → Safety → Project trust” (`project.skills_enabled`). When the working directory has skills that are not loaded, iCode shows a notice. When you switch working directories, iCode reloads the skills from the new working directory.
+Here, `<working-directory>` is the current working directory. Skills in a working directory come with the repository, so AIxCoding-CLI does not load them until you turn on “Load project skills” under “Settings → Safety → Project trust” (`project.skills_enabled`). When the working directory has skills that are not loaded, AIxCoding-CLI shows a notice. When you switch working directories, AIxCoding-CLI reloads the skills from the new working directory.
 
 The two user-level skills directories have the following paths on each platform:
 
 | Directory | macOS and Linux | Windows |
 | --- | --- | --- |
-| iCode user skills directory | `~/.chrys/skills` | `%APPDATA%\chrys\skills` |
+| AIxCoding-CLI user skills directory | `~/.chrys/skills` | `%APPDATA%\chrys\skills` |
 | Agent Skills shared directory | `~/.agents/skills` | `%USERPROFILE%\.agents\skills` |
 
 For the first three installation locations, copy or move the skill directory to the corresponding location. For a custom directory, there is no need to move the skill; add its directory to the corresponding agent's configuration.
 
-iCode searches for `SKILL.md` files in configured skills directories and up to two levels of subdirectories. Once it finds a `SKILL.md`, it recognizes the containing directory as a skill directory and stops searching for nested skills within it.
+AIxCoding-CLI searches for `SKILL.md` files in configured skills directories and up to two levels of subdirectories. Once it finds a `SKILL.md`, it recognizes the containing directory as a skill directory and stops searching for nested skills within it.
 
 ## Install and enable skills
 
-The iCode user skills directory is always loaded automatically. The Agent Skills shared directory is also loaded automatically by default. The current working directory's skills directory loads once “Load project skills” is on. If a source has been disabled in the agent's configuration, enable it again. For a custom directory, add it to the corresponding agent's configuration.
+The AIxCoding-CLI user skills directory is always loaded automatically. The Agent Skills shared directory is also loaded automatically by default. The current working directory's skills directory loads once “Load project skills” is on. If a source has been disabled in the agent's configuration, enable it again. For a custom directory, add it to the corresponding agent's configuration.
 
 To define an inline skill without files directly in an agent's YAML, see [Agent profile reference](../../reference/agent-profile.md#skillsinline).
 
@@ -49,13 +49,13 @@ To check or adjust an agent's skill configuration:
 5. To adjust the maximum runtime for skill scripts, enter a positive integer in "Script Execution Timeout (seconds)".
 6. Click "Save".
 
-> **Note**: Skill scripts run as local processes without sandbox isolation. Before installing a third-party skill, inspect its `SKILL.md`, scripts, and other related files, and install skills only from trusted sources. iCode runs skill scripts through the `run_skill_script` tool. Whether this tool requires confirmation depends on the agent's approval rules and the [current approval mode](../configuration/approval.md).
+> **Note**: Skill scripts run as local processes without sandbox isolation. Before installing a third-party skill, inspect its `SKILL.md`, scripts, and other related files, and install skills only from trusted sources. AIxCoding-CLI runs skill scripts through the `run_skill_script` tool. Whether this tool requires confirmation depends on the agent's approval rules and the [current approval mode](../configuration/approval.md).
 
-When a skill script prints more than 32 MiB to standard output or standard error, iCode keeps only the beginning and end of that output; the middle is not saved, and the result tells the agent how much was left out.
+When a skill script prints more than 32 MiB to standard output or standard error, AIxCoding-CLI keeps only the beginning and end of that output; the middle is not saved, and the result tells the agent how much was left out.
 
 ## Confirm that skills have loaded
 
-After you save the agent's configuration and return to the session, iCode reloads its skills. If you add skill directories or change their files directly on disk, iCode does not monitor those changes in real time. The next time you send a message, iCode rescans the current agent's enabled skills directories before processing the message.
+After you save the agent's configuration and return to the session, AIxCoding-CLI reloads its skills. If you add skill directories or change their files directly on disk, AIxCoding-CLI does not monitor those changes in real time. The next time you send a message, AIxCoding-CLI rescans the current agent's enabled skills directories before processing the message.
 
 Use either of the following methods to confirm that a skill has loaded:
 
@@ -82,7 +82,7 @@ You can also explicitly invoke a loaded skill by starting a message with `/skill
 /release-notes Draft release notes based on the changes in the current repository since the previous release.
 ```
 
-If the skill name matches a built-in iCode slash command, you cannot invoke it explicitly with `/skill-name`. In that case, name the skill directly in your message, for example:
+If the skill name matches a built-in AIxCoding-CLI slash command, you cannot invoke it explicitly with `/skill-name`. In that case, name the skill directly in your message, for example:
 
 ```text
 Use the release-notes skill to draft release notes based on the changes in the current repository since the previous release.
@@ -92,12 +92,12 @@ The first time the skill loads in the current session, a `load_skill` tool call 
 
 ## Priority for skills with the same name
 
-Skills loaded from the [installation locations](#skill-installation-locations) listed earlier are directory-based skills, each containing a `SKILL.md`. iCode also supports inline skills defined directly in an agent profile. These do not require a skill directory or `SKILL.md`.
+Skills loaded from the [installation locations](#skill-installation-locations) listed earlier are directory-based skills, each containing a `SKILL.md`. AIxCoding-CLI also supports inline skills defined directly in an agent profile. These do not require a skill directory or `SKILL.md`.
 
-If multiple skills have the same name, iCode loads only the one with the highest priority. Priority, from highest to lowest, is:
+If multiple skills have the same name, AIxCoding-CLI loads only the one with the highest priority. Priority, from highest to lowest, is:
 
 1. Directories added manually in the agent's "Skills" tab, with those higher in the list taking priority (new directories are added at the top).
-2. The iCode user skills directory.
+2. The AIxCoding-CLI user skills directory.
 3. The Agent Skills shared directory.
 4. Skills in the current working directory.
 5. Inline skills in the agent profile, in their definition order.
@@ -108,7 +108,7 @@ If multiple skills with the same name exist within one installation location or 
 
 ### Basic requirements for creating skills
 
-Each skill uses its own directory with a `SKILL.md` at the directory root. The following is a minimal skill that iCode can load:
+Each skill uses its own directory with a `SKILL.md` at the directory root. The following is a minimal skill that AIxCoding-CLI can load:
 
 ```markdown
 ---
@@ -125,7 +125,7 @@ description: Draft user-facing release notes from commit history
 
 #### Write `SKILL.md`
 
-UTF-8 is recommended for `SKILL.md`. iCode also detects common legacy encodings such as GBK/GB18030 and BOM-marked UTF-16/UTF-32. The file starts with a YAML configuration block enclosed by `---`, also called frontmatter, followed by instructions for the agent. The frontmatter should be a valid YAML mapping; if it is not valid YAML, iCode tries to read it line by line and logs a warning. iCode validates the file as follows:
+UTF-8 is recommended for `SKILL.md`. AIxCoding-CLI also detects common legacy encodings such as GBK/GB18030 and BOM-marked UTF-16/UTF-32. The file starts with a YAML configuration block enclosed by `---`, also called frontmatter, followed by instructions for the agent. The frontmatter should be a valid YAML mapping; if it is not valid YAML, AIxCoding-CLI tries to read it line by line and logs a warning. AIxCoding-CLI validates the file as follows:
 
 | Content | Loading requirements |
 | --- | --- |
@@ -133,19 +133,19 @@ UTF-8 is recommended for `SKILL.md`. iCode also detects common legacy encodings 
 | `name` | Required; must exactly match the skill directory name; 1-64 characters long; may contain only lowercase letters, digits, and hyphens (`-`). Uppercase letters, underscores (`_`), and other characters are not allowed. Must not start or end with a hyphen or contain consecutive hyphens |
 | `description` | Required; text of at most 1,024 characters. Describe both the skill's purpose and when to use it to help the agent decide when to load it |
 | `compatibility` | Optional; text of at most 500 characters |
-| `license`, `allowed-tools` | Optional; iCode reads their text without further validation |
-| `metadata` | Optional; must be a YAML mapping whose values are plain text or numbers, otherwise iCode does not retain this field |
-| Body | iCode imposes no additional length or structure restrictions |
+| `license`, `allowed-tools` | Optional; AIxCoding-CLI reads their text without further validation |
+| `metadata` | Optional; must be a YAML mapping whose values are plain text or numbers, otherwise AIxCoding-CLI does not retain this field |
+| Body | AIxCoding-CLI imposes no additional length or structure restrictions |
 
-Use valid YAML for the frontmatter to ensure that the skill loads reliably. iCode does not load a skill if its file cannot be decoded using the detected encoding, if its frontmatter, `name`, or `description` is missing, or if field values fail the validation rules above. An optional field given as a list or mapping is ignored.
+Use valid YAML for the frontmatter to ensure that the skill loads reliably. AIxCoding-CLI does not load a skill if its file cannot be decoded using the detected encoding, if its frontmatter, `name`, or `description` is missing, or if field values fail the validation rules above. An optional field given as a list or mapping is ignored.
 
 The optional fields serve the following purposes:
 
 * `compatibility`: Describes the runtime environment the skill depends on, such as supported products, required system packages, or network access requirements.
 * `license`: Declares the skill's license. This can be a license name or the name of a license file in the skill directory.
-* `allowed-tools`: Declares tools that may be approved in advance under the Agent Skills specification. This field is still experimental. iCode currently only reads and retains its value; it does not automatically grant tool permissions based on it.
+* `allowed-tools`: Declares tools that may be approved in advance under the Agent Skills specification. This field is still experimental. AIxCoding-CLI currently only reads and retains its value; it does not automatically grant tool permissions based on it.
 
-iCode skill directories and the `SKILL.md` format follow the common Agent Skills specification. For details on these fields and the complete skill specification, see the official Agent Skills specification.
+AIxCoding-CLI skill directories and the `SKILL.md` format follow the common Agent Skills specification. For details on these fields and the complete skill specification, see the official Agent Skills specification.
 
 #### Add scripts and resources
 
@@ -164,12 +164,12 @@ release-notes/
     └── template.html
 ```
 
-iCode recognizes text files as skill resources only if they have one of these extensions: `.md`, `.txt`, `.rst`, `.html`, `.htm`, `.xml`, `.svg`, `.json`, `.jsonl`, `.yaml`, `.yml`, `.toml`, `.csv`, `.tsv`, `.ini`, `.cfg`, `.css`.
+AIxCoding-CLI recognizes text files as skill resources only if they have one of these extensions: `.md`, `.txt`, `.rst`, `.html`, `.htm`, `.xml`, `.svg`, `.json`, `.jsonl`, `.yaml`, `.yml`, `.toml`, `.csv`, `.tsv`, `.ini`, `.cfg`, `.css`.
 
 Text resources use the same automatic encoding detection as `SKILL.md`; UTF-8 is recommended. In addition:
 
 * Script extensions must be listed in the agent configuration's "Allowed Script Extensions".
-* iCode reads only files at the skill directory root and in its immediate subdirectories. For example, it discovers `guide.md` and `references/guide.md`, but ignores `references/api/guide.md`.
-* Within a skill directory, iCode skips files and directories accessed through symbolic links or Windows directory junctions. Both point to other locations on disk. To use their contents, place the actual files in the skill directory.
+* AIxCoding-CLI reads files at the skill directory root and up to two levels of subdirectories. For example, it discovers `guide.md`, `references/guide.md`, and `references/api/guide.md`, but ignores `references/api/v1/guide.md`.
+* Within a skill directory, AIxCoding-CLI skips files and directories accessed through symbolic links or Windows directory junctions. Both point to other locations on disk. To use their contents, place the actual files in the skill directory.
 
 Files that do not meet the extension, directory depth, or link rules do not appear in the skill's resource or script list. A missing, inaccessible, or undecodable resource fails when read. These issues do not prevent an otherwise valid `SKILL.md` from loading.

@@ -482,7 +482,13 @@ def _detect_with_pinned_config_dir() -> PlatformInfo:
     detected = _original_detect_platform()
     if _pinned_config_dir is None:
         return detected
-    return dataclasses.replace(detected, config_dir=_pinned_config_dir, data_dir=_pinned_config_dir)
+    return dataclasses.replace(
+        detected,
+        config_dir=_pinned_config_dir,
+        data_dir=_pinned_config_dir,
+        # AIxCoding skills: keep the desktop-shared root inside the pinned sandbox (src/chrys/service/aixcoding/skill_paths)
+        aixcoding_dir=_pinned_config_dir / ".aixcoding",
+    )
 
 
 def _pin_config_dir(config_dir: Path | None) -> None:
@@ -509,7 +515,13 @@ def _pin_config_dir(config_dir: Path | None) -> None:
     primed = (
         _REAL_PLATFORM
         if config_dir is None
-        else dataclasses.replace(_REAL_PLATFORM, config_dir=config_dir, data_dir=config_dir)
+        else dataclasses.replace(
+            _REAL_PLATFORM,
+            config_dir=config_dir,
+            data_dir=config_dir,
+            # AIxCoding skills: keep the desktop-shared root inside the pinned sandbox (src/chrys/service/aixcoding/skill_paths)
+            aixcoding_dir=config_dir / ".aixcoding",
+        )
     )
     platform_mod.detect_platform = lambda: primed
     try:

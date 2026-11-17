@@ -59,3 +59,9 @@
   保名 `AIxCoding quality gate` fail-closed 汇总）。决策边界不变：独立 workflow、不改上游
   `ci.yml`、质量门内容（lint/docs/pytest/治理工具）原样保留；详见
   `aixcoding/docs/batches/windows-matrix/design.md`。
+- **门禁分层注记（2026-11-12，append-only）**：决策节"产品定制代码……随上游 `ci.yml` 全套
+  射程自动覆盖"的覆盖关系经 upstream-ci-tiering 批次修订——纯定制 PR 跳过上游套件，定制
+  产品代码的 ruff/format/ty（单 runner 显式三平台）/compileall 改由本门 `govern` 补位承担；
+  build/wheel 探测由 FORCE 触发与 nightly 兜底覆盖。决策边界不变：独立 workflow、不改上游
+  `ci.yml`、质量门内容原样保留并扩展。详见 ADR-upstream-ci-tiering--pr-gate-tiering 与
+  `aixcoding/docs/batches/upstream-ci-tiering/design.md`。

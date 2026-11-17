@@ -1,6 +1,6 @@
 # Theme File Reference
 
-iCode supports theme files for customizing the appearance of the terminal user interface (TUI). This page describes the file format, common color fields, and loading rules. To edit and save themes through the interface, see [Customize themes](../guides/configuration/themes.md).
+AIxCoding-CLI supports theme files for customizing the appearance of the terminal user interface (TUI). This page describes the file format, common color fields, and loading rules. To edit and save themes through the interface, see [Customize themes](../guides/configuration/themes.md).
 
 ## File Location and Naming
 
@@ -11,7 +11,7 @@ Store theme files in the following directory. Create it first if it does not exi
 | macOS / Linux | `~/.chrys/themes/` |
 | Windows | `%APPDATA%\chrys\themes\` |
 
-Theme files must have a `.yaml` or `.yml` extension. UTF-8 is recommended; iCode also detects common legacy encodings such as GBK/GB18030 and BOM-marked UTF-16/UTF-32. Themes saved through iCode use UTF-8. Place files directly in this directory; iCode does not read theme files in subdirectories.
+Theme files must have a `.yaml` or `.yml` extension. UTF-8 is recommended; AIxCoding-CLI also detects common legacy encodings such as GBK/GB18030 and BOM-marked UTF-16/UTF-32. Themes saved through AIxCoding-CLI use UTF-8. Place files directly in this directory; AIxCoding-CLI does not read theme files in subdirectories.
 
 Files that cannot be decoded using the detected encoding are skipped with a warning, just like invalid YAML files.
 
@@ -21,13 +21,13 @@ The filename with the `.yaml` or `.yml` extension removed becomes the theme name
 * Not match a built-in theme name, ignoring case. Built-in names include `chrys`, `chrys-legacy`, `chrys-ansi`, the Textual themes in the theme list (such as `nord` and `textual-dark`), and the retired name `chrys-dark`.
 * Not end in `.yaml` or `.yml`, ignoring case. For example, `my-theme.yaml.yaml` is not a valid filename.
 
-When a `.yaml` file and a `.yml` file have the same theme name, iCode prefers `.yaml`. If the `.yaml` file is invalid, iCode still tries the `.yml` file. Only one theme is kept per name.
+When a `.yaml` file and a `.yml` file have the same theme name, AIxCoding-CLI prefers `.yaml`. If the `.yaml` file is invalid, AIxCoding-CLI still tries the `.yml` file. Only one theme is kept per name.
 
-After adding or editing a theme file, run `/reload` while the TUI is idle and the theme editor is closed, or restart iCode. Then press **F9** and select the theme from the theme list, or name it in `ui.theme` in your [settings](settings.md). If you edited the theme in use, the screen updates right away. If you delete the file of the theme in use, the screen switches to the default `chrys` theme and your saved selection stays as it is, so the theme returns if you restore the file.
+After adding or editing a theme file, run `/reload` while the TUI is idle and the theme editor is closed, or restart AIxCoding-CLI. Then press **F9** and select the theme from the theme list, or name it in `ui.theme` in your [settings](settings.md). If you edited the theme in use, the screen updates right away. If you delete the file of the theme in use, the screen switches to the default `chrys` theme and your saved selection stays as it is, so the theme returns if you restore the file.
 
 ## File Format
 
-The following example defines a custom dark theme in `icode-ocean.yaml`:
+The following example defines a custom dark theme in `aixcoding-cli-ocean.yaml`:
 
 ```yaml
 # Overall palette
@@ -51,7 +51,7 @@ variables:
   markdown-block-background: "#202c38"
 ```
 
-`primary` is the only required field. All other fields are optional. iCode fills in omitted colors automatically; see [Default Color Rules](#default-color-rules).
+`primary` is the only required field. All other fields are optional. AIxCoding-CLI fills in omitted colors automatically; see [Default Color Rules](#default-color-rules).
 
 ## Configuration Fields
 
@@ -147,6 +147,6 @@ The top-level field `text_alpha` is also accepted and must be a finite number, b
 
 ## Loading Failures
 
-If iCode finds malformed YAML, a missing `primary` field, unknown top-level fields, or invalid field values while loading, it displays a warning and skips the file. Use the warning to check the corresponding file, correct it, and run `/reload` or restart iCode to load it again. Other valid themes remain available, and with `/reload` a theme loaded earlier from that file also stays until you fix it.
+If AIxCoding-CLI finds malformed YAML, a missing `primary` field, unknown top-level fields, or invalid field values while loading, it displays a warning and skips the file. Use the warning to check the corresponding file, correct it, and run `/reload` or restart AIxCoding-CLI to load it again. Other valid themes remain available, and with `/reload` a theme loaded earlier from that file also stays until you fix it.
 
-If a theme loads successfully but a `variables` value cannot be used in the corresponding interface style when applied, iCode displays a warning. `/reload` keeps the theme already on screen; otherwise iCode falls back to the default `chrys` theme. Neither overwrites the saved theme selection. Correct the file, then run `/reload` or restart iCode to try again.
+If a theme loads successfully but a `variables` value cannot be used in the corresponding interface style when applied, AIxCoding-CLI displays a warning. `/reload` keeps the theme already on screen; otherwise AIxCoding-CLI falls back to the default `chrys` theme. Neither overwrites the saved theme selection. Correct the file, then run `/reload` or restart AIxCoding-CLI to try again.

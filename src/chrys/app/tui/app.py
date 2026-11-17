@@ -1088,6 +1088,10 @@ class ChrysApp(TuiVariableDefaultsMixin, App):
         self._main_screen = screen
         if self._update_check is not None:
             self._update_check_task = asyncio.create_task(self._run_update_check(self._update_check, screen))
+        # AIxCoding update: internal release check + confirm dialog (aixcoding/docs/batches/auto-update)
+        from chrys.app.aixcoding.update import start_internal_update_flow
+
+        self._aixcoding_update_task = start_internal_update_flow(self, screen)
         self._gc_freeze.start()
         if self._gc_freeze.startup_warning is not None:
             self._startup_warnings.append(

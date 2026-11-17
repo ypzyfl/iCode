@@ -4111,6 +4111,13 @@
         ["awaitable", "await factory(*args, **kwargs)", "unresolved"]
       ]
     },
+    "chrys.service.aixcoding.update.client": {
+      "check_for_update": [
+        ["timeout", "async with asyncio.timeout(_TIMEOUT_SECONDS)", "unresolved"],
+        ["async_context", "async with httpx.AsyncClient(timeout=_TIMEOUT_SECONDS, trust_env=False, transport=transport)", "unresolved"],
+        ["awaitable", "await client.send(request)", "unresolved"]
+      ]
+    },
     "chrys.service.approval.arbitration": {
       "ApprovalDecisionArbiter.close": [
         ["awaitable", "await self._bus.unsubscribe(ApprovalAutoFulfillBlocked, self._on_blocked)", "unresolved"]

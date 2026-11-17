@@ -1,71 +1,247 @@
-# Use the iCode ACP server
+# Run AIxCoding-CLI in a browser
 
-Editors and development tools that support the Agent Client Protocol (ACP) can connect to iCode to use iCode agents in the client. The ACP client provides the interface, while iCode communicates with it over standard input and output (stdio), runs agents, executes tools, and saves sessions.
+`aixcoding-cli serve` displays the AIxCoding-CLI terminal user interface (TUI) in a browser, supporting conversations, tool-call approval, and editing configuration.
 
-Before you begin, install iCode and configure at least one model. For preparation steps, see [Getting started with iCode](../../start/getting-started.md) and [Configure models](../configuration/models.md).
+Startup options can be viewed with `aixcoding-cli serve --help`.
 
-## Connect to iCode
+This article calls the device running the browser the "local machine" and the machine running the AIxCoding-CLI service the "server". The server can be the local machine or a remote server accessed over the network.
 
-In the ACP client's "Add agent" or similar settings, enter the following:
+Before starting, the server should have AIxCoding-CLI installed. The browser provides the operating interface, while AIxCoding-CLI uses the server's configuration to read, modify files, and execute commands with the permissions of the system user that started the service. All of these operations happen on the server; all visitors share the server's configuration, files, and sessions, and do not get separate accounts.
 
-| Field | Value |
+After the first sign-in you can start chatting. Keep the page connected while a task is running; closing or refreshing the page, or losing the connection, interrupts the task running in that page.
+
+Depending on where the server is and how you access it, see the matching section:
+
+| Scenario | Section |
 | --- | --- |
-| Executable | `icode` |
-| Arguments | `acp` |
+| Run and access on the local machine | [Start AIxCoding-CLI on the local machine](#1-start-aixcoding-cli-on-the-local-machine) |
+| Access AIxCoding-CLI on a remote server over SSH | [Access remote AIxCoding-CLI from the local machine](#2-access-remote-aixcoding-cli-from-the-local-machine) |
+| Access through a fixed HTTPS domain | [Access through a fixed HTTPS domain](#3-access-through-a-fixed-https-domain) |
 
-This is equivalent to the client starting:
+## 1. Start AIxCoding-CLI on the local machine
+
+### Start the service
+
+In a terminal on the local machine, enter the working directory, then start the service:
 
 ```shell
-icode acp
+aixcoding-cli serve --auth-required
 ```
 
-If the client provides only a single launch command field, enter the full command, `icode acp`.
+Enter and confirm the browser sign-in password as prompted in the terminal; the password cannot be empty. `--auth-required` enables password sign-in; when no authentication option is specified, the service is accessible without signing in.
 
-After saving the configuration, verify the connection:
+The service is up once the terminal shows `Serving AIxCoding TUI on ...` and the access address.
 
-1. Start or connect to iCode in the client.
-2. Create a session and send a message.
-3. Confirm that the client displays a reply from iCode. A reply means the connection is configured successfully.
+### Sign in from the browser
 
-## Configure startup options
+Open `http://localhost:7777` in the browser on the local machine and enter the password set at startup. `localhost` means the local machine, and `7777` is the service port.
 
-`icode acp` supports the following startup options. If the client has separate executable and arguments fields, append these options after `acp`.
+The AIxCoding-CLI interface should appear after sign-in. Send "hello" and check that you get a reply.
 
-| Option | Default | Purpose |
-| --- | --- | --- |
-| `-a`, `--agent <agent>` | `Code` | Specify the built-in or custom agent for new sessions, by name, display name, or ID. Restored sessions keep the agent they were saved with. To create a custom agent, see [Configure agents](../configuration/agents.md). |
-| `--approval <mode>` | `manual` | Set the initial approval mode for every session this ACP server creates or restores: `manual`, `auto`, or `bypass`. The `bypass` approval mode skips approval and executes tool calls directly; use it with care. For the rules of each mode, see [Configure approval modes](../configuration/approval.md). |
-| `-C`, `--workdir <directory>` | None | Provide a default working directory for sessions where the client does not send one. |
-| `--ask-user-timeout <seconds>` | No time limit | Limit how long to wait for the client to answer an agent's question. Omit this option or set it to `0` or a negative value to wait without a time limit. |
+The directory where the service started is the initial working directory. Click the directory path on the right side of the bottom border of the chat area to switch the working directory. `aixcoding-cli serve` does not accept the TUI's `--workdir`, `--agent`, `--model`, or `--session` options; switching agents and models and restoring sessions are all done in the page.
 
-## Working directories and sessions
+### Stop using it
 
-When creating or restoring a session, the client can pass the project's working directory to iCode. The directory supplied by the client must be an existing absolute path. If the client does not provide a working directory, iCode uses the directory specified by `--workdir <project-directory>`. If both are provided, the client's working directory takes precedence.
+Keep the service terminal running while in use. When you are done, press `Ctrl+C` in that terminal to stop the service.
 
-iCode checks `--workdir` at startup. The specified directory must exist even if the client will later provide a working directory; otherwise, iCode cannot start.
+Every time a page is opened and connected, the server starts a separate AIxCoding-CLI instance. Conversations are saved on the server; after reopening the page, saved sessions can be restored.
 
-Session data is saved in iCode's session storage directory, rather than the working directory. To find the actual location, see [Find the session ID and storage location](../daily-use/sessions.md#find-the-session-id-and-storage-location). iCode records the working directory when a session is created. Listing sessions through an ACP client shows only sessions that match the current working directory. iCode refuses to restore a session if the working directory does not match.
+The browser sign-in state is valid for 12 hours, and you must sign in again after the service restarts. After 5 consecutive wrong passwords from the same client address, that address is locked, and only restarting the service unlocks it. Restarting disconnects all connected pages.
 
-Sessions used through an ACP client also appear in the TUI's "Chat Sessions" window once you check "ACP" there. See [Resume an existing session](../daily-use/sessions.md#resume-an-existing-session).
+## 2. Access remote AIxCoding-CLI from the local machine
 
-Shell commands that the agent moved to the background keep running across turns, and stop when the client closes the session or iCode exits. See [Commands that keep running in the background](../configuration/tools.md#commands-that-keep-running-in-the-background).
+If you can already sign in to a remote server over SSH, you can build an SSH tunnel that forwards the local browser's connection to the remote AIxCoding-CLI through an encrypted channel, with no domain setup required. The following steps use two terminal windows on the local machine.
 
-## Interact through the client
+### In the first terminal, sign in to the remote server and start AIxCoding-CLI
 
-iCode sends agent replies and tool call status to the client. A reply reaches the client as the model writes it. When the model service returns the model's reasoning as readable text, iCode sends it as the agent's thoughts, also when it replays a restored session; reasoning of sub-agents is not sent. If a reply fails partway, the client keeps the part it already showed, and the error follows. When you retry, iCode first tells the client to remove the part of the reply that was cut off, and tool calls stay. A retry with a message goes on from that message; one without writes the reply again. When the client cancels a task, iCode interrupts the current task.
+```shell
+ssh <user>@<server>
+```
 
-When a task fails, the error the client shows is the cause itself, such as `Error code: 402 - Insufficient Balance` when the model service account is out of credit, not a generic "Internal error". A client that reads iCode's error details can also tell you what kind of failure it is (for example, no credit left, a wrong API key or rate limiting) and whether trying again may help. When a sub-agent fails, the task goes on: the agent receives the error and decides what to do next. Only a client that can show the failure and let you click "Retry" or "Abort" pauses the sub-agent until you choose, as the TUI does.
+Replace `<user>` with the server's SSH username and `<server>` with its IP address or hostname, and sign in with an SSH key or a password.
 
-If the current model supports image input, a prompt can include images in PNG, JPEG, GIF, or WebP format, up to 32 MB each. Together, the images in one prompt must stay under about 35 MB: the whole prompt is read as one message of at most 50 MB, and an image takes about a third more there than its file. A larger prompt breaks the connection. A prompt with an image in another format is rejected, and the client receives an error. An image larger than the image size limit, 256 KB by default, is compressed before it is sent to the model, as described in [Create a model profile](../configuration/models.md#create-a-model-profile). When the client restores a session, the images you sent with your prompts are shown again too, as the model now receives them: an image larger than the image size limit is shown compressed. After you lower the limit, earlier images are compressed again at the next turn or retry, and are then shown at the new size.
+After signing in, commands run in that terminal execute on the remote server. Enter the remote working directory, then start AIxCoding-CLI:
 
-If the client supports session management, a closed session can still be restored in the same working directory. Deleting a session removes the session record saved by iCode, and the session can no longer be restored in iCode.
+```shell
+aixcoding-cli serve --auth-required
+```
 
-To use the question feature through an ACP client, the client must support iCode's `_chrys/request_input` extension request (shown as `chrys/request_input` in ACP SDKs that add the underscore prefix automatically). iCode uses this request to send the agent's questions to the client and receive the user's answers; a client that does not support it cannot complete tasks that require user answers. Use `--ask-user-timeout` to limit how long iCode waits for an answer.
+Set the browser sign-in password, confirm the terminal shows the service address, and keep the terminal running.
 
-When a tool call from the main agent needs approval, the approval request refers to the tool call the client is already showing, so the client can show the approval on that tool call.
+### In the second terminal, build the tunnel
 
-Approval requests sent to the client wait without a time limit by default. To decline requests that stay unanswered, set a human approval timeout; see [Set the human approval timeout](../configuration/approval.md#set-the-human-approval-timeout).
+Open a second terminal on the local machine and run the following command to build the tunnel:
 
-If the client supports switching approval modes or models, it can change the corresponding settings for the current session. These switches, like the initial mode set with `--approval`, are not written to iCode's local configuration. If the client uses iCode's extension requests to change settings or agent and model profiles, however, those changes are written to iCode's local configuration. The next time the ACP server starts, the initial approval mode still comes only from `--approval`; other initial settings are determined by the local configuration and the startup arguments for that launch. Model profiles and available agents remain managed through iCode's local configuration.
+```shell
+ssh -N -o ExitOnForwardFailure=yes -L 7777:localhost:7777 <user>@<server>
+```
 
-If the client offers a full reload, you can pick up edited files without restarting the server: iCode rereads settings, agent and model profiles, memory, skills and hooks for the current session and reconnects its MCP servers. Unless you chose a model for this session or started the server with `CHRYS_MODEL_PROFILE` set, it then uses the model from the settings file; if the model you chose for the session was removed, the session switches to its default model and the reload says so. Sessions started afterwards use the settings file's model too, unless the client has set the server's default model, which sessions without a model of their own follow. Other open sessions keep their own model and connections. If one of them uses a model whose file you removed, its next settings, workspace or agent change may switch it to another model or leave it with none, until you choose one for it or run a full reload in it. New sessions still start with the agent and approval mode the server was launched with, and themes and prompt shortcuts belong to the TUI, so a full reload doesn't change them. If the session's agent file was removed, the session switches to the default agent and the reload says so. If the reload fails, the session keeps running with what it had.
+The username and server address are the same as in the previous step. After SSH authentication, the terminal usually produces no further output and does not return to a prompt; keep it running.
+
+If SSH sign-in requires a custom port or key, add the same connection options to both commands.
+
+### Access from the browser on the local machine
+
+Visit `http://localhost:7777` and enter the AIxCoding-CLI browser sign-in password set in the first step.
+
+After the browser visits `localhost:7777` on the local machine, the SSH tunnel forwards the connection to the remote AIxCoding-CLI. Therefore the browser address in this example must stay `localhost`; do not change it to the remote IP.
+
+When you are done, press `Ctrl+C` in the first terminal to stop AIxCoding-CLI, and press `Ctrl+C` in the second terminal to close the SSH tunnel.
+
+## 3. Access through a fixed HTTPS domain
+
+Access via a fixed address such as `https://aixcoding-cli.example.com` requires a reverse proxy: the browser establishes an encrypted connection with the proxy, which then forwards requests to AIxCoding-CLI.
+
+This section applies to environments that already have an HTTPS proxy. The domain and certificate are configured on the proxy side; AIxCoding-CLI itself does not provide HTTPS service.
+
+### Start AIxCoding-CLI
+
+The following example assumes the proxy and AIxCoding-CLI run on the same server. In a server terminal, enter the working directory, replace `aixcoding-cli.example.com` with the actual domain, and run:
+
+```shell
+aixcoding-cli serve --host 127.0.0.1 --port 7777 --public-url https://aixcoding-cli.example.com --auth-required
+```
+
+Set the browser sign-in password and keep the terminal running. This command makes AIxCoding-CLI accept connections only from the same server, while the browser reaches the address given by `--public-url` through the proxy.
+
+### Configure the proxy connection
+
+The proxy must meet these requirements:
+
+- Forward requests for the domain to `http://127.0.0.1:7777`.
+- Preserve the original `Host` header from browser requests so AIxCoding-CLI can verify the visited domain.
+- Support WebSocket connections so the page can continuously send input and receive replies.
+
+By default, AIxCoding-CLI counts wrong password attempts against the proxy address, and multiple visitors may share the failure counter. If the proxy is trusted and correctly rewrites `X-Forwarded-For` (the client address request header), add `--auth-trust-forwarded-for` to the AIxCoding-CLI start command to count attempts by the visitor address provided by the proxy instead.
+
+### Verify access
+
+Replace `aixcoding-cli.example.com` with the actual domain and open the matching HTTPS address in a browser on the local machine, for example `https://aixcoding-cli.example.com`, without adding AIxCoding-CLI's port `:7777`. The browser should show the AIxCoding-CLI sign-in page without certificate warnings. After signing in, send a message and confirm you get a reply.
+
+The connection from the browser to the proxy is encrypted; the proxy to AIxCoding-CLI still uses plain HTTP inside the server.
+
+### Other deployment layouts
+
+When the proxy runs on another server or in a separate container, `127.0.0.1` may not reach AIxCoding-CLI. After changing the listening address, restrict the backend port to trusted proxies only via firewall or container network rules, so the HTTPS proxy cannot be bypassed with a direct connection. Setting an HTTPS `--public-url` does not encrypt the proxy-to-AIxCoding-CLI HTTP connection.
+
+## 4. Read the password from a file or environment variable
+
+When the password cannot be entered interactively in a terminal, provide it via a file or an environment variable. Both methods automatically enable authentication, so `--auth-required` is not needed, and they cannot be combined.
+
+### Use a password file
+
+On the server, prepare a UTF-8 plain-text file and write the sign-in password into it. The password cannot be empty; trailing newlines in the file are ignored.
+
+Enter the working directory and start with the password file:
+
+```shell
+aixcoding-cli serve --auth-password-file "<password-file>"
+```
+
+Replace `<password-file>` with the server-side path to the password file. Startup no longer prompts for the password, and the browser signs in with the password from the file.
+
+### Use an environment variable
+
+On the server, set an environment variable for the AIxCoding-CLI startup process, for example `CHRYS_SERVE_PASSWORD`, with a non-empty sign-in password as its value. Then run:
+
+```shell
+aixcoding-cli serve --auth-password-env CHRYS_SERVE_PASSWORD
+```
+
+The argument of `--auth-password-env` is the environment variable name. Startup no longer prompts for the password, and the browser signs in with that variable's value.
+
+## 5. Access directly over the LAN by IP
+
+Accessing directly over the LAN by IP transmits the sign-in password and conversation content in plain text, and is only suitable for network environments that explicitly accept this risk.
+
+On the server, enter the working directory, replace `192.168.1.20` with the server's actual LAN IP, and run:
+
+```shell
+aixcoding-cli serve --host 0.0.0.0 --public-url http://192.168.1.20:7777 --auth-required --allow-insecure-auth
+```
+
+`--host 0.0.0.0` lets other devices connect to AIxCoding-CLI. `--allow-insecure-auth` explicitly allows plain-text password sign-in over the network; without it, AIxCoding-CLI refuses to start with this configuration.
+
+In a browser on the local machine, visit using the server's actual LAN IP, for example `http://192.168.1.20:7777`, and sign in. If it cannot connect, check that the local machine and the server can reach each other and that the server firewall allows clients to reach TCP port `7777`.
+
+## Finishing interactions in the client
+
+When a task fails, the error the client shows is the failure itself — for example, an out-of-balance model service account shows `Error code: 402 - Insufficient Balance` instead of a vague "Internal error". Clients that read AIxCoding-CLI error details can also tell you the failure category (such as insufficient balance, a wrong API key, or rate limiting) and whether a retry may succeed. When a sub-agent fails, the task continues: the agent receives the error and decides what to do next. Only clients that can display the failure and let you click "Retry" or "Abort" pause the sub-agent like the TUI and wait for your choice.
+
+If the client offers a full reload, changes to files take effect without restarting the service: AIxCoding-CLI re-reads settings, agent profiles, and models, memory, skills, and hooks for the current session, and reconnects the session's MCP servers. Unless you have selected a model for that session or set `CHRYS_MODEL_PROFILE` when starting the service, the session switches to the model in the settings file; if the selected model was deleted, the session falls back to the default model, and the reload result says so. Sessions created afterwards also use the model in the settings file, unless the client has set a service default model: sessions without a separately selected model switch to the client's default model. Other open sessions keep their own models and connections; if a model used by one of them was deleted, it may switch to another model after its settings change, working directory changes, or its agent is switched, or it may have no usable model until you pick one for it or run a full reload in that session. New sessions still use the agent and approval mode from service startup; themes and shortcuts belong to the TUI and are not changed by a full reload. If the session's agent file was deleted, the session falls back to the default agent, and the reload result says so. If the reload fails, the session keeps running with its previous content.
+
+## 7. Troubleshooting
+
+### `aixcoding-cli` command not found
+
+Confirm AIxCoding-CLI is installed on the server and its installation directory is in `PATH`. If you just installed it, reopen a terminal and verify with:
+
+```shell
+aixcoding-cli --version
+```
+
+### Local startup says the port is in use
+
+Pick a free port with `--port` and use the same port in the browser address. For example, if `8888` is free:
+
+```shell
+aixcoding-cli serve --port 8888 --auth-required
+```
+
+Then visit `http://localhost:8888`.
+
+### The SSH tunnel says the local port is in use
+
+Change the first port after `-L` to a free local port and keep the last port as the remote AIxCoding-CLI listening port. For example, if remote AIxCoding-CLI uses `7777` and local `8888` is free, run on the local machine:
+
+```shell
+ssh -N -o ExitOnForwardFailure=yes -L 8888:localhost:7777 <user>@<server>
+```
+
+Replace `<user>` and `<server>` with the SSH username and server address. Also restart AIxCoding-CLI on the remote server with the new browser address:
+
+```shell
+aixcoding-cli serve --public-url http://localhost:8888 --auth-required
+```
+
+Then visit `http://localhost:8888` on the local machine.
+
+### The browser says the site cannot be reached
+
+First confirm the AIxCoding-CLI service is still running, then check the browser address matches the method in use: `localhost` for the local or SSH examples, the configured domain for HTTPS access, or the server IP for direct LAN access.
+
+If the address is correct but still unreachable, the SSH method also needs the tunnel checked, and the HTTPS method needs DNS resolution and the proxy service checked.
+
+### The HTTPS page shows a certificate warning
+
+Confirm the browser uses the configured domain, and check whether the proxy certificate is expired, matches the domain, and whether the browser trusts its issuer.
+
+### The HTTPS page returns `502`
+
+Check that AIxCoding-CLI is still running, that the address and port the proxy forwards to match AIxCoding-CLI's listening configuration, and that the proxy can reach that address; the proxy log shows the specific cause.
+
+### The page returns `421`
+
+Use the domain or IP and port shown when AIxCoding-CLI started. When accessing through a proxy, check whether the proxy preserves the original `Host` header.
+
+### The WebSocket connection returns `403`
+
+Check that the browser address matches the address given by `--public-url`, including the protocol (`http` or `https`), domain, and port. AIxCoding-CLI rejects connections whose origin does not match.
+
+### Sign-in returns `403`
+
+If it reports `Invalid login token`, reopen the sign-in page and enter the password again; if it reports `Invalid login origin`, check that the browser address matches the access address configured for AIxCoding-CLI.
+
+### Too many password attempts reported
+
+That client address is locked. First confirm no page is running a task, then press `Ctrl+C` in the AIxCoding-CLI terminal and restart. When multiple visitors behind a proxy are locked at once, check the HTTPS section for whether `--auth-trust-forwarded-for` applies.
+
+### The original conversation is gone after a refresh or disconnect
+
+After the page reconnects, the server starts a new AIxCoding-CLI instance. You can restore the conversation by following the steps in "restore saved sessions", but interrupted tasks do not resume automatically.
+
+### Copying fails
+
+If a copy dialog appears, click **Copy**. If it still fails, select the text in the dialog and copy it manually with the browser's copy shortcut.
+
+---

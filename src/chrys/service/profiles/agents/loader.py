@@ -440,6 +440,9 @@ def _parse_skills(raw: object) -> SkillsConfig:
         script_extensions=script_extensions,
         auto_load_user_agents_skills=coerce_bool(raw_map.get("auto_load_user_agents_skills"), default=True),
         auto_load_cwd_agents_skills=coerce_bool(raw_map.get("auto_load_cwd_agents_skills"), default=True),
+        # AIxCoding skills: desktop-shared aixcoding roots (src/chrys/service/aixcoding/skill_paths)
+        auto_load_aixcoding_user_skills=coerce_bool(raw_map.get("auto_load_aixcoding_user_skills"), default=True),
+        auto_load_aixcoding_cwd_skills=coerce_bool(raw_map.get("auto_load_aixcoding_cwd_skills"), default=True),
     )
 
 

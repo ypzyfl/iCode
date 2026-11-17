@@ -9,7 +9,7 @@
 
 ```
 aixcoding/
-├── docs/          # standards/（规范族+全局 ADR+模板）、batches/<批次名>/（全部批次/专项目录，ADR-0016/0024）
+├── docs/          # standards/（规范族+全局 ADR+模板）、madr/（轻量决策记录）、batches/<批次名>/（全部批次/专项目录，ADR-0016/0024）
 ├── tests/         # 定制测试唯一落点（显式运行，见下）
 ├── mock/          # 自建 mock 专区（auth / update / model_catalog / telemetry）
 ├── manual/        # 定制用户使用手册源（zh-Hans / en / index.yaml；F8 手册，force-include 进 wheel）
@@ -34,7 +34,7 @@ aixcoding/
 | 查人机工作流（责任人五个检查点 + AI 执行流） | `docs/standards/DEVELOPMENT.md` §4 |
 | **团队成员必读（我要做什么·一页）** | `docs/standards/TEAM-GUIDE.md` |
 | 查目录细则（落点/蓝图/tier/命名） | `docs/standards/DIRECTORY.md` |
-| 查"为什么这样定" | `docs/standards/adr/`（含被否决的备选） |
+| 查"为什么这样定" | `docs/standards/adr/`（含被否决的备选）；小决策/决定不做查 `aixcoding/docs/madr/`（轻量决策记录） |
 | 自审怎么做（作者，提 PR 前照做） | `docs/standards/SELF-REVIEW-HOWTO.md` |
 | 评审怎么做（评审人，打开 PR 照做） | `docs/standards/PEER-REVIEW-HOWTO.md` |
 | 新建功能文档 | 从 `docs/standards/templates/` 复制骨架（requirements/design/test-plan/plan/verification/self-review/adr） |

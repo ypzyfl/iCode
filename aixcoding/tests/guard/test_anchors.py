@@ -107,7 +107,8 @@ def test_guard_hooks_yaml_loads_under_the_upstream_contract() -> None:
         assert hook.execution.mode == "blocking"
         assert hook.execution.on_error == "block"
         assert hook.run.type in {"command", "script"}
-        assert hook.enabled is True
+        # Shipped disabled: both template entries are enabled: false (no child process).
+        assert hook.enabled is False
 
 
 def test_bootstrap_installs_the_guard(tmp_path: Path) -> None:

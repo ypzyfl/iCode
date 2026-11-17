@@ -87,7 +87,7 @@ def _start_auth(port: int = AUTH_PORT) -> tuple[str, Callable[[], None]]:
 
 _SERVICES: _Services = {
     "model_catalog": (CATALOG_PORT, "catalog dispatch + embedded auth + LLM chat /v1", _start_model_catalog),
-    "update": (UPDATE_PORT, "release-check /csas/api/v2/releases/check", _start_update),
+    "update": (UPDATE_PORT, "release-check /api/v2/releases/check", _start_update),
     "auth": (AUTH_PORT, "standalone device-code login mock", _start_auth),
 }
 

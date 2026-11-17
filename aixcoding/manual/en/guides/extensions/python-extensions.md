@@ -2,11 +2,11 @@
 
 An extension is a Python module that adds to what agents can do. Each part of it is an `async def` function:
 
-- A **tool** the model can call: the model sees its name, description, and parameters, and when the model calls the tool, iCode runs your function and passes what it returns back to the model.
-- A **context**: iCode asks it at the start of each turn for text the agent should know, such as the ticket your branch is for. See [Give the agent context each turn](#give-the-agent-context-each-turn).
+- A **tool** the model can call: the model sees its name, description, and parameters, and when the model calls the tool, AIxCoding-CLI runs your function and passes what it returns back to the model.
+- A **context**: AIxCoding-CLI asks it at the start of each turn for text the agent should know, such as the ticket your branch is for. See [Give the agent context each turn](#give-the-agent-context-each-turn).
 - A **tool hook**: it sees each tool call the agent makes, before the call runs, to refuse or change it, or after, to change the result the model reads. See [Check or change tool calls](#check-or-change-tool-calls).
 
-An extension runs inside iCode, with your permissions: it can read and change anything you can, and it sees what the agent passes to its tools. An extension with tool hooks sees every tool call the agent makes and its result. Install only extensions you trust, as you would any Python package.
+An extension runs inside AIxCoding-CLI, with your permissions: it can read and change anything you can, and it sees what the agent passes to its tools. An extension with tool hooks sees every tool call the agent makes and its result. Install only extensions you trust, as you would any Python package.
 
 ## Extensions, MCP servers, and skills
 
@@ -36,7 +36,7 @@ An extension runs inside iCode, with your permissions: it can read and change an
        return f"Hello, {name}!"
    ```
 
-2. Start iCode, enter `/agents tools`, check `hello` under "Extensions", and click "Save".
+2. Start AIxCoding-CLI, enter `/agents tools`, check `hello` under "Extensions", and click "Save".
 3. Ask the agent: "Use hello_greet to greet Ada." The tool call appears in the chat with its arguments and result.
 
 An extension does not have to be one file: a larger one can be a folder of several modules. See [Install an extension](#install-an-extension).
@@ -45,7 +45,7 @@ An extension does not have to be one file: a larger one can be a folder of sever
 
 An extension is installed in one of two ways:
 
-- **As a file or a folder**: copy the extension into the `extensions` folder of the iCode configuration directory, `~/.chrys/extensions/` on macOS and Linux or `%APPDATA%\chrys\extensions\` on Windows. An extension is either one file, `<extension id>.py`, or a folder, `<extension id>/`, whose `__init__.py` defines the extension and which can hold more modules beside it (see [Split an extension into several files](#split-an-extension-into-several-files)):
+- **As a file or a folder**: copy the extension into the `extensions` folder of the AIxCoding-CLI configuration directory, `~/.chrys/extensions/` on macOS and Linux or `%APPDATA%\chrys\extensions\` on Windows. An extension is either one file, `<extension id>.py`, or a folder, `<extension id>/`, whose `__init__.py` defines the extension and which can hold more modules beside it (see [Split an extension into several files](#split-an-extension-into-several-files)):
 
   ```text
   extensions/
@@ -55,19 +55,19 @@ An extension is installed in one of two ways:
       └── client.py
   ```
 
-  Names starting with `_` or `.` are ignored. An extension installed this way can import only its own modules and the modules that iCode's own environment has.
+  Names starting with `_` or `.` are ignored. An extension installed this way can import only its own modules and the modules that AIxCoding-CLI's own environment has.
 
-- **As a Python package**, when its author published one. Install it into the environment iCode runs in. If you installed iCode with uv, name the extension's package with `--with`:
+- **As a Python package**, when its author published one. Install it into the environment AIxCoding-CLI runs in. If you installed AIxCoding-CLI with uv, name the extension's package with `--with`:
 
   ```bash
-  uv tool install iCode-TUI --with icode-pyproject
+  uv tool install aixcoding-cli --with aixcoding-cli-pyproject
   ```
 
-  uv keeps only the packages named in the latest command, so name every extension you use each time. A package also installs the libraries the extension needs. The iCode offline packages cannot take extra packages: install extensions as files instead.
+  uv keeps only the packages named in the latest command, so name every extension you use each time. A package also installs the libraries the extension needs. The AIxCoding-CLI offline packages cannot take extra packages: install extensions as files instead.
 
-iCode looks for extensions only in these two places, not in project folders.
+AIxCoding-CLI looks for extensions only in these two places, not in project folders.
 
-An extension's id is its file or folder name, or the name its package gives it. Ids use lowercase letters, digits, and `_`, start with a letter, and must not be the id of one of iCode's built-in tool categories, such as `shell`, `todo`, or `sleep`. If two places install an extension with the same id, neither copy loads: remove one.
+An extension's id is its file or folder name, or the name its package gives it. Ids use lowercase letters, digits, and `_`, start with a letter, and must not be the id of one of AIxCoding-CLI's built-in tool categories, such as `shell`, `todo`, or `sleep`. If two places install an extension with the same id, neither copy loads: remove one.
 
 ## Turn an extension on for an agent
 
@@ -77,9 +77,9 @@ An extension's id is its file or folder name, or the name its package gives it. 
 
 In the agent profile, the same choice is the top-level `extensions` list; see [extensions](../../reference/agent-profile.md#extensions). An extension stays in the profile while it is not installed, so you can turn it on before installing it. Each agent has its own list: a sub-agent or a workflow agent node gets an extension only when its own profile lists it.
 
-iCode reads an extension's code the first time an agent that uses it starts, and listing extensions in the "Tools" tab runs none of it. After you change or update an extension, restart iCode.
+AIxCoding-CLI reads an extension's code the first time an agent that uses it starts, and listing extensions in the "Tools" tab runs none of it. After you change or update an extension, restart AIxCoding-CLI.
 
-If an extension cannot be loaded, the agent starts without it and iCode shows a warning that says why. To check what loaded, enter `/runtime` and open the "Tools" tab: each extension's tools, contexts, and tool hooks are listed under the extension's id, and the extensions that did not load are under "Unavailable extensions". See [Troubleshoot](#troubleshoot).
+If an extension cannot be loaded, the agent starts without it and AIxCoding-CLI shows a warning that says why. To check what loaded, enter `/runtime` and open the "Tools" tab: each extension's tools, contexts, and tool hooks are listed under the extension's id, and the extensions that did not load are under "Unavailable extensions". See [Troubleshoot](#troubleshoot).
 
 ## Approve extension tools
 
@@ -96,7 +96,7 @@ With these rules, the tools of the `tracker` extension run without asking, excep
 
 Hooks match extension tools the same way, with `match.tool_kind: extension.tracker`. See [Configure approval modes](../configuration/approval.md) and [Tool kinds and names](../../reference/tool-kinds-and-names.md#extension-tool-names).
 
-> `icode run` never asks for approval: every tool runs, extension tools included. See [Run headless tasks with icode run](../running/icode-run.md).
+> `aixcoding-cli run` never asks for approval: every tool runs, extension tools included. See [Run headless tasks with aixcoding-cli run](../running/icode-run.md).
 
 ## Write an extension
 
@@ -128,21 +128,21 @@ async def pyproject_version(
 
 The first line of the module's docstring is the description the "Tools" tab shows. Write `@extension.tool` alone to keep every default, or pass the options below. For each tool:
 
-- **Name**: the function's name, or `@extension.tool(name="...")`. The model calls the tool by this name. It uses letters, digits, `_`, and `-`, up to 64 characters, and must not repeat the name of an iCode tool, a sub-agent, a tool from one of the agent's MCP servers, or a tool of another extension the agent uses. Starting each name with your extension's id avoids clashes.
+- **Name**: the function's name, or `@extension.tool(name="...")`. The model calls the tool by this name. It uses letters, digits, `_`, and `-`, up to 64 characters, and must not repeat the name of an AIxCoding-CLI tool, a sub-agent, a tool from one of the agent's MCP servers, or a tool of another extension the agent uses. Starting each name with your extension's id avoids clashes.
 - **Description**: the function's docstring, or `@extension.tool(description="...")`. The model reads it to decide when to use the tool, so say what the tool does and when it helps.
 - **Parameters**: each one needs a type. Write `Annotated[type, "description"]` to give the model a description of the value. The types are `str`, `int`, `float`, `bool`, `None`, `Any`, `Literal[...]`, `list[...]`, `dict[str, ...]`, unions such as `str | None`, and `TypedDict` classes for objects; the tool receives what the model sent, as plain Python values. A parameter with a default value is optional. Parameters must have names: `*args`, `**kwargs`, and positional-only parameters are not allowed.
 - **Context**: one parameter typed `ToolContext`, under any name, tells the tool where and for whom it runs. The model never sees it.
 - **Result**: return a string; `None` for no output; or a value JSON can represent, such as a `dict` or `list` of strings, numbers, booleans, and `None`, which the model gets as JSON. Convert other values, such as dates, to strings first. A result longer than 8,000 tokens is cut down, and the whole text is saved in the session folder; the model is told where. Set `@extension.tool(max_result_tokens=...)` for another limit, or `0` to turn this limit off; the limit on every tool result, [`tools.result.ceiling_tokens`](../../reference/settings.md) (64,000 tokens by default), still applies.
 - **Errors**: `raise ToolError("message", code="...")` to tell the model what went wrong; the code labels the failure in the session's records. Any other exception tells the model only that the tool failed, so paths, addresses, and tokens in exception messages stay out of the conversation.
-- **Approval**: tools ask before they run unless you write `@extension.tool(requires_approval=False)`; then the agent's approval settings decide, as they do for iCode's own read-only tools. Use it only for tools that change nothing.
+- **Approval**: tools ask before they run unless you write `@extension.tool(requires_approval=False)`; then the agent's approval settings decide, as they do for AIxCoding-CLI's own read-only tools. Use it only for tools that change nothing.
 
-iCode checks each tool when the extension is imported: a function that is not `async def`, a parameter without a type or with a type the model cannot send, or two tools with the same name stop the extension from loading, and the warning names the problem.
+AIxCoding-CLI checks each tool when the extension is imported: a function that is not `async def`, a parameter without a type or with a type the model cannot send, or two tools with the same name stop the extension from loading, and the warning names the problem.
 
-### Keep iCode responsive
+### Keep AIxCoding-CLI responsive
 
-- Tools run on iCode's own event loop: anything that blocks, such as a slow file operation, a network request with a synchronous library, or a long computation, freezes iCode while it runs. Run it with `await asyncio.to_thread(...)` instead.
+- Tools run on AIxCoding-CLI's own event loop: anything that blocks, such as a slow file operation, a network request with a synchronous library, or a long computation, freezes AIxCoding-CLI while it runs. Run it with `await asyncio.to_thread(...)` instead.
 - The model can call several tools at once, and those calls run at the same time. If calls to your tools share state, such as one file, guard it with an `asyncio.Lock`.
-- When the user interrupts the agent, iCode cancels the calls still running, and the `await` in progress raises `asyncio.CancelledError`. Let it propagate, and clean up in `finally` blocks.
+- When the user interrupts the agent, AIxCoding-CLI cancels the calls still running, and the `await` in progress raises `asyncio.CancelledError`. Let it propagate, and clean up in `finally` blocks.
 
 ### What a tool can read from its context
 
@@ -152,14 +152,14 @@ iCode checks each tool when the extension is imported: a function that is not `a
 | `workspace_dirs` | The working directory, then any additional working directories |
 | `agent_name` | The name of the agent calling the tool |
 | `session_id` | The session's id, or `None` |
-| `data_dir` | A folder for the extension's own files, kept across sessions: `extension-data/<extension id>` in the iCode configuration directory |
+| `data_dir` | A folder for the extension's own files, kept across sessions: `extension-data/<extension id>` in the AIxCoding-CLI configuration directory |
 | `session_data_dir` | A folder for the extension's files in this session, inside the session's folder, or `None` when the session has no folder. Forking a session copies this folder, so store paths relative to it |
 
-iCode creates the two folders the first time a tool uses them, readable only by you. A context is valid only for the call it was given to: do not keep it for later calls. A tool changes iCode's state only through its result; anything else it changes is files and services, as with any program you run.
+AIxCoding-CLI creates the two folders the first time a tool uses them, readable only by you. A context is valid only for the call it was given to: do not keep it for later calls. A tool changes AIxCoding-CLI's state only through its result; anything else it changes is files and services, as with any program you run.
 
 ### Example: search your team's issue tracker
 
-This extension, `tracker.py`, searches your team's issue tracker. It reads a token from an environment variable, calls the tracker's web API without blocking iCode, and turns failures into messages the model can act on. It returns a list of objects, which the model gets as JSON. Replace the address and the field names with your tracker's:
+This extension, `tracker.py`, searches your team's issue tracker. It reads a token from an environment variable, calls the tracker's web API without blocking AIxCoding-CLI, and turns failures into messages the model can act on. It returns a list of objects, which the model gets as JSON. Replace the address and the field names with your tracker's:
 
 ```python
 """Search issues in the team's issue tracker."""
@@ -182,7 +182,7 @@ API = "https://tracker.example.com/api"
 def _get(path: str) -> dict:
     token = os.environ.get("TRACKER_TOKEN")
     if not token:
-        raise ToolError("TRACKER_TOKEN is not set; set it before starting iCode.", code="missing_token")
+        raise ToolError("TRACKER_TOKEN is not set; set it before starting AIxCoding-CLI.", code="missing_token")
     request = urllib.request.Request(API + path, headers={"Authorization": f"Bearer {token}"})
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
@@ -225,7 +225,7 @@ def _current_branch(cwd) -> str:
         cwd=cwd,
         capture_output=True,
         text=True,
-        stdin=subprocess.DEVNULL,  # never read iCode's own input
+        stdin=subprocess.DEVNULL,  # never read AIxCoding-CLI's own input
     )
     return result.stdout.strip()
 
@@ -242,13 +242,13 @@ async def ticket(ctx: TurnContext) -> str | None:
 
 - **When it is asked**: when a turn starts: you send a message, a sub-agent gets its task, or a workflow step runs an agent. All of an agent's contexts are asked at the same time, and the turn waits for them, so keep them quick and run blocking work with `await asyncio.to_thread(...)`. Retrying a turn, or a workflow step retrying its agent, keeps the text its contexts gave the first time; each new run of a workflow step asks again. A workflow step's `timeout` starts once its contexts have answered.
 - **What it reads**: `ctx.prompt` is what the turn was asked to do: your message, the sub-agent's task, or the step's prompt. The other fields are those of [`ToolContext`](#what-a-tool-can-read-from-its-context).
-- **What the agent sees**: the text, along with the turn's message. iCode sends it again only when it changes, or when the conversation was condensed and the agent no longer sees it. Returning `None` or blank text tells the agent that the earlier text no longer applies, as does turning the extension off. Text longer than 4,000 tokens is cut short.
+- **What the agent sees**: the text, along with the turn's message. AIxCoding-CLI sends it again only when it changes, or when the conversation was condensed and the agent no longer sees it. Returning `None` or blank text tells the agent that the earlier text no longer applies, as does turning the extension off. Text longer than 4,000 tokens is cut short.
 - **Name**: the function's name, or `@extension.context(name="...")`. It uses letters, digits, `_`, and `-`, up to 64 characters, and is unique within the extension. Saved sessions keep the name, so renaming a context makes it a new one.
-- **Failures**: a context that raises an exception, runs longer than its timeout (10 seconds, or `@extension.context(timeout=...)`), or returns something other than text gives nothing that turn, as if it returned `None`. The first time it fails, iCode shows a warning that names it and the error.
+- **Failures**: a context that raises an exception, runs longer than its timeout (10 seconds, or `@extension.context(timeout=...)`), or returns something other than text gives nothing that turn, as if it returned `None`. The first time it fails, AIxCoding-CLI shows a warning that names it and the error.
 
 ### Check or change tool calls
 
-A tool hook sees each tool call the agent makes, of iCode's own tools, MCP tools, sub-agents, and extension tools alike. A sub-agent's own tool calls reach only the hooks of the extensions its own profile turns on. Add an `async def` function with `@extension.before_tool` to check a call before it runs, or with `@extension.after_tool` to change the result the model reads once the call has ended. This extension is saved as `icode_guard.py`:
+A tool hook sees each tool call the agent makes, of AIxCoding-CLI's own tools, MCP tools, sub-agents, and extension tools alike. A sub-agent's own tool calls reach only the hooks of the extensions its own profile turns on. Add an `async def` function with `@extension.before_tool` to check a call before it runs, or with `@extension.after_tool` to change the result the model reads once the call has ended. This extension is saved as `aixcoding-cli_guard.py`:
 
 ```python
 """Keep .env files unchanged and tokens out of tool results."""
@@ -279,8 +279,8 @@ async def hide_tokens(call: ToolCall, result: ToolResult) -> str | None:
 - **Before a call**: the hook takes a `ToolCall`: the tool's `name`, its [`kind`](../../reference/tool-kinds-and-names.md), the call's `arguments` as JSON values, its `call_id`, and a `context` with your extension's folders, as a tool's `ToolContext`. Raise `ToolError` to refuse the call: the model reads `Error: <message>`. Return a dict to run the call with those arguments instead; return all of them, not only the ones you change. Return `None` to let the call run as it is. Your [hooks](./hooks.md) and the approval see the arguments your hook left. When you edit a call's arguments while approving it, its before hooks run again on your edit.
 - **After a call**: the hook takes the `ToolCall` and a `ToolResult`: `text`, which is what the model reads; `failed`, whether the call did not succeed; `rejected`, whether it was refused, by you, a hook, or an extension; and `duration_ms`. Return text to replace what the model reads; images and other attachments of the result stay. Return `None` to leave it. When the tool raised an exception, the model reads that error whatever the hook returns.
 - **Order**: hooks run one after another, in the order the agent's extensions are listed and then in the order each extension declares them, and each sees what the previous one left. They run before the hooks you configure in `hooks.yaml`.
-- **Failures**: a before hook that raises anything other than `ToolError`, runs longer than its timeout (10 seconds, or `@extension.before_tool(timeout=...)`), or returns something other than a dict refuses the call. An after hook that raises, runs longer than its timeout, or returns something other than text replaces the result with a note that iCode withheld it. Both messages name the extension and the hook; the model is not shown the error itself, which in the TUI iCode records in `logs/debug.log` in the configuration directory.
-- **What hooks do not see**: tools the model provider runs itself, such as a provider's own web search; calls whose arguments do not fit the tool; and the tool calls of [external ACP agents](./external-acp-agents.md). When you interrupt a call while its after hooks run, the call keeps the result the tool returned.
+- **Failures**: a before hook that raises anything other than `ToolError`, runs longer than its timeout (10 seconds, or `@extension.before_tool(timeout=...)`), or returns something other than a dict refuses the call. An after hook that raises, runs longer than its timeout, or returns something other than text replaces the result with a note that AIxCoding-CLI withheld it. Both messages name the extension and the hook; the model is not shown the error itself, which in the TUI AIxCoding-CLI records in `logs/debug.log` in the configuration directory.
+- **What hooks do not see**: tools the model provider runs itself, such as a provider's own web search; calls whose arguments do not fit the tool; and [if you interrupt a call while its after hooks run, the call keeps the result the tool returned.
 
 The calls of one model response run at the same time, so hooks for different calls can run at the same time too.
 
@@ -318,14 +318,14 @@ The folder is not on Python's import path, so `import client` and `from client i
 
 ### Test an extension
 
-Tools stay plain async functions, so tests call them directly with a test context. `chrys.extensions` comes with iCode; to run tests, install `iCode-TUI` in your development environment:
+Tools stay plain async functions, so tests call them directly with a test context. `chrys.extensions` comes with AIxCoding-CLI; to run tests, install `aixcoding-cli` in your development environment:
 
 ```python
 import asyncio
 
 from chrys.extensions import ToolContext
 
-from icode_pyproject import pyproject_version
+from aixcoding-cli_pyproject import pyproject_version
 
 
 def test_reads_the_version(tmp_path):
@@ -344,7 +344,7 @@ import asyncio
 import pytest
 from chrys.extensions import ToolCall, ToolContext, ToolError
 
-from icode_guard import protect_env
+from aixcoding-cli_guard import protect_env
 
 
 def test_refuses_to_change_env_files(tmp_path):
@@ -361,38 +361,38 @@ def test_refuses_to_change_env_files(tmp_path):
 
 ### Publish an extension as a package
 
-Name the extension in your package's `pyproject.toml` under the `chrys.extensions` entry point group. The entry's name is the extension id, and its value names the module and its `extension`. This package keeps the extension's code in `icode_pyproject/__init__.py`, next to `pyproject.toml`:
+Name the extension in your package's `pyproject.toml` under the `chrys.extensions` entry point group. The entry's name is the extension id, and its value names the module and its `extension`. This package keeps the extension's code in `aixcoding-cli_pyproject/__init__.py`, next to `pyproject.toml`:
 
 ```toml
 [project]
-name = "icode-pyproject"
+name = "aixcoding-cli-pyproject"
 version = "0.1.0"
 description = "Read details from the project's pyproject.toml"
 requires-python = ">=3.14"
 dependencies = []
 
 [project.entry-points."chrys.extensions"]
-pyproject = "icode_pyproject:extension"
+pyproject = "aixcoding-cli_pyproject:extension"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = ["iCode-TUI", "pytest"]
+dev = ["aixcoding-cli", "pytest"]
 ```
 
-The package's `description` is what the "Tools" tab shows. iCode runs on Python 3.14 or later. List the libraries your extension needs under `dependencies`, but not `iCode-TUI`: your extension runs inside the iCode that is already installed, so list `iCode-TUI` only as a development dependency. `uv build` builds the package into `dist/`, ready to publish; in your own checkout, `uv sync` installs the package and its `dev` group, so tests can import it. Once the package is installed into iCode's environment, the extension is listed in the "Tools" tab.
+The package's `description` is what the "Tools" tab shows. AIxCoding-CLI runs on Python 3.14 or later. List the libraries your extension needs under `dependencies`, but not `aixcoding-cli`: your extension runs inside the AIxCoding-CLI that is already installed, so list `aixcoding-cli` only as a development dependency. `uv build` builds the package into `dist/`, ready to publish; in your own checkout, `uv sync` installs the package and its `dev` group, so tests can import it. Once the package is installed into AIxCoding-CLI's environment, the extension is listed in the "Tools" tab.
 
 ## Troubleshoot
 
 | What you see | What to check |
 | --- | --- |
-| The extension is missing from the "Tools" tab | The file is in the `extensions` folder of the configuration directory (not in a project folder), its name ends in `.py` or it is a folder with `__init__.py`, and its name does not start with `_` or `.`. A package must be installed into the environment iCode runs in. |
+| The extension is missing from the "Tools" tab | The file is in the `extensions` folder of the configuration directory (not in a project folder), its name ends in `.py` or it is a folder with `__init__.py`, and its name does not start with `_` or `.`. A package must be installed into the environment AIxCoding-CLI runs in. |
 | "Skipped …" under "Extensions" | The id breaks the id rules above or repeats a built-in tool category. Rename the file or folder. |
 | A warning that the agent starts without the extension | The warning gives the reason: the extension is not installed, is installed twice, failed to import (the message names the error), or has a tool whose name another tool already uses. |
-| A call ends with "Error: Function failed." | The tool raised an exception other than `ToolError`. In the TUI, iCode records it in `logs/debug.log` in the configuration directory. Raise `ToolError` for failures the model should read. |
+| A call ends with "Error: Function failed." | The tool raised an exception other than `ToolError`. In the TUI, AIxCoding-CLI records it in `logs/debug.log` in the configuration directory. Raise `ToolError` for failures the model should read. |
 | A warning that the agent goes without a context | The context raised an exception, ran longer than its timeout, or returned something other than text. The warning gives the reason; that turn the agent goes without the context. |
 | A call ends with "Extension … before_tool hook … failed …, so the call did not run." | The hook raised an exception other than `ToolError`, ran longer than its timeout, or returned something other than a dict of arguments. The message gives the reason; in the TUI, `logs/debug.log` in the configuration directory has the error. |
-| A result reads "[Extension … after_tool hook … failed …, so iCode withheld this result.]" | The hook raised an exception, ran longer than its timeout, or returned something other than text. In the TUI, `logs/debug.log` in the configuration directory has the error. |
-| A change to the extension has no effect | Restart iCode: each extension is imported only once while iCode runs. |
+| A result reads "[Extension … after_tool hook … failed …, so AIxCoding-CLI withheld this result.]" | The hook raised an exception, ran longer than its timeout, or returned something other than text. In the TUI, `logs/debug.log` in the configuration directory has the error. |
+| A change to the extension has no effect | Restart AIxCoding-CLI: each extension is imported only once while AIxCoding-CLI runs. |

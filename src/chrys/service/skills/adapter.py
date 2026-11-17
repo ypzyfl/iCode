@@ -246,10 +246,16 @@ def _collect_skill_paths(
 ) -> list[str]:
     """Merge profile skill paths with the default user/project skills directories.
 
-    Three auto-loaded locations:
+    Auto-loaded locations, in scan order (first root wins name clashes):
 
     * ``~/.chrys/skills/`` — always included so Chrys-specific skills added
       later in a session can be discovered without an agent rebuild.
+    * ``<runtime.cwd>/.aixcoding/skills/`` — the desktop-client workspace root,
+      when ``config.auto_load_aixcoding_cwd_skills`` is True (not gated by
+      *project_skills_enabled*).
+    * ``~/.aixcoding/{skills,market-skills,team-skills/<team>}`` and the
+      ``~/.aixcoding_intellij`` mirror — desktop-client HOME roots, when
+      ``config.auto_load_aixcoding_user_skills`` is True.
     * ``~/.agents/skills/`` — included when ``config.auto_load_user_agents_skills``
       is True.  This is a shared cross-tool skills directory opt-in per
       profile (default: True).
@@ -279,6 +285,24 @@ def _collect_skill_paths(
     # Missing roots cost one is_dir() check per refresh, which is negligible.
     chrys_user_dir = get_platform().config_dir / "skills"
     append_unique(str(chrys_user_dir.expanduser().resolve()))
+
+    # AIxCoding skills: merge the workspace aixcoding root (src/chrys/service/aixcoding/skill_paths)
+    try:
+        from chrys.service.aixcoding.skill_paths import cwd_aixcoding_skill_paths
+
+        for path in cwd_aixcoding_skill_paths(config, runtime):
+            append_unique(path)
+    except Exception:  # AIxCoding skills: best-effort merge, never block skill loading
+        logger.debug("aixcoding workspace skill roots unavailable", exc_info=True)
+
+    # AIxCoding skills: merge the HOME aixcoding trees (src/chrys/service/aixcoding/skill_paths)
+    try:
+        from chrys.service.aixcoding.skill_paths import user_aixcoding_skill_paths
+
+        for path in user_aixcoding_skill_paths(config):
+            append_unique(path)
+    except Exception:  # AIxCoding skills: best-effort merge, never block skill loading
+        logger.debug("aixcoding home skill roots unavailable", exc_info=True)
 
     # Opt-in (default on): ~/.agents/skills/.
     if config.auto_load_user_agents_skills:
@@ -312,6 +336,8 @@ async def create_skills_provider(
         session_dir: Current session directory for recoverable script-output spills.
         project_skills_enabled: The user's ``project.skills_enabled`` setting;
             the working folder's ``.agents/skills`` loads only when it is on.
+            The working folder's ``.aixcoding/skills`` (product-owned root)
+            ignores this gate and follows its own profile toggle instead.
 
     Returns ``(provider, warnings)`` where *warnings* collects any non-fatal
     errors (e.g. a single invalid skill that was skipped).  Empty
