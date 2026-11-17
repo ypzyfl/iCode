@@ -45,6 +45,34 @@ def test_fresh_install_writes_template_and_payload(tmp_path: Path) -> None:
     assert installed_guard_hooks(hooks_dir) == (True, [])
 
 
+def test_managed_entries_ship_disabled_and_resist_manual_enabling(tmp_path: Path) -> None:
+    """Shipped disabled: after install both managed entries are enabled: false, and a
+    local hand edit is pulled back by the template.
+
+    The installer overwrites each managed entry wholesale by id from the template on
+    every start (``merge_guard_entries``), so a machine still carrying the old guard
+    syncs to disabled on its first start after the upgrade — exactly the behaviour the
+    hooks.yaml template comment promises.
+    """
+
+    def enabled_by_id(hooks_file: Path) -> dict[str, object]:
+        document = yaml.safe_load(hooks_file.read_text(encoding="utf-8-sig"))
+        return {str(entry["id"]): entry.get("enabled", True) for entry in document["hooks"]}
+
+    hooks_dir = tmp_path / "hooks"
+    report = install_guard_hooks(hooks_dir=hooks_dir)
+    assert enabled_by_id(report.hooks_file) == dict.fromkeys(MANAGED_HOOK_IDS, False)
+
+    # Local hand edit back to true: the next start reinstalls from the template and
+    # pulls it back (a centrally controlled shutdown; no local opt-out).
+    text = report.hooks_file.read_text(encoding="utf-8-sig")
+    assert "enabled: false" in text
+    report.hooks_file.write_text(text.replace("enabled: false", "enabled: true"), encoding="utf-8")
+
+    install_guard_hooks(hooks_dir=hooks_dir)
+    assert enabled_by_id(report.hooks_file) == dict.fromkeys(MANAGED_HOOK_IDS, False)
+
+
 def test_reinstall_is_idempotent_and_overwrites_payload(tmp_path: Path) -> None:
     hooks_dir = tmp_path / "hooks"
     install_guard_hooks(hooks_dir=hooks_dir)
