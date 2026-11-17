@@ -36,14 +36,11 @@ hooks:
   # 提示词层拦截：IN-01 ~ IN-09。
   # on_error: block + timeout_seconds: 120 即规则表的"失败兜底"：子进程超时、
   # 崩溃或引擎异常时本轮请求直接被拦下，而不是静默放行。
-  # Released disabled in this version (temporary shutdown: field reports of false
-  # positives blocking normal work): `enabled` stays false, and the hook engine
-  # filters disabled entries at load time — no child process, no interception, no
-  # audit trail (guardctl's engine switch is not consulted while this lasts). The
-  # installer overwrites same-id managed entries wholesale from this template on
-  # every start, so machines still carrying the old guard are disabled on their
-  # first start after upgrading, and a local hand edit is pulled back as well.
-  # To restore: flip both `enabled` values below back to true and cut a release.
+  # 本版本出厂停用（临时关闭，现场反馈误拦截影响正常使用）：enabled 恒为 false，
+  # hook 引擎加载时过滤停用条目，不启动子进程，不拦截也不留痕（guardctl 的引擎
+  # 开关在此期间不参与判定）。安装器每次启动都按模板整块覆盖同名受管条目，已装
+  # 旧版的机器升级后首个启动即停用，手改本行也会被拉回；
+  # 恢复方式：把下面两处 enabled 改回 true 重新发版。
   - id: security-prompt-guard
     event: user_prompt_submit
     enabled: false
