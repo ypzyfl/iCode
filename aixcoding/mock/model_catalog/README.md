@@ -3,7 +3,7 @@
 模拟"服务端下发模型目录"这一路后端，让 catalog 同步的整条链路
 （拉取 → 校验 → 整表替换 → version 未变则跳过）能在本地跑通。
 
-对应客户端：`src/chrys/service/profiles/models/catalog.py`。
+对应客户端：`src/chrys/service/aixcoding/models/catalog.py`。
 
 ## 运行
 
@@ -73,29 +73,47 @@ del "%APPDATA%\chrys\models\.catalog-state.json"
 原来还有 `/model-catalog`（和 dispatch 是同一 payload 的第二条路径，重复）
 和 `/mock/state`（信息 `control` 的响应已经带回来了，冗余），都已删除。
 
-payload 形状是**服务端自己的**，不是 iCode 的 `ModelProfile`：
+payload 形状是**服务端自己的**，不是 iCode 的 `ModelProfile`。包内
+`config_new.json` 的完整形态（也是契约测试钉住的形态）：
 
 ```json
 {
   "models": [
     {
-      "title": " 智谱 GLM-5",
+      "title": "GPT-4o mini",
       "provider": "openrouter",
-      "model": "GLM-5",
-      "apiBase": "https://open.bigmodel.cn/api/paas/v4",
-      "contextLength": 256000
+      "model": "openai/gpt-4o-mini",
+      "apiBase": "http://127.0.0.1:7777/v1",
+      "contextLength": 128000,
+      "completionOptions": { "maxTokens": 16000, "reasoning": true },
+      "capabilities": { "uploadImage": true },
+      "requestOptions": { "verifySsl": false }
     }
-  ]
+  ],
+  "aa": { "test": "as" }
 }
 ```
 
 接口返回什么不由我们决定，所以转换放在客户端
-（`catalog.translate_models_payload()`，规则见
-`docs/model-catalog-sync-details.md` §1.1）：`title` → `name`（trim）、
-`model` → `model_id` 兼派生 `id`、`apiBase` → `base_url`、
-`contextLength` → `max_context_tokens`；`provider` / `api_style` 写死（下发模型
-全部走 OpenRouter）；`apiKey` 与 `api_key` **都不使用** —— 服务端不下发凭据，
-profile 里也不留，发消息时按 `base_url` 注入（`service/llm/clients.py`）。
+（`src/chrys/service/aixcoding/models/catalog.py` 的
+`translate_models_payload()`）：
+
+| 服务端字段 | iCode 字段 | 说明 |
+|---|---|---|
+| `title` | `name` | trim 前后空白 |
+| `model` | `model_id` / `id` | `id` 由 `model` 派生 |
+| `apiBase` | `base_url` | 缺省时回落 `CONTINUE_BASE_URL` |
+| `contextLength` | `max_context_tokens` | 只接受正数 |
+| `completionOptions.maxTokens` | `max_output_tokens` | 运行时折为请求 `max_tokens` |
+| `capabilities.uploadImage` | `vision` | 模型配置的 Vision 开关 |
+| `requestOptions.verifySsl` | `verify_ssl` | httpx 的 `verify`；样例取 `false` 便于观测 |
+| `provider` / `api_style` | 写死 | 下发模型统一走 OpenRouter 兼容链路 |
+
+`completionOptions.reasoning`、顶层 `aa`、嵌套块整块、`apiKey` / `api_key`
+**都不进入 profile**：iCode 侧没有布尔思考开关（深度思考走 `chat_options` 的
+厂商参数），服务端也不下发凭据；凭据在发消息时按 `base_url` 注入
+（`service/llm/clients.py`）。三个嵌套块不是对象时整块跳过，缺子键则该字段
+取 `ModelProfile` 默认值。
 
 ## 故障模式
 
@@ -142,7 +160,7 @@ curl -X POST localhost:7777/mock/control -d '{"mode":"ok"}'             # 恢复
 ## 关于契约
 
 mock 实现**不 import 产品代码**（保持黑盒，见 `aixcoding/mock/README.md`）。
-契约校验放在 `test_server.py`：把 mock 的输出喂给客户端真实的
+契约校验放在 `aixcoding/tests/mock/test_model_catalog_server.py`：把 mock 的输出喂给客户端真实的
 `parse_catalog()` —— 它内部先经 `translate_models_payload()` 转换再校验，
 所以 `models` 的取用、转换结果、以及 `empty` / `invalid` 两种拒绝路径都由
 此守住。
