@@ -14,3 +14,7 @@ Codex GPT-6 Astra 复审通过。独立运行九组分支匹配，核对签认�
 ## 首次 CD 回归修复复审
 
 Codex GPT-6 Astra 复核 wheel 校验和标签输出、正式发布与 PyPI 条件、定制标记及日志弹窗绑定，未发现阻断项。复审为只读检查，开发侧实跑结果见 [验证记录](verification.md#首次-cd-运行的回归修复)。
+
+## Windows ARM64 依赖缓存增量评审
+
+Codex GPT-6 Astra 核对了 setup-uv 缓存恢复与源码安装目录、vcpkg 文件缓存和原有离线与发布条件，未发现阻断项。已统一两处错误提示的 vcpkg 提交变量名。真实缓存命中和耗时待 Windows ARM64 runner 验证。

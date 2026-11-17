@@ -170,6 +170,8 @@ jobs:
   # AIxCoding branch release: use the resolved ref for binaries
   build-binaries:
     name: ${{ matrix.artifact }}-${{ matrix.installer }}
+    env:
+      WINDOWS_ARM_VCPKG_COMMIT: e182cb4dd2df2ab02f66a1aabd5f35bbdc9522c7 # OpenSSL 3.6.5
     needs: [resolve-build, compute-matrix]
     strategy:
       fail-fast: false
@@ -227,11 +229,34 @@ jobs:
           # line marks it required.
           tool: cross
 
+      # AIxCoding Windows ARM64 offline build: share the native dependency caches across runs.
+      - name: Configure Windows ARM64 build caches
+        id: windows-arm-cache
+        if: matrix.target == 'aarch64-pc-windows-msvc' && matrix.installer == 'offline'
+        shell: pwsh
+        run: |
+          $uvCache = Join-Path (Split-Path $env:RUNNER_TEMP -Qualifier) "\uv"
+          $vcpkgCache = Join-Path $env:RUNNER_TEMP "vcpkg-binary-cache"
+          New-Item -ItemType Directory -Path $vcpkgCache -Force | Out-Null
+          "uv_path=$uvCache" >> $env:GITHUB_OUTPUT
+          "vcpkg_path=$vcpkgCache" >> $env:GITHUB_OUTPUT
+          "image_version=$env:ImageVersion" >> $env:GITHUB_OUTPUT
+          "VCPKG_BINARY_SOURCES=clear;files,$vcpkgCache,readwrite" >> $env:GITHUB_ENV
+
+      - name: Cache Windows ARM64 OpenSSL binaries
+        if: steps.windows-arm-cache.outputs.vcpkg_path != ''
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.windows-arm-cache.outputs.vcpkg_path }}
+          key: cd-vcpkg-openssl-arm64-windows-static-md-${{ env.WINDOWS_ARM_VCPKG_COMMIT }}-${{ steps.windows-arm-cache.outputs.image_version }}
+
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           version: "0.13.7"
           enable-cache: true
           prune-cache: true
+          cache-local-path: ${{ steps.windows-arm-cache.outputs.uv_path || '' }}
+          cache-suffix: ${{ steps.windows-arm-cache.outputs.uv_path != '' && format('cd-arm64-{0}-{1}-{2}', env.WINDOWS_ARM_VCPKG_COMMIT, steps.windows-arm-cache.outputs.image_version, hashFiles('repo/.python-version', 'repo/uv.lock', 'repo/scripts/offline_build_constraints.txt')) || '' }}
 
       - name: Prepare PyApp source
         shell: bash
@@ -337,15 +362,13 @@ jobs:
         # root, where it takes 243.
         if: matrix.target == 'aarch64-pc-windows-msvc'
         shell: pwsh
-        env:
-          VCPKG_COMMIT: e182cb4dd2df2ab02f66a1aabd5f35bbdc9522c7 # OpenSSL 3.6.5
         run: |
           $vcpkg = Join-Path $env:RUNNER_TEMP "vcpkg"
           git init --quiet $vcpkg
-          git -C $vcpkg fetch --quiet --depth 1 https://github.com/microsoft/vcpkg.git $env:VCPKG_COMMIT
-          if ($LASTEXITCODE -ne 0) { throw "could not fetch vcpkg $env:VCPKG_COMMIT" }
+          git -C $vcpkg fetch --quiet --depth 1 https://github.com/microsoft/vcpkg.git $env:WINDOWS_ARM_VCPKG_COMMIT
+          if ($LASTEXITCODE -ne 0) { throw "could not fetch vcpkg $env:WINDOWS_ARM_VCPKG_COMMIT" }
           git -C $vcpkg checkout --quiet FETCH_HEAD
-          if ($LASTEXITCODE -ne 0) { throw "could not check out vcpkg $env:VCPKG_COMMIT" }
+          if ($LASTEXITCODE -ne 0) { throw "could not check out vcpkg $env:WINDOWS_ARM_VCPKG_COMMIT" }
           & "$vcpkg\bootstrap-vcpkg.bat" -disableMetrics
           if ($LASTEXITCODE -ne 0) { throw "could not bootstrap vcpkg" }
           & "$vcpkg\vcpkg.exe" install "--vcpkg-root=$vcpkg" openssl:arm64-windows-static-md
@@ -353,8 +376,6 @@ jobs:
           $openssl = Join-Path $vcpkg "installed\arm64-windows-static-md"
           "OPENSSL_DIR=$openssl" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "OPENSSL_STATIC=1" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          $uvCache = Join-Path (Split-Path $env:RUNNER_TEMP -Qualifier) "\uv"
-          "UV_CACHE_DIR=$uvCache" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Build offline distribution
         if: matrix.installer == 'offline'

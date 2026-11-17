@@ -17,3 +17,9 @@
 - 两种发布共用 wheel 版本检查的触发条件。正式标签保留与 wheel 版本及触发标签的匹配检查。分支版本标签由检查步骤从已构建的 wheel 派生，发布任务使用该输出。PyPI、构建来源及安装脚本 job 保持原样。
 - 在测试 wheel 上运行实际 Bash，6 组覆盖预发布标签、正式标签匹配与不匹配、触发标签与 ref 不一致。均符合预期。
 - Python 3.14.8 下，使用 `uv run --offline --no-sync --no-python-downloads pytest -n0 -q --tb=short tests/app/cli/test_app.py tests/app/tui/screens/test_modal_insert_clipboard.py aixcoding/tests/telemetry/test_report_logging.py tests/architecture/test_workflow_action_pins.py tests/architecture/test_python_pin.py`，76 项通过。Ruff、格式检查、文档闭环和差异检查通过。项目 pin 为 3.14.10。修复版 GitHub 发布待启动。
+
+## Windows ARM64 依赖缓存
+
+- 本地解析工作流 YAML，核对 ARM64 离线 job 在 setup-uv 前解析缓存路径，安装依赖与恢复缓存共用短路径；vcpkg 使用独立文件缓存。缓存 key 覆盖 vcpkg 提交及 runner 镜像，uv 另对 Python pin、依赖锁和构建约束分隔。实际构建、离线启动测试和发布 job 与 `a2220943` 一致。
+- 现有 Python 3.14.8，以 `uv run --offline --no-sync --no-python-downloads` 执行 `pytest -n0 -q tests/architecture/test_workflow_action_pins.py tests/architecture/test_python_pin.py tests/app/cli/test_app.py::test_releases_upload_the_checked_wheel_to_pypi_without_a_stored_secret`，退出 0，31 项通过。R2、R3、文档闭环和差异检查退出 0。项目 pin 为 3.14.10。
+- 尚未在 Windows ARM64 runner 验证。首次成功构建会填充缓存，两次相同配置的运行对照 setup-uv 恢复日志、vcpkg 命中、源码准备和离线构建耗时。

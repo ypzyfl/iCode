@@ -6,6 +6,8 @@
 - 确认意见：无
 
 > 适用分支已由责任人补签扩展为通用版本分支，见 [补充设计](design-supplement.md)。下文保留首次签认的 0.35.2 范围。
+>
+> Windows ARM64 离线构建缓存经另行签认，见 [缓存补充设计](design-windows-arm64-cache.md)。
 
 ## 方案概述
 
@@ -35,4 +37,5 @@
 | cd-branch-release:wheel | `.github/workflows/cd.yml` | AIxCoding branch release: use the resolved ref for the wheel | 1 | build-wheel checkout | 高（制品来源） | 〔随点迁移〕随 resolve-build |
 | cd-branch-release:wheel-release-version | `.github/workflows/cd.yml` | AIxCoding branch release: check the wheel before either release path | 1 | build-wheel version check | 高（发布版本） | 〔消费者退役〕停止分支预发布 |
 | cd-branch-release:binaries | `.github/workflows/cd.yml` | AIxCoding branch release: use the resolved ref for binaries | 1 | build-binaries checkout | 高（制品来源） | 〔随点迁移〕随 resolve-build |
+| cd-branch-release:windows-arm64-dependency-cache | `.github/workflows/cd.yml` | AIxCoding Windows ARM64 offline build: share the native dependency caches across runs. | 1 | build-binaries 中的 setup-uv 与 OpenSSL 构建准备 | 高（原生依赖缓存） | 〔机制退役〕Windows ARM64 不再从源码构建依赖 |
 | cd-branch-release:publish | `.github/workflows/cd.yml` | AIxCoding branch release: publish opt-in builds as pre-releases | 1 | release | 高（GitHub 发布） | 〔消费者退役〕停止分支预发布 |
