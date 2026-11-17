@@ -252,3 +252,93 @@ def test_translation_writes_only_fields_the_profile_consumes() -> None:
         "vision": True,
         "verify_ssl": False,
     }
+
+
+# ── synced profiles and custom profiles coexisting ───────────────────────
+
+
+def test_sync_marks_its_yaml_and_loader_ignores_the_marker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A synced YAML is identifiable, but the marker never reaches ModelProfile."""
+    from chrys.service.profiles.models.catalog import ModelCatalog, apply_catalog
+    from chrys.service.profiles.models.loader import load_profile_from_yaml
+    from chrys.service.profiles.models.schema import ModelProfile
+
+    monkeypatch.setattr(catalog_module, "catalog_directory", lambda: tmp_path)
+    apply_catalog(ModelCatalog(items=(ModelProfile(id="server-a", name="Server A", model_id="a"),)))
+
+    path = tmp_path / "server-a.yaml"
+    assert "synced_from_server: true" in path.read_text(encoding="utf-8")
+    loaded = load_profile_from_yaml(path)
+    assert loaded.id == "server-a"
+    assert not hasattr(loaded, "synced_from_server")
+
+
+def test_sync_clears_old_configs_and_keeps_marked_custom_profiles(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only marked new-version files coexist; unmarked old configs are cleared."""
+    from chrys.service.profiles.models.catalog import ModelCatalog, apply_catalog
+    from chrys.service.profiles.models.schema import ModelProfile
+
+    monkeypatch.setattr(catalog_module, "catalog_directory", lambda: tmp_path)
+    (tmp_path / "custom.yaml").write_text(
+        "id: custom\nname: Custom\nmodel_id: my-model\nsynced_from_server: false\n", encoding="utf-8"
+    )
+    # Written before the marker existed: an old-version config, cleared outright.
+    (tmp_path / "legacy.yaml").write_text("id: legacy\nname: Legacy\nmodel_id: old\n", encoding="utf-8")
+    (tmp_path / "stale.yaml").write_text(
+        "id: stale\nname: Stale\nmodel_id: old\nsynced_from_server: true\n", encoding="utf-8"
+    )
+
+    apply_catalog(ModelCatalog(items=(ModelProfile(id="server-a", name="Server A", model_id="a"),)))
+
+    assert (tmp_path / "custom.yaml").is_file(), "a marked custom profile survives"
+    assert not (tmp_path / "legacy.yaml").exists(), "an unmarked old config is cleared"
+    assert not (tmp_path / "stale.yaml").exists(), "a dropped server model is removed"
+    assert (tmp_path / "server-a.yaml").is_file()
+
+    registry = ModelProfileRegistry()
+    registry.load_profiles(tmp_path)
+    assert "custom" in registry.list_ids(), "preserved profiles stay visible in the TUI"
+    assert "legacy" not in registry.list_ids()
+    assert "stale" not in registry.list_ids()
+
+
+def test_a_saved_custom_profile_survives_a_later_sync(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The custom write path and the sync agree on the marker, so both coexist."""
+    from chrys.service.profiles.models.catalog import ModelCatalog, apply_catalog
+    from chrys.service.profiles.models.schema import ModelProfile
+    from chrys.service.profiles.models.serializer import save_profile
+
+    fake_platform = type("P", (), {"config_dir": tmp_path})()
+    monkeypatch.setattr("chrys.foundation.platform.get_platform", lambda: fake_platform)
+    monkeypatch.setattr(catalog_module, "catalog_directory", lambda: tmp_path / "models")
+
+    save_profile(ModelProfile(id="my-custom", name="My Custom", model_id="mine"))
+    apply_catalog(ModelCatalog(items=(ModelProfile(id="server-a", name="Server A", model_id="a"),)))
+
+    assert (tmp_path / "models" / "my-custom.yaml").is_file(), "a saved profile outlives the sync"
+    assert (tmp_path / "models" / "server-a.yaml").is_file()
+
+
+def test_sync_overwrites_a_same_id_custom_profile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A server id wins over a user file with the same name, with a one-time warning."""
+    import logging
+
+    from chrys.service.profiles.models.catalog import ModelCatalog, apply_catalog
+    from chrys.service.profiles.models.loader import load_profile_from_yaml
+    from chrys.service.profiles.models.schema import ModelProfile
+
+    monkeypatch.setattr(catalog_module, "catalog_directory", lambda: tmp_path)
+    (tmp_path / "server-a.yaml").write_text(
+        "id: server-a\nname: My Custom\nmodel_id: mine\nsynced_from_server: false\n", encoding="utf-8"
+    )
+    with caplog.at_level(logging.WARNING):
+        apply_catalog(ModelCatalog(items=(ModelProfile(id="server-a", name="Server A", model_id="a"),)))
+
+    loaded = load_profile_from_yaml(tmp_path / "server-a.yaml")
+    assert loaded.name == "Server A"
+    assert "synced_from_server: true" in (tmp_path / "server-a.yaml").read_text(encoding="utf-8")
+    assert "overwrote same-id custom profiles" in caplog.text

@@ -17,6 +17,13 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+#: Sync-only metadata carried by every model profile YAML so a catalog sync can
+#: tell a new-version config from an old one. ``False`` = user-authored, ``True``
+#: = server-synced. A file with no such field is an old-version config and is
+#: cleared by the next sync; ``ModelProfile`` never carries it and the loader
+#: ignores it.
+SYNCED_FROM_SERVER_KEY = "synced_from_server"
+
 
 def profile_to_dict(profile: ModelProfile) -> dict[str, Any]:
     """Serialize a ModelProfile to a dict suitable for ``yaml.dump()``.
@@ -51,12 +58,15 @@ def _user_profiles_dir() -> Path:
 def save_profile(profile: ModelProfile) -> Path:
     """Serialize *profile* to YAML and write to ``~/.chrys/models/{id}.yaml``.
 
+    The file is marked ``synced_from_server: false`` so a catalog sync keeps it
+    as a new-version custom profile instead of clearing it as an old config.
     Returns the path written.
     """
     target_dir = _user_profiles_dir()
     target_dir.mkdir(parents=True, exist_ok=True)
     path = target_dir / f"{profile.id}.yaml"
     data = profile_to_dict(profile)
+    data[SYNCED_FROM_SERVER_KEY] = False
     text = dump_yaml(data)
     path.write_text(text, encoding="utf-8")
     logger.debug("Saved model profile to %s", path)

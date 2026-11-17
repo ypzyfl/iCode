@@ -117,6 +117,8 @@ def test_save_profile_writes_yaml(fake_config_dir: Path) -> None:
     assert loaded["name"] == "Test"
     assert loaded["provider"] == "anthropic"
     assert loaded["model_id"] == "claude-sonnet-4-6"
+    # A custom write is a new-version config: it carries the sync marker.
+    assert loaded["synced_from_server"] is False
     # Defaults should not be in the YAML
     assert "max_context_tokens" not in loaded
     assert "stream" not in loaded
@@ -160,6 +162,14 @@ def test_save_profile_overwrites_existing(fake_config_dir: Path) -> None:
 
     loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
     assert loaded["name"] == "Second"
+
+
+def test_custom_write_marker_never_reaches_the_profile(fake_config_dir: Path) -> None:
+    """The sync marker is file metadata: the loader drops it from ModelProfile."""
+    path = save_profile(ModelProfile(id="marked", name="Marked"))
+    loaded = load_profile_from_yaml(path)
+    assert loaded.id == "marked"
+    assert not hasattr(loaded, "synced_from_server")
 
 
 def test_delete_profile_removes_existing_file(fake_config_dir: Path) -> None:
