@@ -54,5 +54,24 @@ AI 不得代填。签认一次后，后续追加评审记录不触发重签。
   `upstream_changed=0`。上节全量 Smart Test 基线（13812 passed / 17 skipped +
   architecture 323 passed）未被本轮增量推翻——增量只改冲突判据与测试，
   未新增依赖或上游接触。
-- 终态：评审通过；本文件头部已由责任人签认，追加本节不触发重签；
-  唯一待责任人本人动作是填写头部确认意见栏（F1）。`--closure` 实测 OK。
+- 终态：评审通过；本文件头部已由责任人签认、确认意见栏已由本人填写
+  （「知情确认」），追加评审记录不触发重签；`--closure` 实测 OK。
+
+## 2026-11-17 独立 peer review（R1–R4，责任人终裁）
+
+- 第二轮为独立第二 AI 按 PEER-REVIEW-HOWTO 执行：F1–F6 处置全部 confirm，
+  上游接触 0、四项门禁 + 定向测试复跑一致、幻觉 API 四符号查证通过；
+  结论 **R1 处置后 approve**。
+- **R1（suggestion）已修**：`install_snapshot` 字典后者胜出，`_publish` 传参前
+  按 `server_ids` 过滤 `preserved_profiles`，避免 stem 不撞但显式 id 撞的保留
+  文件在内存里覆盖后端项；新增 `test_snapshot_id_collision_keeps_backend_item_in_memory`
+  走真实 `_publish` 断言后端项胜出（R1 用例初稿误用不存在的 `get_profile`，
+  已自查改为实存 `list_profiles`）。
+- **R2（suggestion）澄清口径**：commit message 只描述本 commit（2 文件），
+  评审的 17 文件 +1588/-26 是分支累积（含已提交的 catalog-field-mapping），
+  另备覆盖全分支的 PR 描述；代码不动。
+- **R3 / R4（nit）不修留档**：前者改正需动已提交的 field-mapping 文件、
+  收益不足；后者极边角、无数据丢失、重载自愈。
+- R1 增量复审：定向 104 passed / 2 skipped（catalog 79 + mock 25），ruff 双检、
+  `--closure`、R2/R3、`--strict` 全绿；R1 用例非 vacuous（删过滤即红）。
+  证据见 `verification.md` 末节。本轮为最终交付态。

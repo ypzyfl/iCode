@@ -52,7 +52,7 @@ DEVELOPMENT.md §4.1 实施；签认头部复核未变，正文未改，不触�
 | 文件 | 改动 |
 |---|---|
 | `src/chrys/service/aixcoding/models/catalog.py` | `_SYNCED_FROM_SERVER_KEY` 常量；`_write_profile` 注入标记；`_is_server_synced` / `_server_owned_names` / `_load_custom_profiles` 三个只读 helper；`CatalogSyncResult` 加 `preserved_profiles` / `overwritten_custom_ids`；`apply_catalog` 写盘前分类、只删带标记旧文件、成功日志报保留数、覆盖告警；`_publish` 快照 = 后端项 + 保留自定义项 |
-| `aixcoding/tests/catalog/test_catalog_sync.py` | 新增 9 个用例函数（收集 12 例：8 个单用例 + 非真值标记 ×4 参数化）——标记写入/loader 忽略、删除与保留、非真值、冲突覆盖+告警、F2 stem 判据（显式 id≠stem 两种失真）、state 仍只含后端、指纹不受自定义影响、F3 快照零磁盘 IO、快照含自定义；既有删除失败用例的 stale 文件补标记以维持原语义（F4：原「9 用例」措辞已按最终态更正） |
+| `aixcoding/tests/catalog/test_catalog_sync.py` | 新增 10 个用例函数（收集 13 例：9 个单用例 + 非真值标记 ×4 参数化）——标记写入/loader 忽略、删除与保留、非真值、冲突覆盖+告警、F2 stem 判据（显式 id≠stem 两种失真）、state 仍只含后端、指纹不受自定义影响、F3 快照零磁盘 IO、R1 快照 id 冲突内存后端项胜出、快照含自定义；既有删除失败用例的 stale 文件补标记以维持原语义（F4 原措辞已更正；R1 后由 9 函数/12 收集增至 10/13） |
 
 既有语义保持：两阶段发布顺序、state 写入内容与 `profile_ids` 口径、指纹
 `_coerce_version`（只 hash 后端项）、TUI 只读门禁、请求/响应 detail 日志——
@@ -61,8 +61,8 @@ DEVELOPMENT.md §4.1 实施；签认头部复核未变，正文未改，不触�
 ### 测试
 
 ```
-uv run pytest -n0 -q aixcoding/tests/catalog/test_catalog_sync.py  → 78 passed
-    （基线 66 + 本批 12 收集：9 函数，其中非真值 ×4；F2/F3 增量补入后由 76 → 78）
+uv run pytest -n0 -q aixcoding/tests/catalog/test_catalog_sync.py  → 79 passed（R1 后终态）
+    （基线 66 + 本批 13 收集：10 函数，其中非真值 ×4；F2/F3 增量 76 → 78，R1 增量 78 → 79）
 uv run pytest aixcoding/tests -m "not integration and not gc_calibration" -q
     → 821 passed, 47 skipped in 27.48s
 uv run python scripts/chrys_test.py --smart --paths <本批 2 个改动文件>
@@ -156,3 +156,37 @@ uv run python aixcoding/tools/check_r3_markers.py --base HEAD → upstream_chang
   增量推翻——增量只改冲突判据与测试、未新增依赖或上游接触。
 - 本机 `config_new.json` 曾被手工改为 `mini2` 导致 mock 2 failed，已由责任人
   还原，本轮复跑恢复全绿；该调试残留未纳入本批。
+
+## 2026-11-17 独立 peer review 收敛（R1–R4）
+
+评审 AI 独立执行（PEER-REVIEW-HOWTO），责任人终裁：项目上 F1–F6 处置全部
+confirm；上游接触面 0（base `46c02674` 复跑 `changed=17 upstream_changed=0`
+为分支累积口径，工作区增量口径 `changed=2 upstream_changed=0`）；四项门禁 +
+定向 103 passed/2 skipped 复跑一致；幻觉 API 四符号查证通过。结论：
+**R1 处置后 approve**。
+
+### finding 处置
+
+| finding | 处置 | 落地 |
+|---|---|---|
+| R1（suggestion，快照 id 冲突内存反向覆盖） | **修（改代码）** | `registry.install_snapshot` 是 `{id: profile}`（后者胜出，`registry.py:156`）；`_publish` 传参前按 `server_ids` 过滤 `result.preserved_profiles`，使 stem 不撞但显式 id 撞的保留文件不会在内存里覆盖后端项；新增 `test_snapshot_id_collision_keeps_backend_item_in_memory`（走真实 `_publish` + `list_profiles` 断言后端项胜出）。用例撰写中曾误用不存在的 `get_profile`，已改为实存的 `list_profiles`（幻觉 API 自查） |
+| R2（suggestion，变更导览漏第一个 commit） | 澄清口径，代码不动 | 上一轮给的是**第二个 commit** 的提交信息（仅本 commit：2 文件 +262/-11）；评审的 17 文件 +1588/-26 是**分支累积** `46c02674..HEAD + 工作区`，含已提交的 catalog-field-mapping 第一个 commit。commit message 按惯例只描述本 commit；另备一份覆盖全分支的 PR 描述（见文末/交付说明） |
+| R3（nit，field-mapping self-review 草案措辞） | 不修，留档 | 该措辞描述签认前状态，头部已签认、closure 已绿；改正需动已提交文件、另起 commit，收益不足 |
+| R4（nit，同 stem 双扩展名撞 id 重复计数） | 不修，留档 | 极边角（同 stem 的 `.yaml` + `.yml` 同时撞后端 id），无数据丢失、重载自愈；不引入去重复杂度 |
+
+### R1 增量复审命令与结果
+
+```
+uv run pytest -n0 -q aixcoding/tests/catalog/test_catalog_sync.py aixcoding/tests/mock/test_model_catalog_server.py
+    → 104 passed, 2 skipped in 14.26s（catalog 79 = 基线 66 + 本批 13 收集；mock 25）
+uv run ruff check / format --check <2 个改动 py>  → All checks passed / formatted
+uv run python aixcoding/tools/check_docs.py --closure → OK（exit 0）
+uv run python aixcoding/tools/check_r2_diff.py --base HEAD → upstream_changed=0（工作区增量）
+uv run python aixcoding/tools/check_r3_markers.py --base HEAD → upstream_changed=0 marker_checked=0
+uv run python aixcoding/tools/gen_customizations.py --strict → OK — 116 rows / 161 markers / 0 warning
+```
+
+- R1 用例致死行：删 `_publish` 中 `profile.id not in server_ids` 过滤 → 后传的
+  自定义项覆盖后端项，`installed["a"].name == "a"` 断言变红；非 vacuous。
+- 增量只改 `_publish` 传参过滤 + 1 个测试用例；`apply_catalog` 的磁盘语义、
+  state、指纹、两阶段发布、零上游均保持。本轮为最终交付态。

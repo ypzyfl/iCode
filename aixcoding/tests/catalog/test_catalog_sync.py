@@ -1589,6 +1589,31 @@ def test_install_snapshot_stays_in_memory(monkeypatch: pytest.MonkeyPatch, tmp_p
     assert sorted(registry.list_ids()) == ["a", "mine"]
 
 
+def test_snapshot_id_collision_keeps_backend_item_in_memory(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """R1: a kept file whose YAML id collides with a server id must not win in memory.
+
+    install_snapshot is a dict keyed by id (last writer wins). A preserved file
+    whose stem does not collide but whose explicit id does is kept on disk, yet
+    the backend item must stay selectable — otherwise memory contradicts the
+    "backend wins an id collision" ruling.
+    """
+    directory = _wire_disk(monkeypatch, tmp_path)
+    directory.mkdir()
+    (directory / "keep.yaml").write_text("id: a\nname: Mine\nprovider: openai\nmodel_id: mine-m\n", encoding="utf-8")
+
+    catalog = _catalog("a")
+    result = catalog_module.apply_catalog(catalog)
+    assert [p.id for p in result.preserved_profiles] == ["a"], "the file survives on disk with its YAML id"
+
+    registry = ModelProfileRegistry()
+    runtime = catalog_module._SyncRuntime(registry, lambda _result: None, timeout=1.0)
+    runtime._publish(catalog, result)
+
+    installed = {p.id: p for p in registry.list_profiles()}
+    assert installed["a"].name == "a", "the backend item wins in memory, not the preserved custom one"
+    assert sorted(registry.list_ids()) == ["a"], "no duplicate/stale custom entry survives the id collision"
+
+
 def test_snapshot_includes_preserved_custom_profiles(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """A poll's snapshot installs backend items plus the preserved user profiles."""
     directory = _wire_disk(monkeypatch, tmp_path)

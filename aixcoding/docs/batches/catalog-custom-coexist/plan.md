@@ -9,9 +9,10 @@
 （不做 TUI 主动提示）、内存快照保持机制但扩展内容、TUI 只读不变、**不依赖
 `.catalog-state.json` 做来源判定**、**零上游改动**。
 评审 0 blocker / 3 suggestion / 3 nit，责任人拍板 F2 改代码、F3 补用例、F4 同步文档，
-F1 确认意见待本人填写、F5/F6 不修留档；增量复审 103 passed。`self-review.md`
-头部已由责任人签认（签认先于评审结论，F1 留档）；`check_docs.py --closure` 实测 OK。
-唯一待责任人本人动作：填写 `self-review.md` 头部确认意见栏（F1），之后按授权提交。
+F1 确认意见本人已填、F5/F6 不修留档；增量复审 103 passed。第二轮独立 peer review
+F1–F6 全部 confirm、**R1 处置后 approve**：R1 修（快照按 server_ids 过滤）、R2 澄清
+commit/PR 口径、R3/R4 留档；终态 104 passed。`self-review.md` 头部由责任人签认并填
+确认意见（「知情确认」）；`check_docs.py --closure` 实测 OK。待办：按授权提交。
 
 ## 待办
 
@@ -27,7 +28,8 @@ F1 确认意见待本人填写、F5/F6 不修留档；增量复审 103 passed。
 - [x] 跑门禁全集并把证据追加到 `verification.md`
 - [x] 双 AI 自审 → `self-review.md` 补评审记录（0 blocker、F1–F6 收敛）
 - [x] `check_docs.py --closure` 实测 OK（exit 0）
-- [ ] 责任人本人填写 `self-review.md` 头部确认意见栏（F1，AI 不代填）
+- [x] 责任人本人填写 `self-review.md` 头部确认意见栏（F1，本人填「知情确认」）
+- [x] 第二轮独立 peer review：R1 处置后 approve（R1 修、R2 澄清、R3/R4 留档）
 - [ ] 按责任人逐条授权提交 / 建 PR
 
 ## 挂起事项

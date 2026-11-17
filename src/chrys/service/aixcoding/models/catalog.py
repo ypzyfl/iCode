@@ -1163,7 +1163,13 @@ class _SyncRuntime:
         try:
             # Server items plus user profiles preserved on disk: without the
             # latter a poll would erase them from memory though the files remain.
-            registry.install_snapshot((*catalog.items, *result.preserved_profiles))
+            # A kept file whose YAML id collides with a server id must NOT win
+            # here — install_snapshot is a dict keyed by id (last one wins), so
+            # filtering those out keeps the "backend wins an id collision"
+            # ruling true in memory too (peer review R1).
+            server_ids = {profile.id for profile in catalog.items}
+            kept = tuple(profile for profile in result.preserved_profiles if profile.id not in server_ids)
+            registry.install_snapshot((*catalog.items, *kept))
         except Exception:
             _detail_log.log(_DETAIL_LEVEL, "模型目录注册表安装失败；下次同步将重试。", exc_info=True)
             return
