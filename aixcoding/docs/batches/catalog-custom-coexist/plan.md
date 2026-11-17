@@ -4,10 +4,10 @@
 
 ## 状态
 
-第 2 轮评审修复完成（2026-11-17）：B5 + r1/r2/r4 已修、r3 留档；blocker 清零
-（评审 AI 收敛判断），验证全绿（833 passed / 47 skipped、closure OK）。
-剩余：评审 AI 对 B5 修复行做最小复审确认 → 责任人更新 design 确认意见（覆盖
-B1/B2/S6/B5/r2 全部修正）→ 整合提交。
+交付评审（ypzyfl，2026-11-17）**Approve**：两提交全链路通过，3 findings 处置
+完毕（finding-1 design 措辞已纠、finding-2 留档、finding-3 顺手修），
+`--closure` OK。剩余：责任人更新 design 确认意见（补 finding-1/2 处置）→
+追加处置小提交 → 合并。
 
 ## 待办
 

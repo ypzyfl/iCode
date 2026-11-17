@@ -22,7 +22,7 @@
 | 非 `true` 标记一律按自定义 | `test_non_true_marker_is_treated_as_custom`（参数化） | 契约 |
 | 畸形 YAML 不中断同步 | `test_malformed_yaml_does_not_abort_sync` | 契约 |
 | ID 冲突后端覆盖 + detail 告警 | `test_conflict_backend_overwrites_and_logs` | 契约 |
-| 冲突/保留按文件名 stem 而非显式 id | `test_conflict_and_preservation_use_filename_not_explicit_id`（两形态参数化） | 契约 |
+| 冲突/保留按完整文件名而非显式 id | `test_conflict_and_preservation_use_filename_not_explicit_id`（两形态参数化） | 契约 |
 | state 内容不变、不作来源判定 | `test_state_profile_ids_stay_backend_only` | 契约 |
 | 指纹只含后端项 | `test_fingerprint_ignores_custom_profiles` | 契约 |
 | 快照零磁盘 IO | `test_install_snapshot_stays_in_memory`（写陷阱） | 行为锚定 |

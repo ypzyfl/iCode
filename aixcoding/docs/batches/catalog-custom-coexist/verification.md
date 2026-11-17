@@ -137,6 +137,33 @@ uv run python aixcoding/tools/check_docs.py --closure
 - **r3（不修留档）**：同一坏文件每轮两条 `exc_info` 与 S3 同源，已并入 design
   风险节 S3 条目。
 
+## 2026-11-17 交付评审（peer review）finding 处置
+
+评审人 ypzyfl（2026-11-17，覆盖本 PR 两提交 `18ac293f` + `97ba4bf1`，评审 AI
+CodeBuddy/GLM-5.3 独立于开发/自审 AI）：五项独立检查全过（R2/R11 零上游、
+closure 对账、幻觉 API 逐一实证、缺陷模式扫描、madr/ 不适用）；作者 self-review
+逐条 confirm；Windows 实机抽查 catalog 115 passed、mock 87 passed/2 skipped、
+`--strict` 116/161/0、`--closure` OK——与本文件记载一致。**结论：Approve**，
+3 findings 均不阻塞，处置如下：
+
+- **finding-1（design 措辞，合并前修）**：「清空本身失败……收敛自愈」不成立
+  （清空循环中途失败后后端文件已带标记，`server_owned` 非空 → 清空不再触发，
+  残留无标记旧文件被判自定义永久保留、不自愈）。已改为「永久保留、不自愈」
+  并注明触发路径与既定代价；`catalog.py:977` 失败日志经裁决**留档限定口径**
+  （对 staging/replace/state 失败准确），不改代码。
+- **finding-2（留档）**：后端 id 仅大小写不同的 normcase 键碰撞（Windows 写
+  同一文件）——后端病态数据、退化温和，design 风险节留档不修。
+- **finding-3（nit，顺手修）**：test-plan 覆盖矩阵「按文件名 stem」对齐为
+  「按完整文件名」。
+
+命令：
+
+```
+uv run python aixcoding/tools/check_docs.py --closure
+```
+
+结果：**OK**（27 ADR / 47 design / 46 self-review）。
+
 
 
 
