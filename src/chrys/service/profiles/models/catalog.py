@@ -361,19 +361,76 @@ _CATALOG_NESTED_ALIASES: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
 #: not the catalog's to hand out.
 _CATALOG_EXCLUDED_KEYS = frozenset({"id", "provider", "apiKey", "api_key"})
 
+#: Flat profile fields the payload supplies as numbers or booleans. ``ModelProfile``
+#: is a plain dataclass with no runtime type checks, so a quoted number or a
+#: misplaced flag would otherwise reach disk unchanged.
+_CATALOG_INT_FIELDS = ("max_context_tokens", "max_output_tokens")
+_CATALOG_BOOL_FIELDS = ("vision", "verify_ssl")
+
+
+def _positive_int(value: object) -> int | None:
+    """Return *value* as a positive integer, or ``None`` when it is not one.
+
+    Booleans are refused even though ``bool`` subclasses ``int``: a JSON
+    ``true`` is a misplaced flag, not a context length of 1. Numeric strings
+    are accepted because the server's own encoder sometimes quotes them.
+    """
+    if isinstance(value, bool):
+        return None
+    try:
+        if isinstance(value, int):
+            number = value
+        elif isinstance(value, float):
+            number = int(value)
+        elif isinstance(value, str):
+            number = int(value.strip())
+        else:
+            return None
+    except ValueError, OverflowError:
+        return None
+    return number if number > 0 else None
+
+
+def _coerce_typed_fields(item: dict[str, Any]) -> None:
+    """Normalize the known numeric/boolean fields in place, dropping bad values.
+
+    A value the server sent with the wrong type is dropped rather than guessed
+    or rejected: the profile then keeps the field's default, and one dirty
+    scalar cannot take the whole sync down.
+    """
+    for field in _CATALOG_INT_FIELDS:
+        if field not in item:
+            continue
+        number = _positive_int(item[field])
+        if number is None:
+            logger.warning("Dropping catalog field %s=%r: not a positive integer.", field, item[field])
+            del item[field]
+        else:
+            item[field] = number
+    for field in _CATALOG_BOOL_FIELDS:
+        if field not in item:
+            continue
+        if not isinstance(item[field], bool):
+            logger.warning("Dropping catalog field %s=%r: not a boolean.", field, item[field])
+            del item[field]
+
 
 def translate_models_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Translate the server's ``models`` payload into iCode-native items.
 
-    Fields :class:`ModelProfile` defines and the runtime consumes are taken as
-    the server sent them — no rewriting, no range checks, no default
-    substituted for a value that is present. Keys already named after a profile
-    field are copied, the aliases rename the differently-spelled ones, and the
-    nested ``maxTokens`` / ``uploadImage`` / ``verifySsl`` entries fill in
-    ``max_output_tokens`` / ``vision`` / ``verify_ssl``. Every other value is
-    ignored, including the three nested blocks as whole objects and
-    ``completionOptions.reasoning``. The served ``provider`` is one of them: it
-    names the server's own client, so :data:`CONTINUE_PROVIDER` is used instead.
+    Fields :class:`ModelProfile` defines and the runtime consumes are taken
+    from the server, with the few normalizations the real payload needs: the
+    title is trimmed, numeric fields are coerced to positive integers (a
+    non-numeric value is dropped, not guessed), booleans must be real booleans
+    (anything else is dropped), and ``apiBase`` is trimmed — its absence is
+    logged because the request would otherwise silently fall back to the
+    OpenAI default. Keys already named after a profile field are copied, the
+    aliases rename the differently-spelled ones, and the nested ``maxTokens`` /
+    ``uploadImage`` / ``verifySsl`` entries fill in ``max_output_tokens`` /
+    ``vision`` / ``verify_ssl``. Every other value is ignored, including the
+    three nested blocks as whole objects and ``completionOptions.reasoning``.
+    The served ``provider`` is one of them: it names the server's own client,
+    so :data:`CONTINUE_PROVIDER` is used instead.
 
     ``apiKey`` is not a credential channel either: the key is resolved at send
     time from the host's environment (service/llm/clients.py).
@@ -414,10 +471,16 @@ def translate_models_payload(payload: dict[str, Any]) -> dict[str, Any]:
             for nested_key, field in field_aliases:
                 if nested_key in nested:
                     item[field] = nested[nested_key]
-        # ``name`` is the one field the profile cannot do without; the served
-        # title is used verbatim when present.
-        if not item.get("name"):
-            item["name"] = model
+        # ``name`` is the one field the profile cannot do without, and the real
+        # payload's title carries leading whitespace.
+        item["name"] = str(item.get("name") or model).strip() or model
+        item["base_url"] = str(item.get("base_url") or "").strip()
+        if not item["base_url"]:
+            # The server is expected to always send apiBase; an empty one would
+            # silently fall back to the OpenAI default (clients.py), so it is
+            # surfaced here instead of only failing at request time.
+            logger.warning("Catalog model %r carries no apiBase; the OpenAI default base URL will be used.", model)
+        _coerce_typed_fields(item)
         items.append(item)
 
     # The server's shape carries no version and no default: the caller
@@ -700,6 +763,10 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
     and is cleared; a marked server profile the catalog drops is removed the
     same way. A custom profile sharing an id with a served model is overwritten
     by the server version.
+
+    Only ``{id}.yaml`` files are written, so only those can be overwritten and
+    warned about; ``.yml`` files are scanned only for old-config and stale
+    server cleanup, never written.
 
     ``ModelProfileRegistry.replace_profiles()`` re-scans the directory after a
     sync, so preserved custom profiles also stay visible in the TUI.

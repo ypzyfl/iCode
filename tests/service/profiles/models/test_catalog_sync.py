@@ -254,6 +254,58 @@ def test_translation_writes_only_fields_the_profile_consumes() -> None:
     }
 
 
+def test_translation_trims_title_and_gates_dirty_types(caplog: pytest.LogCaptureFixture) -> None:
+    """The real payload's dirty scalars are cleaned, not written verbatim."""
+    import logging
+
+    from chrys.service.profiles.models.catalog import translate_models_payload
+
+    with caplog.at_level(logging.WARNING):
+        items = translate_models_payload(
+            {
+                "models": [
+                    {
+                        "title": "  GLM-5  ",
+                        "model": "GLM-5",
+                        "apiBase": "  https://example.test/v1  ",
+                        "contextLength": "256000",  # quoted number: coerced
+                        "completionOptions": {"maxTokens": "16000"},  # quoted number: coerced
+                        "capabilities": {"uploadImage": "true"},  # not a boolean: dropped
+                        "requestOptions": {"verifySsl": "no"},  # not a boolean: dropped
+                    },
+                    {
+                        "title": "No Context",
+                        "model": "no-context",
+                        "apiBase": "https://example.test/v1",
+                        "contextLength": True,  # a misplaced flag: dropped
+                    },
+                ]
+            }
+        )["items"]
+
+    assert items[0]["name"] == "GLM-5"
+    assert items[0]["base_url"] == "https://example.test/v1"
+    assert items[0]["max_context_tokens"] == 256000
+    assert items[0]["max_output_tokens"] == 16000
+    assert "vision" not in items[0], "a non-boolean flag must be dropped, not guessed"
+    assert "verify_ssl" not in items[0]
+    assert "max_context_tokens" not in items[1], "a boolean is not a context length"
+    assert "not a boolean" in caplog.text
+    assert "not a positive integer" in caplog.text
+
+
+def test_translation_warns_when_apiBase_is_absent(caplog: pytest.LogCaptureFixture) -> None:
+    """A missing apiBase silently falls back to the OpenAI default: surface it."""
+    import logging
+
+    from chrys.service.profiles.models.catalog import translate_models_payload
+
+    with caplog.at_level(logging.WARNING):
+        translate_models_payload({"models": [{"title": "No Base", "model": "no-base"}]})
+
+    assert "carries no apiBase" in caplog.text
+
+
 # ── synced profiles and custom profiles coexisting ───────────────────────
 
 
