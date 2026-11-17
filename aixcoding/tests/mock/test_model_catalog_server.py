@@ -83,6 +83,9 @@ async def test_serves_builtin_sample(mock: RunningCatalogMock, direct_route: Non
     assert entry["title"] == "GPT-4o mini"
     assert entry["apiBase"] == "http://127.0.0.1:7777/v1"
     assert entry["contextLength"] == 128000
+    assert entry["completionOptions"] == {"maxTokens": 16000, "reasoning": True}
+    assert entry["capabilities"] == {"uploadImage": True}
+    assert entry["requestOptions"] == {"verifySsl": False}
     # Unknown top-level keys ride through verbatim — filtering is the client's job.
     assert payload["aa"] == {"test": "as"}
     # The reference payload has no version field; the client fingerprints ids.
