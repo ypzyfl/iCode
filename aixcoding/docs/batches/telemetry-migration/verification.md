@@ -675,3 +675,10 @@ AIXCODING_EXTENSION_BASE_URL=https://telemetry.invalid \
 - 改编码后，`pytest -n0 -q aixcoding/tests/telemetry` 首跑退出 1，66 项通过、6 项失败。失败用例加载了本机 `~/.chrys` 钩子，相关写入被沙箱拒绝。保持原权限，在测试进程内使用 `dataclasses.replace` 将平台的 `config_dir` 和 `data_dir` 指向同一个独立临时目录，清除 `get_platform` 缓存，再用 `pytest.main(["-n0", "-q", "aixcoding/tests/telemetry"])` 复跑，退出 0，**72 项通过**。两次均用 `UV_CACHE_DIR=/tmp/icode-telemetry-timing-uv AIXCODING_EXTENSION_BASE_URL=https://telemetry.invalid uv run --offline --no-sync --no-python-downloads` 启动。内网入库对账仍待验证。
 - 本次五个 Python 文件的 `ruff check --no-fix`、`ruff format --check` 以及 `python aixcoding/tools/check_docs.py --closure` 均退出 0。差异空白检查 `git diff --check` 退出 0。
 - 使用同一 uv 参数运行 `pytest -n0 -q tests/architecture/test_trajectory_wait_inventory.py tests/architecture/test_layering.py`，退出 0，**280 项通过**。
+
+### 2026-11-17 自动标题请求的工作区字段
+
+TUI 自动标题客户端没有构建期工作区，模型埋点此前省略 `projectName` 和 Git 字段。修复后，带标题生成轨迹且会话 ID 一致的请求复用该会话已登记的工作区。没有活动轮次时继续省略 `spanId`。CLI 渠道版本、工具 `productName` 和后端回填 `user_input` 沿用当前口径。
+
+- 在真实标题请求链路的 HTTP mock 中，将会话工作区与进程目录分开。修复前，`pytest -n0 -q aixcoding/tests/telemetry/test_model_wire.py -k title_request` 退出 1，报文缺 `projectName`。修复后，同文件 23 项通过，退出 0。回归同时断言项目名、Git 分支和 revision、会话 ID、系统调用类型及无轮次时的 `spanId` 缺省。
+- 使用本页上一节的独立临时配置方式运行 `pytest -n0 -q aixcoding/tests/telemetry`，73 项通过，退出 0。运行 `pytest -n0 -q tests/architecture/test_trajectory_wait_inventory.py tests/architecture/test_layering.py`，280 项通过，退出 0。均使用现有 Python 3.14.8 和 `uv run --offline --no-sync --no-python-downloads`，项目目标仍为 3.14.10。Ruff 检查与格式检查、`check_docs.py --closure`、`git diff --check` 通过。内网入库尚未核对。

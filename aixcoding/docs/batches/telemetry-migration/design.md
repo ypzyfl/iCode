@@ -153,6 +153,8 @@ TUI 直接复用引擎事件。ACP、headless 和 Workflow 通过同一适配层
 
 模型请求前构造旧 `extra_body.telemetry`，复制 options 与 extra_body 后合并旧字段。三个构建入口显式提供实际 Agent profile 和工作区，由定制包为原工厂调用绑定短生命周期构建作用域。包装器保持原工厂参数与异常语义，只调用原工厂一次，在同一任务内恢复上下文。子 Agent / Workflow 的企业 session 取父会话，模型传输继续使用各自路由。工作区切换后由引擎重建提供新的构建上下文。KernelConversation 用实际 RunRequest 与 pass 标识绑定定制上下文，调用结束恢复该绑定。没有本次 pass 的辅助调用仅使用其真实构建上下文。
 
+自动标题生成是辅助调用中的一个例外。标题客户端未携带构建期工作区时，middleware 仅在轨迹标记为标题生成且会话 ID 一致时，读取该会话最近一次 `SessionReady` 提供的实际工作区，补齐 `projectName` 和可用的 Git 字段。
+
 每次 middleware 进入生成企业 `requestId` 与 LLM span，用内部 `model_source_id` 关联。企业轮次 `spanId` 使用旧 namespace、session 与当前轨迹 turn 的 UUID5 算法。缺少可确认的 turn 时按旧字段规则省略。provider ID 负责兼容旧 `funcId`。kernel 操作 ID 负责本地 Start / Result 配对。HTTP attempt ID 供对账诊断。
 
 本地工具统一按最终响应 Content 的对象身份登记来源，在 kernel 为实际待分派的调用分配操作 ID 时完成交接。订阅器按操作 ID 获取来源，并在 Start 保存报文字段，Result 消费同次缓存。带轨迹和无轨迹使用同一条交接链。托管工具在流更新、终态和失败观察点按实际 Content 对象登记首次可确认来源，展示适配从观察到的 call/result 读取来源，把来源随操作缓冲。终态重建时使用实际内容的来源，订阅器以展示 occurrence 配对已经发送的 Start。历史内容及来源缺失按 §4.3 处理。

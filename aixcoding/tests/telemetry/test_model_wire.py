@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -113,6 +114,61 @@ def _profile(protocol, *, stream=False, sdk_retries=0, read_timeout=300.0):
         http_read_timeout=read_timeout,
         stream=stream,
     )
+
+
+async def test_title_request_uses_its_session_workspace_after_the_turn(tmp_path, monkeypatch):
+    from chrys.app.features.session_title.updater import SessionTitleUpdater
+    from chrys.foundation.events.bus import EventBus
+    from chrys.foundation.events.types import SessionReady
+    from chrys.orchestration.aixcoding.telemetry.lifecycle import attach, detach
+    from chrys.service.aixcoding.telemetry import model
+    from chrys.service.aixcoding.telemetry.context import GitInfo
+    from chrys.service.llm import clients
+    from chrys.service.trajectory.session import SessionTrajectory
+
+    workspace = tmp_path / "title-workspace"
+    workspace.mkdir()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("AIXCODING_EXTENSION_BASE_URL", "https://telemetry.invalid")
+    git = {str(workspace): GitInfo(branch="feature", revision="fixture-revision")}
+    monkeypatch.setattr(model, "collect_git_info", git.get)
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        return _completion("completions", "A title")
+
+    bus = EventBus()
+    updater = SessionTitleUpdater(bus, None)
+    session_id = "title-session"
+    trajectory = SessionTrajectory(session_id=session_id, session_dir=None)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as http:
+        monkeypatch.setattr(clients, "_build_profile_http_client", lambda *args, **kwargs: http)
+        await attach(bus)
+        try:
+            await bus.publish(
+                SessionReady(session_id=session_id, primary_cwd=str(workspace)), raise_handler_errors=True
+            )
+            title = await updater._generate_title(
+                SimpleNamespace(session_dir=None),
+                session_id,
+                "User: hello",
+                _profile("completions"),
+                existing_title="",
+                trajectory=trajectory.context(),
+            )
+        finally:
+            await updater.shutdown()
+            await detach(bus)
+
+    assert title == "A title"
+    (payload,) = _payloads(requests)
+    assert payload["sessionId"] == session_id
+    assert payload["eventSubType"] == "system"
+    assert "spanId" not in payload
+    assert payload["projectName"] == workspace.name
+    assert payload["gitBranch"] == "feature"
+    assert payload["gitRevision"] == "fixture-revision"
 
 
 @pytest.mark.parametrize("protocol", ["completions", "responses", "messages"])

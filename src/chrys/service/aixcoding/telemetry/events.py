@@ -193,6 +193,12 @@ class TelemetryEvents:
         self.delivery.submit(Report(TOOL_DETAIL_SAVE, payload))
 
 
+def session_workspace_cwd(session_id: str) -> str:
+    """Return the workspace registered by SessionReady for this session."""
+    events = _sessions.get(session_id)
+    return events.workspace_cwd if events is not None else ""
+
+
 def record_main_source(source: ModelSource) -> None:
     if events := _sessions.get(source.session_id):
         events.latest = source

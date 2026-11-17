@@ -14,7 +14,7 @@ from uuid import NAMESPACE_DNS, uuid4, uuid5
 
 from chrys import __version__
 from chrys.foundation.trajectory.context import current_trajectory
-from chrys.foundation.trajectory.envelope import ActorKind
+from chrys.foundation.trajectory.envelope import ActorKind, ActorRole
 from chrys.kernel import ChatMiddleware, ChatResponse, ResponseStream, in_internal_side_call
 from chrys.kernel.aixcoding.telemetry.context import current_pass
 from chrys.kernel.aixcoding.telemetry.provenance import remember_local_source
@@ -26,7 +26,7 @@ from chrys.service.aixcoding.telemetry.context import (
     load_settings,
     remember_source,
 )
-from chrys.service.aixcoding.telemetry.events import record_main_source, report_desktop_usage
+from chrys.service.aixcoding.telemetry.events import record_main_source, report_desktop_usage, session_workspace_cwd
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -86,8 +86,15 @@ class TelemetryModelMiddleware(ChatMiddleware):
         source = None
         try:
             cwd = self._facts.workspace_cwd if self._facts else ""
+            if (
+                not cwd
+                and trace is not None
+                and trace.actor.role == ActorRole.TITLE_GEN
+                and trace.session_id == self._session_id
+            ):
+                cwd = session_workspace_cwd(self._session_id)
             git = await asyncio.to_thread(collect_git_info, cwd) if cwd else None
-            source = self._prepare(context, side_call=side_call, git=git)
+            source = self._prepare(context, side_call=side_call, cwd=cwd, git=git)
         except Exception:
             logger.debug("Model telemetry preparation failed.")
         await call_next()
@@ -116,7 +123,7 @@ class TelemetryModelMiddleware(ChatMiddleware):
         elif isinstance(result, ChatResponse):
             record(result)
 
-    def _prepare(self, context: ChatContext, *, side_call: bool, git: GitInfo | None) -> ModelSource:
+    def _prepare(self, context: ChatContext, *, side_call: bool, cwd: str, git: GitInfo | None) -> ModelSource:
         facts = self._facts
         scope = current_pass()
         prompt = desktop_prompt.get()
@@ -136,7 +143,7 @@ class TelemetryModelMiddleware(ChatMiddleware):
             agent_name=(prompt.runner_name or "")
             if prompt is not None and channel.type == "desktop"
             else (facts.agent_name if facts else ""),
-            workspace_cwd=facts.workspace_cwd if facts else "",
+            workspace_cwd=cwd,
             git=git,
             origin=origin,
             pass_id=scope.pass_id if scope is not None else "",
