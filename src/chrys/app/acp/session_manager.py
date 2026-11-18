@@ -495,6 +495,11 @@ class AcpSessionManager:
                 raise AcpSessionError(msg)
             profile_data.setdefault("id", uuid.uuid4().hex[:12])
         profile_data["id"] = _safe_profile_file_stem(profile_data["id"], field_name="model profile id")
+        from chrys.service.aixcoding.models.catalog import is_server_owned_profile_id
+
+        if is_server_owned_profile_id(profile_data["id"]):
+            msg = "Model profile is managed by the server catalog and cannot be modified."
+            raise AcpSessionError(msg)
         profile = _model_profile_from_data(profile_data)
         profile.id = _safe_profile_file_stem(profile.id, field_name="model profile id")
         path = save_model_profile(profile)
@@ -505,6 +510,11 @@ class AcpSessionManager:
         """Delete a model profile from disk and registry."""
         self.load_registries()
         profile_id = _safe_profile_file_stem(profile_id, field_name="model profile id")
+        from chrys.service.aixcoding.models.catalog import is_server_owned_profile_id
+
+        if is_server_owned_profile_id(profile_id):
+            msg = "Model profile is managed by the server catalog and cannot be deleted."
+            raise AcpSessionError(msg)
         deleted = delete_model_profile(profile_id)
         if deleted:
             self._model_registry.remove(profile_id)
