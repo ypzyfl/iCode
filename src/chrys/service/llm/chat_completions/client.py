@@ -242,6 +242,14 @@ class ChatCompletionsClient(WireClient):
                 replay = await validate_stream_response(raw)
                 sdk_stream = raw.parse()
                 chunks = aiter(sdk_stream)
+                # AIxCoding llm-queue: guard gateway queue frames (src/chrys/service/aixcoding/llm_queue)
+                try:
+                    from chrys.service.aixcoding.llm_queue import guard_queue_frames
+
+                    chunks = guard_queue_frames(chunks)
+                except Exception:
+                    # The customization is optional: a broken import never blocks streaming.
+                    logger.debug("aixcoding llm-queue unavailable", exc_info=True)
                 received = False
                 async for chunk in chunks:
                     received = True
