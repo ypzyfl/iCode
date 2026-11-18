@@ -29,6 +29,8 @@ from chrys.foundation.events.types import (
     ContextCompressed,
     Error,
     Event,
+    # AIxCoding queue-progress: headless event type
+    GatewayQueueStatus,
     InvocationAborted,
     InvocationAnswerWithdrawn,
     InvocationCascadeAborted,
@@ -143,6 +145,8 @@ _HEADLESS_RUN_EVENT_TYPES = (
     InvocationSteered,
     AgentRuntimeUpdated,
     TurnStarted,
+    # AIxCoding queue-progress: headless event type
+    GatewayQueueStatus,
     UnansweredInputDropped,
     ApprovalModeUpdated,
     ApprovalRequest,

@@ -220,6 +220,8 @@ class Builds:
         use_route_session_context: bool = False,
         session_dir: Path | None = None,
         tool_result_ceiling_tokens: int | None = None,
+        # AIxCoding queue-progress: test double accepts the callback
+        on_queue_status: Any = None,
     ) -> ScriptedModel:
         self.profiles.append(profile.id)
         hold, self.hold = self.hold, None

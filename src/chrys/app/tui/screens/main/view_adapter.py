@@ -47,6 +47,7 @@ from chrys.app.tui.widgets.chat.file_snapshot import FileSnapshotKey, FileSnapsh
 from chrys.app.tui.widgets.chat.messages import ERROR_RETRY_ACTION
 from chrys.app.tui.widgets.chat.panel import ChatPanel
 from chrys.app.tui.widgets.chat.session_json import SessionJsonPanel
+from chrys.app.tui.widgets.chat.waiting_row import WaitingRow
 from chrys.app.tui.widgets.chrome.app_header import AppHeader
 from chrys.app.tui.widgets.chrome.hook_indicator import HookIndicator
 from chrys.app.tui.widgets.chrome.image_paste import clipboard_image_dir_for_session
@@ -78,6 +79,7 @@ from chrys.foundation.events.types import (
 from chrys.foundation.i18n.formatting import format_message
 from chrys.foundation.models.ask_user import AskUserAnswer
 from chrys.foundation.text.draft_references import DraftReferences
+from chrys.kernel.aixcoding.queue_progress import queue_note
 from chrys.service.approval.policy import ApprovalMode
 from chrys.service.profiles.models.schema import DEFAULT_MAX_CONTEXT_TOKENS
 from chrys.service.trajectory.session import trajectory_events_path
@@ -390,6 +392,15 @@ class MainScreenViewAdapter:
 
     def show_status(self, text: StatusMessage) -> None:
         self._screen.query_one(StatusBar).show(text)
+
+    # AIxCoding queue-progress: TUI render
+    def show_queue_status(self, position: int) -> None:
+        """Show the gateway's queue position beside the waiting dot."""
+        self._screen.query_one(WaitingRow).set_queue_note(queue_note(position))
+
+    def clear_queue_status(self) -> None:
+        """Return the waiting row to its bare dot; a new turn starts unqueued."""
+        self._screen.query_one(WaitingRow).set_queue_note("")
 
     def note_output_text(self, text: str) -> None:
         self._screen.query_one(StatusBar).note_output_text(text)

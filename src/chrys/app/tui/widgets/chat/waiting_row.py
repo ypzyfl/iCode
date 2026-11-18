@@ -37,6 +37,10 @@ class WaitingRow(GatedAnimation, FoldGap, Widget):
 
     ALLOW_SELECT = False
 
+    # AIxCoding queue-progress: waiting row note
+    _queue_note: str = ""
+    """Shown beside the dot while the gateway queues this turn; empty otherwise."""
+
     COMPONENT_CLASSES: ClassVar[set[str]] = {"waitingrow--lit"}
 
     DEFAULT_CSS = """
@@ -68,13 +72,24 @@ class WaitingRow(GatedAnimation, FoldGap, Widget):
         # lay the whole transcript out again as its gap comes and goes.
         return super()._size_updated(size, virtual_size, container_size, layout=False)
 
+    def set_queue_note(self, note: str) -> None:
+        """Show *note* beside the dot; an empty note restores the bare dot.
+
+        The note shares the dot's line, so it never changes the row's height.
+        """
+        if note == self._queue_note:
+            return
+        self._queue_note = note
+        self.refresh()
+
     def render(self) -> Text:
         if self.app.animation_level == "none":
             dot = breathing_dot(None, None, 0.0)
         else:
             lit = self.text_style_of("waitingrow--lit")
             dot = breathing_dot(self.rich_style.color, lit.color, time.monotonic())
-        return Text.assemble(self.gap_text(), "\n", dot) if self.gap_above else dot
+        line = Text.assemble(dot, f"  {self._queue_note}") if self._queue_note else dot
+        return Text.assemble(self.gap_text(), "\n", line) if self.gap_above else line
 
 
 def waits_after(entry: Widget | None) -> bool:

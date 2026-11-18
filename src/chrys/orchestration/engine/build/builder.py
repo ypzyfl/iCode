@@ -250,6 +250,8 @@ async def build_agent(
     on_pre_compact: Callable[[PreCompactInfo], Awaitable[None]] | None = None,
     on_compress: Callable[[CompressInfo], Awaitable[None]] | None = None,
     on_load_progress: LoadProgressCallback | None = None,
+    # AIxCoding queue-progress: build passthrough
+    on_queue_status: Callable[[Any], Awaitable[None]] | None = None,
     mutation_tracker: MutationTracker | None = None,
     mutation_coordinator: MutationCoordinator | None = None,
     todo_tracker: TodoTracker | None = None,
@@ -486,6 +488,8 @@ async def build_agent(
             session_id=session_id,
             session_dir=effective_session_dir,
             tool_result_ceiling_tokens=settings.tool_result_ceiling_tokens,
+            # AIxCoding queue-progress: build passthrough
+            **({} if on_queue_status is None else {"on_queue_status": on_queue_status}),
         )
         await prepared.own_or_release(client.aclose)
 

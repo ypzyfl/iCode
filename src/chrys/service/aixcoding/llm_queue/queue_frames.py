@@ -27,7 +27,7 @@ Design and evidence: ``aixcoding/docs/batches/model-queue-client/design.md``.
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
 
@@ -75,13 +75,21 @@ def queue_position(chunk: object) -> QueueStatus | None:
     return QueueStatus(position=position, queue_size=queue_size)
 
 
-async def guard_queue_frames(chunks: AsyncIterator[ChatCompletionChunk]) -> AsyncIterator[ChatCompletionChunk]:
+async def guard_queue_frames(
+    chunks: AsyncIterator[ChatCompletionChunk],
+    *,
+    on_status: Callable[[QueueStatus], Awaitable[None]] | None = None,
+) -> AsyncIterator[ChatCompletionChunk]:
     """Yield the provider's chunks, absorbing the gateway's queue frames.
 
     A position frame is absorbed after restarting the enclosing stall watchdog;
     a terminal queue rejection is translated into :class:`ProviderResponseError`
     with ``retryable=False``. Everything else, including the ``QUEUE_FULL``
     rejection, passes through untouched.
+
+    ``on_status`` receives every absorbed position; it runs after the watchdog
+    is restarted so a slow frontend never eats the stall budget, and its
+    failure is logged rather than allowed to break the stream.
     """
     iterator = chunks.__aiter__()
     absorbed = 0
@@ -108,6 +116,11 @@ async def guard_queue_frames(chunks: AsyncIterator[ChatCompletionChunk]) -> Asyn
             continue
         absorbed += 1
         report_wire_progress()
+        if on_status is not None:
+            try:
+                await on_status(status)
+            except Exception:
+                logger.debug("queue status callback failed", exc_info=True)
 
 
 def terminal_queue_rejection(exc: BaseException) -> ProviderResponseError | None:

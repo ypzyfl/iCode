@@ -246,7 +246,12 @@ class ChatCompletionsClient(WireClient):
                 try:
                     from chrys.service.aixcoding.llm_queue import guard_queue_frames
 
-                    chunks = guard_queue_frames(chunks)
+                    # AIxCoding queue-progress: pass queue callback
+                    observer = self._observer
+                    chunks = guard_queue_frames(
+                        chunks,
+                        on_status=observer.on_queue_status if observer is not None else None,
+                    )
                 except Exception:
                     # The customization is optional: a broken import never blocks streaming.
                     logger.warning(

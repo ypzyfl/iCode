@@ -54,6 +54,8 @@ from chrys.foundation.events.types import (
     ContextCompressed,
     Error,
     Event,
+    # AIxCoding queue-progress: ACP notification
+    GatewayQueueStatus,
     InvocationAborted,
     InvocationAnswerWithdrawn,
     InvocationCascadeAborted,
@@ -155,6 +157,8 @@ ACP_EXTENSION_NOTIFICATIONS: tuple[str, ...] = (
     "chrys/turn_started",
     "chrys/user_messages_dropped",
     "chrys/retry_attempt",
+    # AIxCoding queue-progress: ACP notification
+    "chrys/queue_status",
     "chrys/messages_retracted",
     "chrys/user_inject_result",
     "chrys/usage_update",
@@ -332,6 +336,8 @@ class ChrysAcpServer:
         self._initial_vision = initial_vision
         self._permission_timeout_seconds = permission_timeout_seconds
         self._client: Client | None = None
+        # AIxCoding queue-progress: ACP notification
+        self._last_queue_position: int | None = None
         self._pending_input_cancels: dict[tuple[str, str], asyncio.Future[None]] = {}
         self._pending_permission_cancels: dict[tuple[str, str], asyncio.Future[None]] = {}
         self._pending_permission_tasks: dict[tuple[str, str], asyncio.Task[acp_schema.RequestPermissionResponse]] = {}
@@ -1278,6 +1284,19 @@ class ChrysAcpServer:
                         "sessionId": _event_session_id(event, session_id),
                         "itemIds": list(event.removed_item_ids),
                         "retiredTurnId": event.retired_turn_id,
+                    },
+                )
+            return True
+        # AIxCoding queue-progress: ACP notification
+        if isinstance(event, GatewayQueueStatus):
+            if event.position != self._last_queue_position:
+                self._last_queue_position = event.position
+                await self._client_or_error().ext_notification(
+                    "chrys/queue_status",
+                    {
+                        "sessionId": _event_session_id(event, session_id),
+                        "position": event.position,
+                        "queueSize": event.queue_size,
                     },
                 )
             return True
