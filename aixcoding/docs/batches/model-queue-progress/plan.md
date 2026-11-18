@@ -4,14 +4,13 @@
 
 ## 状态
 
-**已实现并提交（2026-11-18），验证未全跑**。责任人要求先提交、后续继续。R2 最终 16 文件约 123 行（含追加的 `ports.py`、`main_screen_presenter.py` 与测试替身）。
+**实现与自审完成（2026-11-18）**，提交 `43b005a5`。R2 最终 16 文件约 126 行。实现评审的 2 个 blocker（放行后文案不释放、ACP 去重跨会话串号）已修并补测试。
 
 ## 下一步（接续入口）
 
-1. 跑 `tests/app/tui`、`tests/app/cli`、`tests/orchestration/engine` 与完整 Smart Test（本轮被取消）
-2. 三平台 `ty` 与 `verify.py --smart`
-3. 真实网关联调：TUI 等待行文案、CLI 去重行、ACP `chrys/queue_status`
-4. `self-review.md`（双 AI 评审）→ 签认
+1. 责任人签认 `self-review.md`
+2. 真实网关联调：TUI 等待行文案、CLI 去重行、ACP `chrys/queue_status` / `released`
+3. 可选：完整 Smart Test（已用宽目录集替代覆盖）
 
 前置批次 `../model-queue-client/` 已完成并提交（design/ADR/self-review 均已签认），本批次依赖其 `src/chrys/service/aixcoding/llm_queue/queue_frames.py` 与 `chat_completions/client.py` 的接线；续接时先读该批次的 plan.md 与 verification.md。
 
