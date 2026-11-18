@@ -485,11 +485,11 @@ async def build_agent(
         client = await create_client(
             active_profile,
             on_intermediate_text=on_intermediate,
+            # AIxCoding queue-progress: build passthrough
+            on_queue_status=on_queue_status,
             session_id=session_id,
             session_dir=effective_session_dir,
             tool_result_ceiling_tokens=settings.tool_result_ceiling_tokens,
-            # AIxCoding queue-progress: build passthrough
-            **({} if on_queue_status is None else {"on_queue_status": on_queue_status}),
         )
         await prepared.own_or_release(client.aclose)
 

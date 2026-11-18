@@ -337,7 +337,7 @@ class ChrysAcpServer:
         self._permission_timeout_seconds = permission_timeout_seconds
         self._client: Client | None = None
         # AIxCoding queue-progress: ACP notification
-        self._last_queue_position: int | None = None
+        self._last_queue_position: dict[str, int] = {}
         self._pending_input_cancels: dict[tuple[str, str], asyncio.Future[None]] = {}
         self._pending_permission_cancels: dict[tuple[str, str], asyncio.Future[None]] = {}
         self._pending_permission_tasks: dict[tuple[str, str], asyncio.Task[acp_schema.RequestPermissionResponse]] = {}
@@ -1289,16 +1289,25 @@ class ChrysAcpServer:
             return True
         # AIxCoding queue-progress: ACP notification
         if isinstance(event, GatewayQueueStatus):
-            if event.position != self._last_queue_position:
-                self._last_queue_position = event.position
+            event_session = _event_session_id(event, session_id)
+            if event.position < 0:
+                # The queue let the request through: tell the client once, per session.
+                self._last_queue_position.pop(event_session, None)
+                await self._client_or_error().ext_notification(
+                    "chrys/queue_status",
+                    {"sessionId": event_session, "released": True},
+                )
+            elif self._last_queue_position.get(event_session) != event.position:
                 await self._client_or_error().ext_notification(
                     "chrys/queue_status",
                     {
-                        "sessionId": _event_session_id(event, session_id),
+                        "sessionId": event_session,
                         "position": event.position,
                         "queueSize": event.queue_size,
                     },
                 )
+                # Recorded only after the notification landed: a failed send must retry.
+                self._last_queue_position[event_session] = event.position
             return True
         if isinstance(event, InvocationRetryAttempt) and event.origin.kind == "turn":
             await self._client_or_error().ext_notification(

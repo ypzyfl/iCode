@@ -77,6 +77,8 @@ from chrys.foundation.events.types import (
     InvocationToolCallStatusUpdated,
     TodoListUpdated,
     ToolCompacted,
+    # AIxCoding queue-progress: CLI line
+    TurnStarted,
     Warning,
     WorkflowLoopIteration,
     WorkflowNodeOutput,
@@ -747,12 +749,18 @@ class TurnProgress:
             # AIxCoding queue-progress: CLI line
             case GatewayQueueStatus():
                 self._queue_status(event.position)
+            case TurnStarted():
+                # AIxCoding queue-progress: CLI line
+                self._last_queue_position = None
             case _:
                 return
 
     # AIxCoding queue-progress: CLI line
     def _queue_status(self, position: int) -> None:
         """Write one queue line per position change: the heartbeat repeats a position."""
+        if position < 0:
+            self._last_queue_position = None
+            return
         if position == self._last_queue_position:
             return
         self._last_queue_position = position

@@ -12,8 +12,6 @@ from collections.abc import AsyncIterator
 from types import SimpleNamespace
 from typing import Any
 
-import pytest
-
 QUEUE_STATUS = 'event:queue_status\ndata:{"position":%d,"queueSize":%d}'
 CHUNK = (
     'data: {"id":"chatcmpl-1","object":"chat.completion.chunk","created":1,"model":"m",'
@@ -59,13 +57,16 @@ def _data_chunk(text: str) -> Any:
 
 
 def test_queue_note_branches() -> None:
-    """The copy distinguishes next-up, short queues and long queues."""
+    """The copy distinguishes release, next-up, short queues and long queues."""
     from chrys.kernel.aixcoding.queue_progress import queue_note
 
+    assert queue_note(-1) == ""
     assert queue_note(0) == "正在获取模型资源"
     assert "2" in queue_note(2)
-    assert "9" in queue_note(9)
-    assert queue_note(9) != queue_note(2)
+    assert "3" in queue_note(3)
+    assert "4" in queue_note(4)
+    # The long-queue branch adds the actionable hint; the short one must not.
+    assert queue_note(4) != queue_note(3)
 
 
 def test_queue_status_event_passes_the_headless_boundary() -> None:
@@ -95,7 +96,26 @@ async def test_guard_reports_every_absorbed_position() -> None:
 
     forwarded = [chunk async for chunk in guard_queue_frames(chunks(), on_status=on_status)]
 
-    assert seen == [(2, 5), (1, 4)]
+    # The first data chunk reports the release once, so no frontend keeps the note.
+    assert seen == [(2, 5), (1, 4), (-1, 0)]
+    assert len(forwarded) == 1
+
+
+async def test_guard_reports_the_release_only_after_a_queue_wait() -> None:
+    """A stream that never queued reports no release, so a frontend has nothing to clear."""
+    from chrys.service.aixcoding.llm_queue import guard_queue_frames
+
+    async def chunks() -> AsyncIterator[Any]:
+        yield _data_chunk("hi")
+
+    seen: list[int] = []
+
+    async def on_status(status: Any) -> None:
+        seen.append(status.position)
+
+    forwarded = [chunk async for chunk in guard_queue_frames(chunks(), on_status=on_status)]
+
+    assert seen == []
     assert len(forwarded) == 1
 
 
@@ -135,7 +155,7 @@ async def test_stream_with_callback_still_returns_the_answer() -> None:
     finally:
         await client.aclose()
 
-    assert seen == [2]
+    assert seen == [2, -1]
     assert "".join(update.text or "" for update in updates) == "hi"
 
 
@@ -162,6 +182,21 @@ def test_cli_writes_one_line_per_position_change() -> None:
     assert len(writer.lines) == 2
 
 
+def test_cli_release_clears_the_dedupe() -> None:
+    """After the queue releases, the same position must print again in a later wait."""
+    from chrys.app.cli.progress import TurnProgress
+    from chrys.foundation.events.types import GatewayQueueStatus
+
+    writer = _RecordingWriter()
+    progress = TurnProgress(writer, render=lambda reference: "", context=lambda: None)  # type: ignore[arg-type]
+
+    progress.handle(GatewayQueueStatus(session_id="s1", position=2, queue_size=5))
+    progress.handle(GatewayQueueStatus(session_id="s1", position=-1, queue_size=0))
+    progress.handle(GatewayQueueStatus(session_id="s1", position=2, queue_size=5))
+
+    assert len(writer.lines) == 2
+
+
 def test_waiting_row_note_is_set_and_cleared() -> None:
     """The row keeps the note until cleared, so a new turn must clear it explicitly."""
     from chrys.app.tui.widgets.chat.waiting_row import WaitingRow
@@ -169,7 +204,7 @@ def test_waiting_row_note_is_set_and_cleared() -> None:
     row = WaitingRow()
 
     row.set_queue_note("排队中 · 前方 2 个请求")
-    assert row._queue_note == "排队中 · 前方 2 个请求"  # noqa: SLF001 - the state the render reads
+    assert row._queue_note == "排队中 · 前方 2 个请求"
 
     row.set_queue_note("")
-    assert row._queue_note == ""  # noqa: SLF001
+    assert row._queue_note == ""

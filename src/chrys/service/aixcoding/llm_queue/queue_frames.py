@@ -47,10 +47,19 @@ _QUEUE_STATUS_FIELDS: Final = ("position", "queueSize")
 
 @dataclass(frozen=True, slots=True)
 class QueueStatus:
-    """One gateway queue position report; ``position`` counts the requests ahead."""
+    """One gateway queue position report; ``position`` counts the requests ahead.
+
+    ``position == RELEASED_POSITION`` says the queue let this request through:
+    the first data chunk arrived, so a frontend showing a queue note must drop
+    it (the turn may still wait later, for reasons that are not the queue).
+    """
 
     position: int
     queue_size: int
+
+
+RELEASED_POSITION: Final = -1
+"""The position reported once, when the first data chunk ends the queue wait."""
 
 
 def queue_position(chunk: object) -> QueueStatus | None:
@@ -111,16 +120,28 @@ async def guard_queue_frames(
             raise terminal from exc
         status = queue_position(chunk)
         if status is None:
+            if absorbed and not forwarded:
+                # The queue let this request through: tell the frontends once.
+                await _notify(on_status, QueueStatus(position=RELEASED_POSITION, queue_size=0))
             forwarded += 1
             yield chunk
             continue
         absorbed += 1
         report_wire_progress()
-        if on_status is not None:
-            try:
-                await on_status(status)
-            except Exception:
-                logger.debug("queue status callback failed", exc_info=True)
+        await _notify(on_status, status)
+
+
+async def _notify(
+    on_status: Callable[[QueueStatus], Awaitable[None]] | None,
+    status: QueueStatus,
+) -> None:
+    """Hand one status to the frontend; a broken frontend never breaks the stream."""
+    if on_status is None:
+        return
+    try:
+        await on_status(status)
+    except Exception:
+        logger.debug("queue status callback failed", exc_info=True)
 
 
 def terminal_queue_rejection(exc: BaseException) -> ProviderResponseError | None:

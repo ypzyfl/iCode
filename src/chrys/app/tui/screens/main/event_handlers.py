@@ -416,6 +416,7 @@ class BackendEventHandler:
         | InvocationContentFinished
         | InvocationContentAbandoned
         | Error
+        | GatewayQueueStatus
         | UnansweredInputDropped
         | TurnStarted,
     ) -> bool:
@@ -2284,11 +2285,12 @@ class BackendEventHandler:
 
     # AIxCoding queue-progress: TUI handler
     async def on_queue_status(self, event: GatewayQueueStatus) -> None:
-        """Show the gateway's queue position while this turn waits for a model slot."""
+        """Show the gateway's queue position, and drop it once the queue lets the request through."""
         if (event.session_id or "") != self._ui().chat_session_id():
             return
-        if not self.agent_running:
-            return  # Stale event after the turn ended
+        # A release is still applied when the turn already ended: dropping a note is always safe.
+        if event.position >= 0 and (not self.agent_running or self._predates_active_run(event)):
+            return
         self._ui().show_queue_status(event.position)
 
 

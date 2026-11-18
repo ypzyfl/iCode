@@ -395,12 +395,23 @@ class MainScreenViewAdapter:
 
     # AIxCoding queue-progress: TUI render
     def show_queue_status(self, position: int) -> None:
-        """Show the gateway's queue position beside the waiting dot."""
-        self._screen.query_one(WaitingRow).set_queue_note(queue_note(position))
+        """Show the gateway's queue position, or drop it once the queue lets the request through."""
+        row = self._waiting_row()
+        if row is None:
+            return
+        row.set_queue_note(queue_note(position))
 
     def clear_queue_status(self) -> None:
         """Return the waiting row to its bare dot; a new turn starts unqueued."""
-        self._screen.query_one(WaitingRow).set_queue_note("")
+        row = self._waiting_row()
+        if row is not None:
+            row.set_queue_note("")
+
+    def _waiting_row(self) -> WaitingRow | None:
+        """The current waiting row; absent while the chrome is being rebuilt."""
+        for row in self._screen.query(WaitingRow):
+            return row
+        return None
 
     def note_output_text(self, text: str) -> None:
         self._screen.query_one(StatusBar).note_output_text(text)

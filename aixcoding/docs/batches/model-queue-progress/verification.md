@@ -64,14 +64,78 @@ uv run python aixcoding/tools/check_docs.py
 **缺陷修复记录（实施中）**：
 
 1. `_assemble_stack(on_queue_status=...)` 首版为无默认值的 keyword-only 参数，上游 74 个直接调用它的测试全部 `TypeError` → 补 `= None`。
-2. `builder.py` 对 `create_client` 的传参改为"仅当回调非空"（测试替身签名固定，避免无谓参数）。
+2. `builder.py` 对 `create_client` 的传参曾改为"仅当回调非空"以绕开签名固定的测试替身；该写法触发三平台 `ty` 的 `invalid-argument-type`（字典展开推断不出参数名），**已回退为无条件传参**，改由替身 `Builds.create_client` 接受参数。
 3. 共享测试替身 `tests/app/tui/screens/test_prompt_shortcut_send.py::Builds.create_client` 追加 `on_queue_status: Any = None`（+1 行，被 ACP/TUI 多层测试复用）——R2 追加项，已入库 design R2 表。
 4. 文案初版使用全角逗号触发 RUF001，改写为中点分隔（避免新增 R13 lint 豁免）。
 
-**本轮未跑（责任人要求先提交，后续继续）**：
+## 2026-11-18 实现评审修复与全量补跑
 
-- `tests/app/tui`、`tests/app/cli`、`tests/orchestration/engine`（用户取消执行）
-- `uv run python scripts/chrys_test.py --smart --paths ...`（完整 Smart Test）
-- `ty` 的 darwin / linux 平台
-- 真实网关端到端联调（`chrys/queue_status` 在插件端的实际显示）
-- `self-review.md`（双 AI 评审，PR 前义务）
+独立实现评审（子代理）发现 2 个 blocker 与若干建议，处置后补跑。
+
+**blocker 1 — 同轮内文案不释放**：guard 此前只上报位置帧，放行后无信号，`WaitingRow` 在本轮后续每次等待都会带"排队中"。修复：`queue_frames.py` 在首个数据块时上报 `RELEASED_POSITION = -1`（仅当此前吸收过排队帧），三个前端各自消费。
+
+**blocker 2 — ACP 去重跨会话串号**：`_last_queue_position` 原为单值且无轮次重置。修复：改为 `dict[session_id, position]`，放行时删条目，`ext_notification` 成功后才记录。
+
+其余处置：`query_one(WaitingRow)` → `_waiting_row()` 遍历查询（chrome 重建窗口不再抛 `NoMatches`）；CLI 新增 `TurnStarted` 清零；TUI 放行路径补 `_predates_active_run`；`queue_progress.py` docstring 修正（ACP 只透传位置）。
+
+命令：
+
+```
+uv run pytest aixcoding/tests/llm -n0 -q
+```
+
+结果：`19 passed`（新增放行上报、无排队不上报放行、CLI 放行重置三条）。
+
+命令：
+
+```
+uv run pytest tests/app/tui/screens tests/app/tui/widgets/chat -q -n4
+```
+
+结果：`4194 passed, 55 skipped`。
+
+命令：
+
+```
+uv run pytest tests/app/acp tests/app/cli -q -n4
+```
+
+结果：`1302 passed, 44 skipped`。
+
+命令：
+
+```
+uv run pytest tests/app/cli tests/orchestration/engine -q -n4
+```
+
+结果：`2020 passed, 55 skipped`。
+
+命令：
+
+```
+uv run pytest tests/app/tui -q -n4
+```
+
+结果：`13358 passed, 2 failed, 85 skipped`。2 条失败均为 `tests/app/tui/widgets/test_file_scanner.py` 的 `..._real_nul_file` 用例：本机 Windows 无法创建名为 `nul` 的设备名文件（`OSError Errno 123`），单独复跑 0.58s 稳定复现，且该文件与其被测模块 `src/chrys/app/tui/widgets/` 本轮零改动 → 环境限制，非本批次引入。
+
+命令：
+
+```
+uv run ty check --error-on-warning --python-platform {win32,darwin,linux} src/chrys
+```
+
+结果：三平台均 `All checks passed!`。
+
+命令：
+
+```
+uv run python -m tests.support.trajectory_wait_inventory
+uv run python aixcoding/tools/gen_customizations.py
+```
+
+结果：wait 清单 5 条 reopened（含 `_on_queue_status` 与 `guard_queue_frames:2` 两个新 await，规则 `unresolved`）已刷新；对账 `check OK`。
+
+**仍未完成**：
+
+- `uv run python scripts/chrys_test.py --smart --paths ...`（完整 Smart Test；已用更宽的目录集替代：tui / cli / engine / acp / service.llm / session_host / architecture 守卫）
+- 真实网关端到端联调（TUI 文案、CLI 去重行、ACP `chrys/queue_status` 的实际显示）

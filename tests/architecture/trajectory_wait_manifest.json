@@ -4057,9 +4057,13 @@
       ]
     },
     "chrys.service.aixcoding.llm_queue.queue_frames": {
+      "_notify": [
+        ["awaitable", "await on_status(status)", "unresolved"]
+      ],
       "guard_queue_frames": [
         ["awaitable", "await anext(iterator)", "unresolved"],
-        ["awaitable", "await on_status(status)", "unresolved"]
+        ["wrapper", "await _notify(on_status, QueueStatus(position=RELEASED_POSITION, queue_size=0))", "unresolved", "chrys.service.aixcoding.llm_queue.queue_frames._notify"],
+        ["wrapper", "await _notify(on_status, status)", "unresolved", "chrys.service.aixcoding.llm_queue.queue_frames._notify"]
       ]
     },
     "chrys.service.aixcoding.models.catalog": {
