@@ -75,7 +75,7 @@ Successful turns also fold their intermediate activity by default. Each mid-turn
 
 Clicking an activity header keeps focus in the input field. A restored turn waiting for sub-agents stays open. Compressed history uses the same tool counts and activity titles.
 
-If a resumed conversation continues on a different model service than before, some earlier reasoning may be left out; see [Switch models](../configuration/models.md#switch-models).
+If a resumed conversation continues on a different model service than before, some earlier reasoning may be left out; see [Configure models](../configuration/models.md#4-switch-and-verify-model-profiles).
 
 ## Delete old sessions
 

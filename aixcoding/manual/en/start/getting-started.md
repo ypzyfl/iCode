@@ -179,6 +179,7 @@ You have installed AIxCoding-CLI and learned the basics of Q&A Agent and Code Ag
 
 You can continue exploring:
 
+- [Configure models](../guides/configuration/models.md) to create, clone, and manage the models you use; models assigned by the administrator are ready to use as they are
 - [Configure agents](../guides/configuration/agents.md) to create or modify agents and set their instructions, models, tools, and sub-agents
 - [Working directory](../guides/daily-use/workspaces.md)
 - [Configure approval modes](../guides/configuration/approval.md)
