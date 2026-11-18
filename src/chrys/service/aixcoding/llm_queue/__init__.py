@@ -11,7 +11,6 @@ from chrys.service.aixcoding.llm_queue.queue_frames import (
     TERMINAL_QUEUE_CODES,
     QueueStatus,
     guard_queue_frames,
-    latest_queue_status,
     queue_position,
     terminal_queue_rejection,
 )
@@ -20,7 +19,6 @@ __all__ = [
     "TERMINAL_QUEUE_CODES",
     "QueueStatus",
     "guard_queue_frames",
-    "latest_queue_status",
     "queue_position",
     "terminal_queue_rejection",
 ]

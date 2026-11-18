@@ -6,9 +6,10 @@
 -->
 
 - 责任人：李海潮
-- 状态：已确认
-- 确认日期：2026-11-18
+- 状态：草案
+- 确认日期：
 - 确认意见：尽量不改上游，若必须要改，要少而集中的改（可选；审阅中形成的判断、附加条件或保留）
+- 待重签说明（2026-11-18 自审后）：R2 清单新增 `tests/architecture/trajectory_wait_manifest.json`（+5），`client.py` 行数按实际改为 +10/−0；正文同步补假设 5 的测试边界与登记 risk 行数。
 
 ## 方案概述
 
@@ -61,11 +62,15 @@ R1 自查（必答）：
 
 ## 上游改动清单（R2）
 
-| 文件 | 改什么 | 预估行数 | 标记注释位置 |
+| 文件 | 改什么 | 实际行数 | 标记注释位置 |
 |---|---|---|---|
-| `src/chrys/service/llm/chat_completions/client.py` | `updates()` 内把 `chunks` 换成 `guard_queue_frames(chunks)`：函数内 lazy import 定制包，任何异常回退原迭代器（全吞错） | +6/−1 | `# AIxCoding llm-queue: guard gateway queue frames (src/chrys/service/aixcoding/llm_queue)` |
+| `src/chrys/service/llm/chat_completions/client.py` | `updates()` 内把 `chunks` 换成 `guard_queue_frames(chunks)`：函数内 lazy import 定制包，任何异常回退原迭代器（全吞错） | +10/−0 | `# AIxCoding llm-queue: guard gateway queue frames (src/chrys/service/aixcoding/llm_queue)` |
+| `tests/architecture/trajectory_wait_manifest.json` | 生成产物：新增 1 条 wait 节点 `chrys.service.aixcoding.llm_queue.queue_frames:guard_queue_frames:1`（`await anext(iterator)`，规则 `unresolved`），刷新命令 `uv run python -m tests.support.trajectory_wait_inventory` | +5 | 无（`MARKER_EXEMPTIONS` 生成产物，见 `aixcoding/tools/_common.py`） |
 
-R2 报批说明：相比首稿已撤销 `foundation/errors/_legacy.py` 的 +5 行（改由 E' 转译覆盖），上游接触面 2 文件 → 1 文件。
+R2 报批说明：
+- 相比首稿已撤销 `foundation/errors/_legacy.py` 的 +5 行（改由 E' 转译覆盖）。
+- `client.py` 首稿预估 +6/−1 与实际 +10/−0 的差异：实施后自审补齐了 1 行 `logger.warning` 换行与 1 行注释，且未删任何原行（首稿把 `chunks = aiter(...)` 误算成被替换行）。行数以本表为准。
+- wait 清单是上游测试守卫（`tests/architecture/test_trajectory_wait_inventory.py`）的生成产物，本批新增定制模块引入首个定制 wait 节点，必须随本批刷新；该文件属 `MARKER_EXEMPTIONS`，无 marker。
 
 ## 对上游隐式行为的假设
 
@@ -73,18 +78,18 @@ R2 报批说明：相比首稿已撤销 `foundation/errors/_legacy.py` 的 +5 �
 2. 假设：`queue_status` 的 data 恒为 `{"position": int, "queueSize": int}`，该帧无 `id`/`choices`/`usage` → 依赖方式：以 `choices is None` + `model_extra` 同时含两个 int 字段作判据 → 失效表现：服务端加字段或改名 → 帧不被识别，回退为 invalid response（**fail-loud**，不静默丢数据）。
 3. 假设：`queue_rejected` 在 SDK 层是裸 `openai.APIError`，`body` 为解包后的 `{code,message,traceId}`，`exc.code` 由其派生 → 依赖方式：从 `exc.code` 取码 → 失效表现：SDK 改为 `APIStatusError` 或形态变化 → 转译不命中，退回可重试（最多重排队 10 次，非静默），测试锚定。
 4. 假设：`classify_error` 对 `ProviderResponseError` 走 `explicit_retryable` 短路，且该判断先于 `_legacy.is_transient`（`classify.py:174` 先于 `:188`）；`chrys.foundation.errors.is_retryable` 是 classify 版本（`errors/__init__.py:24`），生产 wire 层经它判定（`attempts.py:20`）→ 依赖方式：转译 `ProviderResponseError(retryable=False)` 即可终态化 → 失效表现：上游调整短路顺序或改由 `_legacy.is_transient` 先行 → 定制测试红，需同步改分类层。
-5. **假设（评审补入，否则长排队场景仍雪崩）**：stall 看门狗按 idle 计 time，唯一续活信号是 `report_wire_progress()`（`kernel/loop.py:800-831`），`stall_timeout_seconds = http_read_timeout`（默认 300s，`schema.py:47`）→ 依赖方式：guard 丢弃 `queue_status` 帧时同时调用 `report_wire_progress()`，把网关 20s 位置心跳复用为 stall 续活 → 失效表现：若上游改为按 update 数计时或不复制 context 到 task（`start_with_wire_progress` 现为复制行为），排队 ≥ 超时即 `StreamStall` → 断连出队、重连重排（网关 FAQ Q3）。
+5. **假设（评审补入，否则长排队场景仍雪崩）**：stall 看门狗按 idle 计 time，唯一续活信号是 `report_wire_progress()`（`kernel/loop.py:800-831`），`stall_timeout_seconds = http_read_timeout`（默认 300s，`schema.py:47`）→ 依赖方式：guard 丢弃 `queue_status` 帧时同时调用 `report_wire_progress()`，把网关 20s 位置心跳复用为 stall 续活 → 失效表现：若上游改为按 update 数计时或不复制 context 到 task（`start_with_wire_progress` 现为复制行为），排队 ≥ 超时即 `StreamStall` → 断连出队、重连重排（网关 FAQ Q3）。**测试边界**：定制测试只锚定"丢帧时调用了 `report_wire_progress`"（单元 + 拓扑），"chunk 拉取确实运行在 watchdog 的 progress scope 内"属上游 `_watchdog_await` 行为，定制测试不覆盖；该假设失效只能靠上游自身测试或线上现象发现。
 
 ## 定制点登记预告
 
 | id | 落点 | marker 锚 | 预期计数 | anchor | risk | removal_condition |
 |---|---|---|---|---|---|---|
-| model-queue-client:queue-frame-guard | src/chrys/service/llm/chat_completions/client.py | AIxCoding llm-queue: guard gateway queue frames | 1 | `AsyncOpenAI.chat.completions` chunk 迭代（`StreamState.updates_for` 校验前） | 低（6 行接线，异常全吞错，删除即回滚） | 〔上游等价〕SDK 原生忽略未知具名事件且网关改以 HTTP 状态码表达排队拒绝，或网关不再对客户端下发 `queue_status` |
+| model-queue-client:queue-frame-guard | src/chrys/service/llm/chat_completions/client.py | AIxCoding llm-queue: guard gateway queue frames | 1 | `AsyncOpenAI.chat.completions` chunk 迭代（`StreamState.updates_for` 校验前） | 低（10 行接线，异常全吞错，删除即回滚） | 〔上游等价〕SDK 原生忽略未知具名事件且网关改以 HTTP 状态码表达排队拒绝，或网关不再对客户端下发 `queue_status` |
 
 ## 风险与最坏情况
 
 - 判据过宽：把其他 `choices=None` 的合法帧当排队帧丢弃 → 静默丢 usage。缓解：判据要求 `model_extra` 同时含 `position`、`queueSize` 且均为 `int`，并断言无 `id`/`usage`；测试覆盖"`choices=None` 但无排队字段"仍报 invalid response。
-- progress 续活失效：见假设 5，测试用"心跳周期 < 超时、总时长 > 超时"的假流锚定。
+- progress 续活失效：见假设 5。定制测试锚定"丢帧 → 上报 progress"的调用点；scope 传播本身在上游，不在本批测试射程内（test-plan 已标注该局限）。
 - 转译不命中：`body`/`code` 形态变化 → 退回重排队（可用性尚存，负载放大）。
 - `QUEUE_CANCELLED` 在 iCode 场景可达性低（不接 cancel 接口、断连即出队）→ 属**防御性覆盖**，保留以免服务端策略变化时误重试。
 - 回滚：删除接线并移除定制包，行为完全回到当前状态（无数据格式、无持久化、无对外契约变化）。
@@ -92,8 +97,8 @@ R2 报批说明：相比首稿已撤销 `foundation/errors/_legacy.py` 的 +5 �
 ## ADR 判定
 
 - ① 有被认真考虑但否决的备选（A/B/C/D/E）：**是**
-- ② 撤销代价高：否（删除 6 行即回滚）
-- ③ 约束未来工作模式：否（第二批 UI 复用同一模块，属增量）
+- ② 撤销代价高：否（删除 10 行与 1 条 wait 清单行即回滚）
+- ③ 约束未来工作模式：否（第二批 UI 另行设计作用域，本批不留进程级状态）
 - ④ 依赖上游非公开接口或行为（SDK 对未知事件的处理、`classify` 的 `explicit_retryable` 短路、stall 看门狗的 progress 机制）：**是**
 
 → 出 ADR：`standards/adr/model-queue-client--queue-frame-interception.md`。

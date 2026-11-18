@@ -20,9 +20,9 @@
 | `QUEUE_TIMEOUT` 非重试 | guard 转译后 `is_retryable(translated) is False`；同时断言根因 `APIError` 在 `__cause__` 上 | 单元 |
 | `QUEUE_CANCELLED` 非重试 | 同上 `QUEUE_CANCELLED` | 单元 |
 | `QUEUE_FULL` 仍可重试 | 原样上抛裸 `APIError` → `is_retryable(...) is True` | 单元 |
-| 心跳续活 stall 看门狗 | 假服务每 100ms 一帧 `queue_status`、持续 600ms；stall 超时设 200ms；断言无 `StreamStall` 且放行后正常收流 | 端到端 |
+| 心跳续活 stall 看门狗 | 在 `wire_progress_scope` 内消费两帧 `queue_status`，断言上报 2 次 | 单元（调用点锚定）；**局限**：scope 传播由上游 `_watchdog_await` 保证，定制测试不覆盖"生产 watchdog 确实包裹 chunk 拉取" |
 | 非 QUEUE 错误不变 | `UPSTREAM_TIMEOUT` code、`APIStatusError(429)`、连接错误各自保持原判定；其中裸 `APIError(code='UPSTREAM_TIMEOUT')` 另跑**经 guard 包装迭代器**的变体，断言原样上抛且分类不变（触达 guard 的 except 放行分支） | 单元 + guard 层 |
-| 定制缺失回退 | monkeypatch 定制 import 抛错 → 流式照旧（queue_status 场景退化为 invalid response，不因定制崩溃） | 单元 |
+| 定制缺失回退 | monkeypatch 定制 import 抛出 → 流式照旧；**必须断言内层异常是 `ChatClientInvalidResponseException`**（回退走了原 invalid-event 路径），而不是只断言 `ChatClientException`——否则删掉 try/except 也绿（自审 F2 破坏实验已证） | 单元 |
 
 ## 异常与降级路径
 

@@ -191,12 +191,16 @@ async def test_unavailable_customization_falls_back_to_the_plain_stream(
     """A broken customization import must not take the upstream stream down with it."""
     import sys
 
-    from chrys.kernel.exceptions import ChatClientException
+    from chrys.kernel.exceptions import ChatClientException, ChatClientInvalidResponseException
 
     monkeypatch.setitem(sys.modules, "chrys.service.aixcoding.llm_queue", None)
     client = await _client(_sse(QUEUE_STATUS % (1, 2), CHUNK % "hi", "data: [DONE]"))
     try:
-        with pytest.raises(ChatClientException):
+        with pytest.raises(ChatClientException) as caught:
             await _updates(client)
     finally:
         await client.aclose()
+
+    # The fallback keeps the original stream: the first queue frame fails it as
+    # an invalid event, not as the import error the guard swallowed.
+    assert isinstance(caught.value.args[1], ChatClientInvalidResponseException)

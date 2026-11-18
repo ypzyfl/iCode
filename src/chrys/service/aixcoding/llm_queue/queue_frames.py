@@ -17,12 +17,16 @@ gateway's error body. Neither is a completion chunk for the caller:
   are translated into ``ProviderResponseError`` and the rest are re-raised
   unchanged.
 
+Known diagnostic gap: a stream that carries only position frames and then ends
+makes the caller report "ended without any events", because absorbed frames set
+no data-chunk flag. The guard logs that case itself.
+
 Design and evidence: ``aixcoding/docs/batches/model-queue-client/design.md``.
 """
 
 from __future__ import annotations
 
-import time
+import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
@@ -32,6 +36,8 @@ from chrys.kernel import report_wire_progress
 
 if TYPE_CHECKING:
     from openai.types.chat import ChatCompletionChunk
+
+logger = logging.getLogger(__name__)
 
 TERMINAL_QUEUE_CODES: Final = frozenset({"QUEUE_TIMEOUT", "QUEUE_CANCELLED"})
 """Gateway queue rejection codes that a later attempt cannot fix."""
@@ -45,30 +51,15 @@ class QueueStatus:
 
     position: int
     queue_size: int
-    observed_at: float
-
-
-class _QueueStatusRecorder:
-    """Holds the newest report for a frontend that shows queue progress."""
-
-    latest: QueueStatus | None = None
-
-
-_recorder = _QueueStatusRecorder()
-
-
-def latest_queue_status() -> QueueStatus | None:
-    """The most recent queue position this process observed, if any."""
-    return _recorder.latest
 
 
 def queue_position(chunk: object) -> QueueStatus | None:
     """The queue position *chunk* reports, or ``None`` when it is a data chunk.
 
-    The gateway's position frame is the only chunk-shaped event that carries
-    both integer fields and no completion fields at all; anything else stays a
-    data chunk so a shape change fails the stream loudly instead of silently
-    dropping usage.
+    The gateway's position frame is recognised by the current gateway contract:
+    ``choices`` null, no completion fields, and both integer position fields in
+    the chunk's extra fields. Anything else stays a data chunk, so a contract
+    change fails the stream loudly instead of silently dropping usage.
     """
     if getattr(chunk, "choices", None) is not None:
         return None
@@ -81,7 +72,7 @@ def queue_position(chunk: object) -> QueueStatus | None:
     queue_size = extra.get(_QUEUE_STATUS_FIELDS[1])
     if type(position) is not int or type(queue_size) is not int:
         return None
-    return QueueStatus(position=position, queue_size=queue_size, observed_at=time.monotonic())
+    return QueueStatus(position=position, queue_size=queue_size)
 
 
 async def guard_queue_frames(chunks: AsyncIterator[ChatCompletionChunk]) -> AsyncIterator[ChatCompletionChunk]:
@@ -93,10 +84,17 @@ async def guard_queue_frames(chunks: AsyncIterator[ChatCompletionChunk]) -> Asyn
     rejection, passes through untouched.
     """
     iterator = chunks.__aiter__()
+    absorbed = 0
+    forwarded = 0
     while True:
         try:
             chunk = await anext(iterator)
         except StopAsyncIteration:
+            if absorbed and not forwarded:
+                logger.info(
+                    "gateway sent %d queue frame(s) and no data chunk; the stream ends without an answer",
+                    absorbed,
+                )
             return
         except Exception as exc:
             terminal = terminal_queue_rejection(exc)
@@ -105,10 +103,11 @@ async def guard_queue_frames(chunks: AsyncIterator[ChatCompletionChunk]) -> Asyn
             raise terminal from exc
         status = queue_position(chunk)
         if status is None:
+            forwarded += 1
             yield chunk
             continue
+        absorbed += 1
         report_wire_progress()
-        _recorder.latest = status
 
 
 def terminal_queue_rejection(exc: BaseException) -> ProviderResponseError | None:

@@ -249,7 +249,9 @@ class ChatCompletionsClient(WireClient):
                     chunks = guard_queue_frames(chunks)
                 except Exception:
                     # The customization is optional: a broken import never blocks streaming.
-                    logger.debug("aixcoding llm-queue unavailable", exc_info=True)
+                    logger.warning(
+                        "aixcoding llm-queue unavailable; gateway queue frames will fail the stream", exc_info=True
+                    )
                 received = False
                 async for chunk in chunks:
                     received = True

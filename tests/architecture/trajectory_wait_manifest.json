@@ -4053,6 +4053,11 @@
         ["awaitable", "await self._sources.extension_context.collect(prompt)", "unresolved"]
       ]
     },
+    "chrys.service.aixcoding.llm_queue.queue_frames": {
+      "guard_queue_frames": [
+        ["awaitable", "await anext(iterator)", "unresolved"]
+      ]
+    },
     "chrys.service.aixcoding.models.catalog": {
       "fetch_catalog": [
         ["awaitable", "await get_login_session().verify_live_credential()", "unresolved"],

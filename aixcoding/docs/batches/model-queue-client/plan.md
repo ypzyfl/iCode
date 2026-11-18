@@ -15,10 +15,13 @@
 - [ ] 责任人签认 design.md 与 ADR
 - [ ] 实现定制包 `src/chrys/service/aixcoding/llm_queue/`
 - [ ] 一处上游接线（`chat_completions/client.py`）+ AIxCoding 标记（E' 已撤销 `_legacy.py`）
-- [ ] 定制测试 `aixcoding/tests/llm/`
-- [ ] verification.md 记录命令与输出
-- [ ] self-review.md（双 AI 评审）
-- [ ] 本地提交
+- [x] 定制测试 `aixcoding/tests/llm/`（8 条，含心跳与回退锚定）
+- [x] verification.md 记录命令与输出
+- [x] self-review.md（独立子代理评审：2 blocker 已修，复审通过）
+- [x] 本地提交（7a33a816）+ 自审修复提交
+- [ ] 责任人重签 design.md 与 ADR（R2 增列 manifest、行数改 +10/−0）
+- [ ] 责任人签认 self-review.md
+- [ ] 第二批 UI 批次（另行设计，见挂起）
 
 ## 挂起与备忘
 

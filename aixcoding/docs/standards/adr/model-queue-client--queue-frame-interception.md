@@ -7,9 +7,10 @@
 -->
 
 - 责任人：李海潮
-- 状态：已确认
-- 确认日期：2026-11-18
+- 状态：草案
+- 确认日期：
 - 确认意见：尽量不改上游，若必须要改，要少而集中的改（可选；审阅中形成的判断、附加条件或保留）
+- 待重签说明（2026-11-18 自审后）：决策 7 改为「不预留进程级状态」（自审否决跨请求共享单槽），后果节增列 wait 清单生成产物义务。
 
 > 本文为决策时点快照；现行规则以 `DEVELOPMENT.md` R1/R2/R9 为准。
 
@@ -30,7 +31,7 @@
 4. **丢帧时续活 stall 看门狗**：调用 `report_wire_progress()`，把网关 20s 位置心跳复用为 idle 续活信号。
 5. **落 `service/aixcoding/` 而非 `kernel/aixcoding/`**：包依赖 `chrys.kernel.report_wire_progress`，而 kernel↔kernel 必须相对导入（`test_layering.py:534`）、父级相对被 TID252 禁止，故能容纳其依赖的最低档是 service。
 6. **不接 cancel 接口、不改 429 阶梯**：客户端中断即断连、断连即出队；现有 3/7/15… 阶梯比网关文档建议更保守。
-7. **排队进度 UI 拆第二批**：本决策先保证正确性，UI 复用同一模块的状态记录。
+7. **排队进度 UI 拆第二批**：本决策先保证正确性，**不预留**进程级状态（自审否决了跨请求共享单槽的方案：多会话会串号且请求结束不复位）；第二批自行设计按请求/会话作用域的载体。
 
 ## 理由
 
@@ -44,6 +45,7 @@
 ## 后果
 
 - 升级义务：SDK 未知具名事件处理、`APIError.body/code` 形态、`classify` 的 `explicit_retryable` 短路顺序、stall 看门狗的 progress 机制，四处变化时须复核定制登记 `model-queue-client:queue-frame-guard` 并跑定制测试。
+- 生成产物：定制模块新增了 1 个 wait 节点，`tests/architecture/trajectory_wait_manifest.json` 随本批刷新（`uv run python -m tests.support.trajectory_wait_inventory`）；该守卫在 Linux CI 跑，本机 win32 此前未覆盖到。
 - 判据契约：`queue_status` 的 data 形状与 `error.code` 取值成为客户端与网关的隐式契约；失效时表现为 fail-loud（invalid response），不静默丢数据。
 - 长排队安全边界：排队时长只受 `maxWaitTime` 约束，不再受 `http_read_timeout`（stall 超时）约束；前提是网关心跳间隔小于该超时。
-- 第二批 UI 只能消费 `llm_queue` 模块暴露的状态，不得再在上游新增挂点。
+- 第二批 UI 自行决定状态载体与作用域，本批不导出任何跨请求状态；若仍需上游挂点，须单独立批次走 R2。
