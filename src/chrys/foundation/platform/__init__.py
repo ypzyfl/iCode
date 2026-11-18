@@ -35,6 +35,21 @@ class ShellInfo:
     version: str = ""  # e.g. "7.5.0", "5.1.22621.4391"
 
 
+def conventional_app_data_dir() -> Path:
+    """The OS directory holding per-application data (Electron's ``appData``).
+
+    ``%APPDATA%`` on Windows, ``~/Library/Application Support`` on macOS, and
+    ``$XDG_CONFIG_HOME`` (default ``~/.config``) elsewhere.  Only the shared
+    parent is named here; each product joins its own directory below it.
+    """
+    system = platform.system().lower()
+    if system == "windows":
+        return Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+    if system == "darwin":
+        return Path.home() / "Library" / "Application Support"
+    return Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+
+
 @dataclass(frozen=True)
 class PlatformInfo:
     """Detected platform information."""
@@ -48,6 +63,8 @@ class PlatformInfo:
     extra_shells: tuple[ShellInfo, ...] = ()  # additional shells (e.g. Git Bash on Windows)
     # AIxCoding skills: desktop-shared root, a literal home entry like ~/.agents (src/chrys/service/aixcoding/skill_paths)
     aixcoding_dir: Path = field(default_factory=lambda: Path.home() / ".aixcoding")
+    # AIxCoding skills: OS application-data parent the desktop client's installed-skill storage lives under (src/chrys/service/aixcoding/skill_paths)
+    app_data_dir: Path = field(default_factory=conventional_app_data_dir)
 
     # --- OS convenience properties ---
 

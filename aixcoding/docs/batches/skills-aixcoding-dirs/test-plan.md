@@ -1,7 +1,8 @@
 # 测试计划：aixcoding 技能目录自动加载（skills-aixcoding-dirs）
 
-> 活文档（R10，不签认）；实施中随验证结果更新。方案见同目录 `design.md`（v2.1，已签认），
-> 决策见同目录 `design.md`「ADR 判定」节（批次 ADR 已于 2026-11-11 撤销并档）。
+> 活文档（R10，不签认）；实施中随验证结果更新。方案见同目录 `design.md`（v4 待重签），
+> 决策见同目录 `design.md`「ADR 判定」节（批次 ADR 已于 2026-11-11 撤销并档；
+> v4 决策见 R12 记录④）。
 
 ## 测试策略
 
@@ -9,12 +10,12 @@
 
 1. **定制单元测试**（新增，`aixcoding/tests/skills/test_aixcoding_skill_paths.py`；按 aixcoding/tests 主题目录惯例，无 `service/` 层级）：
    目录枚举、开关、次序、去重的全部领域行为，monkeypatch
-   `chrys.service.aixcoding.skill_paths.user_aixcoding_dir` 隔离 HOME。
-2. **机制回归测试**（新增，同文件）：`platform.aixcoding_dir` 重定向跟随、`replace` 保留字段
-   行为的锚定（防 conftest patch 行丢失后无人察觉）。
-3. **上游污染回归**（存量测试，本机实况 HOME 有 `~/.aixcoding/skills/hanhai-h5`）：
-   实施后必跑，证明机制性隔离生效。
-4. **冒烟**（真实进程）：技能目录出现在运行目录中、同名冲突 aixcoding 胜出。
+   `chrys.service.aixcoding.skill_paths.user_aixcoding_dir` / `desktop_app_data_dir` 隔离 HOME 与 app data。
+2. **机制回归测试**（新增，同文件）：`platform.aixcoding_dir` / `platform.app_data_dir` 重定向跟随、
+   `replace` 保留字段行为的锚定（防 conftest patch 行丢失后无人察觉）。
+3. **上游污染回归**（存量测试，本机实况 HOME 有 `~/.aixcoding/skills/hanhai-h5`，桌面端安装存储有
+   3 个真实技能）：实施后必跑，证明机制性隔离生效。
+4. **冒烟**（真实进程）：技能目录出现在运行目录中、桌面端安装技能被发现、同名冲突 aixcoding 胜出。
 
 ## 覆盖矩阵（验收标准 → 用例）
 
@@ -31,6 +32,13 @@
 | 5. 三条 build 路径一致 | 上游既有 agent_parity 机制共用 `_collect_skill_paths`，不新增重复测试；挂点单点即天然一致 | — | 结构性保证 |
 | 6. 上游测试不受 HOME 污染 | `test_platform_redirect_covers_aixcoding_dir`（机制回归：字段跟随 pin、replace 保留未指定字段）+ 污染回归命令 | 2/3 | 精确断言全绿 |
 | 7. CLI 独立会话识别桌面端技能（v3，验收 7） | 冒烟：桌面端任一根（本机 `hanhai-h5`）出现在 `_collect_skill_paths` 结果（冒烟已验证路径级） | 4 | 冒烟 |
+| 8. 桌面端安装存储默认扫描（v4，验收 8） | `test_desktop_installed_skill_paths_enumerated`（两个环境 × 两个账号，成员与排序断言） | 1 | 成员/排序断言 |
+| 8a. 无环境层级布局兼容（v4） | `test_desktop_installed_skill_paths_without_environment_layer` | 1 | 成员断言 |
+| 8b. 只认真实存在目录、跳隐藏/符号链接（v4） | `test_desktop_installed_skill_paths_skip_hidden_and_symlink`（账号目录、环境目录各一处）、`test_desktop_installed_skill_paths_missing_root` | 1 | 成员/空集断言 |
+| 8c. 开关关断后整组不出现（v4，验收 8） | `test_desktop_installed_skill_paths_skipped_when_toggle_off` | 1 | 成员断言 |
+| 8d. 次序：intellij 树之后、`.agents` 之前（v4，验收 8） | `test_desktop_installed_roots_between_intellij_and_agents`（索引次序断言） | 1 | 索引次序断言 |
+| 8e. **安装 ≠ 启用**：`enabled: false` 的技能同样被扫（v4，验收 9） | `test_desktop_disabled_skill_is_still_discovered`（构造带 `active-candidates.json` 的账号目录，断言路径仍在） | 1 | 行为锚（防后续误加过滤） |
+| 8f. app data 重定向覆盖（v4） | `test_platform_redirect_covers_app_data_dir`（机制回归：字段跟随 pin、`replace` 保留未指定字段） | 2 | 精确断言 |
 | 挂点降级 | `test_hook_swallows_missing_customization`（monkeypatch import 失败 → 不抛、返回基础路径） | 1 | 异常路径 |
 | 去重规范 | `test_paths_resolved_and_deduped`（profile path 与 aix cwd 根重叠时单条） | 1 | count 断言 |
 
@@ -41,6 +49,9 @@
 | 定制包缺失/损坏（挂点 ImportError/AttributeError） | 吞错 + debug 日志，核心技能功能不受损 | 层 1 异常路径用例；冒烟时临时改名包目录验证（手动） |
 | HOME 无 `~/.aixcoding` | 目录不报错、路径仍进列表（与上游 missing-root 行为一致） | 层 1 |
 | cwd 目录不存在 | 同上 | 层 1 |
+| 桌面端未安装 / 无 app data 目录（v4） | 安装存储组得空集，不报错、不阻塞会话 | 层 1 `test_desktop_installed_skill_paths_missing_root` |
+| 桌面端数据根是迁移遗留 junction/symlink（v4） | 跟随链接解析（`is_dir()` + `resolve()`），仅拒绝枚举出的子目录链接 | 层 1 符号链接用例 + 手动核对（本机无遗留形态） |
+| 账号目录下 `private/skills/system` 不存在（v4） | 该账号不产生根 | 层 1 |
 | conftest patch 行被上游变更吞掉 | 污染回归命令变红（本机） | 层 3 |
 | TUI 面板保存（构造 `SC(...)` 不带新字段） | 开关回默认 True（0.28 已知行为，备案不改） | 人工核对一次，记 verification |
 
@@ -64,5 +75,8 @@ uv run aixcoding-cli run "列出当前可用技能" -a Code
 ## 不测什么（边界）
 
 - 不重复上游 `_collect_skill_paths` 既有 `.agents`/chrys 行为测试（属上游测试职责，未改动）；
-- 不测桌面端真实共享（无桌面端环境；契约 = 字面 HOME 目录路径，由路径形态断言覆盖）；
-- 不测 TUI 面板（面板未改，新开关不渲染）。
+- 不测桌面端真实共享（无桌面端环境；契约 = 字面 HOME 目录路径与 app data 层级，由路径形态断言覆盖）；
+- 不测 TUI 面板（面板未改，新开关不渲染）；
+- （v4）不测桌面端 `skill.json` / `active-candidates.json` 的解析——本设计明确不依赖这些内部状态文件；
+  「禁用技能仍被扫」由 8e 反向锚定，而不去模拟启用/禁用流程；
+- （v4）不测跨账号权限隔离（同一 OS 用户的可读数据，无权限边界可言）。

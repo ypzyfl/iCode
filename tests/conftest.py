@@ -488,6 +488,8 @@ def _detect_with_pinned_config_dir() -> PlatformInfo:
         data_dir=_pinned_config_dir,
         # AIxCoding skills: keep the desktop-shared root inside the pinned sandbox (src/chrys/service/aixcoding/skill_paths)
         aixcoding_dir=_pinned_config_dir / ".aixcoding",
+        # AIxCoding skills: keep the desktop app-data root inside the pinned sandbox (src/chrys/service/aixcoding/skill_paths)
+        app_data_dir=_pinned_config_dir / "app-data",
     )
 
 
@@ -521,6 +523,8 @@ def _pin_config_dir(config_dir: Path | None) -> None:
             data_dir=config_dir,
             # AIxCoding skills: keep the desktop-shared root inside the pinned sandbox (src/chrys/service/aixcoding/skill_paths)
             aixcoding_dir=config_dir / ".aixcoding",
+            # AIxCoding skills: keep the desktop app-data root inside the pinned sandbox (src/chrys/service/aixcoding/skill_paths)
+            app_data_dir=config_dir / "app-data",
         )
     )
     platform_mod.detect_platform = lambda: primed
