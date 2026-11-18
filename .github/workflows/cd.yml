@@ -1,5 +1,6 @@
 name: CD
-run-name: "CD — ${{ inputs.ref || 'main' }} (${{ inputs.platform || 'all' }})"
+# AIxCoding release modes: show the selected build and mode in the run title.
+run-name: "CD — ${{ inputs.ref || github.ref_name }} (${{ inputs.platform || 'all' }}, ${{ inputs.release_mode || 'test' }})"
 
 # Only dispatched: tag-release dispatches each release on the tag it creates.
 # The GitCode→GitHub mirror pushes that tag again once it is also created on
@@ -8,14 +9,18 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Branch or commit to build (default: main)'
+        description: 'Branch or commit to build (default: selected ref)'
         type: string
-        default: main
+        default: ''
       # AIxCoding branch release: opt-in dispatch input
-      publish_branch_release:
-        description: 'Publish a GitHub pre-release for the selected AIxCoding version branch'
-        type: boolean
-        default: false
+      release_mode:
+        description: 'Test build, update an existing release, or create a new release'
+        type: choice
+        default: test
+        options:
+          - test
+          - update-release
+          - create-release
       platform:
         description: 'Platform to build'
         type: choice
@@ -26,9 +31,10 @@ on:
           - macos
           - linux
 
+# AIxCoding release modes: allow only test runs to cancel a running build.
 concurrency:
-  group: cd-${{ inputs.ref || github.ref }}-${{ github.workflow }}
-  cancel-in-progress: true
+  group: cd-${{ inputs.ref || github.ref }}-${{ github.workflow }}-${{ inputs.release_mode }}
+  cancel-in-progress: ${{ inputs.release_mode == 'test' }}
 
 permissions:
   contents: read
@@ -46,27 +52,87 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       ref: ${{ steps.resolve.outputs.ref }}
+      tag: ${{ steps.resolve.outputs.tag }}
+      mode: ${{ steps.resolve.outputs.mode }}
     steps:
       - id: resolve
         env:
-          PUBLISH_BRANCH_RELEASE: ${{ inputs.publish_branch_release }}
-          BUILD_REF: ${{ inputs.ref || github.ref }}
+          RELEASE_MODE: ${{ inputs.release_mode || 'test' }}
+          BUILD_REF: ${{ inputs.ref }}
+          BUILD_PLATFORM: ${{ inputs.platform || 'all' }}
         shell: bash
         run: |
-          if [[ "$PUBLISH_BRANCH_RELEASE" == "true" ]]; then
+          case "$RELEASE_MODE" in
+          update-release|create-release)
+            version_branch='^main_aixcoding_cli_([0-9]+\.[0-9]+\.[0-9]+)(_final)?$'
             if [[ "$GITHUB_REPOSITORY" != "ypzyfl/iCode" || "$GITHUB_REF_TYPE" != "branch" ||
-                  "$BUILD_REF" != "$GITHUB_REF_NAME" ||
-                  ! "$GITHUB_REF_NAME" =~ ^main_aixcoding_cli_[0-9]+\.[0-9]+\.[0-9]+(_final)?$ ]]; then
-              echo "::error::Select the same AIxCoding version branch in the dispatch branch and ref input."
+                  "${BUILD_REF:-$GITHUB_REF_NAME}" != "$GITHUB_REF_NAME" ||
+                  ! "$GITHUB_REF_NAME" =~ $version_branch ]]; then
+              echo "::error::Select an AIxCoding version branch and leave ref blank or use the same branch name."
               exit 1
             fi
+            if [[ "$BUILD_PLATFORM" != all ]]; then
+              echo "::error::Release builds require all platforms."
+              exit 1
+            fi
+            tag="v${BASH_REMATCH[1]}"
             BUILD_REF="$GITHUB_SHA"
-          fi
+            ;;
+          test)
+            if [[ "$GITHUB_REPOSITORY" == openJiuwen-ai/iCode &&
+                  ( ( "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" == v* ) || "$BUILD_REF" == v* ) ]]; then
+              RELEASE_MODE=upstream-tag
+              tag="${BUILD_REF:-$GITHUB_REF_NAME}"
+            fi
+            BUILD_REF="${BUILD_REF:-$GITHUB_SHA}"
+            ;;
+          *) echo "::error::Unknown release mode."; exit 1 ;;
+          esac
           if [[ "$BUILD_REF" == *$'\n'* || "$BUILD_REF" == *$'\r'* ]]; then
             echo "::error::The build ref must be a single line."
             exit 1
           fi
           printf 'ref=%s\n' "$BUILD_REF" >> "$GITHUB_OUTPUT"
+          if [[ "$RELEASE_MODE" != test ]]; then
+            printf 'tag=%s\nmode=%s\n' "$tag" "$RELEASE_MODE" >> "$GITHUB_OUTPUT"
+          fi
+      # AIxCoding release modes: check the destination before building and publishing.
+      - name: Check release destination
+        if: inputs.release_mode == 'update-release' || inputs.release_mode == 'create-release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_MODE: ${{ inputs.release_mode }}
+          TAG: ${{ steps.resolve.outputs.tag }}
+        shell: bash
+        run: &check-release-destination |
+          response=$(mktemp)
+          trap 'rm -f "$response"' EXIT
+          api="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}"
+          release_status=$(curl -sS -H "Authorization: Bearer $GH_TOKEN" -o "$response" \
+            -w '%{http_code}' "$api/releases/tags/$TAG")
+          case "$RELEASE_MODE:$release_status" in
+          update-release:200)
+            jq -e --arg tag "$TAG" '.tag_name == $tag and .draft == false and .immutable == false' "$response" >/dev/null || {
+              echo "::error::$TAG must be an existing, published, mutable release."
+              exit 1
+            }
+            ;;
+          create-release:404)
+            tag_status=$(curl -sS -H "Authorization: Bearer $GH_TOKEN" -o "$response" \
+              -w '%{http_code}' "$api/git/ref/tags/$TAG")
+            if [[ "$tag_status" != 404 ]]; then
+              echo "::error::Cannot create $TAG. Expected a missing tag, got HTTP $tag_status."
+              exit 1
+            fi
+            existing=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" \
+              --jq ".[] | select(.tag_name == \"$TAG\") | .id")
+            if [[ -n "$existing" ]]; then
+              echo "::error::A release already uses $TAG."
+              exit 1
+            fi
+            ;;
+          *) echo "::error::Cannot $RELEASE_MODE for $TAG. Release lookup returned HTTP $release_status."; exit 1 ;;
+          esac
 
   # ── Run CI checks first ─────────────────────────────────────────────
   # AIxCoding branch release: pass the resolved ref to CI
@@ -82,8 +148,6 @@ jobs:
     name: Build wheel
     needs: [resolve-build, ci]
     runs-on: ubuntu-latest
-    outputs:
-      branch_tag: ${{ steps.release-version.outputs.branch_tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -103,10 +167,9 @@ jobs:
       - name: Check the release tag names the wheel's version
         # AIxCoding branch release: check the wheel before either release path
         id: release-version
-        if: inputs.publish_branch_release || startsWith(github.ref, 'refs/tags/v') || startsWith(inputs.ref, 'v')
+        if: needs.resolve-build.outputs.tag != ''
         env:
-          TAG: ${{ inputs.ref || github.ref_name }}
-          PUBLISH_BRANCH_RELEASE: ${{ inputs.publish_branch_release }}
+          TAG: ${{ needs.resolve-build.outputs.tag }}
         run: |
           if [[ "$GITHUB_REF" == refs/tags/* && "$TAG" != "$GITHUB_REF_NAME" ]]; then
             echo "::error::this run is on the tag ${GITHUB_REF_NAME} but builds ${TAG}"
@@ -115,9 +178,7 @@ jobs:
           wheel=$(basename dist/icode_tui-*.whl)
           version="${wheel#icode_tui-}"
           version="${version%%-*}"
-          if [[ "$PUBLISH_BRANCH_RELEASE" == "true" ]]; then
-            printf 'branch_tag=v%s-cli.%s-%s\n' "$version" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
-          elif [ "$TAG" != "v${version}" ]; then
+          if [ "$TAG" != "v${version}" ]; then
             echo "::error::this release builds ${TAG}, but the wheel's version is ${version}: release the tag v${version}"
             exit 1
           fi
@@ -509,20 +570,28 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
 
   # ── Create GitHub Release ───────────────────────────────────────────
-  # AIxCoding branch release: publish opt-in builds as pre-releases
+  # AIxCoding release modes: publish only the selected release action.
   release:
     name: Publish release
-    if: inputs.publish_branch_release || startsWith(github.ref, 'refs/tags/v') || startsWith(inputs.ref, 'v')
+    if: needs.resolve-build.outputs.tag != ''
     needs: [resolve-build, build-wheel, build-binaries]
     runs-on: ubuntu-latest
+    concurrency:
+      group: cd-release-${{ needs.resolve-build.outputs.tag }}
+      cancel-in-progress: false
     permissions:
       contents: write
+    env:
+      RELEASE_MODE: ${{ needs.resolve-build.outputs.mode }}
+      TAG: ${{ needs.resolve-build.outputs.tag }}
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: artifacts
 
       - name: Collect release assets
+        env:
+          BUILD_SHA: ${{ needs.resolve-build.outputs.ref }}
         run: |
           mkdir release
           # AIxCoding branding: release command artifacts
@@ -539,14 +608,84 @@ jobs:
             fi
           done
           cp artifacts/wheel/*.whl release/
+          if [[ "$RELEASE_MODE" != upstream-tag ]]; then
+            for os in linux macos windows; do
+              extension=tar.gz
+              [[ "$os" != windows ]] || extension=zip
+              for arch in x86_64 aarch64; do
+                asset="release/aixcoding-cli-$os-$arch-${TAG}-offline.$extension"
+                if [[ ! -s "$asset" ]]; then
+                  echo "::error::Missing asset: $asset"
+                  exit 1
+                fi
+              done
+            done
+            printf '# Build information\n\n- Version: %s\n- Commit: %s\n- Run: %s/%s/actions/runs/%s (attempt %s)\n' \
+              "$TAG" "$BUILD_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" \
+              > release/BUILD_INFO.md
+          fi
           cd release && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
 
-      - name: Create release
+      - name: Recheck release destination
+        if: needs.resolve-build.outputs.mode != 'upstream-tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: *check-release-destination
+
+      - name: Download current release assets for recovery
+        if: needs.resolve-build.outputs.mode == 'update-release'
+        id: backup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          count=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets | length')
+          if [[ "$count" != 0 ]]; then
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir previous-release
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Save previous release assets
+        if: steps.backup.outputs.ready == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: previous-release-${{ needs.resolve-build.outputs.tag }}-${{ github.run_attempt }}
+          path: previous-release/
+          if-no-files-found: error
+
+      - name: Update existing release assets
+        if: needs.resolve-build.outputs.mode == 'update-release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          files=()
+          for asset in release/*; do
+            [[ "$asset" == release/SHA256SUMS.txt ]] || files+=("$asset")
+          done
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "${files[@]}"
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber release/SHA256SUMS.txt
+
+      - name: Create new release and tag
+        if: needs.resolve-build.outputs.mode == 'create-release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_SHA: ${{ needs.resolve-build.outputs.ref }}
+        shell: bash
+        run: |
+          gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f ref="refs/tags/$TAG" -f sha="$BUILD_SHA" --silent
+          # Keep the reserved tag if publishing fails after creation; the run identifies its SHA.
+          echo "Created $TAG at $BUILD_SHA."
+          gh release create "$TAG" release/* --repo "$GITHUB_REPOSITORY" \
+            --verify-tag --generate-notes
+
+      - name: Publish upstream release from tag
+        if: needs.resolve-build.outputs.mode == 'upstream-tag'
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          tag_name: ${{ inputs.publish_branch_release && needs.build-wheel.outputs.branch_tag || inputs.ref || github.ref_name }}
-          target_commitish: ${{ inputs.publish_branch_release && needs.resolve-build.outputs.ref || '' }}
-          prerelease: ${{ inputs.publish_branch_release && 'true' || '' }}
+          tag_name: ${{ needs.resolve-build.outputs.tag }}
           generate_release_notes: true
           files: release/*
 
