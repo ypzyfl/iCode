@@ -463,6 +463,8 @@ def test_write_model_profile_rejects_masked_api_key_for_new_profile() -> None:
         manager.write_model_profile({"id": "copy-of-model", "name": "Copy", "api_key": "***"})
 
 
+# AIxCoding catalog: ACP refusal contract tests — write/delete against a
+# server-synced profile must raise (model-config-restore/design.md).
 def test_write_model_profile_rejects_server_managed_profile(monkeypatch: pytest.MonkeyPatch) -> None:
     agent_registry = AgentProfileRegistry()
     agent_registry.register(AgentProfile(name="Code"))
@@ -478,6 +480,8 @@ def test_write_model_profile_rejects_server_managed_profile(monkeypatch: pytest.
         manager.write_model_profile({"id": "srv-model", "name": "Server", "api_key": ""})
 
 
+# AIxCoding catalog: ACP refusal contract tests — write/delete against a
+# server-synced profile must raise (model-config-restore/design.md).
 def test_delete_model_profile_rejects_server_managed_profile(monkeypatch: pytest.MonkeyPatch) -> None:
     agent_registry = AgentProfileRegistry()
     agent_registry.register(AgentProfile(name="Code"))

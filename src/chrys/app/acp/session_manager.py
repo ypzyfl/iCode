@@ -495,9 +495,12 @@ class AcpSessionManager:
                 raise AcpSessionError(msg)
             profile_data.setdefault("id", uuid.uuid4().hex[:12])
         profile_data["id"] = _safe_profile_file_stem(profile_data["id"], field_name="model profile id")
+        # AIxCoding catalog: ACP write/delete refuse server-owned profiles —
+        # overwriting a synced file would strip its sync marker
+        # (model-config-restore/design.md).
         from chrys.service.aixcoding.models.catalog import is_server_owned_profile_id
 
-        if is_server_owned_profile_id(profile_data["id"]):
+        if is_server_owned_profile_id(str(profile_data["id"])):
             msg = "Model profile is managed by the server catalog and cannot be modified."
             raise AcpSessionError(msg)
         profile = _model_profile_from_data(profile_data)
@@ -510,6 +513,9 @@ class AcpSessionManager:
         """Delete a model profile from disk and registry."""
         self.load_registries()
         profile_id = _safe_profile_file_stem(profile_id, field_name="model profile id")
+        # AIxCoding catalog: ACP write/delete refuse server-owned profiles —
+        # the catalog owns the file, only the server may retire it
+        # (model-config-restore/design.md).
         from chrys.service.aixcoding.models.catalog import is_server_owned_profile_id
 
         if is_server_owned_profile_id(profile_id):
