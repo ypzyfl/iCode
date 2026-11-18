@@ -44,3 +44,4 @@
 | cd-branch-release:windows-arm64-dependency-cache | `.github/workflows/cd.yml` | AIxCoding Windows ARM64 offline build: share the native dependency caches across runs. | 1 | build-binaries 中的 setup-uv 与 OpenSSL 构建准备 | 高（原生依赖缓存） | 〔机制退役〕Windows ARM64 不再从源码构建依赖 |
 | cd-branch-release:publish | `.github/workflows/cd.yml` | AIxCoding release modes: publish only the selected release action. | 1 | release | 高（GitHub 发布） | 〔消费者退役〕停止从版本分支发布 |
 | cd-branch-release:check-destination | `.github/workflows/cd.yml` | AIxCoding release modes: check the destination before building and publishing. | 1 | resolve-build、release 的目标核验 | 高（防止写错版本） | 〔随点迁移〕随 release |
+| cd-branch-release:binary-release-version | `.github/workflows/cd.yml` | AIxCoding release modes: use the resolved release tag for binary versions. | 1 | build-binaries 的 Determine version | 高（制品名称与发布版本一致） | 〔随点迁移〕随 release |

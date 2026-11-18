@@ -6,6 +6,8 @@
 
 ## 测试打包与正式发布
 
+- `aixcoding/tests/tools/test_cd_release_versions.py` 显式执行实际 YAML 的 Determine version、Determine binary and artifact names、Collect release assets。覆盖当前更新、后续版本新建、`_final` 分支、普通测试分支、ref 留空与上游 Tag；核对六平台文件名及 sha256sum。通过 fork verify 的全量定制测试运行，不依赖上游 Smart Test 选中该定制测试。
+
 - 从实际 CD YAML 提取并执行解析及发布 Shell。核对默认测试打包跳过发布、版本分支与构建 SHA、非全平台拒绝、现有 Release 的状态、Tag 和草稿冲突。
 - 用模拟制品收集六个平台安装包和 wheel，验证桌面端文件名、构建来源与哈希。删去 Windows ARM64 包验证发布前会失败。
 - 模拟 GitHub CLI，核对更新时旧附件存档在覆盖前，`SHA256SUMS.txt` 最后上传。新建时先请求创建指向固定 SHA 的 Tag，成功后才发布 Release。若新建 Tag 后发布失败，保留该 Tag 和运行记录，人工核对后恢复发布。

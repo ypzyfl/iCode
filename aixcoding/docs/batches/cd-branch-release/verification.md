@@ -49,3 +49,21 @@
 - `uv run --offline --no-sync --no-python-downloads python scripts/chrys_test.py --smart --paths .github/workflows/cd.yml aixcoding/docs/batches/cd-branch-release/design.md aixcoding/docs/batches/cd-branch-release/design-refresh-release-assets.md aixcoding/docs/batches/cd-branch-release/plan.md aixcoding/docs/batches/cd-branch-release/test-plan.md aixcoding/docs/batches/cd-branch-release/verification.md aixcoding/docs/batches/cd-branch-release/self-review.md`，退出 1。Summary 为 tests 38 passed（退出 0），architecture 198 passed、2 failed（退出 1）。两处失败都在 test_lowered_priority_reaches_the_processes_tests_start，沙箱拒绝 os.setpriority，导致 PermissionError 及优先级解析失败。未放宽沙箱、未修改测试。
 - `uv run --offline --no-sync --no-python-downloads ruff check --no-fix src/ tests/ scripts/chrys_test.py scripts/check_wheel.py scripts/calibrate_gc_freeze.py scripts/gc_freeze_calibration_math.py scripts/chat_panel_workloads.py hatch_build.py scripts/i18n_mo.py`，退出 0，All checks passed。
 - 同一文件集运行 `uv run --offline --no-sync --no-python-downloads ruff format --check ...`，退出 0，2774 files already formatted。
+
+## 2026-11-18 正式发布二进制版本命名修复
+
+用户指定失败运行 44217008983、Publish release job 134552658039，构建提交为 e69d83ab。只读查询日志和 artifact 清单确认，CI、wheel 与六平台构建均成功。正式更新模式仍在 Determine version 沿用分支 dev 命名，产物为 `aixcoding-cli-linux-x86_64-v0.35.2-dev-e69d83a-offline` 等；发布收集要求 `aixcoding-cli-linux-x86_64-v0.35.2-offline.tar.gz`，因此在 Collect release assets 退出 1。该次运行未进入备份或覆盖 Release 的步骤。
+
+在已签 design-refresh-release-assets.md 的版本规则内修正 cd.yml：Determine version 通过 env 取得 resolve-build 输出的 Tag，有目标 Tag 时优先用去掉 v 的版本，随后保留原有 Tag/test 分支判断。新增 R3 标记已在主 design.md 登记；本人签认字段未改。
+
+持久化回归 `aixcoding/tests/tools/test_cd_release_versions.py` 执行实际工作流脚本，用小型二进制/wheel 夹具串联版本计算、六平台 artifact 命名、附件收集与校验和。修复前运行 3 failed、3 passed，三个正式模式均复现 dev 后缀。修复后六组通过，覆盖 update-release 当前/后续 `_final`、create-release、test 指定分支/ref 留空和 upstream-tag。本地夹具验证不等于六平台真实二进制重建或真实 Release 写入。
+
+验证命令均设置 `UV_CACHE_DIR=/tmp/icode-cd-uv-cache`，使用现有 Python 3.14.8；保留 uv 关于项目请求 3.14.10 的警告，未安装依赖或解释器。
+
+- `uv run --offline --no-sync --no-python-downloads pytest -n0 -q --tb=short aixcoding/tests/tools/test_cd_release_versions.py tests/architecture/test_workflow_action_pins.py tests/architecture/test_python_pin.py`，退出 0，36 passed。
+- `uv run --offline --no-sync --no-python-downloads ruff check --no-fix aixcoding/tests/tools/test_cd_release_versions.py` 与同文件 `ruff format --check`，退出 0。
+- `uv run --offline --no-sync --no-python-downloads python aixcoding/tools/check_docs.py --closure`，退出 0，OK。
+- `uv run --offline --no-sync --no-python-downloads python aixcoding/tools/check_r2_diff.py --base HEAD`、`python aixcoding/tools/check_r3_markers.py --base HEAD`（同样通过 uv）与 `git diff --check`，均退出 0。
+- `uv run --offline --no-sync --no-python-downloads python aixcoding/tools/gen_customizations.py --strict`，退出 1；仍为此前同一旧工作树路径的 28 个扫描错误，0 warning。完整输出存 `/tmp/icode-cd-version-registry.log`。未修改旧工作树、检查器或豁免配置。
+
+远端只读查询在本次推送前为 main_aixcoding_cli_0.35.2 @ e69d83ab，与本地基线一致。修复推送后须从该分支重新 Run workflow，选择 update-release 与 all。直接 Re-run 原失败任务沿用旧工作流定义和既有 dev 产物，无法验证本修复。正式附件更新、权限与桌面端下载待真实运行验证。
