@@ -371,8 +371,148 @@ def test_sync_preserves_custom_profiles_and_removes_only_stale_server_profiles(
     assert "stale" not in registry.list_ids()
 
 
+def test_a_directory_without_a_single_marker_is_cleared_once_by_the_first_sync(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A pre-marker catalog is replaced wholesale instead of kept as user profiles."""
+    from chrys.service.profiles.models.catalog import ModelCatalog, apply_catalog
+    from chrys.service.profiles.models.schema import ModelProfile
+
+    monkeypatch.setattr(catalog_module, "catalog_directory", lambda: tmp_path)
+    # What the baseline left behind: hand-written shapes, marker absent everywhere.
+    (tmp_path / "retired.yaml").write_text("id: retired\nname: Retired\nmodel_id: old\n", encoding="utf-8")
+    (tmp_path / "retired-yml.yml").write_text("id: retired-yml\nname: Retired Yml\nmodel_id: old\n", encoding="utf-8")
+
+    apply_catalog(ModelCatalog(items=(ModelProfile(id="server-a", name="Server A", model_id="a"),)))
+
+    assert not (tmp_path / "retired.yaml").exists(), "a pre-marker profile must not linger as the user's own"
+    assert (tmp_path / "retired-yml.yml").is_file(), "a .yml is never written by a sync, so the clear leaves it"
+    assert (tmp_path / "server-a.yaml").is_file()
+
+
+def test_a_yml_only_directory_is_left_alone(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``.yml`` is not a profile file for the sync, so such a directory is not an upgrade."""
+    from chrys.service.profiles.models.catalog import ModelCatalog, apply_catalog
+    from chrys.service.profiles.models.schema import ModelProfile
+
+    monkeypatch.setattr(catalog_module, "catalog_directory", lambda: tmp_path)
+    (tmp_path / "mine.yml").write_text("id: mine\nname: Mine\nmodel_id: mine\n", encoding="utf-8")
+
+    apply_catalog(ModelCatalog(items=(ModelProfile(id="server-a", name="Server A", model_id="a"),)))
+
+    assert (tmp_path / "mine.yml").is_file(), "a .yml-only directory has no .yaml to migrate"
+    assert (tmp_path / "server-a.yaml").is_file()
+
+
+def test_a_yml_never_counts_as_a_server_profile(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Only ``.yaml`` is read: a marked ``.yml`` is the user's file, not a sync product."""
+    from chrys.service.profiles.models.catalog import ModelCatalog, apply_catalog
+    from chrys.service.profiles.models.schema import ModelProfile
+
+    monkeypatch.setattr(catalog_module, "catalog_directory", lambda: tmp_path)
+    (tmp_path / "copied.yml").write_text(
+        "id: copied\nname: Copied\nmodel_id: old\nsynced_from_server: true\n", encoding="utf-8"
+    )
+    (tmp_path / "hand-written.yaml").write_text("id: hand\nname: Hand\nmodel_id: mine\n", encoding="utf-8")
+
+    apply_catalog(ModelCatalog(items=(ModelProfile(id="server-a", name="Server A", model_id="a"),)))
+
+    assert (tmp_path / "copied.yml").is_file(), "a .yml is never deleted, whatever marker it carries"
+    assert not (tmp_path / "hand-written.yaml").exists(), "a marker on a .yml does not make the .yaml side post-marker"
+    assert (tmp_path / "server-a.yaml").is_file()
+
+
+def test_the_first_upgrade_clear_spares_the_same_id_file_the_sync_just_wrote(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A pre-marker file the server now serves is replaced, never deleted afterwards."""
+    from chrys.service.profiles.models.catalog import ModelCatalog, apply_catalog
+    from chrys.service.profiles.models.loader import load_profile_from_yaml
+    from chrys.service.profiles.models.schema import ModelProfile
+
+    monkeypatch.setattr(catalog_module, "catalog_directory", lambda: tmp_path)
+    (tmp_path / "server-a.yaml").write_text("id: server-a\nname: Old Name\nmodel_id: old\n", encoding="utf-8")
+
+    apply_catalog(ModelCatalog(items=(ModelProfile(id="server-a", name="Server A", model_id="a"),)))
+
+    assert (tmp_path / "server-a.yaml").is_file(), "the served profile must survive the clear that follows it"
+    assert load_profile_from_yaml(tmp_path / "server-a.yaml").name == "Server A"
+    assert "synced_from_server: true" in (tmp_path / "server-a.yaml").read_text(encoding="utf-8")
+
+
+def test_one_marked_file_stops_the_upgrade_clear(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A mixed directory is a synced catalog with user files: unmarked ones stay."""
+    from chrys.service.profiles.models.catalog import ModelCatalog, apply_catalog
+    from chrys.service.profiles.models.schema import ModelProfile
+
+    monkeypatch.setattr(catalog_module, "catalog_directory", lambda: tmp_path)
+    (tmp_path / "stale.yaml").write_text(
+        "id: stale\nname: Stale\nmodel_id: old\nsynced_from_server: true\n", encoding="utf-8"
+    )
+    (tmp_path / "mine.yaml").write_text("id: mine\nname: Mine\nmodel_id: mine\n", encoding="utf-8")
+
+    apply_catalog(ModelCatalog(items=(ModelProfile(id="server-a", name="Server A", model_id="a"),)))
+
+    assert not (tmp_path / "stale.yaml").exists(), "a dropped server profile is stale cleanup, not upgrade cleanup"
+    assert (tmp_path / "mine.yaml").is_file(), "one marker proves the directory is post-marker, so nothing is cleared"
+
+
+def test_an_unreadable_profile_vetoes_the_upgrade_clear(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A directory that cannot be judged is preserved, never wiped blind."""
+    import logging
+
+    from chrys.service.profiles.models.catalog import ModelCatalog, apply_catalog
+    from chrys.service.profiles.models.schema import ModelProfile
+
+    monkeypatch.setattr(catalog_module, "catalog_directory", lambda: tmp_path)
+    (tmp_path / "broken.yaml").write_text("name: [unclosed\n", encoding="utf-8")
+    (tmp_path / "hand-written.yaml").write_text("id: hand\nname: Hand\nmodel_id: mine\n", encoding="utf-8")
+
+    with caplog.at_level(logging.WARNING):
+        apply_catalog(ModelCatalog(items=(ModelProfile(id="server-a", name="Server A", model_id="a"),)))
+
+    assert (tmp_path / "broken.yaml").is_file(), "an unreadable file is no proof of anything"
+    assert (tmp_path / "hand-written.yaml").is_file(), "cannot prove all-unmarked, so nothing is cleared"
+    assert "skipping the first-upgrade clear" in caplog.text
+
+
+def test_an_empty_profile_file_does_not_veto_the_upgrade_clear(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A 0-byte leftover cannot be a server profile, so it must not block the convergence."""
+    from chrys.service.profiles.models.catalog import ModelCatalog, apply_catalog
+    from chrys.service.profiles.models.schema import ModelProfile
+
+    monkeypatch.setattr(catalog_module, "catalog_directory", lambda: tmp_path)
+    (tmp_path / "empty.yaml").write_text("", encoding="utf-8")
+    (tmp_path / "hand-written.yaml").write_text("id: hand\nname: Hand\nmodel_id: mine\n", encoding="utf-8")
+
+    apply_catalog(ModelCatalog(items=(ModelProfile(id="server-a", name="Server A", model_id="a"),)))
+
+    assert not (tmp_path / "empty.yaml").exists(), "readable but not a mapping is 'no marker', not 'unknown'"
+    assert not (tmp_path / "hand-written.yaml").exists()
+    assert (tmp_path / "server-a.yaml").is_file()
+
+
+def test_a_corrupt_file_does_not_veto_the_clear_when_the_sync_rewrites_that_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A served id is overwritten anyway, so its unreadable marker cannot block the clear."""
+    from chrys.service.profiles.models.catalog import ModelCatalog, apply_catalog
+    from chrys.service.profiles.models.schema import ModelProfile
+
+    monkeypatch.setattr(catalog_module, "catalog_directory", lambda: tmp_path)
+    (tmp_path / "server-a.yaml").write_text("name: [unclosed\n", encoding="utf-8")
+    (tmp_path / "hand-written.yaml").write_text("id: hand\nname: Hand\nmodel_id: mine\n", encoding="utf-8")
+
+    apply_catalog(ModelCatalog(items=(ModelProfile(id="server-a", name="Server A", model_id="a"),)))
+
+    assert not (tmp_path / "hand-written.yaml").exists(), "the unreadable file is being replaced, so it is no veto"
+    assert "synced_from_server: true" in (tmp_path / "server-a.yaml").read_text(encoding="utf-8")
+
+
 def test_a_saved_custom_profile_survives_a_later_sync(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A saved profile carries no marker, so a later sync leaves it alone."""
+    """Once the directory carries markers, an unmarked save joins it and survives."""
     from chrys.service.profiles.models.catalog import ModelCatalog, apply_catalog
     from chrys.service.profiles.models.schema import ModelProfile
     from chrys.service.profiles.models.serializer import save_profile
@@ -381,10 +521,12 @@ def test_a_saved_custom_profile_survives_a_later_sync(tmp_path: Path, monkeypatc
     monkeypatch.setattr("chrys.foundation.platform.get_platform", lambda: fake_platform)
     monkeypatch.setattr(catalog_module, "catalog_directory", lambda: tmp_path / "models")
 
+    # The first sync over an empty directory is a fresh install, not an upgrade.
+    apply_catalog(ModelCatalog(items=(ModelProfile(id="server-a", name="Server A", model_id="a"),)))
     save_profile(ModelProfile(id="my-custom", name="My Custom", model_id="mine"))
     apply_catalog(ModelCatalog(items=(ModelProfile(id="server-a", name="Server A", model_id="a"),)))
 
-    assert (tmp_path / "models" / "my-custom.yaml").is_file(), "a saved profile outlives the sync"
+    assert (tmp_path / "models" / "my-custom.yaml").is_file(), "a saved profile outlives the next sync"
     assert (tmp_path / "models" / "server-a.yaml").is_file()
 
 
@@ -408,26 +550,87 @@ def test_sync_overwrites_a_same_id_custom_profile(
     loaded = load_profile_from_yaml(tmp_path / "server-a.yaml")
     assert loaded.name == "Server A"
     assert "synced_from_server: true" in (tmp_path / "server-a.yaml").read_text(encoding="utf-8")
-    assert "overwrote same-id custom profiles" in caplog.text
+    assert "overwrote same-id profiles" in caplog.text
+
+
+def test_a_failed_publish_leaves_the_previous_catalog_and_no_staged_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every profile is staged before the first rename, so a write failure changes nothing."""
+    from chrys.service.profiles.models.catalog import ModelCatalog, ModelCatalogError, apply_catalog
+    from chrys.service.profiles.models.schema import ModelProfile
+
+    monkeypatch.setattr(catalog_module, "catalog_directory", lambda: tmp_path)
+    previous = tmp_path / "server-a.yaml"
+    previous.write_text("id: server-a\nname: Previous\nmodel_id: old\nsynced_from_server: true\n", encoding="utf-8")
+
+    real_write = catalog_module._write_profile
+    calls = 0
+
+    def flaky(path: Path, profile: ModelProfile) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("disk full")
+        real_write(path, profile)
+
+    monkeypatch.setattr(catalog_module, "_write_profile", flaky)
+
+    with pytest.raises(ModelCatalogError, match="Cannot publish"):
+        apply_catalog(
+            ModelCatalog(
+                items=(
+                    ModelProfile(id="server-a", name="Server A", model_id="a"),
+                    ModelProfile(id="server-b", name="Server B", model_id="b"),
+                )
+            )
+        )
+
+    assert "name: Previous" in previous.read_text(encoding="utf-8"), "nothing was renamed, so the old file stands"
+    assert not list(tmp_path.glob("*.tmp")), "a failed publish must not leave staged files"
+
+
+def test_staged_files_from_an_interrupted_publish_are_removed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A leftover ``*.yaml.tmp`` is never loaded, and the next publish clears it."""
+    from chrys.service.profiles.models.catalog import ModelCatalog, apply_catalog
+    from chrys.service.profiles.models.schema import ModelProfile
+
+    monkeypatch.setattr(catalog_module, "catalog_directory", lambda: tmp_path)
+    (tmp_path / "server-a.yaml.tmp").write_text("half-written: [\n", encoding="utf-8")
+
+    apply_catalog(ModelCatalog(items=(ModelProfile(id="server-a", name="Server A", model_id="a"),)))
+
+    assert not list(tmp_path.glob("*.tmp")), "a successful publish leaves no staging files"
+    assert (tmp_path / "server-a.yaml").is_file()
 
 
 def test_sync_warns_when_a_custom_yml_shadows_a_served_id(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A marked custom .yml is never overwritten, but it shadows the server model."""
+    """A user .yml is never overwritten, but it shadows the server model after reload."""
     import logging
 
     from chrys.service.profiles.models.catalog import ModelCatalog, apply_catalog
     from chrys.service.profiles.models.schema import ModelProfile
 
     monkeypatch.setattr(catalog_module, "catalog_directory", lambda: tmp_path)
+    # A marker-bearing directory first: this .yml is a user file inside a synced
+    # catalog, not a leftover of the pre-marker era the upgrade clear targets.
+    apply_catalog(ModelCatalog(items=(ModelProfile(id="server-b", name="Server B", model_id="b"),)))
     (tmp_path / "server-a.yml").write_text(
         "id: server-a\nname: Custom Shadow\nmodel_id: mine\nsynced_from_server: false\n", encoding="utf-8"
     )
 
     with caplog.at_level(logging.WARNING):
-        apply_catalog(ModelCatalog(items=(ModelProfile(id="server-a", name="Server A", model_id="a"),)))
+        apply_catalog(
+            ModelCatalog(
+                items=(
+                    ModelProfile(id="server-a", name="Server A", model_id="a"),
+                    ModelProfile(id="server-b", name="Server B", model_id="b"),
+                )
+            )
+        )
 
     assert (tmp_path / "server-a.yaml").is_file(), "the server file is still written"
-    assert (tmp_path / "server-a.yml").is_file(), "a marked custom .yml is never overwritten"
+    assert (tmp_path / "server-a.yml").is_file(), "a user .yml is never overwritten"
     assert "will shadow it after reload" in caplog.text

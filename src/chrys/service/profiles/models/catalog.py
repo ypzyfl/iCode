@@ -10,12 +10,19 @@
   only marked files the catalog no longer contains. Any file without that
   marker — a hand-written YAML that omits it, or one marked ``false`` — is the
   user's own and survives every sync; the registry re-scans the directory
-  afterwards so it stays visible.  A failed sync changes nothing.
+  afterwards so it stays visible.  The first sync over a directory that holds
+  files but not one single marker clears it once: files without the marker are
+  then a pre-marker catalog (the baseline wrote none), and keeping them would
+  pin every model the server has since retired.  A failed sync changes nothing.
 * **No catalog source is configured.**  Every file is the user's own, editable
   and never touched by this module.
 
 Custom writes (``save_profile()``) leave the file unmarked: only a server sync
 writes the marker.
+
+Only ``{id}.yaml`` takes part in that bookkeeping: it is the one name a sync
+writes, so a ``.yml`` is always the user's file — never removed, and never
+evidence that the directory was synced.
 
 A sync is sticky through the files, not through this module: the served files
 keep their marker on disk, so a later failed fetch (offline start) degrades to
@@ -48,6 +55,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import httpx
 import yaml
 
+from chrys.foundation.text.encoding import decode_bytes
 from chrys.foundation.text.yaml_io import dump_yaml
 from chrys.service.profiles.models.schema import (
     VALID_API_STYLES,
@@ -150,7 +158,12 @@ class ModelCatalog:
 
 @dataclass(frozen=True)
 class CatalogState:
-    """What the last successful sync wrote, persisted next to the profiles."""
+    """What the last successful sync wrote, persisted next to the profiles.
+
+    Written for the on-disk contract only: this module never reads it back, and
+    nothing in the sync depends on it — the ``.yaml`` markers are the sole
+    source of truth for which files are server-owned.
+    """
 
     version: str
     source: str
@@ -166,11 +179,6 @@ class CatalogSyncResult:
     version: str
     profile_ids: tuple[str, ...]
     default_profile_id: str = ""
-    previous_profile_ids: tuple[str, ...] = ()
-
-    @property
-    def removed_profile_ids(self) -> tuple[str, ...]:
-        return tuple(pid for pid in self.previous_profile_ids if pid not in self.profile_ids)
 
 
 def catalog_directory() -> Path:
@@ -216,24 +224,6 @@ def catalog_url() -> str:
             return value
     base = catalog_base_url()
     return f"{base.rstrip('/')}{CATALOG_PATH}" if base else ""
-
-
-def read_catalog_state() -> CatalogState | None:
-    """Return the persisted state of the last successful sync, if any."""
-    path = catalog_state_path()
-    try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except OSError, ValueError:
-        return None
-    if not isinstance(raw, dict):
-        return None
-    ids = raw.get("profile_ids")
-    return CatalogState(
-        version=str(raw.get("version", "")),
-        source=str(raw.get("source", SOURCE_REMOTE)),
-        profile_ids=tuple(str(item) for item in ids) if isinstance(ids, list) else (),
-        default_profile_id=str(raw.get("default_profile_id", "")),
-    )
 
 
 def write_catalog_state(state: CatalogState) -> None:
@@ -677,56 +667,102 @@ async def fetch_catalog(url: str | None = None, *, timeout: float = _DEFAULT_FET
 #: ``ModelProfile`` never carries it and the profile loader ignores it.
 _SYNCED_FROM_SERVER_KEY = "synced_from_server"
 
+#: Appended to a profile's final name while a publish stages it.
+_STAGING_SUFFIX = ".tmp"
 
-def _sync_marker(path: Path) -> bool | None:
-    """Return the file's ``synced_from_server`` value, or ``None`` when absent.
 
-    ``None`` covers a missing field, a non-mapping document and an unreadable or
-    malformed file: none of them proves the file is server-owned, so a sync
-    treats them as the user's own. Only a literal ``true`` counts as
-    server-synced; ``false`` and any other value are custom too.
+def _probe_server_marker(path: Path) -> bool | None:
+    """Return the file's marker state; ``None`` means it cannot be judged.
+
+    ``True`` is a literal ``synced_from_server: true``. ``False`` is a readable
+    file whose marker is absent, ``false`` or anything else — definitively not
+    server-owned. ``None`` is a file the read or parse failed on, kept apart so
+    the first-upgrade clear never mistakes "cannot read" for "all unmarked".
+
+    Decoding goes through the loader's own ``decode_bytes``: a foreign-encoded
+    file loads fine in the registry, so it must not be unjudgeable here.
     """
     try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except OSError, UnicodeError, yaml.YAMLError:
+        data = yaml.safe_load(decode_bytes(path.read_bytes()))
+    except Exception:
+        logger.warning("Cannot judge the sync marker of %s; treating it as unknown.", path, exc_info=True)
         return None
-    if not isinstance(data, dict) or _SYNCED_FROM_SERVER_KEY not in data:
-        return None
-    value = data[_SYNCED_FROM_SERVER_KEY]
-    if value is True:
-        return True
-    if value is False:
+    if not isinstance(data, dict):
+        # Readable but not a profile — an empty file, a list, a scalar. A sync
+        # always writes a mapping with the marker, so this is definitively not
+        # server-owned; calling it "unknown" would veto the upgrade clear forever
+        # over one empty leftover.
         return False
-    return None
+    return data.get(_SYNCED_FROM_SERVER_KEY) is True
 
 
-def _clear_stale_server_profiles(directory: Path, final_names: set[str]) -> int:
+def _server_owned_names(directory: Path) -> tuple[set[str], set[str]]:
+    """Return the marked ``.yaml`` filenames and those whose marker cannot be judged.
+
+    Only ``{id}.yaml`` is scanned: that is the one name a sync writes, so only
+    that name can be a server product. A ``.yml`` is never written, so it is the
+    user's file whatever marker it carries — it is no evidence of a server-owned
+    directory and is never deleted by a sync.
+    """
+    names: set[str] = set()
+    unjudgeable: set[str] = set()
+    for path in sorted(directory.glob("*.yaml")):
+        marker = _probe_server_marker(path)
+        if marker is None:
+            unjudgeable.add(path.name)
+        elif marker:
+            names.add(path.name)
+    return names, unjudgeable
+
+
+def _clear_stale_server_profiles(directory: Path, final_keys: set[str], server_owned: set[str]) -> int:
     """Delete only server-written profiles the new catalog no longer contains.
 
-    A file without ``synced_from_server: true`` — hand-written, marked
-    ``false``, unreadable or malformed — is the user's own and is never removed.
+    *server_owned* is the pre-write scan from :func:`_server_owned_names`: the
+    ``.yaml`` files carrying ``synced_from_server: true``. Anything else — a
+    ``.yml``, a hand-written ``.yaml``, one marked ``false``, unreadable or
+    malformed — is the user's own and is never removed here. *final_keys* holds
+    the case-folded names the sync is about to write.
 
     Returns the number of stale server profiles removed.
     """
     removed = 0
-    for pattern in ("*.yaml", "*.yml"):
-        for path in sorted(directory.glob(pattern)):
-            if path.name in final_names or _sync_marker(path) is not True:
-                continue
+    for name in sorted(server_owned):
+        if os.path.normcase(name) in final_keys:
+            continue
+        path = directory / name
+        if path.is_file():
             path.unlink()
             removed += 1
     return removed
 
 
-def _write_profile(directory: Path, profile: ModelProfile) -> Path:
+def _write_profile(path: Path, profile: ModelProfile) -> None:
+    """Write *profile* to *path*, marked as server-synced.
+
+    The caller picks the path so a publish can stage under a temporary name: a
+    half-written YAML must never be visible under ``{id}.yaml``, where the
+    registry could load it.
+    """
     data = _profile_to_dict(profile)
     data[_SYNCED_FROM_SERVER_KEY] = True
-    path = directory / f"{profile.id}.yaml"
     path.write_text(dump_yaml(data), encoding="utf-8")
     if profile.api_key:
         # Credentials were supplied by the catalog: keep them off group/other.
         path.chmod(0o600)
-    return path
+
+
+def _clear_staged_files(directory: Path) -> None:
+    """Remove staging files an interrupted publish left behind.
+
+    The loader scans ``*.yaml`` only, so a ``{id}.yaml.tmp`` never loads as a
+    profile — it just must not accumulate.
+    """
+    for path in directory.glob(f"*.yaml{_STAGING_SUFFIX}"):
+        try:
+            path.unlink()
+        except OSError:
+            logger.warning("Could not remove the staged model profile %s.", path)
 
 
 def _profile_to_dict(profile: ModelProfile) -> dict[str, Any]:
@@ -744,16 +780,28 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
     and survives. A user profile sharing an id with a served model is
     overwritten by the server version.
 
-    Only ``{id}.yaml`` files are written, so only those can be overwritten; a
-    same-id ``{id}.yml`` is never overwritten, but it shadows the served profile
-    after the registry reload, which is logged.
+    A directory holding profile files but not a single marker is a pre-marker
+    catalog — the baseline wrote no marker at all — so the first sync clears it
+    once, after the new profiles and the state file are in place; without that,
+    every model the server has since retired would survive forever as "the
+    user's own". A never-synced user directory is cleared the same way: that is
+    the accepted cost of telling the two apart, and the probe veto below keeps a
+    directory that cannot be read from being mistaken for an unmarked one.
+
+    Only ``{id}.yaml`` files are written *and read*, so only those can be
+    overwritten or removed. A same-id ``{id}.yml`` is a user file this module
+    never touches — whatever marker it carries — but it shadows the served
+    profile after the registry reload, which is logged.
 
     ``ModelProfileRegistry.replace_profiles()`` re-scans the directory after a
     sync, so preserved custom profiles also stay visible in the TUI.
 
     Raises:
         ModelCatalogError: if the catalog is unusable or the directory cannot
-            be written.  The directory is only changed after validation.
+            be written — every ``OSError`` on the publish path is converted
+            here, so a full disk fails the sync instead of crashing the caller.
+            Staging files of a failed attempt are removed; the previous catalog
+            stays readable.
     """
     if not catalog.items:
         raise ModelCatalogError("Cannot apply an empty model catalog.")
@@ -761,26 +809,66 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
     directory = catalog_directory()
     directory.mkdir(parents=True, exist_ok=True)
 
-    previous_state = read_catalog_state()
-    previous_ids = previous_state.profile_ids if previous_state else ()
     final_names = {f"{profile.id}.yaml" for profile in catalog.items}
+    # Case-folded: on Windows a pre-marker ``X.YAML`` *is* the ``x.yaml`` this
+    # sync writes, so comparing raw names would delete the profile the write just
+    # replaced (and call it preserved elsewhere).
+    final_keys = {os.path.normcase(name) for name in final_names}
+    # Only ``{id}.yaml`` is read and written here: that is what a sync produces.
+    # A ``.yml`` is never written by this module, so it is the user's file — it
+    # neither proves the directory server-owned nor gets deleted by a sync.
+    profile_files = tuple(sorted(directory.glob("*.yaml")))
+    server_owned, unjudgeable = _server_owned_names(directory)
+    # A file whose marker cannot be judged vetoes the clear only while the sync is
+    # not about to overwrite that very name anyway.
+    blocking = {name for name in unjudgeable if os.path.normcase(name) not in final_keys}
+    # First-upgrade convergence: files but no marker anywhere is a pre-marker
+    # catalog. An empty catalog is rejected, so every successful sync writes at
+    # least one marked file: an all-unmarked directory therefore dates from
+    # before the marker existed, and this clear can fire at most once — after it,
+    # the directory carries markers and later syncs take the incremental path.
+    # The only way back to "all unmarked" is deleting every served profile by
+    # hand, an accepted (and deliberate) cost of this rule.
+    # An empty directory is a fresh install with nothing to clear. A failed probe
+    # means the directory cannot be proven all-unmarked, so the clear is skipped
+    # and a later healthy sync converges instead of wiping blind.
+    upgrade_clear = bool(profile_files) and not server_owned and not blocking
+    if profile_files and not server_owned and blocking:
+        logger.warning(
+            "Cannot judge every model profile in %s; skipping the first-upgrade clear and keeping all files.",
+            directory,
+        )
     overwritten = tuple(
         sorted(
             path.stem
             for path in directory.glob("*.yaml")
-            if path.name in final_names and _sync_marker(path) is not True
+            if os.path.normcase(path.name) in final_keys and path.name not in server_owned
         )
     )
-    removed_stale = _clear_stale_server_profiles(directory, final_names)
+    removed_stale = _clear_stale_server_profiles(directory, final_keys, server_owned)
     # A user's X.yml shadows the server's X.yaml of the same id after the
     # registry reload (``.yml`` is loaded last), so the ambiguity is surfaced.
-    shadowed = tuple(
-        profile.id
-        for profile in catalog.items
-        if (directory / f"{profile.id}.yml").exists() and _sync_marker(directory / f"{profile.id}.yml") is not True
-    )
-    for profile in catalog.items:
-        _write_profile(directory, profile)
+    # It is never deleted: the sync writes ``.yaml`` only.
+    shadowed = tuple(profile.id for profile in catalog.items if (directory / f"{profile.id}.yml").exists())
+    # A crash mid-publish can leave staged files behind; drop them before staging
+    # anew so a stale temp of a dropped id cannot survive.
+    _clear_staged_files(directory)
+    # Two-phase publish: stage every profile next to its final name, then rename
+    # them into place. A failure while staging therefore leaves the previous
+    # catalog readable and untouched, and a reader never sees a half-written
+    # YAML under ``{id}.yaml``; only the renames, atomic within the directory,
+    # can be interrupted midway.
+    staged: list[tuple[Path, Path]] = []
+    try:
+        for profile in catalog.items:
+            staging_path = directory / f"{profile.id}.yaml{_STAGING_SUFFIX}"
+            _write_profile(staging_path, profile)
+            staged.append((staging_path, directory / f"{profile.id}.yaml"))
+        for staging_path, final_path in staged:
+            os.replace(staging_path, final_path)
+    except OSError as exc:
+        _clear_staged_files(directory)
+        raise ModelCatalogError(f"Cannot publish the model catalog into {directory}: {exc}") from exc
 
     write_catalog_state(
         CatalogState(
@@ -791,12 +879,22 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
         )
     )
 
+    cleared = 0
+    if upgrade_clear:
+        # Runs last: a failure above leaves the previous catalog readable and the
+        # next sync retries. Files the server just wrote are skipped by name, so
+        # a same-id pre-marker profile is replaced, never deleted afterwards.
+        for path in profile_files:
+            if os.path.normcase(path.name) in final_keys or not path.is_file():
+                continue
+            path.unlink()
+            cleared += 1
+
     result = CatalogSyncResult(
         replaced=True,
         version=catalog.version,
         profile_ids=catalog.profile_ids(),
         default_profile_id=catalog.default_profile_id,
-        previous_profile_ids=previous_ids,
     )
     logger.info(
         "Model catalog %s applied: %d profile(s) from %s.",
@@ -804,10 +902,14 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
         len(catalog.items),
         source,
     )
+    if cleared:
+        logger.info("Cleared %d pre-marker model profile(s) on the first sync.", cleared)
     if removed_stale:
         logger.info("Removed %d server model profile(s) no longer in the catalog.", removed_stale)
     if overwritten:
-        logger.warning("Server models overwrote same-id custom profiles: %s", ", ".join(overwritten))
+        # "same-id profiles", not "custom": during the first-upgrade clear these
+        # are pre-marker leftovers of the old catalog, not something the user wrote.
+        logger.warning("Server models overwrote same-id profiles: %s", ", ".join(overwritten))
     if shadowed:
         logger.warning(
             "Custom .yml profiles share a served id and will shadow it after reload: %s",
