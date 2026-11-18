@@ -83,3 +83,9 @@ Codex 独立第二代理（GPT-6 Astra）核对标题轨迹、同会话工作区
 ### 2026-11-17 CLI 渠道版本增量评审
 
 Codex 独立第二代理（GPT-6 Astra）核对模型及独立上报、CLI 与桌面 ACP 的版本来源、工具状态更新报文，未发现阻断项。建议补强渠道分支的参数化断言，此次 headless 用 HTTP mock 验证，CLI ACP 经静态调用链核对。评审未独立运行测试，开发侧实跑结果见 [verification.md](verification.md#2026-11-17-cli-渠道版本口径调整)。
+
+## 2026-11-18 审批模型公共字段修复增量检查
+
+独立上下文评审代理 approval_telemetry_review 核对 model.py、真实审批客户端 parent_session_id 传递、生产审批 side_call_scope 及六组并发 HTTP 回归，未发现 blocker。代理复跑新增场景得到 6 passed、23 deselected，check_docs --closure 为 OK。此次调用指定模型 gpt-6-astra，但代理自报继承父模型，不能据此证明不同模型/工具要求已满足；记录为独立上下文检查，正式不同源复审身份仍待核实。
+
+开发验证得到模型报文 29 passed，完整埋点专项 73 passed、6 failed。六项环境失败已用修改前源码快照复现同名失败，详见 verification.md。原签认字段保持。本次未执行 git 提交或推送。

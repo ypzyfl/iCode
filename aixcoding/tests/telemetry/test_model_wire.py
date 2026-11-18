@@ -171,6 +171,106 @@ async def test_title_request_uses_its_session_workspace_after_the_turn(tmp_path,
     assert payload["gitRevision"] == "fixture-revision"
 
 
+@pytest.mark.parametrize(
+    ("sub_agent", "has_git", "registered", "matching_trace"),
+    [
+        (False, True, True, True),
+        (True, True, True, True),
+        (False, False, True, True),
+        (True, False, True, True),
+        (False, True, False, True),
+        (False, True, True, False),
+    ],
+)
+async def test_approval_requests_use_their_own_session_workspaces(
+    tmp_path, monkeypatch, sub_agent, has_git, registered, matching_trace
+):
+    from chrys.foundation.events.bus import EventBus
+    from chrys.foundation.events.types import SessionReady
+    from chrys.foundation.trajectory.context import side_call_scope, sub_agent_actor, trajectory_scope
+    from chrys.foundation.trajectory.envelope import ActorRole
+    from chrys.orchestration.aixcoding.telemetry.lifecycle import attach, detach
+    from chrys.service.aixcoding.telemetry import model
+    from chrys.service.aixcoding.telemetry.context import GitInfo
+    from chrys.service.approval.judge import ApprovalJudge
+    from chrys.service.llm import clients
+    from chrys.service.trajectory.session import SessionTrajectory
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("AIXCODING_EXTENSION_BASE_URL", "https://telemetry.invalid")
+    workspaces = [tmp_path / "project-a", tmp_path / "project-b"]
+    for workspace in workspaces:
+        workspace.mkdir()
+    git = {
+        str(workspace): GitInfo(branch=f"branch-{workspace.name}", revision=f"revision-{workspace.name}")
+        for workspace in workspaces
+    }
+    monkeypatch.setattr(model, "collect_git_info", git.get if has_git else lambda cwd: None)
+    requests = []
+    ready = asyncio.Event()
+
+    async def respond(request):
+        requests.append(request)
+        if len(requests) == 2:
+            ready.set()
+        await asyncio.wait_for(ready.wait(), timeout=5)
+        return _completion("completions", '{"approved": true, "reason": "fixture"}')
+
+    buses = [EventBus(), EventBus()]
+    judges = [
+        ApprovalJudge(_profile("completions"), session_id=f"judge-route-{index}", parent_session_id=f"session-{index}")
+        for index in range(2)
+    ]
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as http:
+        monkeypatch.setattr(clients, "_build_profile_http_client", lambda *args, **kwargs: http)
+        try:
+            for index, bus in enumerate(buses):
+                await attach(bus)
+                if registered:
+                    await bus.publish(
+                        SessionReady(session_id=f"session-{index}", primary_cwd=str(workspaces[index])),
+                        raise_handler_errors=True,
+                    )
+
+            async def evaluate(index):
+                session_id = f"session-{index}" if matching_trace else "unrelated-session"
+                trajectory = SessionTrajectory(session_id=session_id, session_dir=None)
+                context = trajectory.context(turn_id=f"turn-{index}")
+                if sub_agent:
+                    context = context.with_actor(sub_agent_actor(session_id, f"child-{index}"))
+                with trajectory_scope(context), side_call_scope(ActorRole.APPROVAL_JUDGE):
+                    verdict = await judges[index].evaluate(
+                        "read a file", "read_file", "read_file", {"path": "example.txt"}, [str(workspaces[index])]
+                    )
+                assert verdict.approved
+
+            await asyncio.gather(evaluate(0), evaluate(1))
+        finally:
+            for judge in judges:
+                await judge.aclose()
+            for bus in buses:
+                await detach(bus)
+
+    payloads = {payload["sessionId"]: payload for payload in _payloads(requests)}
+    assert set(payloads) == {"session-0", "session-1"}
+    assert len({payload["requestId"] for payload in payloads.values()}) == 2
+    assert len({payload["spanId"] for payload in payloads.values()}) == 2
+    for index, workspace in enumerate(workspaces):
+        payload = payloads[f"session-{index}"]
+        assert payload["eventSubType"] == "system"
+        assert payload["channelVersion"] == payload["pluginVersion"]
+        if registered and matching_trace:
+            assert payload["projectName"] == workspace.name
+            if has_git:
+                assert payload["gitBranch"] == f"branch-{workspace.name}"
+                assert payload["gitRevision"] == f"revision-{workspace.name}"
+            else:
+                assert not any(key.startswith("git") for key in payload)
+        else:
+            assert "projectName" not in payload
+            assert not any(key.startswith("git") for key in payload)
+
+
 @pytest.mark.parametrize("protocol", ["completions", "responses", "messages"])
 @pytest.mark.parametrize("lane", ["sdk", "wire", "blank", "connection"])
 async def test_retry_request_identity_at_sdk_and_kernel_boundaries(tmp_path, agent_engine, monkeypatch, protocol, lane):

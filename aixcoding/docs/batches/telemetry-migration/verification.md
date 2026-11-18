@@ -690,3 +690,36 @@ TUI 自动标题客户端没有构建期工作区，模型埋点此前省略 `pr
 - 修复前，`pytest -n0 -q aixcoding/tests/telemetry/test_entrypoints.py -k first_tool` 退出 1，headless 模型请求缺少 `channelVersion`。
 - 修复后，在独立临时配置下执行 `pytest -n0 -q aixcoding/tests/telemetry`，退出 0，73 项通过。headless 实际 HTTP mock 检查模型、工具保存及代码保存三份请求，桌面 ACP 双会话回归检查各自来源版本。实际使用 Python 3.14.8，经 `uv run --offline --no-sync --no-python-downloads` 启动，项目要求 3.14.10。Ruff、文档闭环和差异空白检查均通过。
 - `pytest -n0 -q tests/architecture/test_trajectory_wait_inventory.py::test_wait_manifest_matches_source` 退出 0，一项通过。
+
+## 2026-11-18 projectName 空记录的离线定位
+
+本轮核对提交 1c38842f 下的实际源码，以 HTTP MockTransport 捕获 SDK 最终请求，不访问数据库或生产端点。未修改产品代码。用户反馈的具体数据库记录尚无法与本地模拟逐条关联。
+
+- `UV_CACHE_DIR=/tmp/icode-cd-uv-cache uv run --offline --no-sync --no-python-downloads python /tmp/icode-project-fields-investigation.py`，退出 0。10 个实际 SDK HTTP mock 场景通过，合成字段证据在 `/tmp/icode-project-fields-evidence.json`。既有 Python 3.14.8，保留项目请求 3.14.10 警告。
+- `UV_CACHE_DIR=/tmp/icode-cd-uv-cache uv run --offline --no-sync --no-python-downloads pytest -n0 -q aixcoding/tests/telemetry/test_model_wire.py -k title_request`，退出 0，1 passed、22 deselected。
+- 正常标题调用在已登记工作区且轨迹会话匹配时，HTTP 报文含 projectName 与 Git 字段，eventSubType=system，无活动轮次时省略 spanId。标题补值已有 d7924c52 实现，本轮复跑通过。
+- 受控边界中，标题轨迹为 None、轨迹会话不匹配、工作区登记缺失时均省略 projectName 与 Git 字段。轨迹缺失还会导致此次标题请求被编码为 eventSubType=agent。这里只证明这些前置条件能触发缺项，尚未证明实际用户运行进入了这些边界。
+- 已确认额外缺口。通过真实 ApprovalJudge.evaluate（模拟模型返回合法 approved JSON），即使 SessionReady 已登记正确工作区、审批轨迹含活动轮次，SDK 请求仍缺 projectName 与 Git 字段，spanId 存在、eventSubType=system。审批客户端在首次使用时直接 create_client，未取得 for_agent_build 的构建期工作区；TelemetryModelMiddleware 的会话工作区补值目前仅允许 TITLE_GEN，因此审批请求无法使用已有会话工作区。这属于当前代码可复现的上下文传递遗漏。
+- 独立客户端的 compaction、side_question 角色在未带构建期工作区时也能复现同类缺项，属于相同条件下的机制验证，尚未对所有实际入口做逐一端到端触发。
+- 正常主请求有工作区但 GitInfo=None 时，projectName 仍存在，Git 字段省略。Git 本身的失败、无提交仓库、缺 remote、detached HEAD、远端 URL 无法解析均有各自缺字段条件，不能由 Git 为空推导项目名应为空。
+- 模型 payload 无条件构造 requestId/sessionId/eventType/eventSubType/channelType/channelName/pluginVersion；CLI channelVersion 取 pluginVersion。模型 payload 当前不写 userId；独立工具上报的 userId 从登录态或 telemetry 配置解析。后台数据库用户列的取值需按接入服务口径核对。
+- 本机 ~/.chrys 常规与定制日志最后写入在 2026-11-12，本轮未取得用户所述新记录的线上原始请求。代码发送的是省略字段，数据库展示为空的具体转换发生在后端环节，无法离线确认。本轮结论不将该实际记录直接认定为标题或审批请求。
+
+### 2026-11-18 审批请求工作区补值修复
+
+产品仅修改 `src/chrys/service/aixcoding/telemetry/model.py` 的角色判断，将已有标题工作区补值范围扩展到 APPROVAL_JUDGE。保留构建期工作区优先、轨迹存在、轨迹 session_id 与 middleware session_id 一致的条件；无匹配工作区时继续省略项目/Git 字段。无上游文件或依赖变更，无新增生产等待项。
+
+`aixcoding/tests/telemetry/test_model_wire.py` 新增真实 ApprovalJudge.evaluate 的 HTTP mock 回归。六组参数覆盖主代理/子代理轨迹、有 Git/无 Git、SessionReady 缺失、轨迹 session 不匹配。每组并发执行两个不同项目的审批，HTTP 屏障要求请求交错，按 sessionId 核对项目名、Git 分支/revision、独立 requestId/spanId、system 类型和 CLI 版本字段。
+
+下列 uv 命令均使用 `UV_CACHE_DIR=/tmp/icode-cd-uv-cache`，既有 Python 3.14.8，`--no-sync` 保留项目请求 3.14.10 的警告。
+
+- 修复前运行 `uv run --offline --no-sync --no-python-downloads pytest -n0 -q --tb=short aixcoding/tests/telemetry/test_model_wire.py -k approval_requests`，退出 1，4 failed、2 passed、23 deselected；四个正常工作区场景均在最终 HTTP 报文断言处报 KeyError: projectName。测试开发中先修正了一个不存在的测试辅助 API，再取得该行为失败证据。
+- 修复后运行 `uv run --offline --no-sync --no-python-downloads pytest -n0 -q --tb=short aixcoding/tests/telemetry/test_model_wire.py`，退出 0，29 passed。包含新增六组、原标题链路与模型重试/托管调用回归。
+- 扩展运行 `uv run --offline --no-sync --no-python-downloads pytest -n0 -q --tb=short aixcoding/tests/telemetry`，退出 1，73 passed、6 failed。六项均在 test_tool_reports.py，日志显示真实用户 hooks 与目录被测试环境引用，沙箱拒绝访问 ~/.chrys 的轨迹锁和 hook payload。本轮未修改用户 hooks 或沙箱。
+- 使用 `git archive HEAD src/chrys` 在 `/tmp/icode-approval-baseline-src` 提取修改前源码，先检查 chrys.__file__ 确实指向该快照。再运行 `PYTHONPATH=/tmp/icode-approval-baseline-src/src UV_CACHE_DIR=/tmp/icode-cd-uv-cache uv run --offline --no-sync --no-python-downloads python -m pytest -n0 -q --tb=short aixcoding/tests/telemetry/test_tool_reports.py`，退出 1，6 passed、同名 6 failed。证据在 `/tmp/icode-approval-baseline-tests.log`。该环境失败在修改前亦存在；未将整个专项记为通过。
+- `uv run --offline --no-sync --no-python-downloads ruff check --no-fix src/chrys/service/aixcoding/telemetry/model.py aixcoding/tests/telemetry/test_model_wire.py`，退出 0，All checks passed。
+- 同样文件执行 `uv run --offline --no-sync --no-python-downloads ruff format --check`，退出 0，2 files already formatted。
+- `uv run --offline --no-sync --no-python-downloads python aixcoding/tools/check_docs.py --closure`，退出 0，check_docs: OK。
+- `uv run --offline --no-sync --no-python-downloads python aixcoding/tools/check_r2_diff.py --base HEAD`、`uv run --offline --no-sync --no-python-downloads python aixcoding/tools/check_r3_markers.py --base HEAD`、`git diff --check` 均退出 0。唯一产品文件在定制目录，无新增上游变更。
+
+真实内网上报与用户所述数据库记录的关联仍未验证。无轨迹的标题，以及本轮范围外独立系统请求的补值仍按定位记录保留边界。

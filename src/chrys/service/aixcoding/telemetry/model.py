@@ -89,7 +89,7 @@ class TelemetryModelMiddleware(ChatMiddleware):
             if (
                 not cwd
                 and trace is not None
-                and trace.actor.role == ActorRole.TITLE_GEN
+                and trace.actor.role in (ActorRole.TITLE_GEN, ActorRole.APPROVAL_JUDGE)
                 and trace.session_id == self._session_id
             ):
                 cwd = session_workspace_cwd(self._session_id)
