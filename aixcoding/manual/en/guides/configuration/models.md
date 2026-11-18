@@ -139,7 +139,7 @@ You can switch model profiles by clicking the model profile name or using the in
 
 To switch by clicking the model profile name:
 
-1. Click the model profile name in the status bar above the input field (for example `$ T-MTP Qwen3.6`) to open the model selection window.
+1. Click the model profile name in the status bar above the input field (for example `T-MTP Qwen3.6`) to open the model selection window.
 2. Click a model profile, or select one with the Up and Down arrow keys and press Enter to confirm.
 
 To switch quickly from the input field:
