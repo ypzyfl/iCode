@@ -69,6 +69,18 @@ def test_queue_note_branches() -> None:
     assert queue_note(4) != queue_note(3)
 
 
+def test_queue_note_reports_the_queue_size() -> None:
+    """The total queue length is shown once the gateway reports it."""
+    from chrys.kernel.aixcoding.queue_progress import queue_note
+
+    note = queue_note(2, 5)
+
+    assert "前方 2 个请求" in note
+    assert "共 5 个" in note
+    # Without a reported total the note stays as before, for callers that lack it.
+    assert "共" not in queue_note(2)
+
+
 def test_queue_status_event_passes_the_headless_boundary() -> None:
     """CLI and ACP read headless events through the type tuple; this event must pass."""
     from chrys.foundation.events.types import GatewayQueueStatus

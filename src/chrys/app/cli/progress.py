@@ -748,7 +748,7 @@ class TurnProgress:
                 self._writer.line(_todo_line(event.items))
             # AIxCoding queue-progress: CLI line
             case GatewayQueueStatus():
-                self._queue_status(event.position)
+                self._queue_status(event.position, event.queue_size)
             case TurnStarted():
                 # AIxCoding queue-progress: CLI line
                 self._last_queue_position = None
@@ -756,7 +756,7 @@ class TurnProgress:
                 return
 
     # AIxCoding queue-progress: CLI line
-    def _queue_status(self, position: int) -> None:
+    def _queue_status(self, position: int, queue_size: int = 0) -> None:
         """Write one queue line per position change: the heartbeat repeats a position."""
         if position < 0:
             self._last_queue_position = None
@@ -764,7 +764,7 @@ class TurnProgress:
         if position == self._last_queue_position:
             return
         self._last_queue_position = position
-        self._writer.line(("• ", _ACCENT), queue_note(position))
+        self._writer.line(("• ", _ACCENT), queue_note(position, queue_size))
 
     def _load_progress(self, event: AgentLoadProgress) -> None:
         # Only a named server's own start: the collective event has no name, and a failure is reported by the

@@ -139,3 +139,33 @@ uv run python aixcoding/tools/gen_customizations.py
 
 - `uv run python scripts/chrys_test.py --smart --paths ...`（完整 Smart Test；已用更宽的目录集替代：tui / cli / engine / acp / service.llm / session_host / architecture 守卫）
 - 真实网关端到端联调（TUI 文案、CLI 去重行、ACP `chrys/queue_status` 的实际显示）
+
+## 2026-11-19 展示 queueSize
+
+需求侧关闭开放问题：`queueSize` 从"待联调确认"改为必须展示。
+
+改动：`queue_note(position, queue_size=0)` 追加「共 M 个」（`queue_size <= 0` 时省略）；TUI 链路 `ports` / `main_screen_presenter` / `view_adapter` / `event_handlers` 与 CLI `TurnProgress` 透传 `event.queue_size`；ACP payload 原本已带 `queueSize`，未改。
+
+最长文案：「排队中 · 前方 9 个请求 · 共 12 个 · 可稍后重试」（约 26 字），80 列终端可容纳。
+
+命令：
+
+```
+uv run pytest aixcoding/tests/llm -n0 -q
+```
+
+结果：`20 passed`（新增 `test_queue_note_reports_the_queue_size`）。
+
+命令：
+
+```
+uv run ruff check <改动文件>
+uv run ty check --error-on-warning --python-platform {win32,darwin,linux} src/chrys
+uv run pytest tests/app/cli tests/app/acp -q -n4
+uv run python aixcoding/tools/gen_customizations.py
+uv run python aixcoding/tools/check_docs.py
+```
+
+结果：ruff `All checks passed!`；三平台 ty 均通过；`1302 passed, 44 skipped`；对账 `check OK — 133 row(s) / 196 marker(s)`；`check_docs: OK`。
+
+**本轮未跑**：`tests/app/tui` 全量（新签名只是给已有方法加默认参数，向后兼容；上一轮该套件 `4194 passed`）。

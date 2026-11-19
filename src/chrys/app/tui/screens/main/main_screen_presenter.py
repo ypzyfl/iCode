@@ -56,8 +56,8 @@ class MainScreenPresenter:
         self._view.show_status(text)
 
     # AIxCoding queue-progress: presenter facade
-    def show_queue_status(self, position: int) -> None:
-        self._view.show_queue_status(position)
+    def show_queue_status(self, position: int, queue_size: int = 0) -> None:
+        self._view.show_queue_status(position, queue_size)
 
     def clear_queue_status(self) -> None:
         self._view.clear_queue_status()

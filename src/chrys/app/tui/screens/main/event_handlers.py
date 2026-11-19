@@ -2291,7 +2291,7 @@ class BackendEventHandler:
         # A release is still applied when the turn already ended: dropping a note is always safe.
         if event.position >= 0 and (not self.agent_running or self._predates_active_run(event)):
             return
-        self._ui().show_queue_status(event.position)
+        self._ui().show_queue_status(event.position, event.queue_size)
 
 
 def _with_image_paths(draft: ChatDraft, cwd: Path) -> ChatDraft:

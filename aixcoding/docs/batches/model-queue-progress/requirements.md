@@ -19,7 +19,7 @@
 
 ## 验收标准
 
-- [ ] 网关下发 `queue_status` 时，TUI 等待行显示 position，且 0 时文案为"正在获取模型资源"。
+- [ ] 网关下发 `queue_status` 时，TUI 等待行显示 position 与 queueSize（后者以「共 M 个」呈现），position 为 0 时文案为"正在获取模型资源"；`queueSize` 缺失或为 0 时省略总数。
 - [ ] 无排队时等待行行为与改造前完全一致（不显示任何新增文案）。
 - [ ] CLI 在名次未变化时不重复输出；放行后不输出残留。
 - [ ] ACP 客户端收到 `chrys/queue_status`（字段含 position/queueSize/sessionId）。
@@ -28,4 +28,4 @@
 
 ## 开放问题
 
-- 网关 `queueSize` 是否要在 UI 展示（当前设计只用 `position`），待联调确认。
+- ~~网关 `queueSize` 是否要在 UI 展示~~ 已决（2026-11-19）：展示。TUI/CLI 文案为「排队中 · 前方 N 个请求 · 共 M 个」，ACP payload 原本已带 `queueSize`；`queueSize <= 0` 时省略总数部分。

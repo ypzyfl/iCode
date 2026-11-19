@@ -120,7 +120,7 @@ R1 自查（逐行归属）：上游每处均为"挂点 + 一行调用/一个字
 - **CLI 挂点错位**：`InvocationActivity.handle` 收 `InvocationEvent` 且首行取 `origin`，加错位置会静默丢弃。已把锚点固定为 `TurnProgress.handle` 并进测试。
 - **WaitingRow 跨轮残留**：它是持久 widget（`chrome.py` 创建一次复用），不清文案则下个 turn 会带着上一轮的"排队中"。缓解：轮次开始时清空（handler 同文件），测试矩阵覆盖。
 - 慢订阅者拖慢流速：`bus.publish` 内联 await。缓解：handler 只改一行文案；guard 侧兜住回调异常并记日志。
-- 文案截断：控制在 ~20 字内，position>3 用简写。
+- 文案截断：含 `queueSize` 后最长一档为「排队中 · 前方 N 个请求 · 共 M 个 · 可稍后重试」（约 26 字），80 列终端可容纳，窄终端会裁掉尾部的操作建议（假设 3 已接受）。`queueSize <= 0` 时省略「共 M 个」，保持与首版一致的短文案。
 - 多会话串号：事件带 `session_id`，各前端按会话过滤；client 按 session 构建，回调同源。
 - 回滚：删除 13 处接线与 `GatewayQueueStatus` 即完全恢复（无持久化、无协议破坏）。
 

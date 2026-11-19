@@ -394,12 +394,12 @@ class MainScreenViewAdapter:
         self._screen.query_one(StatusBar).show(text)
 
     # AIxCoding queue-progress: TUI render
-    def show_queue_status(self, position: int) -> None:
+    def show_queue_status(self, position: int, queue_size: int = 0) -> None:
         """Show the gateway's queue position, or drop it once the queue lets the request through."""
         row = self._waiting_row()
         if row is None:
             return
-        row.set_queue_note(queue_note(position))
+        row.set_queue_note(queue_note(position, queue_size))
 
     def clear_queue_status(self) -> None:
         """Return the waiting row to its bare dot; a new turn starts unqueued."""
