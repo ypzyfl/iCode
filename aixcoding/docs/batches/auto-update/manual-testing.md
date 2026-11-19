@@ -48,10 +48,19 @@
 | environment | 检查 base | mirror root（检查地址的 origin，去掉 `/csas`） |
 |---|---|---|
 | prod（默认） | `http://82.187.34.98/csas` | `http://82.187.34.98/aixcoding/file/aixcoding` |
-| dev | `http://81.89.182.150/csas` | `http://81.89.182.150/aixcoding/file/aixcoding` |
-| local | `http://127.0.0.1:7778` | `http://127.0.0.1:7778/aixcoding/file/aixcoding` |
+| dev | `http://81.89.182.150/csas` | ⚠ 当前实际为 **prod 的 mirror**（见下） |
+| local | `http://127.0.0.1:7778` | ⚠ 当前实际为 **prod 的 mirror**（见下） |
 
-`aixcoding.toml` 的 `[update].base_url` 优先级最高，且一处改动同时迁移检查端点与 mirror（D4 契约）。
+**⚠ pin 注记（2026-11-19，design 修订二十）**：mirror root 当前**临时写死为生产
+origin**（`commands.py::_PINNED_MIRROR_ORIGIN`），不分环境——上表 dev/local 行的
+mirror 地址是 D4 派生的**预期值**，仅在 dev 镜像发布、恢复推导后才生效。在此之前：
+
+- dev/local 客户端的**检查**走各自环境的网关，**安装一律下载生产镜像**（跨环境
+  混装，责任人已确认可接受）；
+- `[update].base_url` 覆盖只迁移检查端点，**不迁移 mirror**；
+- 已知症状：dev/local 下点"立即更新"实际 curl 的是 `82.187.34.98` 的 install.sh。
+
+恢复 D4 推导后本表自然恢复正确。
 
 ## 3. 接口清单（全部 GET，无鉴权头）
 
@@ -152,6 +161,11 @@ curl http://127.0.0.1:7778/debug/requests | python3 -m json.tool
 ```
 
 ### 4.3 dev 环境手动复现整条链路
+
+**pin 提醒（design 修订二十）**：当前 mirror 写死生产 origin——第 1 步检查请求
+发往 dev 网关，但第 2 步的 `install.sh` 实际取自 `82.187.34.98`；若 dev 镜像
+路径未发布而生产镜像正常，整条链路仍可走通（装的是生产制品）。下文 dev 镜像
+URL 仅供恢复 D4 推导后对照。
 
 ```bash
 # 0. 确认指向 dev（默认 prod，必须先设）
