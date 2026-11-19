@@ -1237,3 +1237,20 @@ uv run --no-sync pytest /private/tmp/icode-telemetry-review-71501235/test_after_
 ### 交付边界
 
 本轮实际验证不包括真实后台/桌面、新生产 dispatcher、私人 session 或新压缩组合实验。只读差异检查使用 `git diff --check`，新文件另做尾随空格及本地链接目标检查；不运行全量产品测试，不声称六个发现已处置。Git 写操作仍逐条授权，本节不预填 commit/push 成功记录。
+
+## 2026-11-19 方案方回复复核的增量文档验证
+
+本轮直接核对方向 reader 的 `expected_turn_id` 过滤、test-plan.md:61–68 的精确数量断言及 review-handoff.md:267 的旧 PR 表述。复核意见追加技术评审报告 §9，并追加 self-review 索引；原报告作为首轮记录保留，不修改原方案或实现，不代填责任人裁决。F1/F5 收窄措辞，F2 增补来源与执行边界，F3/F4 阶段边界维持，F6 增补定位；六项未验证关闭。
+
+沿用本节之前记录的 UV_CACHE_DIR、现有 `--no-sync` 环境及完整干净副本（固定探索提交加本次三份文档）。实际执行：
+
+```bash
+uv run --no-sync ruff check --no-fix aixcoding/
+uv run --no-sync ruff format --check aixcoding/
+uv run --no-sync python /private/tmp/icode-telemetry-review-71501235/clean/aixcoding/tools/check_docs.py --closure
+git diff --check
+```
+
+结果：Ruff `All checks passed!`；format `464 files already formatted`；副本 closure `check_docs: OK`（27 ADR / 49 design / 48 self-review）；diff check 无输出，均 exit 0。uv 仍提示现有环境不满足固定 Python 3.14.10，不声明目标环境验收。原始工作区仍含已记录的无关未跟踪目录与嵌套 worktree，干净副本结果不冒充原工作区治理门禁全绿。
+
+本轮为评审措辞与事实定位更新，不新增运行逻辑或测试，不重复既有队列实验，不声称已做 V1/V2/V3 或双 AI 增量实施复审；没有外发私人 session 或连接生产后台。
