@@ -30,5 +30,5 @@ def queue_note(position: int, queue_size: int = 0) -> str:
         return ""
     if position == 0:
         return "正在获取模型资源"
-    # Full-width commas are the wording the owner asked for; the exemption stays line-level.
-    return f"当前模型请求量大，请求排队约 {position} 人，请稍候或切换至其他模型"  # noqa: RUF001
+    # The full-width comma is the wording the owner asked for; the exemption stays line-level.
+    return f"当前模型请求量大，请求排队约 {position} 人"  # noqa: RUF001

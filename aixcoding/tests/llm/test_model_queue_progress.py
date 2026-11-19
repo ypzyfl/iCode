@@ -63,9 +63,7 @@ def test_queue_note_branches() -> None:
     assert queue_note(-1) == ""
     assert queue_note(0) == "正在获取模型资源"
     for position in (1, 2, 4, 9):
-        note = queue_note(position)
-        assert f"约 {position} 人" in note
-        assert "请稍候或切换至其他模型" in note
+        assert queue_note(position) == f"当前模型请求量大，请求排队约 {position} 人"
 
 
 def test_queue_note_does_not_show_the_queue_size() -> None:
