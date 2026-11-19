@@ -22,7 +22,8 @@
   `test_chrys_acp_sub_agent_bridges_card_...`（需 venv 内 chrys.exe 入口，
   本机纯 pytest 环境缺件，改动前同样跑不了）。
 - core 范围并行复跑（tests 除 architecture/app/tui，对应 CI core shard 的
-  pytest 半）：见 plan.md 挂起节，结果落地后回填本节。
+  pytest 半）：24328 passed / 7 failed，失败逐项甄别与本批无关——结果与
+  基线对照证据见 §4a。
 
 ## 3. 真机手工验证（用户执行并确认通过，2026-11-18）
 

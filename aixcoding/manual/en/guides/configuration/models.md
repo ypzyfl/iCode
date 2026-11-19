@@ -129,7 +129,7 @@ Deleting a profile removes its local model profile file and **cannot be undone i
 3. Click "Delete".
 4. In the confirmation window, check the profile name again, then click "Delete".
 
-AIxCoding-CLI keeps at least one model profile you created, so "Delete" is unavailable when only one remains. If you delete the profile currently in use, AIxCoding-CLI automatically switches to another selectable profile after you close the configuration window. Models assigned by the administrator are not in this list and are not affected by this limit.
+AIxCoding-CLI keeps at least one model profile, so "Delete" is unavailable when only one profile remains in total (administrator-assigned models included). Models assigned by the administrator are not in this list: you can therefore delete every profile you created, and a new blank profile is created automatically so you can continue. If you delete the profile currently in use, AIxCoding-CLI automatically switches to another selectable profile after you close the configuration window.
 
 ## 4. Switch and verify model profiles
 
