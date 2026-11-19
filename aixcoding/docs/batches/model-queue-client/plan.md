@@ -34,15 +34,15 @@
 > requirements.md / design.md 的「2026-11-19」章节。
 
 - [x] requirements 追加（目标 4/5/6、非目标、7 条验收）
-- [x] design 追加变更单（方案、R2 增量 +11、假设 6 条、定制点 `queue-cancel`、风险）
+- [x] design 追加变更单（方案、假设 6 条、定制点 `queue-cancel`、风险；R2 实际 +28/−9、manifest +14/−1 已回填）
 - [x] test-plan 追加覆盖矩阵（10 条 + 降级路径）
-- [x] **责任人重签 design.md**（2026-11-19；R2 实际 +21/−4、manifest +14/−1 已回填）
+- [x] **责任人重签 design.md**（2026-11-19）
 - [x] 实现 `src/chrys/service/aixcoding/llm_queue/queue_cancel.py`
 - [x] `client.py` 接线（tracker 构造 / `on_status` 包装 / `finally` 取消）
-- [x] 定制测试 `aixcoding/tests/llm/test_model_queue_cancel.py`（23 条，`aixcoding/tests/llm` 43 passed）
+- [x] 定制测试 `aixcoding/tests/llm/test_model_queue_cancel.py`（29 条，`aixcoding/tests/llm` 49 passed）
 - [x] mock 网关补 cancel 接口（`mock_server/model_concurrency_verify/mock_gateway.py`，仅本地验证资产）
 - [x] verification.md 追加验证节（含 ACP 真实中断实测 + Smart Test 环境性失败的诚实记录）
-- [ ] self-review 追加一轮（独立子代理评审）
+- [x] self-review 追加一轮（2 轮独立子代理评审 + 3 项破坏实验）
 
 ### 阻塞与待确认
 

@@ -53,6 +53,6 @@
   | B | `observing` 不置 `_released` | `test_interrupt_after_release_sends_nothing`、`test_released_tracker_is_not_queued` FAILED |
   | C | `cancel_on_close` 恒 `return` | 8 条 FAILED（含真实 `task.cancel()` 用例） |
 
-- 复审证据：`verification.md` 的「独立评审后的修复」「破坏实验」两节；最终 `aixcoding/tests/llm` 47 passed、
+- 复审证据：`verification.md` 的「独立评审后的修复」「破坏实验」「收尾」三节；最终 `aixcoding/tests/llm` 49 passed、
   `ruff` 通过、`ty` 三平台通过、`gen_customizations --strict` OK、`check_docs --closure` OK。
 - 声明：两轮评审均为独立子代理（只读、独立会话），同一模型族仍可能共盲，终裁在责任人。

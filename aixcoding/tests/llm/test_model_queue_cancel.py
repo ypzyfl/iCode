@@ -379,3 +379,77 @@ def test_generated_request_id_does_not_touch_the_caller_extra_body() -> None:
     assert request["extra_body"] is not caller_extra
     assert request["extra_body"]["request_id"] == tracker.request_id
     assert caller_extra == {"temperature": 0.2}
+
+
+async def test_broken_customization_leaves_the_request_untracked(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The customization is optional: without it the request goes out exactly as before v1.1."""
+    main_requests: list[httpx.Request] = []
+    cancels: list[httpx.Request] = []
+
+    async def cancel_handler(request: httpx.Request) -> httpx.Response:
+        cancels.append(request)
+        return httpx.Response(204)
+
+    monkeypatch.setattr(
+        "chrys.service.aixcoding.llm_queue.track_queue_request",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("customization unavailable")),
+    )
+    client = await _client(_sse(CHUNK % "hi", "data: [DONE]"), main_requests)
+    try:
+        assert await _drain(client) is None
+    finally:
+        await client.aclose()
+
+    assert "request_id" not in json.dumps(json.loads(main_requests[0].content))
+    assert cancels == []
+
+
+CHAT_COMPLETION = {
+    "id": "chatcmpl-1",
+    "object": "chat.completion",
+    "created": 1,
+    "model": "m",
+    "choices": [{"index": 0, "message": {"role": "assistant", "content": "hi"}, "finish_reason": "stop"}],
+    "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+}
+
+
+async def test_non_streaming_request_is_never_tracked(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Only streaming requests queue at the gateway, so only they carry a request_id."""
+    from chrys.kernel import Message
+    from chrys.service.aixcoding.llm_queue import track_queue_request as real
+    from chrys.service.llm.chat_completions.client import ChatCompletionsClient
+    from chrys.service.llm.clients import _build_openai_sdk_client
+
+    armed: list[int] = []
+
+    def spy(*args: Any, **kwargs: Any) -> Any:
+        armed.append(1)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr("chrys.service.aixcoding.llm_queue.track_queue_request", spy)
+
+    main_requests: list[httpx.Request] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        main_requests.append(request)
+        return httpx.Response(
+            200, headers={"content-type": "application/json"}, content=json.dumps(CHAT_COMPLETION).encode()
+        )
+
+    sdk = _build_openai_sdk_client(
+        api_key="test-key",
+        base_url="http://llm.test/v1",
+        timeout=5.0,
+        max_retries=0,
+        default_headers=None,
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    client = ChatCompletionsClient(model="m", sdk_client=sdk)
+    try:
+        await client._send(messages=[Message("user", ["hi"])], options={})
+    finally:
+        await client.aclose()
+
+    assert armed == []
+    assert "request_id" not in json.dumps(json.loads(main_requests[0].content))

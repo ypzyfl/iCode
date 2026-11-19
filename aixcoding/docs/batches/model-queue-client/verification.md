@@ -128,7 +128,7 @@ R2 清单同步更新为 2 文件（`client.py` +10/−0、`trajectory_wait_mani
 
 ```text
 uv run pytest aixcoding/tests/llm -n0 -q
-43 passed in 3.17s
+43 passed in 3.17s    ← 首轮（取消用例 23 条）；补齐评审补测后为 49 passed（29 条）
 ```
 
 **静态门禁**：
@@ -200,7 +200,7 @@ tests/service/agent_middleware/test_injection.py::test_intermediate_text_stored_
 | A | `QueueRequestTracker.cancel_on_close` 在判据通过后提前 `return`（不发 cancel） | `test_interrupt_while_queued_sends_cancel` FAILED（`len(cancels) == 0`）→ 端到端锚定成立 |
 | B | `observing` 不置 `_released`（把放行帧当普通排队帧） | `test_interrupt_after_release_sends_nothing`、`test_released_tracker_is_not_queued` FAILED → 判据锚定成立 |
 
-复原后复跑：`aixcoding/tests/llm` 43 passed，`ruff check` All checks passed。
+复原后复跑：`aixcoding/tests/llm` 47 passed，`ruff check` All checks passed。
 
 **独立评审（只读子代理）后的修复，2026-11-19**：
 
@@ -214,3 +214,16 @@ tests/service/agent_middleware/test_injection.py::test_intermediate_text_stored_
 
 破坏实验 C（`cancel_on_close` 判据改为恒真提前 return）：8 个用例 FAILED（含新增的 `task.cancel()` 用例）→ 锚定成立；
 复原后 `aixcoding/tests/llm` 47 passed，`ruff check` All checks passed，`grep BREAK-EXPERIMENT src/` 无命中。
+
+**收尾（2026-11-19，第三轮评审后）**：补两条 test-plan 承诺但此前缺失的用例 ——
+`test_broken_customization_leaves_the_request_untracked`（tracker 工厂抛异常 → 请求体无 `request_id`、不发 cancel、流式照常）、
+`test_non_streaming_request_is_never_tracked`（非流式 `_send` 不建 tracker、无 `request_id`）。
+
+```text
+uv run pytest aixcoding/tests/llm -n0 -q
+49 passed in 3.55s
+uv run ruff check aixcoding/tests/llm
+All checks passed!
+uv run ruff format aixcoding/tests/llm
+1 file reformatted（复检通过）
+```
