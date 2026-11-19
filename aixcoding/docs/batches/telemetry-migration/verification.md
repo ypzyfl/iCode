@@ -723,3 +723,19 @@ TUI 自动标题客户端没有构建期工作区，模型埋点此前省略 `pr
 - `uv run --offline --no-sync --no-python-downloads python aixcoding/tools/check_r2_diff.py --base HEAD`、`uv run --offline --no-sync --no-python-downloads python aixcoding/tools/check_r3_markers.py --base HEAD`、`git diff --check` 均退出 0。唯一产品文件在定制目录，无新增上游变更。
 
 真实内网上报与用户所述数据库记录的关联仍未验证。无轨迹的标题，以及本轮范围外独立系统请求的补值仍按定位记录保留边界。
+
+### 2026-11-19 禁止运行目录补项目名及 Git
+
+用户明确修正口径：没有实际会话工作区时项目名应为空，不能使用运行目录。`service/aixcoding/telemetry/context.py` 移除 `common_fields` 的 `Path.cwd()` fallback，独立报文保留 `projectName=""`；`collect_git_info("")` 直接返回 None，避免把运行目录仓库归到未知项目。已有实际工作区继续取其目录名。模型请求缺工作区时仍省略 projectName，无需改动 model.py。本轮没有上游产品修改、生产等待项或依赖变化，未改签认字段。原有未跟踪的模型上报策略草案保留原样。
+
+设计共同字段规则及 T05 测试计划已补充禁止运行目录兜底。新增四组行为回归：缺工作区项目名为空；缺工作区不扫描 Git；技能最终 HTTP 报文分别在有/无工作区时使用实际项目名/空字符串，且保持用户引用技能不带 requestId 的现有口径。
+
+所有下列 uv 命令均使用 `UV_CACHE_DIR=/tmp/icode-cd-uv-cache` 和 `uv run --offline --no-sync --no-python-downloads`，实际 Python 3.14.8，保留项目请求 3.14.10 的警告。没有升级环境或扩大沙箱权限。
+
+- 修改产品前，`pytest -n0 -q --tb=short aixcoding/tests/telemetry/test_common_fields.py -k missing_workspace`，退出 1，2 failed、6 deselected。分别复现项目名错误取运行目录和 Git 错误扫描运行目录。
+- 修复后，`pytest -n0 -q --tb=short aixcoding/tests/telemetry/test_common_fields.py aixcoding/tests/telemetry/test_model_wire.py`，退出 0，39 passed。
+- `pytest -n0 -q --tb=short aixcoding/tests/telemetry`，退出 1，77 passed、6 failed。失败均在 test_tool_reports.py：`test_other_model_protocols_send_the_legacy_telemetry_body[openai/anthropic]`、`test_engine_edit_reports_match_the_old_snapshot_and_correlation_contract`、`test_engine_reports_slash_and_model_skill_usage_with_the_old_dimensions`、`test_hosted_report_delayed_behind_a_local_call_keeps_the_observing_request`、`test_concurrent_child_reports_with_one_provider_id_follow_their_own_requests`。日志显示用户 security-tool-guard 被加载、hook payload 写入拒绝及 `~/.chrys/trajectory-hmac.key.lock` PermissionError，与此前同名环境失败一致，未跳过测试或绕过沙箱。
+- `ruff check --no-fix src/chrys/service/aixcoding/telemetry/context.py aixcoding/tests/telemetry/test_common_fields.py`、相同文件的 `ruff format --check` 均退出 0。
+- `python aixcoding/tools/check_r2_diff.py --base HEAD` 和 `python aixcoding/tools/check_r3_markers.py --base HEAD` 均退出 0，upstream_changed=0；R2 输出既有登记路径警告。
+
+未提交。本轮不宣称完整专项或线上验收通过；内网数据库记录对账等原有开放项保持开放。

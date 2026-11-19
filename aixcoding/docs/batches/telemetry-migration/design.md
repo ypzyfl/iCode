@@ -212,6 +212,8 @@ ACP prompt 入站校验 ide-name、ide-version、function-name、selected-agent�
 | ai-code/save | reportId、filepath、blocks[{snippet,rangeStart,rangeEnd}]、sourceType=edit、inputMethod=ai_generated、sessionId、codeStatus、language、requestId/spanId、agentName、remoteUrl/branch/gitUserName/gitUserEmail 和共同字段 |
 | 共同字段 | pluginVersion、userId、channelType/channelName/channelVersion、projectName、gitRemote/gitBranch/gitRevision/gitOwner/gitRepo。CLI 的 channelVersion 等于 pluginVersion；其他渠道使用各自提供的版本，空值仍省略 |
 
+2026-11-19 项目字段口径修正：`projectName` 只取实际会话工作区目录的最后一级名称。独立工具、技能与代码报文调用共同字段编码时，没有会话工作区则保留 `projectName=""`；模型请求没有实际工作区时继续省略该字段。禁止使用进程运行目录、启动目录或 `Path.cwd()` 补值，也不得将该目录作为缺失工作区时的 Git 采集对象。没有工作区时 Git 采集返回空，不推断其他项目。已登记且匹配会话的标题/审批工作区补值仍属于实际会话事实，不属于运行目录兜底。
+
 以下细则必须保留。
 
 - `value` 技能三工具仅取 skill_name，最多 2000 字符。其他工具 full 模式为 JSON，whitelist 模式省略；旧最终代码没有独立 toolParam 字段。错误文本最多 2000 字符。

@@ -34,6 +34,24 @@ def test_legacy_endpoint_and_disable_precedence(tmp_path: Path, monkeypatch: pyt
     assert load_settings(tmp_path).base_url == "https://explicit.invalid/api"
 
 
+def test_missing_workspace_keeps_project_name_empty_even_in_a_named_directory(tmp_path, monkeypatch) -> None:
+    from chrys.service.aixcoding.telemetry.context import Channel, common_fields
+
+    monkeypatch.chdir(tmp_path)
+    fields = common_fields("", channel=Channel("cli", "icode-tui"))
+    assert fields["projectName"] == ""
+
+
+def test_missing_workspace_does_not_collect_git_from_the_running_directory(tmp_path, monkeypatch) -> None:
+    from chrys.service.aixcoding.telemetry import context
+
+    monkeypatch.chdir(tmp_path)
+    inspected = []
+    monkeypatch.setattr(context, "_collect_git", lambda cwd: inspected.append(cwd) or context.GitInfo(repo="wrong"))
+    assert context.collect_git_info("") is None
+    assert inspected == []
+
+
 def test_common_fields_keep_desktop_identity_and_omit_missing_git_fields() -> None:
     from chrys.service.aixcoding.telemetry.context import Channel, GitInfo, common_fields
 
@@ -55,6 +73,34 @@ def test_common_fields_keep_desktop_identity_and_omit_missing_git_fields() -> No
         "gitOwner": "org",
         "gitRepo": "project",
     }
+
+
+@pytest.mark.parametrize(("workspace", "expected"), [("", ""), ("/work/actual-project", "actual-project")])
+async def test_input_skill_project_name_uses_only_the_session_workspace(
+    tmp_path, monkeypatch, telemetry_capture, workspace, expected
+) -> None:
+    from chrys.foundation.events.bus import EventBus
+    from chrys.foundation.events.types import SessionReady
+    from chrys.orchestration.aixcoding.telemetry.lifecycle import attach, detach
+    from chrys.service.aixcoding.telemetry.events import report_skill_reference
+
+    monkeypatch.chdir(tmp_path)
+    bus = EventBus()
+    await attach(bus)
+    try:
+        await bus.publish(
+            SessionReady(session_id="skill-workspace", primary_cwd=workspace, agent_profile="Code"),
+            raise_handler_errors=True,
+        )
+        report_skill_reference("review", "skill-workspace", "Code", workspace)
+    finally:
+        await detach(bus)
+    [request] = telemetry_capture.requests
+    payload = json.loads(request.content)
+    assert payload["funcType"] == 0
+    assert payload["projectName"] == expected
+    assert "requestId" not in payload
+    assert not any(key.startswith("git") for key in payload)
 
 
 async def test_token_and_user_identity_follow_the_live_login_on_the_same_bus(monkeypatch, telemetry_capture):

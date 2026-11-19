@@ -161,8 +161,7 @@ def common_fields(
     version: str = __version__,
 ) -> dict[str, str]:
     """Encode shared fields from captured facts, without performing I/O."""
-    cwd = workspace_cwd or str(Path.cwd())
-    project = cwd.replace("\\", "/").rstrip("/").rsplit("/", 1)[-1] or cwd
+    project = workspace_cwd.replace("\\", "/").rstrip("/").rsplit("/", 1)[-1] or workspace_cwd
     fields = {
         "pluginVersion": version,
         "channelType": channel.type,
@@ -196,8 +195,10 @@ _git_lock = threading.Lock()
 
 def collect_git_info(workspace_cwd: str) -> GitInfo | None:
     """Resolve and cache Git facts for an actual workspace. Call outside bus handlers."""
+    if not workspace_cwd:
+        return None
     try:
-        cwd = Path(workspace_cwd or Path.cwd()).resolve()
+        cwd = Path(workspace_cwd).resolve()
     except OSError, ValueError:
         return None
     now = time.monotonic()
