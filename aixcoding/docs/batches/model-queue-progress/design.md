@@ -7,9 +7,8 @@
 
 - 责任人：李海潮
 - 状态：已确认
-- 确认日期：2026-11-18
+- 确认日期：2026-11-19
 - 确认意见：尽量不改上游，若必须要改，要少而集中的改（可选；审阅中形成的判断、附加条件或保留）
-- 待重签说明（2026-11-18 评审后）：R2 新增 `session_host.py`（headless 事件白名单，否则 CLI/ACP 静默收不到），CLI 锚点由 `InvocationActivity.handle` 改为 `TurnProgress.handle`，事件去掉无消费方的 `agent_name`，补 WaitingRow 跨 turn 清理。
 
 ## 方案概述
 
