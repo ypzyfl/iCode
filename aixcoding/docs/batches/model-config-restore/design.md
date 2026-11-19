@@ -101,6 +101,15 @@ catalog-sync 批次的"恒只读 + 入口隐藏"政策取消：模型管理界�
 | C047 | tests/app/tui/screens/test_model_config.py | 2026-11-18 | 文件恢复官方版，notice 断言回改（预写条件） |
 | C048 | tests/app/tui/behaviors/test_chrys_footer.py | 2026-11-18 | 文件恢复官方版，F4 footer 期望回补（预写条件） |
 | C049 | tests/app/tui/i18n/test_bindings.py | 2026-11-18 | 文件恢复官方版，f4 声明回补（预写条件） |
+| C134 | tests/app/tui/screens/test_models_dialog_deletion.py | 2026-11-19 | 独立评审发现（2026-11-19 报告）：upstream-merge-v0.33.0 登记的 skip 点 removal_condition 随本批政策取消成立，恢复上游测试（独立评审处置轮追加） |
+| C135 | tests/app/tui/screens/test_prompt_shortcut_send.py | 2026-11-19 | 同 C134：models 参数级 skip 恢复上游单行参数表 |
+| C136 | tests/app/tui/screens/test_manual_reload.py | 2026-11-19 | 同 C134（upstream-merge-v0.34.0 登记）：F4 模型对话框流恢复 |
+| C137 | tests/app/tui/screens/test_manual_reload.py | 2026-11-19 | 同 C134：删除默认模型流恢复 |
+| C138 | tests/app/tui/screens/test_reload_profiles.py | 2026-11-19 | 同 C134：F4 模型编辑器保存→子智能体重建流恢复 |
+
+> C134-C138 墓碑为评审处置轮（2026-11-19 独立评审报告发现漏扫）追加，随本 design
+> 该次正文变更一并按 R10 重签。恢复后四个测试文件与上游基线 `2fd777f6` diff 归零；
+> 测试目录隔离由会话级 pinned config dir（tests/conftest.py）天然覆盖，无需逐测试 stub。
 
 ## 风险与最坏情况
 

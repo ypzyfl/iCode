@@ -34,6 +34,12 @@ finding-1：catalog-sync 责任人周彬对 catalog-sync/design.md 的 R10 重�
       缺件，均与本批无关（verification §4a）
 - [x] 治理落账提交推送（43f1ff84：marker/六件套/catalog-sync 迁移/ty 修复，
       PR #135 CI 全绿）
+- [x] 独立评审处置轮（2026-11-19 第二份报告）：**C134-C138 恢复**——5 个 skip 点
+      removal_condition 随本批政策取消成立（upstream-merge v0.33/v0.34 批次登记，
+      前两轮评审与自查均漏扫），四文件与 2fd777f6 diff 归零、5 测试实跑全过、
+      两份 upstream-merge design 删行+退役注记、本批墓碑+5；非阻塞小项 1/2
+      （verification 补官方基线锚点 2fd777f6 与定制 tag 警示、docstring 双后缀
+      措辞对齐）均已修
 - [x] 综合评审 + Peer Review 处置（2026-11-19）：待办 1 手册"至少保留一项"
       措辞对齐实现（zh/en models.md + 桌面版）；finding-2 活文档更新（本文件
       状态节 + verification §2）；待办 2（竞态克隆得自建副本）留档不处理、

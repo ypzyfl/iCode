@@ -60,6 +60,22 @@ CI core shard pytest 半（tests 除 architecture/app/tui）本机并行：24328
 | chrys_in_chrys 子智能体桥接 ×1 | 环境缺件 | venv 无 chrys.exe 入口，改动前即跑不了 |
 | analytics 内存驻留校准 ×3、git_head 截止期 ×1、operation_close ×1、injection 元数据 ×1（并行挂/单跑过） | 基线固有 | **基线 659b56ef（无本批任何改动）单跑同集合：4 failed**——与本批无关 |
 
+## 4b. 官方基线锚点（独立评审 2026-11-19 提示，防误用）
+
+"恢复官方 v0.35.2"的对照基线 = 上游对象 **`2fd777f6`**（追上游合并 c93336ee 的第二父，
+`pyproject.toml` version="0.35.2" 已核）。**本地 `v0.35.2` tag（e0316c1c）是 fork 定制 tag**
+（2026-11-17 主干状态，含 catalog-sync 定制）——用它做 diff 会方向性误判（会显示"上游带
+AIxCoding marker"）。恢复归零核验统一用：`git diff 2fd777f6 -- <file>`。
+
+## 4c. C134-C138 恢复（独立评审 2026-11-19 处置轮）
+
+- 四个测试文件（deletion / prompt_shortcut_send / manual_reload / reload_profiles）
+  与 `2fd777f6` **diff 完全归零**（去 skip + 去 marker 注释 + 还原上游参数表）。
+- 恢复的 5 个测试实跑全过（deletion 四参数化场景、manual_reload 两流、
+  reload_profiles 编辑器重建流、prompt_shortcut models 参数）；目录隔离由
+  tests/conftest.py 会话级 pinned config dir 天然覆盖（`catalog_directory()` 落
+  空临时目录，无需逐测试 stub——独立评审报告的该项担忧经核实已由既有机制兜住）。
+
 ## 5. CI 首轮 12 失败复盘（PR #135，2026-11-18）
 
 | 根因 | 挂的 checks | 处置 |

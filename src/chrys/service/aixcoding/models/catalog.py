@@ -333,9 +333,10 @@ def require_catalog_writable() -> None:
 def server_owned_profile_ids() -> frozenset[str]:
     """Profile ids that currently own a server-synced file in the models directory.
 
-    Sync writes ``<id>.yaml`` only, so a marked file's stem is the id of the
-    profile it serves. The TUI management screen keeps these out of its
-    editable list while the picker still offers them for selection.
+    A marked file's stem is the id of the profile it serves, under either the
+    ``.yaml`` or ``.yml`` suffix the scan shares with the sync. The TUI
+    management screen keeps these out of its editable list while the picker
+    still offers them for selection.
     """
     names, _ = _server_owned_names(catalog_directory())
     return frozenset(name.rsplit(".", 1)[0] for name in names)
