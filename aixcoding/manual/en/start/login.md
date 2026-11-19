@@ -2,7 +2,7 @@
 
 This section describes AIxCoding-CLI account sign-in: when you need to sign in, how to sign in with `/login`, how sign-in state is stored, and how to sign out.
 
-**You must sign in before using AIxCoding-CLI; after signing in, you can use the model assigned by the administrator.** When you open AIxCoding-CLI, the top bar on the right shows a sign-in badge (a gray ● "Not signed in" badge when you are not signed in). If the top bar shows no sign-in indicator at all, you are running an old version that does not support sign-in. [Install the new version](./getting-started.md#1-install-aixcoding-cli) first, then follow the steps in this section to sign in.
+**You must sign in before using AIxCoding-CLI; after signing in, you can use models, including those assigned by the administrator and those you configure yourself.** When you open AIxCoding-CLI, the top bar on the right shows a sign-in badge (a gray ● "Not signed in" badge when you are not signed in). If the top bar shows no sign-in indicator at all, you are running an old version that does not support sign-in. [Install the new version](./getting-started.md#1-install-aixcoding-cli) first, then follow the steps in this section to sign in.
 
 ## 1. How to sign in
 

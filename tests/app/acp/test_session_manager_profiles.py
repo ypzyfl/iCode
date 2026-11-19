@@ -463,6 +463,38 @@ def test_write_model_profile_rejects_masked_api_key_for_new_profile() -> None:
         manager.write_model_profile({"id": "copy-of-model", "name": "Copy", "api_key": "***"})
 
 
+# AIxCoding catalog: ACP refusal contract tests — write/delete against a
+# server-synced profile must raise (model-config-restore/design.md).
+def test_write_model_profile_rejects_server_managed_profile(monkeypatch: pytest.MonkeyPatch) -> None:
+    agent_registry = AgentProfileRegistry()
+    agent_registry.register(AgentProfile(name="Code"))
+    manager = _profile_manager("Code", agent_registry, ModelProfileRegistry())
+    monkeypatch.setattr(
+        "chrys.service.aixcoding.models.catalog.is_server_owned_profile_id",
+        lambda _profile_id: True,
+    )
+
+    # Overwriting a server-synced file would strip the sync marker and turn a
+    # catalog-managed model into a user file the sync preserves forever.
+    with pytest.raises(AcpSessionError, match="managed by the server catalog"):
+        manager.write_model_profile({"id": "srv-model", "name": "Server", "api_key": ""})
+
+
+# AIxCoding catalog: ACP refusal contract tests — write/delete against a
+# server-synced profile must raise (model-config-restore/design.md).
+def test_delete_model_profile_rejects_server_managed_profile(monkeypatch: pytest.MonkeyPatch) -> None:
+    agent_registry = AgentProfileRegistry()
+    agent_registry.register(AgentProfile(name="Code"))
+    manager = _profile_manager("Code", agent_registry, ModelProfileRegistry())
+    monkeypatch.setattr(
+        "chrys.service.aixcoding.models.catalog.is_server_owned_profile_id",
+        lambda _profile_id: True,
+    )
+
+    with pytest.raises(AcpSessionError, match="managed by the server catalog"):
+        manager.delete_model_profile("srv-model")
+
+
 def test_write_model_profile_clears_emptied_fields_but_keeps_api_key(monkeypatch) -> None:
     agent_registry = AgentProfileRegistry()
     agent_registry.register(AgentProfile(name="Code"))

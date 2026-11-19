@@ -7,7 +7,7 @@
 
 - 责任人：周彬
 - 状态：已确认
-- 确认日期：2026-11-04
+- 确认日期：2026-11-19
 - 确认意见：无特别意见
 
 ## 方案概述
@@ -161,8 +161,11 @@ fetch_rg 版本不变。
 | id | 落点 | marker 锚 | 预期计数 | anchor | risk | removal_condition |
 |---|---|---|---|---|---|---|
 | C133 | tests/service/tools/web/test_tools.py | AIxCoding branding: keenable title assertion | 1 | keyless 搜索 `X-Keenable-Title` 头断言（branding.py APP_DISPLAY_NAME 消费方） | 低（测试断言品牌适配，同 C100-C101 先例） | 随 C050（品牌政策变更时逐点裁决） |
-| C134 | tests/app/tui/screens/test_models_dialog_deletion.py | AIxCoding catalog: upstream deletes profiles in the local dialog | 1 | 函数级 `@pytest.mark.skip` + reason 前缀（catalog-sync F4 禁用与只读删除隐藏的上游语义冲突留痕） | 低（显式 skip；上游追加用例将显式暴露需复核） | 〔随组〕catalog 只读管控语义整体淘汰获裁时恢复上游测试（测试支撑） |
-| C135 | tests/app/tui/screens/test_prompt_shortcut_send.py | AIxCoding catalog: local model dialog send-in-flight case does not apply | 1 | models 参数级 `pytest.param` skip + reason 前缀；agents 参数保留上游发送中只读覆盖 | 低（仅跳过与 F4 禁用 + 恒只读互斥的 models；两参数仍收集，Unix 运行结果归 PR checks） | 〔随组〕catalog 只读管控语义整体淘汰获裁时恢复上游 models 参数（测试支撑） |
+
+> 退役登记（2026-11-19，model-config-restore 实施）：C134/C135 两点已随 catalog 只读管控
+> 语义整体淘汰（removal_condition 预写条件成立）恢复上游测试形态（四文件与上游基线
+> `2fd777f6` diff 归零），退役记录由 `aixcoding/docs/batches/model-config-restore/design.md`
+> 持有，本节现役行同步删除；C133（品牌断言）不受影响保持现役；本文按 R10 待责任人重签。
 
 ## 既有定制点存活核对矩阵（runbook §3 结构层展开）
 

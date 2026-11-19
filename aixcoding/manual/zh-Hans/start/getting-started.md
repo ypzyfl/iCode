@@ -179,6 +179,7 @@ Mermaid 代码块会显示为图表，点击**打开完整图表**可查看、�
 
 接下来，可以继续探索：
 
+- [配置模型](../guides/configuration/models.md#配置模型)，创建、克隆和管理自己使用的模型；管理员下发的模型可直接选用
 - [配置智能体](../guides/configuration/agents.md#配置智能体)，创建或修改智能体，并设置其指令、模型、工具和子智能体
 - [工作目录](../guides/daily-use/workspaces.md#工作目录)
 - [配置审批模式](../guides/configuration/approval.md#配置审批模式)

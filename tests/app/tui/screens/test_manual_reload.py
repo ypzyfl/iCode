@@ -186,11 +186,6 @@ async def test_workflow_blocks_reload_without_putting_chat_in_retry(agent_engine
         await ask_after_reload(session, "after workflow")
 
 
-# AIxCoding catalog: upstream opens the local model dialog via F4; under
-# server-side catalog management the F4 entry is disabled and the list is
-# read-only (aixcoding/docs/batches/catalog-sync/design.md) - re-evaluate at
-# the next upgrade.
-@pytest.mark.skip(reason="AIxCoding catalog: model list is server-managed read-only; local model dialog does not apply")
 async def test_manual_model_continues_through_chdir_and_model_dialog(agent_engine, tmp_path, monkeypatch):
     path = settings_path()
     activate_model_profile(MAIN_MODEL)
@@ -226,11 +221,6 @@ async def test_manual_model_continues_through_chdir_and_model_dialog(agent_engin
         assert session.builds.profiles[-1] == FAST_MODEL
 
 
-# AIxCoding catalog: upstream deletes the default profile in the local dialog;
-# under server-side catalog management the F4 entry is disabled and the list is
-# read-only (aixcoding/docs/batches/catalog-sync/design.md) - re-evaluate at
-# the next upgrade.
-@pytest.mark.skip(reason="AIxCoding catalog: model list is server-managed read-only; local deletion does not apply")
 async def test_deleted_default_with_unwritable_settings_still_chooses_a_model_and_rebuilds(
     agent_engine, tmp_path, monkeypatch
 ):
