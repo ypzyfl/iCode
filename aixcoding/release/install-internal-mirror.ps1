@@ -5,98 +5,158 @@
         [ValidateSet('prod', 'test')]
         [string]$Channel = $(if ($env:AIXCODING_CHANNEL) { $env:AIXCODING_CHANNEL } elseif ($env:ICODE_CHANNEL) { $env:ICODE_CHANNEL } else { 'prod' }),
         [string]$Version = '',
-        [string]$BaseUrl = $(if ($env:AIXCODING_BASE_URL) { $env:AIXCODING_BASE_URL } elseif ($env:ICODE_BASE_URL) { $env:ICODE_BASE_URL } else { 'http://82.187.34.98/aixcoding/file/aixcoding' })
+        [string]$BaseUrl = $(if ($env:AIXCODING_BASE_URL) { $env:AIXCODING_BASE_URL } elseif ($env:ICODE_BASE_URL) { $env:ICODE_BASE_URL } else { 'http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding' }),
+        [switch]$Force
     )
 
     $ErrorActionPreference = 'Stop'
     $ProgressPreference = 'SilentlyContinue'
-    if ($PSBoundParameters.ContainsKey('Version') -and [string]::IsNullOrWhiteSpace($Version)) {
-        throw '-Version needs a non-empty value.'
-    }
-    if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
-        throw 'This installer runs only on Windows.'
-    }
-    if (-not [Environment]::Is64BitOperatingSystem) {
-        throw 'Only 64-bit Windows is supported by this installer.'
-    }
-    if (-not $env:LOCALAPPDATA) {
-        throw 'LOCALAPPDATA is required to locate the AIxCoding installation directory.'
-    }
-
-    $root = $BaseUrl.TrimEnd('/')
-    $binDir = Join-Path $env:LOCALAPPDATA 'chrys\bin'
-    $ownBinary = Join-Path $binDir 'chrys.exe'
-    $others = @(Get-Command aixcoding-cli -CommandType Application -All -ErrorAction SilentlyContinue |
-        Where-Object { [IO.Path]::GetDirectoryName($_.Source) -ne $binDir })
-    $externalCommand = if ($others) { $others[0].Source } else { '' }
-    if ($others -and (Test-Path -LiteralPath $ownBinary -PathType Leaf)) {
-        Write-Host "Warning: $externalCommand does not start the AIxCoding offline install; continue to start that install with chrys."
-    } elseif ($others) {
-        throw ("$externalCommand is not an AIxCoding offline install, so this script would not replace it. " +
-            'If it is AIxCoding installed with uv or pipx, upgrade it with that tool (for example, ' +
-            'uv tool upgrade iCode-TUI), or uninstall it first and run this script again.')
-    }
-
-    if (-not $Version) {
-        $channelUrl = "$root/channels/cli/${Channel}.txt"
-        Write-Host "Reading $Channel channel from $channelUrl"
-        try {
-            $Version = [string](Invoke-RestMethod -Uri $channelUrl -UseBasicParsing)
-        } catch {
-            throw ("Could not read $channelUrl. Check the network; if the mirror moved, " +
-                'rerun with -BaseUrl <url> or set AIXCODING_BASE_URL=<url>. ' + $_.Exception.Message)
-        }
-    }
-    $Version = $Version.Trim() -replace '^[vV]', ''
-    if ($Version -notmatch '^\d+\.\d+\.\d+([._-][A-Za-z0-9._-]+)?$') {
-        throw "Invalid release version: $Version"
-    }
-
-    $archive = "aixcoding-cli-windows-x86_64-v$Version-offline.zip"
-    $workDir = Join-Path ([IO.Path]::GetTempPath()) ("aixcoding-install-" + [guid]::NewGuid().ToString('N'))
-    [IO.Directory]::CreateDirectory($workDir) | Out-Null
+    $workDir = ''
+    $logFile = ''
     try {
-        $archivePath = Join-Path $workDir $archive
-        $extractDir = Join-Path $workDir 'extract'
-        $archiveUrl = "$root/releases/cli/$Version/$archive"
-        Write-Host "Downloading $archiveUrl"
-        try {
-            Invoke-WebRequest -Uri $archiveUrl -OutFile $archivePath -UseBasicParsing
-        } catch {
-            throw ("Could not download $archiveUrl. Check the network; if the mirror moved, " +
-                'rerun with -BaseUrl <url> or set AIXCODING_BASE_URL=<url>. ' + $_.Exception.Message)
+        if ($PSBoundParameters.ContainsKey('Version') -and [string]::IsNullOrWhiteSpace($Version)) {
+            throw '-Version needs a non-empty value.'
         }
+        if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
+            throw 'This installer runs only on Windows.'
+        }
+        if (-not [Environment]::Is64BitOperatingSystem) { throw 'Only 64-bit Windows is supported.' }
+        if (-not $env:LOCALAPPDATA) { throw 'LOCALAPPDATA is required to locate the installation directory.' }
+
+        $root = $BaseUrl.TrimEnd('/')
+        $binDir = Join-Path $env:LOCALAPPDATA 'chrys\bin'
+        $ownBinary = Join-Path $binDir 'chrys.exe'
+        $externalCommands = @()
+        foreach ($name in @('aixcoding', 'aixcoding-cli')) {
+            $externalCommands += @(Get-Command $name -CommandType Application -All -ErrorAction SilentlyContinue |
+                Where-Object { [IO.Path]::GetDirectoryName($_.Source) -ne $binDir })
+        }
+        if ($externalCommands -and -not (Test-Path -LiteralPath $ownBinary -PathType Leaf)) {
+            throw ('Another installation provides aixcoding or aixcoding-cli. Upgrade with its original tool ' +
+                '(for example, uv tool upgrade iCode-TUI), or uninstall it first. No files were replaced.')
+        }
+        # Never replace an unrelated executable, even in the installation directory.
+        foreach ($name in @('aixcoding', 'aixcoding-cli')) {
+            $alias = Join-Path $binDir "$name.exe"
+            if (Test-Path -LiteralPath $alias) {
+                if (-not (Test-Path -LiteralPath $ownBinary -PathType Leaf)) {
+                    throw "$alias belongs to another installation. Uninstall it with its original tool first."
+                }
+                if ((Get-FileHash -LiteralPath $alias).Hash -ne (Get-FileHash -LiteralPath $ownBinary).Hash) {
+                    throw "$alias differs from this installation. No files were replaced; resolve the command conflict first."
+                }
+            }
+        }
+
+        $workDir = Join-Path ([IO.Path]::GetTempPath()) ("aixcoding-install-" + [guid]::NewGuid().ToString('N'))
+        [IO.Directory]::CreateDirectory($workDir) | Out-Null
+        $logFile = Join-Path ([IO.Path]::GetTempPath()) ("aixcoding-install-" + [guid]::NewGuid().ToString('N') + '.log')
+        [IO.File]::WriteAllText($logFile, '')
+
         function Invoke-PackageCommand([string]$Exe, [string]$Command) {
-            $process = Start-Process -FilePath $Exe -ArgumentList $Command -NoNewWindow -PassThru
+            $stdout = Join-Path $workDir 'stdout.txt'
+            $stderr = Join-Path $workDir 'stderr.txt'
+            $stdin = Join-Path $workDir 'stdin.txt'
+            [IO.File]::WriteAllText($stdin, '')
+            $process = Start-Process -FilePath $Exe -ArgumentList $Command -NoNewWindow -PassThru `
+                -RedirectStandardOutput $stdout -RedirectStandardError $stderr -RedirectStandardInput $stdin
             $null = $process.Handle
             $process.WaitForExit()
-            return $process.ExitCode
+            $output = [IO.File]::ReadAllText($stdout)
+            [IO.File]::AppendAllText($logFile, $output + [IO.File]::ReadAllText($stderr))
+            if ($process.ExitCode -ne 0) {
+                throw "Command '$Command' failed (exit code $($process.ExitCode)). Close running AIxCoding instances and retry."
+            }
+            return $output.Trim()
         }
+        function Set-LaunchCommands {
+            foreach ($name in @('aixcoding', 'aixcoding-cli')) {
+                $alias = Join-Path $binDir "$name.exe"
+                # Hard links follow upgrades to chrys.exe; copy is the filesystem fallback.
+                if (Test-Path -LiteralPath $alias) {
+                    if ((Get-FileHash -LiteralPath $alias).Hash -eq (Get-FileHash -LiteralPath $ownBinary).Hash) { continue }
+                    Remove-Item -LiteralPath $alias -Force
+                }
+                try {
+                    New-Item -ItemType HardLink -Path $alias -Target $ownBinary -ErrorAction Stop | Out-Null
+                } catch {
+                    Copy-Item -LiteralPath $ownBinary -Destination $alias
+                }
+            }
+        }
+        function Complete-Install {
+            Set-LaunchCommands
+            foreach ($name in @('aixcoding', 'aixcoding-cli')) {
+                $actual = Invoke-PackageCommand (Join-Path $binDir "$name.exe") '--version'
+                if ($actual -ne $Version) { throw "$name version validation failed: expected $Version, got $actual" }
+            }
+            Write-Host 'Installation ready. Open a new PowerShell window and run aixcoding or aixcoding-cli.'
+            foreach ($command in $externalCommands) {
+                Write-Host "Another command was preserved at $($command.Source). If PATH selects it, use $binDir\aixcoding.exe or $binDir\aixcoding-cli.exe."
+            }
+        }
+
+        if (-not $Version) {
+            Write-Host "Checking the $Channel release..."
+            try {
+                $Version = [string](Invoke-RestMethod -Uri "$root/channels/cli/${Channel}.txt" -UseBasicParsing)
+            } catch {
+                [IO.File]::AppendAllText($logFile, $_.ToString())
+                throw 'Could not read the release channel. Check the network or use -BaseUrl / AIXCODING_BASE_URL.'
+            }
+        }
+        $Version = $Version.Trim() -replace '^[vV]', ''
+        if ($Version -notmatch '^\d+\.\d+\.\d+([._-][A-Za-z0-9._-]+)?$') {
+            throw "Invalid release version: $Version"
+        }
+        $installedVersion = ''
+        if (Test-Path -LiteralPath $ownBinary -PathType Leaf) {
+            try { $installedVersion = Invoke-PackageCommand $ownBinary '--version' } catch { $installedVersion = '' }
+        }
+        if ($installedVersion -eq $Version -and -not $Force) {
+            Complete-Install
+            Write-Host "AIxCoding $Version is already installed. No download needed; use -Force to reinstall."
+            Remove-Item -LiteralPath $logFile -Force
+            return
+        }
+        if (-not $installedVersion) {
+            Write-Host "Installing AIxCoding $Version for the first time..."
+        } elseif ($installedVersion -eq $Version) {
+            Write-Host "Reinstalling AIxCoding $Version..."
+        } else {
+            Write-Host "Updating AIxCoding: $installedVersion -> $Version"
+        }
+
+        $archive = "aixcoding-cli-windows-x86_64-v$Version-offline.zip"
+        $archivePath = Join-Path $workDir $archive
+        Write-Host "Downloading $archive"
+        try {
+            Invoke-WebRequest -Uri "$root/releases/cli/$Version/$archive" -OutFile $archivePath -UseBasicParsing
+        } catch {
+            [IO.File]::AppendAllText($logFile, $_.ToString())
+            throw 'Could not download the ZIP package. Check the network and release; use -BaseUrl / AIXCODING_BASE_URL if the mirror moved.'
+        }
+        $extractDir = Join-Path $workDir 'extract'
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         [IO.Compression.ZipFile]::ExtractToDirectory($archivePath, $extractDir)
         $binary = Join-Path $extractDir 'aixcoding-cli.exe'
-        if (-not (Test-Path -LiteralPath $binary -PathType Leaf)) {
-            throw "Archive does not contain aixcoding-cli.exe at its root: $archive"
+        if (-not (Test-Path -LiteralPath $binary -PathType Leaf)) { throw 'ZIP does not contain aixcoding-cli.exe at its root.' }
+        Write-Host 'Preparing the embedded runtime (the first run may take a moment)...'
+        $actual = Invoke-PackageCommand $binary '--version'
+        if ($actual -ne $Version) { throw "Package version mismatch: expected $Version, got $actual" }
+        Write-Host 'Installing...'
+        $null = Invoke-PackageCommand $binary 'install'
+        if (-not (Test-Path -LiteralPath $ownBinary -PathType Leaf)) { throw 'Installation did not create chrys.exe.' }
+        Complete-Install
+        Remove-Item -LiteralPath $logFile -Force
+    } catch {
+        Write-Host "Installation failed: $($_.Exception.Message)"
+        if ($logFile) {
+            [IO.File]::AppendAllText($logFile, $_.ToString())
+            Write-Host "Details: $logFile"
         }
-        $status = Invoke-PackageCommand $binary '--version'
-        if ($status -ne 0) { throw "Binary self-check failed (exit $status)." }
-
-        $status = Invoke-PackageCommand $binary 'install'
-        if ($status -ne 0) { throw "aixcoding-cli install failed (exit code $status)." }
-
-        $commandPath = if ($externalCommand) { $ownBinary } else { Join-Path $binDir 'aixcoding-cli.exe' }
-        if (-not (Test-Path -LiteralPath $commandPath -PathType Leaf)) {
-            throw "Installation finished without creating $commandPath"
-        }
-        $status = Invoke-PackageCommand $commandPath '--version'
-        if ($status -ne 0) { throw "Installed command validation failed (exit ${status}): $commandPath" }
-        if ($externalCommand) {
-            Write-Host 'Installation complete. The external aixcoding-cli was preserved; run chrys.'
-        } else {
-            Write-Host 'Installation complete. Open a new PowerShell window and run aixcoding-cli.'
-        }
-    }
-    finally {
-        Remove-Item -LiteralPath $workDir -Recurse -Force -ErrorAction SilentlyContinue
+        exit 1
+    } finally {
+        if ($workDir) { Remove-Item -LiteralPath $workDir -Recurse -Force -ErrorAction SilentlyContinue }
     }
 } @args

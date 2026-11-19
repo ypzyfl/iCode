@@ -19,7 +19,7 @@
 默认镜像根地址：
 
 ```text
-http://82.187.34.98/aixcoding/file/aixcoding
+http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding
 ```
 
 根目录下维持以下结构：
@@ -34,23 +34,22 @@ channels/
 releases/
 └── cli/
     └── <完整版本>/
-        ├── aixcoding-cli-linux-x86_64-v<完整版本>-offline.tar.gz
-        ├── aixcoding-cli-linux-aarch64-v<完整版本>-offline.tar.gz
-        ├── aixcoding-cli-macos-x86_64-v<完整版本>-offline.tar.gz
-        ├── aixcoding-cli-macos-aarch64-v<完整版本>-offline.tar.gz
+        ├── aixcoding-cli-linux-x86_64-v<完整版本>-offline.zip
+        ├── aixcoding-cli-linux-aarch64-v<完整版本>-offline.zip
+        ├── aixcoding-cli-macos-x86_64-v<完整版本>-offline.zip
+        ├── aixcoding-cli-macos-aarch64-v<完整版本>-offline.zip
         └── aixcoding-cli-windows-x86_64-v<完整版本>-offline.zip
 ```
 
 - 平台目录使用完整版本，不带开头 `v`；制品文件名中的版本带 `v` 前缀。
-- 实际可提供 `.zip` 形式的 POSIX 包；POSIX 在线安装先尝试 `.tar.gz`，缺失时再尝试当前
-  命名的 `.zip`。
+- 五个平台均只提供 `.zip`；安装器直接下载目标 ZIP，不尝试其他压缩格式。
 - channel 文件首行是完整版本，可有开头 `v`、CRLF 和首尾空白，客户端会归一化。
 - 仅发布当前 `aixcoding-cli-*` 制品。新脚本不兼容也不回退到 `icode-*` 历史制品。
 - Windows 当前只发布 x86_64 包；Windows on Arm 依赖 x64 仿真，不得将该包标成 Arm 原生包。
 
 ## 3. 发布顺序与渠道语义
 
-1. 用既有构建链生成并冒烟验证目标平台的 0.33 系列真实离线制品。
+1. 用既有构建链生成并冒烟验证目标平台的 0.35.2 系列真实离线制品。
 2. 上传完整制品集合到 `releases/cli/<完整版本>/`，确认各 URL 可下载、包根目录含
    `aixcoding-cli` 或 `aixcoding-cli.exe`。
 3. 如需灰度，先将 `channels/cli/test.txt` 指向该版本并完成 test 渠道验证。
@@ -68,7 +67,7 @@ prod 与 test 是独立渠道指针，不承诺版本号单调递增。客户端
 - 发布方可选择上传 `SHA256SUMS.txt` 供人工核对，但脚本**不会自动请求或消费**该文件，
   上传它不属于安装协议的必要条件。
 - 向需要显式校验的用户提供摘要时，应对应实际上传的包字节；更换包后必须重新计算。
-- 内网明文 HTTP/IP 直连沿用 ADR-0018 的既定边界；显式摘要是按需防损坏措施，不在本批
+- 内网明文 HTTP沿用 ADR-0018 的既定边界；显式摘要是按需防损坏措施，不在本批
   扩展为自动信任链。
 
 ## 5. 镜像地址迁移
@@ -86,7 +85,7 @@ prod 与 test 是独立渠道指针，不承诺版本号单调递增。客户端
 
 - 镜像脚本回滚目标是最近一份符合当前 AIxCoding / `aixcoding-cli` 命令契约的
   `install-internal-mirror.*` 版本，按第 1 节改名重传。
-- 不以 0.28 旧安装脚本为回滚目标；旧脚本会创建已废弃命令并写入旧品牌配置。
+- 不以 0.28 旧安装脚本为回滚目标；旧脚本保留旧品牌配置和旧制品协议。
 - channel 与 releases 协议未变，已发布制品无需因脚本回滚而改名或重传。
 - 若必须回退到 0.28 旧制品体系，需另行公告历史 alias 副作用和手工清理方式，不得把该
   路径描述为无损回滚。

@@ -149,3 +149,58 @@ uv run pytest aixcoding/tests/internal_installer/test_install_internal_mirror_sc
 
 后续证据应按 test-plan.md 的真实制品步骤追加到本文件；在上述缺口关闭前，不得将本批
 描述为全部验收完成。
+
+## 2026-11-19：0.35.2 ZIP 与双入口安装体验
+
+本轮按用户明确指令“开始修改”实施；未修改历史责任人签认字段，未执行 git 写操作或上传镜像。
+
+### 改动与独立评审
+
+- 内网默认根地址迁至 `http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding`。
+- Linux/macOS 四个平台与 Windows x64 仅消费 `aixcoding-cli-<平台>-v<版本>-offline.zip`。
+- 同时创建并验证 `aixcoding` / `aixcoding-cli`；相同版本免下载修复入口，支持 `--force` /
+  `-Force`，分别提示首次安装、版本更新和重装。外部同名命令保留或在安装前明确拒绝。
+- 网络和包内安装输出写入临时日志；显式失败和意外失败均非零并提示日志路径，成功清理日志。
+- 独立 reviewer 只读检查后提出 PATH 写入失败缺日志指引，已修复。新增运行时回归进一步发现
+  macOS Bash 3.2 对复合命令重定向失败可能返回成功；最小 shell 复现后改成单条 `printf`
+  显式检查状态。最终静态复查无新增确定问题。
+- POSIX 测试包采用原子 `mv` 替换主体，覆盖升级后旧硬链接入口的修复；另测外部相对软链接
+  不能误认作自有安装、版本不一致时拒绝覆盖，以及失败日志保留。
+
+### 实际验证
+
+本机 macOS，系统 Bash 3.2.57。项目固定 Python 3.14.10 在本机不可用，现有 uv 无法解析其
+下载，故以下命令均使用现有 `.venv` 的 Python 3.14.8，以 `--no-sync --python 3.14.8`
+运行；没有修改项目 Python 固定版本或依赖。
+
+```bash
+uv run --no-sync --python 3.14.8 pytest aixcoding/tests/internal_installer/test_install_internal_mirror_scripts.py -q
+```
+
+结果：**64 passed / 50 skipped，exit 0**。50 个 Windows 用例在 macOS 跳过，不能计为 Windows 通过。
+
+```bash
+uv run --no-sync --python 3.14.8 python aixcoding/tools/verify.py --smart --paths aixcoding/release/install-internal-mirror.sh aixcoding/release/install-internal-mirror.ps1 aixcoding/release/INSTALL.md aixcoding/docs/install-uninstall-support.md aixcoding/docs/batches/internal-installer/design.md aixcoding/docs/batches/internal-installer/requirements.md aixcoding/docs/batches/internal-installer/test-plan.md aixcoding/docs/batches/internal-installer/publishing.md aixcoding/tests/internal_installer/test_install_internal_mirror_scripts.py
+```
+
+最终代码的定制套件：**995 passed / 55 skipped**；上游 Smart Test 对本次非运行时路径无适用
+测试（收集 39495 项、执行 0 项）。整体 **Fork verify Summary: PASSED (exit 0)**。
+本节仅为运行证据追加，不参与本轮测试代码选择。
+
+其他实际检查：
+
+- `bash -n aixcoding/release/install-internal-mirror.sh`：exit 0；`--help` 正常输出新域名、ZIP、双入口及 `--force`。
+- `uv run --no-sync --python 3.14.8 ruff check --no-fix aixcoding/tests/internal_installer/test_install_internal_mirror_scripts.py`：All checks passed。
+- `uv run --no-sync --python 3.14.8 ruff format --check aixcoding/tests/internal_installer/test_install_internal_mirror_scripts.py`：1 file already formatted。
+- `uv run --no-sync --python 3.14.8 python aixcoding/tools/check_docs.py`：OK，扫描 29 ADR / 51 design / 50 self-review。
+- `git diff --check`：exit 0。
+- `uv run --no-sync --python 3.14.8 python aixcoding/tools/gen_customizations.py --strict`：**exit 1，28 errors**，
+  全部路径位于已有的 `.codebuddy/worktrees/bg-01a1c9d3/`，是该嵌套工作树的未登记 marker；
+  本轮没有修改该目录或登记审计器，不绕过此失败。完整输出保存在本机 `/tmp/icode-installer-registry.log`。
+
+### 验证边界
+
+- Linux 平台选择是在 macOS 上通过 uname/ldd 替身验证，未验证真实 Linux ZIP 的运行兼容性。
+- 无本机 PowerShell / Windows 环境；Windows 只完成脚本静态评审并补充契约测试，须由 Windows CI/实机验证。
+- 五平台 0.35.2 真实包、内网镜像下载与服务端上传未执行。
+- POSIX 脚本新增的 `aixcoding` 入口在上游卸载后可能保留悬空链接，清理步骤已在支持手册说明；本轮未扩大到上游卸载器。

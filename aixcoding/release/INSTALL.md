@@ -13,7 +13,7 @@
 打开终端，复制并执行以下整行命令：
 
 ```bash
-curl -fsSL http://82.187.34.98/aixcoding/file/aixcoding/install.sh | bash
+curl -fsSL http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh | bash
 ```
 
 不要加 `sudo` 或在 root 账户下运行；安装只写入当前用户目录，无需管理员权限。
@@ -23,7 +23,7 @@ curl -fsSL http://82.187.34.98/aixcoding/file/aixcoding/install.sh | bash
 打开 PowerShell，复制并执行以下整行命令：
 
 ```powershell
-irm http://82.187.34.98/aixcoding/file/aixcoding/install.ps1 | iex
+irm http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.ps1 | iex
 ```
 
 ### 验证安装
@@ -39,6 +39,8 @@ aixcoding-cli --version
 ```bash
 aixcoding-cli
 ```
+
+通过脚本安装后，也可以运行 `aixcoding` 启动，两条命令使用同一安装。
 
 ## 2. 离线安装
 
@@ -60,14 +62,14 @@ aixcoding-cli
 #### Linux / macOS
 
 进入存放 `install.sh` 和安装包的目录。以下命令中的 `<安装包文件名>` 替换为实际文件名，
-包括扩展名：
+包括 `.zip` 扩展名：
 
 ```bash
 bash install.sh --from ./<安装包文件名>
 ```
 
-例如，发布方提供的文件为 `.tar.gz` 时，命令末尾就是该文件的完整名称。安装完成后，
-按 §1 的“验证安装”操作。
+例如：`bash install.sh --from ./aixcoding-cli-linux-aarch64-v0.35.2-offline.zip`。
+五个平台均使用 ZIP 包。安装完成后，按 §1 的“验证安装”操作。
 
 #### Windows
 
@@ -159,3 +161,22 @@ aixcoding-cli uninstall --purge
 - **拿到的是旧版安装包**：不要直接套用本手册的新脚本安装，联系技术支持获取当前包。
 - **需要指定版本、使用测试版本、修改下载地址或彻底清理 PATH 等残留**：由技术支持
   按内部详细手册处理。
+
+## 安装、升级与重装提示
+
+- 首次运行安装脚本会安装当前版本；本机已有旧版本时直接更新，保留配置与会话。
+- 同版本重复运行会跳过下载，并补齐 `aixcoding` / `aixcoding-cli` 启动入口。
+- 同版本需要重装时，Linux/macOS 使用下面的一行命令：
+
+  ```bash
+  curl -fsSL http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh | bash -s -- --force
+  ```
+
+- Windows 先下载脚本，再带 `-Force` 运行：
+
+  ```powershell
+  irm http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.ps1 -OutFile install.ps1
+  .\install.ps1 -Force
+  ```
+
+安装失败时按提示处理，并将提示中的日志文件提供给技术支持。更新前请关闭正在运行的 AIxCoding。

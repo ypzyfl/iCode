@@ -128,3 +128,7 @@ sh 侧额外执行 `create_launch_command`（创建 `~/.local/bin/aixcoding` 旧
   外部命令、以 `chrys` 启动并提示，与上游 0.33 语义同构——design §13.4）；
 - 上游 `ICODE_VERSION`/`ICODE_SOURCE` 契约不受影响（上游 install 路径行为不变或
   按处置裁决验证）。
+
+## 2026-11-19：0.35.2 调整
+
+五平台统一 ZIP；新域名；双启动命令；首装、升级、幂等修复和强制重装；正常流程无冗余底层错误，真实失败保留日志与非零状态。

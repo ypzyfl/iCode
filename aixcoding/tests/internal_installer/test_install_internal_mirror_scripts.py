@@ -22,12 +22,12 @@ _INSTALL_PS1 = REPO_ROOT / "aixcoding" / "release" / "install-internal-mirror.ps
 _INSTALL_MD = REPO_ROOT / "aixcoding" / "release" / "INSTALL.md"
 _SUPPORT_MD = REPO_ROOT / "aixcoding" / "docs" / "install-uninstall-support.md"
 _PUBLISHING_MD = REPO_ROOT / "aixcoding" / "docs" / "batches" / "internal-installer" / "publishing.md"
-_DEFAULT_BASE = "http://82.187.34.98/aixcoding/file/aixcoding"
+_DEFAULT_BASE = "http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding"
 _BASE = "http://mirror.test/aixcoding/file/aixcoding"
 _LEGACY_BASE = "http://legacy.test/aixcoding/file/aixcoding"
 _NEW_BASE = "http://new.test/aixcoding/file/aixcoding"
 _EXPLICIT_BASE = "http://explicit.test/aixcoding/file/aixcoding"
-_VERSION = "0.33.0"
+_VERSION = "0.35.2"
 
 
 @dataclass
@@ -55,7 +55,7 @@ def _server(tmp_path: Path) -> _Server:
     return _Server(root)
 
 
-def _package_name(version: str = _VERSION, *, archive_format: str = "tar.gz", platform: str = "linux-x86_64") -> str:
+def _package_name(version: str = _VERSION, *, archive_format: str = "zip", platform: str = "linux-x86_64") -> str:
     return f"aixcoding-cli-{platform}-v{version}-offline.{archive_format}"
 
 
@@ -103,7 +103,8 @@ if [ \"$1\" = install ]; then
     exit {install_exit}
   fi
   mkdir -p \"$HOME/.local/bin\"
-  cp \"$0\" \"$HOME/.local/bin/chrys\"
+  cp \"$0\" \"$HOME/.local/bin/.chrys-new\"
+  mv -f \"$HOME/.local/bin/.chrys-new\" \"$HOME/.local/bin/chrys\"
   chmod +x \"$HOME/.local/bin/chrys\"
   if [ ! -e \"$HOME/.local/bin/aixcoding-cli\" ] && [ ! -L \"$HOME/.local/bin/aixcoding-cli\" ]; then
     ln -s chrys \"$HOME/.local/bin/aixcoding-cli\"
@@ -114,7 +115,7 @@ exit 2
 """
 
 
-def _archive(data: str, *, archive_format: str = "tar.gz", binary_name: str = "aixcoding-cli") -> bytes:
+def _archive(data: str, *, archive_format: str = "zip", binary_name: str = "aixcoding-cli") -> bytes:
     buffer = io.BytesIO()
     raw = data.encode()
     if archive_format == "zip":
@@ -334,7 +335,7 @@ def test_install_sh_channel_precedence(
 
 
 @_POSIX_ONLY
-@pytest.mark.parametrize("zip_available", [True, False], ids=["zip-fallback", "missing"])
+@pytest.mark.parametrize("zip_available", [True, False], ids=["zip", "missing"])
 def test_install_sh_current_asset_candidates_only(tmp_path: Path, zip_available: bool) -> None:
     machine = _sh_machine(tmp_path)
     machine.server.channel(_BASE, "prod")
@@ -352,13 +353,12 @@ def test_install_sh_current_asset_candidates_only(tmp_path: Path, zip_available:
     assert requests == [
         f"{_BASE}/channels/cli/prod.txt",
         f"{_BASE}/releases/cli/{_VERSION}/{_package_name()}",
-        f"{_BASE}/releases/cli/{_VERSION}/{_package_name(archive_format='zip')}",
     ]
     assert not any("icode-" in url or "SHA256SUMS" in url for url in requests)
 
 
 @_POSIX_ONLY
-@pytest.mark.parametrize("archive_format", ["tar.gz", "zip"])
+@pytest.mark.parametrize("archive_format", ["zip"])
 def test_install_sh_offline_from_local_archive(tmp_path: Path, archive_format: str) -> None:
     machine = _sh_machine(tmp_path)
     archive = tmp_path / _package_name(archive_format=archive_format)
@@ -469,7 +469,7 @@ def test_install_sh_external_command_conflict(tmp_path: Path, own: str) -> None:
     assert external.read_bytes() == b"external command\n"
     if own == "executable":
         assert result.returncode == 0, result.stdout + result.stderr
-        assert "chrys" in result.stderr + result.stdout
+        assert "PATH" in result.stderr + result.stdout
         assert machine.installed_version("chrys") == _VERSION
     else:
         assert result.returncode == 1
@@ -489,10 +489,10 @@ def test_install_sh_idempotency(tmp_path: Path, alias: bool) -> None:
 
     assert result.returncode == 0, result.stdout + result.stderr
     expected = [f"{_BASE}/channels/cli/prod.txt"]
-    if not alias:
-        expected.append(f"{_BASE}/releases/cli/{_VERSION}/{_package_name()}")
     assert machine.server.requests() == expected
-    assert (machine.home / "install-ran").exists() is not alias
+    assert not (machine.home / "install-ran").exists()
+    assert machine.installed_version("aixcoding") == _VERSION
+    assert machine.installed_version("aixcoding-cli") == _VERSION
 
 
 @_POSIX_ONLY
@@ -582,7 +582,9 @@ def test_install_sh_normal_install_command_contract(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
     bin_dir = machine.home / ".local" / "bin"
     legacy_alias = bin_dir / "aixcoding"
-    assert not legacy_alias.exists() and not legacy_alias.is_symlink()
+    assert legacy_alias.is_symlink()
+    assert machine.installed_version("aixcoding") == _VERSION
+    assert result.stderr == ""
     assert machine.installed_version() == _VERSION
     assert "# Added by AIxCoding installer" in (machine.home / ".bashrc").read_text(encoding="utf-8")
     assert "icode-install" not in result.stdout + result.stderr
@@ -634,7 +636,8 @@ function Invoke-WebRequest([string]$Uri, [string]$OutFile, [switch]$UseBasicPars
 function Invoke-RestMethod([string]$Uri, [switch]$UseBasicParsing) {
     Get-Content -LiteralPath (Get-Served $Uri) -Raw
 }
-function Start-Process([string]$FilePath, [string[]]$ArgumentList, [switch]$NoNewWindow, [switch]$PassThru) {
+function Start-Process([string]$FilePath, [string[]]$ArgumentList, [switch]$NoNewWindow, [switch]$PassThru,
+    [string]$RedirectStandardOutput, [string]$RedirectStandardError, [string]$RedirectStandardInput) {
     $command = $ArgumentList -join ' '
     Add-Content -LiteralPath (Join-Path $env:FAKE_SERVED 'started.log') -Value "$FilePath|$command"
     $exitCode = if ($command -eq 'install' -and $env:FAKE_EXIT_CODE) { [int]$env:FAKE_EXIT_CODE } else { 0 }
@@ -644,6 +647,13 @@ function Start-Process([string]$FilePath, [string[]]$ArgumentList, [switch]$NoNe
         Copy-Item -LiteralPath $env:FAKE_EXE -Destination (Join-Path $binDir 'chrys.exe') -Force
         Copy-Item -LiteralPath $env:FAKE_EXE -Destination (Join-Path $binDir 'aixcoding-cli.exe') -Force
     }
+    $version = if ($env:FAKE_OLD_VERSION -and $FilePath -like '*chrys.exe' -and
+        -not (Test-Path -LiteralPath (Join-Path $env:FAKE_SERVED 'installed'))) { $env:FAKE_OLD_VERSION } else { '0.35.2' }
+    if ($command -eq 'install' -and $exitCode -eq 0) {
+        Set-Content -LiteralPath (Join-Path $env:FAKE_SERVED 'installed') -Value 'yes'
+    }
+    [IO.File]::WriteAllText($RedirectStandardOutput, $(if ($command -eq '--version') { $version } else { 'installer detail' }))
+    [IO.File]::WriteAllText($RedirectStandardError, '')
     if ($command -eq '--version' -and $env:FAKE_SELF_CHECK_FAIL) {
         $exitCode = 1
     }
@@ -867,7 +877,7 @@ def test_install_ps1_external_command_conflict(tmp_path: Path, shell: str, own: 
     assert external.read_bytes() == b"external command"
     if own:
         assert result.returncode == 0, result.stdout + result.stderr
-        assert "run chrys" in result.stdout
+        assert "Another command was preserved" in result.stdout
     else:
         assert result.returncode != 0
         assert machine.server.requests() == []
@@ -946,7 +956,7 @@ def test_distribution_materials_static_contract() -> None:
         assert "AIXCODING_CHANNEL" in source and "ICODE_CHANNEL" in source
         assert "GitHub" not in source and "GitCode" not in source
         assert "SHA256SUMS" not in source
-    assert "create_launch_command" not in sh
+    assert "tar.gz" not in sh
     assert "aixcoding-install." in sh
     assert "icode-install" not in sh
     assert "install-internal-mirror.sh" in publishing and "install-internal-mirror.ps1" in publishing
@@ -984,3 +994,186 @@ def test_distribution_materials_brand_context() -> None:
         if "`icode`" in line:
             assert "旧版" in line or "历史" in line
     assert "当前安装脚本不安装旧包" in support_doc
+
+
+@_POSIX_ONLY
+@pytest.mark.parametrize(
+    "os_name,arch,platform",
+    [
+        ("Linux", "aarch64", "linux-aarch64"),
+        ("Linux", "x86_64", "linux-x86_64"),
+        ("Darwin", "arm64", "macos-aarch64"),
+        ("Darwin", "x86_64", "macos-x86_64"),
+    ],
+)
+def test_install_sh_zip_platforms(tmp_path: Path, os_name: str, arch: str, platform: str) -> None:
+    machine = _sh_machine(tmp_path, os_name=os_name, arch=arch)
+    machine.server.channel(_DEFAULT_BASE, "prod")
+    name = _package_name(platform=platform)
+    machine.server.release(_DEFAULT_BASE, _VERSION, {name: _archive(_installing_binary())})
+    result = machine.run()
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert machine.server.requests()[-1].endswith(name)
+    assert machine.installed_version("aixcoding") == _VERSION
+
+
+@_POSIX_ONLY
+@pytest.mark.parametrize(
+    "old,force,expected",
+    [
+        (None, False, "首次安装"),
+        ("0.34.0", False, "更新"),
+        (_VERSION, False, "无需重复安装"),
+        (_VERSION, True, "重新安装"),
+    ],
+)
+def test_install_sh_install_states(tmp_path: Path, old: str | None, force: bool, expected: str) -> None:
+    machine = _sh_machine(tmp_path)
+    if old:
+        machine.install_old_copy(old)
+    _serve_posix(machine)
+    result = machine.run(*(["--force"] if force else []))
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert expected in result.stdout
+    assert result.stderr == ""
+    assert machine.installed_version("aixcoding") == _VERSION
+    assert (machine.home / "install-ran").exists() is (old != _VERSION or force)
+
+
+@_POSIX_ONLY
+def test_install_sh_repairs_short_alias_without_download(tmp_path: Path) -> None:
+    machine = _sh_machine(tmp_path)
+    machine.install_old_copy(_VERSION)
+    machine.server.channel(_DEFAULT_BASE, "prod")
+    result = machine.run()
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert machine.installed_version("aixcoding") == _VERSION
+    assert machine.server.requests() == [f"{_DEFAULT_BASE}/channels/cli/prod.txt"]
+
+
+@_POSIX_ONLY
+def test_install_sh_preserves_foreign_short_alias(tmp_path: Path) -> None:
+    machine = _sh_machine(tmp_path)
+    bin_dir = machine.home / ".local/bin"
+    bin_dir.mkdir(parents=True)
+    foreign = bin_dir / "aixcoding"
+    foreign.write_text("foreign", encoding="utf-8")
+    foreign.chmod(0o755)
+    _serve_posix(machine)
+    result = machine.run()
+    assert result.returncode != 0
+    assert foreign.read_text(encoding="utf-8") == "foreign"
+    assert not (machine.home / "install-ran").exists()
+
+
+@_POSIX_ONLY
+def test_install_sh_rejects_tar_without_network(tmp_path: Path) -> None:
+    machine = _sh_machine(tmp_path)
+    archive = tmp_path / _package_name(archive_format="tar.gz")
+    archive.write_bytes(_archive(_binary(), archive_format="tar.gz"))
+    result = machine.run("--from", str(archive))
+    assert result.returncode == 1
+    assert "ZIP" in result.stderr
+    assert machine.server.requests() == []
+
+
+@_WINDOWS_ONLY
+@_SHELLS
+@pytest.mark.parametrize(
+    "old,force,label",
+    [
+        (None, False, "first time"),
+        ("0.34.0", False, "Updating"),
+        (_VERSION, False, "already installed"),
+        (_VERSION, True, "Reinstalling"),
+    ],
+)
+def test_install_ps1_install_states(tmp_path: Path, shell: str, old: str | None, force: bool, label: str) -> None:
+    machine = _ps_machine(tmp_path, shell)
+    if old:
+        machine.install_old_copy()
+    _serve_windows(machine)
+    result = machine.run_file(*(["-Force"] if force else []), env={"FAKE_OLD_VERSION": old or ""})
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert label in result.stdout
+    assert "installer detail" not in result.stdout
+    bin_dir = Path(machine.env["LOCALAPPDATA"]) / "chrys/bin"
+    assert (bin_dir / "aixcoding.exe").read_bytes() == (bin_dir / "chrys.exe").read_bytes()
+    assert (bin_dir / "aixcoding-cli.exe").read_bytes() == (bin_dir / "chrys.exe").read_bytes()
+    assert any(line.endswith("|install") for line in machine.started()) is (old != _VERSION or force)
+    if old == _VERSION and not force:
+        assert machine.server.requests() == [f"{_DEFAULT_BASE}/channels/cli/prod.txt"]
+
+
+@_POSIX_ONLY
+@pytest.mark.parametrize("alias_kind", ["symlink", "hardlink"])
+def test_install_sh_upgrades_both_owned_aliases(tmp_path: Path, alias_kind: str) -> None:
+    machine = _sh_machine(tmp_path)
+    machine.install_old_copy("0.34.0")
+    bin_dir = machine.home / ".local/bin"
+    short = bin_dir / "aixcoding"
+    if alias_kind == "symlink":
+        short.symlink_to("chrys")
+    else:
+        short.hardlink_to(bin_dir / "chrys")
+    _serve_posix(machine)
+    result = machine.run()
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert machine.installed_version("aixcoding") == _VERSION
+    assert machine.installed_version("aixcoding-cli") == _VERSION
+
+
+@_POSIX_ONLY
+def test_install_sh_failure_keeps_log_and_one_error(tmp_path: Path) -> None:
+    machine = _sh_machine(tmp_path)
+    package = _installing_binary(install_exit=3).replace("  exit 3", "  echo 'native error detail' >&2\n  exit 3")
+    machine.server.channel(_DEFAULT_BASE, "prod")
+    machine.server.release(_DEFAULT_BASE, _VERSION, {_package_name(): _archive(package)})
+    result = machine.run()
+    assert result.returncode == 1
+    assert "native error detail" not in result.stdout + result.stderr
+    assert result.stderr.count("错误:") == 1
+    logs = list(Path(machine.env["TMPDIR"]).glob("aixcoding-install-log.*"))
+    assert len(logs) == 1
+    assert "native error detail" in logs[0].read_text(encoding="utf-8")
+
+
+@_POSIX_ONLY
+def test_install_sh_package_version_mismatch_preserves_install(tmp_path: Path) -> None:
+    machine = _sh_machine(tmp_path)
+    machine.install_old_copy("0.34.0")
+    machine.server.channel(_DEFAULT_BASE, "prod")
+    machine.server.release(_DEFAULT_BASE, _VERSION, {_package_name(): _archive(_installing_binary("0.35.1"))})
+    result = machine.run()
+    assert result.returncode == 1
+    assert "不一致" in result.stderr
+    assert machine.installed_version() == "0.34.0"
+    assert not (machine.home / "install-ran").exists()
+
+
+@_POSIX_ONLY
+def test_install_sh_unexpected_failure_shows_log(tmp_path: Path) -> None:
+    machine = _sh_machine(tmp_path)
+    (machine.home / ".bashrc").mkdir()
+    _serve_posix(machine)
+    result = machine.run()
+    assert result.returncode != 0
+    logs = list(Path(machine.env["TMPDIR"]).glob("aixcoding-install-log.*"))
+    assert len(logs) == 1
+    assert str(logs[0]) in result.stderr
+    assert "Stage:" in logs[0].read_text(encoding="utf-8")
+    assert "安装就绪" not in result.stdout
+
+
+@_POSIX_ONLY
+def test_install_sh_external_relative_symlink_is_not_ours(tmp_path: Path) -> None:
+    machine = _sh_machine(tmp_path)
+    fake_bin = tmp_path / "fake-bin"
+    (fake_bin / "chrys").write_text(_binary("9.0.0"), encoding="utf-8")
+    (fake_bin / "chrys").chmod(0o755)
+    (fake_bin / "aixcoding").symlink_to("chrys")
+    _serve_posix(machine)
+    result = machine.run()
+    assert result.returncode == 1
+    assert machine.server.requests() == []
+    assert (fake_bin / "aixcoding").readlink() == Path("chrys")

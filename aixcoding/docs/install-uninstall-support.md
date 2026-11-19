@@ -28,7 +28,7 @@
 | 安装后产品命令 | `~/.local/bin/aixcoding-cli` → `chrys` 软链接 | `aixcoding-cli.exe`：优先硬链接，失败时复制 |
 | 冲突场景备用命令 | `chrys` | `chrys.exe` |
 
-两者不是两套独立安装。普通用户使用 `aixcoding-cli`；只有外部命令冲突或 PATH 排查时
+内网脚本额外提供 `aixcoding`（POSIX 软链接、Windows 硬链接或复制），与 `aixcoding-cli` 使用同一程序；包内手工 `install` 只提供 `aixcoding-cli`。只有外部命令冲突或 PATH 排查时
 才使用安装目录内 `chrys` 的绝对路径。
 
 ### 2.2 用户数据
@@ -70,7 +70,7 @@ AIxCoding 的共享配置文件为上述数据目录下的 `aixcoding.toml`：
 默认镜像根地址：
 
 ```text
-http://82.187.34.98/aixcoding/file/aixcoding
+http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding
 ```
 
 | 仓内物料 | 镜像根目录名称 |
@@ -86,18 +86,17 @@ http://82.187.34.98/aixcoding/file/aixcoding
 ```text
 channels/cli/prod.txt
 channels/cli/test.txt
-releases/cli/<完整版本>/aixcoding-cli-<平台>-v<完整版本>-offline.tar.gz
+releases/cli/<完整版本>/aixcoding-cli-<平台>-v<完整版本>-offline.zip
 releases/cli/<完整版本>/aixcoding-cli-windows-x86_64-v<完整版本>-offline.zip
 ```
 
 - channel 文件首行给出完整版本，允许开头 `v`、CRLF 和首尾空白。
 - releases 版本目录不带 `v`，制品文件名中的版本带 `v`。
-- POSIX 在线安装先尝试当前命名的 `.tar.gz`，缺失时尝试当前命名的 `.zip`；不回退到
-  `icode-*`，也不回退到公网源。
-- 例如版本 `0.33.0` 的 Linux ARM64 包：
+- 五个平台均只支持 ZIP；不尝试其他格式，不回退到 `icode-*` 或公网源。
+- 例如版本 `0.35.2` 的 Linux ARM64 包：
 
   ```text
-  http://82.187.34.98/aixcoding/file/aixcoding/releases/cli/0.33.0/aixcoding-cli-linux-aarch64-v0.33.0-offline.tar.gz
+  http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/releases/cli/0.35.2/aixcoding-cli-linux-aarch64-v0.35.2-offline.zip
   ```
 
 - 查询当前正式版本可读取 `channels/cli/prod.txt`，测试版本读取 `test.txt`。这是一项
@@ -107,7 +106,7 @@ releases/cli/<完整版本>/aixcoding-cli-windows-x86_64-v<完整版本>-offline
 
 | 配置 | 优先级（从高到低） |
 |---|---|
-| 镜像地址 | `--base-url` / `-BaseUrl` → `AIXCODING_BASE_URL` → `ICODE_BASE_URL` → 默认 IP |
+| 镜像地址 | `--base-url` / `-BaseUrl` → `AIXCODING_BASE_URL` → `ICODE_BASE_URL` → 默认域名 |
 | 渠道 | `--channel` / `-Channel` → `AIXCODING_CHANNEL` → `ICODE_CHANNEL` → `prod` |
 
 `ICODE_VERSION`、`ICODE_SOURCE` 是上游公网安装器的变量，内网安装器不消费它们。
@@ -126,15 +125,15 @@ releases/cli/<完整版本>/aixcoding-cli-windows-x86_64-v<完整版本>-offline
 默认 prod：
 
 ```bash
-curl -fsSL http://82.187.34.98/aixcoding/file/aixcoding/install.sh | bash
+curl -fsSL http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh | bash
 ```
 
 test、切回 prod、指定版本：
 
 ```bash
-curl -fsSL http://82.187.34.98/aixcoding/file/aixcoding/install.sh | bash -s -- --channel test
-curl -fsSL http://82.187.34.98/aixcoding/file/aixcoding/install.sh | bash -s -- --channel prod
-curl -fsSL http://82.187.34.98/aixcoding/file/aixcoding/install.sh | bash -s -- --version v0.33.0
+curl -fsSL http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh | bash -s -- --channel test
+curl -fsSL http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh | bash -s -- --channel prod
+curl -fsSL http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh | bash -s -- --version v0.35.2
 ```
 
 更换镜像时，脚本 URL 和 `--base-url` 都要改：
@@ -146,7 +145,7 @@ curl -fsSL http://<镜像地址>/aixcoding/file/aixcoding/install.sh | bash -s -
 如需先检查脚本：
 
 ```bash
-curl -fsSL -o install.sh http://82.187.34.98/aixcoding/file/aixcoding/install.sh
+curl -fsSL -o install.sh http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh
 bash install.sh --channel prod
 ```
 
@@ -155,22 +154,22 @@ bash install.sh --channel prod
 默认 prod：
 
 ```powershell
-irm http://82.187.34.98/aixcoding/file/aixcoding/install.ps1 | iex
+irm http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.ps1 | iex
 ```
 
 test 与切回 prod：
 
 ```powershell
-$env:AIXCODING_CHANNEL = 'test'; irm http://82.187.34.98/aixcoding/file/aixcoding/install.ps1 | iex
-Remove-Item Env:AIXCODING_CHANNEL; irm http://82.187.34.98/aixcoding/file/aixcoding/install.ps1 | iex
+$env:AIXCODING_CHANNEL = 'test'; irm http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.ps1 | iex
+Remove-Item Env:AIXCODING_CHANNEL; irm http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.ps1 | iex
 ```
 
 显式参数和镜像覆盖使用文件执行：
 
 ```powershell
-Invoke-WebRequest http://82.187.34.98/aixcoding/file/aixcoding/install.ps1 -OutFile .\install.ps1
+Invoke-WebRequest http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.ps1 -OutFile .\install.ps1
 .\install.ps1 -Channel test
-.\install.ps1 -Version v0.33.0
+.\install.ps1 -Version v0.35.2
 .\install.ps1 -BaseUrl http://<镜像地址>/aixcoding/file/aixcoding
 ```
 
@@ -183,25 +182,24 @@ channel：
 
 ```bash
 # 查询正式渠道；测试渠道将 prod.txt 换成 test.txt
-curl -fsSL http://82.187.34.98/aixcoding/file/aixcoding/channels/cli/prod.txt
+curl -fsSL http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/channels/cli/prod.txt
 ```
 
-以查询结果为 `0.33.0`、目标为 Linux ARM64 为例，下载脚本和安装包：
+以查询结果为 `0.35.2`、目标为 Linux ARM64 为例，下载脚本和安装包：
 
 ```bash
-curl -fsSL -o install.sh http://82.187.34.98/aixcoding/file/aixcoding/install.sh
-curl -fsSL -o aixcoding-cli-linux-aarch64-v0.33.0-offline.tar.gz http://82.187.34.98/aixcoding/file/aixcoding/releases/cli/0.33.0/aixcoding-cli-linux-aarch64-v0.33.0-offline.tar.gz
+curl -fsSL -o install.sh http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/install.sh
+curl -fsSL -o aixcoding-cli-linux-aarch64-v0.35.2-offline.zip http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/releases/cli/0.35.2/aixcoding-cli-linux-aarch64-v0.35.2-offline.zip
 ```
 
-实际使用时替换版本、平台和扩展名；`.zip` 包将 URL 与输出文件名中的 `.tar.gz` 都改为
-`.zip`。通过合规介质将两个文件复制到离线机器的同一目录后执行：
+实际使用时替换版本和平台。通过合规介质将脚本和 ZIP 复制到离线机器的同一目录后执行：
 
 ```bash
-bash install.sh --from ./aixcoding-cli-linux-aarch64-v<版本>-offline.tar.gz
-bash install.sh --from ./aixcoding-cli-linux-aarch64-v<版本>-offline.tar.gz --sha256 <摘要>
+bash install.sh --from ./aixcoding-cli-linux-aarch64-v<版本>-offline.zip
+bash install.sh --from ./aixcoding-cli-linux-aarch64-v<版本>-offline.zip --sha256 <摘要>
 ```
 
-- 支持 `.tar.gz`、`.tgz`、`.zip`；`--from` 与 `--version` 互斥。
+- 仅支持 `.zip`；`--from` 与 `--version` 互斥。
 - `icode-*` 命名包直接拒绝；当前命名包内只有历史 `icode` 也会因缺少根目录
   `aixcoding-cli` 而拒绝。
 - 本地文件不存在、格式不支持、摘要非法或不匹配均在执行包内程序前失败。
@@ -226,11 +224,11 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ### 5.5 Windows 无脚本手工安装
 
-此方式只需 Windows ZIP，不需要 `install.ps1`。以版本 `0.33.0` 为例，可在可联网机器
+此方式只需 Windows ZIP，不需要 `install.ps1`。以版本 `0.35.2` 为例，可在可联网机器
 下载并复制到离线机器：
 
 ```powershell
-Invoke-WebRequest http://82.187.34.98/aixcoding/file/aixcoding/releases/cli/0.33.0/aixcoding-cli-windows-x86_64-v0.33.0-offline.zip -OutFile .\aixcoding-cli-windows-x86_64-v0.33.0-offline.zip
+Invoke-WebRequest http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding/releases/cli/0.35.2/aixcoding-cli-windows-x86_64-v0.35.2-offline.zip -OutFile .\aixcoding-cli-windows-x86_64-v0.35.2-offline.zip
 ```
 
 解压后进入解压目录：
@@ -283,19 +281,20 @@ Get-FileHash -Algorithm SHA256 .\<安装包文件名>
 
 ## 6. 安装期行为与故障处理
 
-### 6.1 外部 `aixcoding-cli` 冲突两分支
+### 6.1 同名命令保护
 
-- 无自有可执行 `chrys`：下载前中止，避免包内 alias 保护留下外部命令而“安装成功”假象。
-- 自有 `chrys` 存在且可执行：警告续装，外部文件保持不变；安装后用安装目录内
-  `chrys --version` 验证并提示 `chrys` 启动。
-- 不调用 PATH 上外部 `aixcoding-cli` 作为续装成功证据。Windows 使用 `chrys.exe` 同构处理。
+脚本会检查 `aixcoding` 和 `aixcoding-cli`。安装目录内属于其他程序的同名文件不会覆盖，
+应使用原安装工具升级或先卸载冲突命令。PATH 其他目录有同名命令且本机已有离线安装时，
+保留外部命令并提示用安装目录中的完整路径启动。
 
-### 6.2 幂等与渠道切换
+### 6.2 首次安装、更新与重装
 
-- POSIX 目标版本与已安装 `chrys --version` 相同且 `aixcoding-cli` alias 存在时，读取
-  channel 后跳过包下载和安装。
-- alias 缺失时重装修复。
-- 不采用公网脚本的自动防降级；从较高 prod 切到较低 test 仍允许安装目标渠道版本。
+- 两端均读取本机版本并显示首次安装、版本更新或重新安装提示。
+- 同版本跳过包下载，修复缺失的双命令入口并验证版本；Linux/macOS 离线模式需先解压自检。
+- 强制重装：Linux/macOS 加 `--force`；Windows 下载脚本后运行 `.\install.ps1 -Force`。
+- 目标渠道版本允许低于本机版本。升级与重装保留用户配置及会话。
+- 底层安装输出写入临时日志，成功后清理，失败时保留并显示路径。日志可能含本机路径，
+  仅提供给技术支持；真实失败仍返回非零退出码，不能因屏幕简洁视为安装成功。
 
 ### 6.3 PATH 与安装后验证
 
@@ -306,7 +305,7 @@ Get-FileHash -Algorithm SHA256 .\<安装包文件名>
 | Windows 包内 `install` | 尝试更新用户 PATH |
 | 只解压直接运行 | 不修改 PATH |
 
-内网脚本正常路径验证安装目录内 `aixcoding-cli --version`，冲突续装验证 `chrys --version`。
+内网脚本逐一验证安装目录内 `aixcoding --version` 与 `aixcoding-cli --version` 等于目标版本。
 
 ### 6.4 常见安装错误
 
@@ -367,7 +366,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ### 7.6 下载物
 
-`install.sh`、`install.ps1`、ZIP/tar.gz 和解压目录不会被卸载器一律自动删除；支持人员
+`install.sh`、`install.ps1`、ZIP 和解压目录不会被卸载器一律自动删除；支持人员
 应将其与已安装程序、PyApp 缓存、用户数据分开说明。
 
 ## 8. 支持处置清单
@@ -381,3 +380,10 @@ export PATH="$HOME/.local/bin:$PATH"
 6. 真实制品验收状态见
    [batches/internal-installer/verification.md](batches/internal-installer/verification.md)；
    文档示例和 fake 契约测试不等于某平台已实测通过。
+
+### 8.1 双命令入口卸载边界
+
+脚本新增的 `aixcoding` 入口由脚本维护；直接运行包内 `install` 不会创建它。
+Windows 卸载会清理整个自有安装目录；POSIX 的上游卸载器尚不识别 `aixcoding`，
+卸载后可能留下指向 `chrys` 的悬空软链接。确认 `readlink ~/.local/bin/aixcoding` 输出为
+`chrys` 且主体已卸载后，可执行 `unlink ~/.local/bin/aixcoding` 清理；不得删除其他程序的同名文件。

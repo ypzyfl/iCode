@@ -273,3 +273,21 @@ marker 不被扫描；为纯定制资产登记 C id（前版草案 C136-C138）�
    专区 README、INDEX、ADR-0020 随批次落盘；
 6. 用户 INSTALL.md 只含一般用户默认操作；install-uninstall-support.md/publishing.md
    与脚本行为逐项一致（命令/变量/IP/渠道/卸载/旧包口径），并登记 INDEX。
+
+## 2026-11-19：0.35.2 安装体验调整
+
+本节记录责任人会话明确指令“开始修改”所要求的范围，旧版正文是历史设计，不代表本轮行为。
+不代填或变更历史签认字段。
+
+- 修改范围：两份 `aixcoding/release/install-internal-mirror.*`、用户/支持/发布手册及
+  `aixcoding/tests/internal_installer/test_install_internal_mirror_scripts.py`；不改上游、不增依赖。
+- 默认镜像迁至 `http://aicoding.s.bocsys.cn/aixcoding/file/aixcoding`。
+- 五个平台只下载/接收当前命名的 ZIP，删除 tar.gz/tgz 和候选格式回退。
+- 脚本安装同时提供 `aixcoding` 与 `aixcoding-cli`；只操作已证明属于本安装的命令。
+  POSIX 使用指向 chrys 的软链接；Windows 使用硬链接，文件系统不支持时复制。
+- 首装/版本更新/同版本跳过/强制重装分别提示；同版本缺少入口时无需下载即可修复。
+  参数为 `--force` / `-Force`，保留配置数据，允许切换到更低版本渠道。
+- 底层安装和网络诊断写日志，失败返回非零并给出一次摘要与日志路径，成功清理日志。
+- 备选：修改包内安装器使所有安装方式均提供双命令，会扩大上游接触面，故本轮采用脚本
+  创建入口。POSIX 卸载后短命令悬空链接的清理说明留在支持手册，暂不扩展上游卸载器。
+- 交付仅更新仓内脚本；镜像上传、渠道指针、构建流水线与真实平台验收不在本轮执行。

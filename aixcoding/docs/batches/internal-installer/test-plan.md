@@ -183,3 +183,7 @@
    `uv run ruff format --check aixcoding/tests/internal_installer/test_install_internal_mirror_scripts.py`。
 6. 将上述自动证据与真实制品手工结果合并对照 design.md §13 六项验收；任何未跑平台、
    未跑真实路径或环境性跳过均作为覆盖缺口明示，不以契约测试替代。
+
+## 2026-11-19：0.35.2 调整
+
+覆盖四个 POSIX 平台的 ZIP 选择、Windows x64 ZIP、在线/离线、双入口版本验证、首次/更新/跳过/强制重装、入口修复、外部命令保护、失败非零与保留日志；Windows 用例须在 Windows 运行。
