@@ -269,3 +269,12 @@ AI 的自查结论不是签认；签认前 block 条目必须全数闭环。
 > 标识）；⑤ 最终态 Smart Test 已跑完，见 verification.md「最终态 Smart
 > Test」与「独立评审处置」。② design 正文四处措辞差、④ Windows 实机与
 > 真实内网联调仍为可后置项（见 plan.md 待办），⑤ 的 PR 尚未提交。
+>
+> 2026-11-19 内网实测修复补记（记录档追加，R10 不触发重签；原文保留为
+> 历史快照）：PR #137（`fix/auto-update-restart`，c0d12395 + 2aa88439 +
+> 两轮评审处置）自查——零上游接触面（check_r2_diff upstream_changed=0），
+> R11 零新增依赖（osascript / Start-Process 均为字符串拼接）。两轮评审
+> findings 的逐条处置与验证证据见 design 修订（二十）处置补记与
+> verification.md「2026-11-19 内网实测修复轮」。已知未闭环：Windows 实机
+> 冒烟、真实内网新窗口联调待发版复验；上游 scroll flaky 与 cd 重写线红项
+> 非本批范围。
