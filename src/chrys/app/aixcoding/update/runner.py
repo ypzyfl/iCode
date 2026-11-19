@@ -45,12 +45,17 @@ _PROMPT_HINT = "如未出现命令提示符，请按回车返回命令行。"
 def relaunch_argv(session_id: str | None) -> list[str]:
     """The argv that restarts the TUI, restoring ``session_id`` when known.
 
-    Resolved *before* the TUI exits (design D3): the PATH absolute path of
-    the product command survives the install replacing the version
-    directories behind the old binary; ``sys.argv[0]`` resolved is the
-    fallback when the alias is not on PATH.
+    Resolved *before* the TUI exits (design D3).  The installer puts the
+    product command on the user's PATH, so the relaunch launches by the bare
+    command name — POSIX ``exec`` and the PowerShell call operator both
+    resolve it through the wrapper's inherited PATH.  The bare name is
+    trusted only after ``which`` proves it resolves in this process's
+    environment; otherwise the resolved ``sys.argv[0]`` is the fallback —
+    the entry script PyApp runs this process with, whose offline-flavor
+    shebang names a build-machine interpreter that does not exist on the
+    user machine (found in the first real update, 2026-11-19).
     """
-    executable = shutil.which(APP_COMMAND) or str(Path(sys.argv[0]).resolve())
+    executable = APP_COMMAND if shutil.which(APP_COMMAND) else str(Path(sys.argv[0]).resolve())
     argv = [executable]
     if session_id:
         argv += ["-s", session_id]

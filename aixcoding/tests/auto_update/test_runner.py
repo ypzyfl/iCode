@@ -1,7 +1,7 @@
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 
-"""Runner tests: wrapper command construction per OS, mirror derivation, and the
-detached wait-execute-relaunch order end-to-end (POSIX only — the Windows
+"""Runner tests: wrapper command construction per OS, the pinned mirror root, and
+the detached wait-execute-relaunch order end-to-end (POSIX only — the Windows
 sequence depends on real console behaviour; R13 skip, design §10).
 
 Design: aixcoding/docs/batches/auto-update/design.md §3.4, §3.6
@@ -33,27 +33,23 @@ def _point_at(monkeypatch: pytest.MonkeyPatch, base_url: str) -> None:
     monkeypatch.setattr(commands_module, "resolve_check_base", lambda: base_url)
 
 
-def test_mirror_root_derives_from_the_check_base(monkeypatch: pytest.MonkeyPatch) -> None:
-    _point_at(monkeypatch, "http://82.187.34.98/csas")
+def test_mirror_root_is_pinned_to_the_production_origin() -> None:
+    # Temporary pin (2026-11-19): the dev gateway has not published the bare-origin
+    # file mirror, so a derived install URL answers 400 there and every dev update
+    # would fail at the download step.  The mirror is pinned to production until the
+    # dev mirror ships; restore the D4 derivation in commands.mirror_root() then.
+    assert commands_module.mirror_root() == "http://82.187.34.98/aixcoding/file/aixcoding"
+
+
+def test_mirror_root_ignores_the_check_base_and_base_url_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The pin is environment-independent by design for now: the check endpoint may
+    # move with [update].base_url, but the mirror root must not follow it.
+    _point_at(monkeypatch, "http://81.89.182.150/csas")
 
     assert commands_module.mirror_root() == "http://82.187.34.98/aixcoding/file/aixcoding"
 
 
-def test_mirror_root_follows_a_base_url_override(monkeypatch: pytest.MonkeyPatch) -> None:
-    _point_at(monkeypatch, "http://10.0.0.9/csas")
-
-    assert commands_module.mirror_root() == "http://10.0.0.9/aixcoding/file/aixcoding"
-
-
-def test_mirror_root_empty_on_an_unparseable_base(monkeypatch: pytest.MonkeyPatch) -> None:
-    _point_at(monkeypatch, "not-a-url")
-
-    assert commands_module.mirror_root() == ""
-
-
-def test_install_script_url_uses_the_platform_script(monkeypatch: pytest.MonkeyPatch) -> None:
-    _point_at(monkeypatch, "http://82.187.34.98/csas")
-
+def test_install_script_url_uses_the_platform_script() -> None:
     url = commands_module.install_script_url()
     expected_script = "install.ps1" if WIN32 else "install.sh"
     assert url == f"http://82.187.34.98/aixcoding/file/aixcoding/{expected_script}"
@@ -98,11 +94,15 @@ def test_windows_wrapper_shape(tmp_path: Path) -> None:
     assert "Remove-Item" not in script, "the wrapper never deletes the flow's state files (design D2)"
 
 
-def test_relaunch_argv_prefers_the_path_absolute_command(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_relaunch_argv_launches_by_bare_command_when_on_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The installer puts the product command on PATH, so the relaunch uses the
+    # bare name — POSIX exec and the PowerShell call operator both resolve it
+    # through the wrapper's inherited PATH, and the bare name survives the
+    # install replacing version directories behind any absolute path.
     monkeypatch.setattr(runner_module.shutil, "which", lambda _: "/usr/local/bin/aixcoding-cli")
 
-    assert relaunch_argv(None) == ["/usr/local/bin/aixcoding-cli"]
-    assert relaunch_argv("sess-1") == ["/usr/local/bin/aixcoding-cli", "-s", "sess-1"]
+    assert relaunch_argv(None) == [runner_module.APP_COMMAND]
+    assert relaunch_argv("sess-1") == [runner_module.APP_COMMAND, "-s", "sess-1"]
 
 
 def test_relaunch_argv_falls_back_to_argv0(monkeypatch: pytest.MonkeyPatch) -> None:
