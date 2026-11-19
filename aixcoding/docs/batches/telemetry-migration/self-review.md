@@ -89,3 +89,7 @@ Codex 独立第二代理（GPT-6 Astra）核对模型及独立上报、CLI 与�
 独立上下文评审代理 approval_telemetry_review 核对 model.py、真实审批客户端 parent_session_id 传递、生产审批 side_call_scope 及六组并发 HTTP 回归，未发现 blocker。代理复跑新增场景得到 6 passed、23 deselected，check_docs --closure 为 OK。此次调用指定模型 gpt-6-astra，但代理自报继承父模型，不能据此证明不同模型/工具要求已满足；记录为独立上下文检查，正式不同源复审身份仍待核实。
 
 开发验证得到模型报文 29 passed，完整埋点专项 73 passed、6 failed。六项环境失败已用修改前源码快照复现同名失败，详见 verification.md。原签认字段保持。本次未执行 git 提交或推送。
+
+## 2026-11-19 技能引用预上报取消增量审阅
+
+独立上下文代理 `skill_usage_review` 只读审阅当前定制代码、行为测试和方案，不访问旧工作树或未跟踪草案，未发现阻断问题，未独立执行测试。不声称已证明不同模型复审身份。建议补齐普通引用但不执行 load_skill 的覆盖及 requirements 当前口径，开发侧已补充并复跑。普通/追加引用只保留提醒；实际 load_skill 每次仍有一条 funcType=0，保留 funcType=3 与原模型来源，不按技能名全局去重。上游挂点由空操作兼容函数承接，没有上游变更。隔离配置埋点专项 86 passed、等待清单门禁 57 passed，完整命令和边界见 verification.md。既有签认字段未改，未提交或推送。

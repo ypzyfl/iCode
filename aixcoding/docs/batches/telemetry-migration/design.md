@@ -129,7 +129,7 @@ TUI / ACP / headless / Workflow
 | `src/chrys/kernel/aixcoding/telemetry/provenance.py` | 来源对象与工具操作的有界内存登记 |
 | `src/chrys/service/aixcoding/telemetry/model.py` | 模型 middleware 和构建期 factory 包装，维护每次请求的企业来源和报文搭载 |
 | `src/chrys/service/aixcoding/telemetry/{events,reporters,delivery,context}.py` | EventBus 适配、旧报文编码、逐次行数和代码片段、发送队列、配置/auth 接口复用、Git 和桌面上下文 |
-| `src/chrys/orchestration/aixcoding/telemetry/{lifecycle,skills}.py` | bus 生命周期装配及已解析技能使用记录 |
+| `src/chrys/orchestration/aixcoding/telemetry/{lifecycle,skills}.py` | bus 生命周期装配及输入技能挂点的空操作兼容入口；技能使用只由实际 load_skill 上报 |
 | `src/chrys/app/aixcoding/telemetry/acp.py` | ACP 入站字段验证、prompt 作用域及旧 response metadata |
 | `aixcoding/tests/telemetry/`、`aixcoding/mock/telemetry/` | 契约对拍与 stdlib mock，测试文件见 test-plan.md |
 
@@ -190,9 +190,9 @@ TUI 直接复用引擎事件。ACP、headless 和 Workflow 通过同一适配层
 
 ### 4.4 输入触发与桌面契约
 
-在普通输入和追加输入的引擎技能解析成功点记录 slash 技能使用。旧版重试备注只生成技能提醒，迁移沿用该口径。slash 的 span 和 workspace 按旧规则输出，历史值差异在对拍中记录。
+2026-11-19 技能使用计数口径修正：普通输入和追加输入中的 slash 技能引用只生成技能提醒，不发送使用记录。既有上游解析挂点调用的定制 `record_skill_reference` 保留为空操作兼容入口；移除其独立发送实现。本轮不修改上游文件，也不新增 R2 接线。后续移除兼容挂点应独立核定上游范围。
 
-模型 load_skill 保留工具维度 funcType=3，加一条技能维度 funcType=0 的 saveOnly。read_skill_resource/run_skill_script 不额外产生技能使用记录。
+模型每次实际执行 load_skill 保留工具维度 funcType=3，加一条技能维度 funcType=0 的 saveOnly，关联该次模型来源的 requestId、工作区和可用 Git 信息。同一输入引用加一次 load_skill 只产生一条 funcType=0；模型主动加载和后续再次加载分别计数，不按技能名全局去重。read_skill_resource/run_skill_script 不额外产生技能使用记录。仅引用技能而没有实际 load_skill 时不再计技能使用；记录发生在工具 Start，并不表示加载成功。
 
 ACP prompt 入站校验 ide-name、ide-version、function-name、selected-agent、response-attribution。保存为该 prompt 的不可变上下文。首次符合旧条件的模型请求准备时发送一次 funcType=1001；无模型请求不发送。完成后恢复/释放上下文；该作用域退出后 `response_meta()` 返回退出前捕获的快照，出站合并在释放之后读取快照，不再读活绑定。
 
@@ -207,7 +207,7 @@ ACP prompt 入站校验 ide-name、ide-version、function-name、selected-agent�
 | 模型 body.telemetry | requestId、sessionId、spanId（有值才写）、eventType=llm、eventSubType=agent/system、channelType、channelName=icode、channelVersion（有值才写）、pluginVersion、projectName、gitRemote/gitBranch/gitRevision/gitOwner/gitRepo（有值才写）；agentName 仅非 desktop 且有实际 profile 时写。parentSpanId 实际未写出 |
 | tool-detail/save | funcId=provider ID 优先/内部 ID fallback，funcName=原工具名，funcType=MCP 1/其余 3，sessionId、requestId/spanId/parentSpanId（关联存在才写）、value、fileName、agentName 和共同字段 |
 | tool-detail/update | 开始态写 funcId、funcName、codeStatus；终态增加 status=成功1/其余0、failureType、funcErrorMessage、originalLines/addedLines/deletedLines（可用时才写） |
-| 技能 saveOnly | funcType=0、funcName=技能名、sessionId、agentName、共同字段。模型 load_skill 的附加记录可带 requestId/spanId；slash 输入记录不带 requestId、不带 funcId、不发 update |
+| 技能 saveOnly | 仅实际 load_skill 的附加记录：funcType=0、funcName=技能名、sessionId、agentName、共同字段，requestId/spanId 关联存在才写；不带 funcId、不发 update。普通/追加 slash 输入不发送 |
 | 选定 Agent saveOnly | funcType=1001、funcId=UUID、funcName=所选 Agent 名、agentName=desktop functionName、sessionId、requestId、spanId、共同字段。不输出 agentMarketSkillId，它只是有效性校验条件 |
 | ai-code/save | reportId、filepath、blocks[{snippet,rangeStart,rangeEnd}]、sourceType=edit、inputMethod=ai_generated、sessionId、codeStatus、language、requestId/spanId、agentName、remoteUrl/branch/gitUserName/gitUserEmail 和共同字段 |
 | 共同字段 | pluginVersion、userId、channelType/channelName/channelVersion、projectName、gitRemote/gitBranch/gitRevision/gitOwner/gitRepo。CLI 的 channelVersion 等于 pluginVersion；其他渠道使用各自提供的版本，空值仍省略 |
@@ -237,7 +237,7 @@ ACP prompt 入站校验 ide-name、ide-version、function-name、selected-agent�
 | 工具执行计时字段 | `tool-detail/update` 的开始态和终态均省略 `executionStartedAt`、`executionFinishedAt`、`executionDurationMs` | 2026-11-17 确认这三个字段无需上报。对拍保留 0.28.0 原始样本，仅在该端点的期望值中排除这三项 |
 | rollback/fork/replay | 历史展示和恢复不重新上报，实际新执行照报 | 旧已报生成事件不因 rollback 自动撤销，净留存另设指标 |
 | 旧 session latest fallback | 按 §4.3 修正失败和并发错挂，正常和续读按旧口径对拍 | 无法归属时三个关联字段允许缺省。验收检查工具记录条数、状态顺序以及后台按请求关联时缺省字段的处理 |
-| slash span/workspace | 保留旧编码和缺省规则，普通输入和追加输入各录制一组 | 后续若修改 slash 的归属口径，单独列入差异裁决 |
+| slash 技能计数 | 2026-11-19 按用户要求取消普通及追加引用上报，只保留实际 load_skill 的使用记录 | 此项为明确口径调整；只引用未加载时无 funcType=0 |
 | 新版新增工具及旁路调用 | 按工具类型与实际 invocation 分开记录覆盖 | 不虚构旧版 oracle，不以缺省值伪造完整统计 |
 
 ## 上游改动清单（R2）
@@ -250,7 +250,7 @@ ACP prompt 入站校验 ide-name、ide-version、function-name、selected-agent�
 | `src/chrys/kernel/middleware.py` + `src/chrys/orchestration/engine/build/builder.py` + `src/chrys/orchestration/invoker/kernel.py` + `src/chrys/orchestration/sub_agents/tools.py` + `src/chrys/orchestration/workflows/agent_node_build.py` + `src/chrys/service/llm/clients.py` | 模型组栈与执行上下文 | 三个构建入口只交付真实 Agent 和工作区。统一工厂装配 middleware，invoker 绑定实际 pass。三协议、跨入口、并发和重试覆盖 T01、T05、T06 |
 | `src/chrys/foundation/events/types.py` + `src/chrys/kernel/loop.py` + `src/chrys/service/agent_middleware/events/tool_events.py` + `src/chrys/service/agent_middleware/events/sub_agent_events.py` | 本地工具 | 模型最终响应、kernel operation 与工具事件形成同一关联链。复用事件上的逐次快照，覆盖无轨迹、审批改参和 Workflow 恢复 |
 | `src/chrys/orchestration/engine/run/bindings.py` + `src/chrys/service/agent_middleware/events/hosted_tools.py` + `src/chrys/service/agent_middleware/response_validation.py` | 托管工具 | 观察点捕获真实来源，展示层携带来源，已有事件出口发送。失败、延迟和 GET 续读按 §4.3 验收 |
-| `src/chrys/app/acp/server.py` + `src/chrys/orchestration/engine/run/active_injection.py` + `src/chrys/orchestration/engine/run/runner.py` | 技能与 ACP | 普通/追加输入沿用旧触发时点。ACP prompt 作用域仅为当前请求捕获选定 Agent 与响应元数据，覆盖 T04 |
+| `src/chrys/app/acp/server.py` + `src/chrys/orchestration/engine/run/active_injection.py` + `src/chrys/orchestration/engine/run/runner.py` | 技能与 ACP | 普通/追加输入挂点保留为空操作，不再上报技能使用；ACP prompt 作用域仅为当前请求捕获选定 Agent 与响应元数据，覆盖 T04 |
 | `tests/architecture/trajectory_wait_manifest.json` | wait manifest | 按上游工具生成，逐条审阅新建或重新打开的等待。生成差异在同一附件内 |
 | `tests/orchestration/engine/test_settings_reload.py` | 本轮批准的回归适配 | 分开验证请求体和每次请求的埋点标识 |
 | `tests/orchestration/engine/test_web_search_budget.py` | 本轮批准的回归适配 | 隔离独立上报，保留搜索调用上限及第二轮恢复断言 |

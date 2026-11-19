@@ -9,7 +9,7 @@
 | T01 | `test_model_wire.py` | 经 `_assemble_stack` 的真实模型客户端，对拍三种协议、流式、辅助调用、SDK retry、wire retry、stall fallback、blank/overflow 和 thinking-binding resend。服务端存储单列 POST 重建与 GET 续读，检查工具归属、额外请求字段及旧报文 ID 的等值关系。 |
 | T02 | `test_tool_reports.py` | 实际工具中间件发布 Start/Result，覆盖成功、审批拒绝、审批改参、超时、失败和取消。断言 save/PENDING/终态顺序和字段缺省。按设计 §6，`tool-detail/update` 的开始态和终态均省略三项执行计时字段，其余字段按旧样本对拍。 |
 | T03 | `test_code_reports.py` | 真实写入和快照 A→B→A、CRLF、replace_all、空文件、纯删除、大文件。比较每次行数、片段范围和 `codeStatus`。 |
-| T04 | `test_usage_reports.py`、`test_acp_metadata.py` | 引擎真实解析普通和追加输入，加载技能双维度，ACP 正常/取消及选择 Agent 无模型请求。检查旧与新 envelope 共存。 |
+| T04 | `test_tool_reports.py`、`test_acp_metadata.py` | 普通与追加技能引用不发送 funcType=0，但提醒仍进入模型输入；实际 load_skill 每次产生一条 funcType=0，验证 requestId、项目名、Git 来源及再次加载不漏计；保留 funcType=3 工具记录。ACP 正常/取消及选择 Agent 无模型请求，检查 envelope。 |
 | T05 | `test_common_fields.py` | 旧环境优先级、凭据变化、工作区与启动目录不同、缺工作区时项目名为空且不采集运行目录 Git、技能 funcType=0 最终 HTTP 报文、有工作区时取实际目录名、Git detached HEAD、Windows 路径、渠道。 |
 | T06 | `test_correlation.py` | 主 Agent 先后调用及并发子 Agent 复用 provider ID。断言 exchange、工具 operation 和逐次快照一一对应，重试后只关联实际执行的调用，历史 restore/fork/replay 不计新事件。 |
 | T07 | `test_delivery.py` | 首事件注册、恢复、重复注册、禁用、服务器延迟/拒绝、队列满和关闭。断言上报故障不改变业务结果。 |

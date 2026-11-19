@@ -201,26 +201,6 @@ def record_main_source(source: ModelSource) -> None:
         events.latest = source
 
 
-def report_skill_reference(name: str, session_id: str, agent_name: str, cwd: str) -> None:
-    if (events := _sessions.get(session_id)) is None:
-        return
-    prompt = desktop_prompt.get()
-    if prompt is not None and (prompt.closed or prompt.session_id != session_id):
-        prompt = None
-    channel = prompt.channel if prompt else detect_channel()
-    if prompt is not None and channel.type == "desktop":
-        agent_name = prompt.runner_name or ""
-    latest = events.latest
-    common = common_fields(
-        cwd,
-        channel=channel,
-        user_id=telemetry_user_id(events.settings),
-        git=latest.git if latest is not None and latest.workspace_cwd == cwd else None,
-    )
-    correlation: dict[str, object] = {"spanId": latest.span_id} if latest is not None and latest.span_id else {}
-    events.report_skill(name, session_id, agent_name, common, correlation)
-
-
 def report_desktop_usage(name: str, source: ModelSource) -> bool:
     if (events := _sessions.get(source.session_id)) is None:
         return False

@@ -223,8 +223,8 @@ async def test_engine_edit_reports_match_the_old_snapshot_and_correlation_contra
         assert code["blocks"] == [{"snippet": edit["new_string"], "rangeStart": 1, "rangeEnd": 1}]
 
 
-async def test_engine_reports_slash_and_model_skill_usage_with_the_old_dimensions(
-    tmp_path: Path, monkeypatch, agent_engine
+async def test_engine_reports_skill_usage_only_for_the_actual_model_load(
+    tmp_path: Path, monkeypatch, agent_engine, isolated_config
 ) -> None:
     from chrys.foundation.events.types import InvocationMessage
     from chrys.service.profiles.agents.schema import SkillConfig, SkillsConfig
@@ -247,29 +247,89 @@ async def test_engine_reports_slash_and_model_skill_usage_with_the_old_dimension
     assert isinstance(terminal, InvocationMessage) and terminal.text == "Done."
     assert [path for path, _ in reports] == [
         "tool-detail/save",
-        "tool-detail/save",
         "tool-detail/update",
         "tool-detail/save",
         "tool-detail/update",
     ]
-    slash, tool_save, pending, skill_usage, finished = (body for _, body in reports)
-    assert slash["funcName"] == "review"
-    assert slash["funcType"] == 0
-    assert "funcId" not in slash
-    assert "requestId" not in slash
+    tool_save, pending, skill_usage, finished = (body for _, body in reports)
     assert tool_save["funcName"] == "load_skill"
     assert tool_save["funcType"] == 3
     assert tool_save["value"] == "review"
     assert pending["codeStatus"] == 3
     assert skill_usage["funcName"] == "review"
     assert skill_usage["funcType"] == 0
+    assert skill_usage["projectName"] == tmp_path.name
     assert "funcId" not in skill_usage
     assert skill_usage["requestId"] == json.loads(requests[0].content)["telemetry"]["requestId"]
     assert finished["codeStatus"] == 1
 
 
+async def test_input_skill_reference_without_load_keeps_reminder_without_usage_report(
+    tmp_path, monkeypatch, agent_engine, isolated_config
+) -> None:
+    from chrys.service.profiles.agents.schema import SkillConfig, SkillsConfig
+
+    skills = SkillsConfig(
+        inline=[SkillConfig(name="review", description="Review files", instructions="Review carefully.")],
+        auto_load_user_agents_skills=False,
+        auto_load_cwd_agents_skills=False,
+    )
+    requests, reports, terminal = await run_tool_reports(
+        tmp_path,
+        monkeypatch,
+        agent_engine,
+        [_done_reply()],
+        builtins=[],
+        user_text="/review inspect auth",
+        skills=skills,
+    )
+    assert terminal.text == "Done."
+    assert b"[Skill Reference] User explicitly invoked a skill: review" in requests[0].content
+    assert not [body for _, body in reports if body.get("funcType") == 0]
+
+
+@pytest.mark.parametrize("user_text", ["/review inspect auth", "Inspect auth using the review skill"])
+async def test_each_actual_skill_load_reports_once_with_its_model_source(
+    tmp_path, monkeypatch, agent_engine, isolated_config, user_text
+) -> None:
+    from chrys.service.aixcoding.telemetry import model
+    from chrys.service.aixcoding.telemetry.context import GitInfo
+    from chrys.service.profiles.agents.schema import SkillConfig, SkillsConfig
+
+    monkeypatch.setattr(
+        model, "collect_git_info", lambda cwd: GitInfo(branch="skill-branch", revision="skill-revision")
+    )
+    skills = SkillsConfig(
+        inline=[SkillConfig(name="review", description="Review files", instructions="Review carefully.")],
+        auto_load_user_agents_skills=False,
+        auto_load_cwd_agents_skills=False,
+    )
+    requests, reports, terminal = await run_tool_reports(
+        tmp_path,
+        monkeypatch,
+        agent_engine,
+        [
+            _call_reply("load_skill", {"skill_name": "review"}),
+            _call_reply("load_skill", {"skill_name": "review"}, item_suffix="_again"),
+            _done_reply(),
+        ],
+        builtins=[],
+        user_text=user_text,
+        skills=skills,
+    )
+    assert terminal.text == "Done."
+    usages = [body for _, body in reports if body.get("funcType") == 0]
+    assert len(usages) == 2
+    for index, usage in enumerate(usages):
+        assert usage["funcName"] == "review"
+        assert usage["projectName"] == tmp_path.name
+        assert usage["gitBranch"] == "skill-branch"
+        assert usage["gitRevision"] == "skill-revision"
+        assert usage["requestId"] == json.loads(requests[index].content)["telemetry"]["requestId"]
+
+
 @pytest.mark.parametrize("inject_on_request", [1, 2])
-async def test_appended_slash_skill_reports_once_and_reaches_next_model_request(
+async def test_appended_slash_skill_reaches_next_model_request_without_usage_report(
     tmp_path: Path, monkeypatch, agent_engine, isolated_config, inject_on_request: int
 ) -> None:
     from chrys.foundation.events.types import InvocationMessage
@@ -301,17 +361,7 @@ async def test_appended_slash_skill_reports_once_and_reaches_next_model_request(
     next_request = requests[inject_on_request]
     assert b"review after reading" in next_request.content
     assert b"[Skill Reference] User explicitly invoked a skill: review" in next_request.content
-    [(path, usage)] = [(path, body) for path, body in reports if body.get("funcType") == 0]
-    assert path == "tool-detail/save"
-    assert usage["funcName"] == "review"
-    assert usage["sessionId"] == terminal.origin.session_id
-    assert usage["projectName"] == tmp_path.name
-    assert usage["agentName"] == "TelemetryWriter"
-    assert "funcId" not in usage and "requestId" not in usage
-    if inject_on_request == 1:
-        assert "spanId" not in usage
-    else:
-        assert usage["spanId"] == json.loads(requests[0].content)["telemetry"]["spanId"]
+    assert not [body for _, body in reports if body.get("funcType") == 0]
 
 
 async def test_long_lived_model_client_refreshes_git_fields_after_cache_expiry(

@@ -739,3 +739,20 @@ TUI 自动标题客户端没有构建期工作区，模型埋点此前省略 `pr
 - `python aixcoding/tools/check_r2_diff.py --base HEAD` 和 `python aixcoding/tools/check_r3_markers.py --base HEAD` 均退出 0，upstream_changed=0；R2 输出既有登记路径警告。
 
 未提交。本轮不宣称完整专项或线上验收通过；内网数据库记录对账等原有开放项保持开放。
+
+### 2026-11-19 取消输入技能预上报，仅记录实际加载
+
+用户明确取消信息不完整的第一次技能上报。普通及追加输入解析 slash 引用时不再产生 funcType=0；模型实际执行 load_skill 时仍按每次工具 Start 生成一条技能使用 saveOnly，与原始模型来源关联，保留独立 funcType=3 工具保存和状态更新。仅引用但没有执行 load_skill 不产生技能使用记录；失败/拒绝等仍沿用 Start 计使用的现有规则，不把使用记录解释为成功记录。
+
+产品仅调整定制模块：`orchestration/aixcoding/telemetry/skills.py::record_skill_reference` 作为既有上游输入挂点的空操作兼容入口，`service/aixcoding/telemetry/events.py` 删除输入引用独立发送函数。未改上游文件或 R2 范围、签认字段、等待清单、依赖及本机 hooks。保留未跟踪的模型上报策略草案原样。设计 §4.4/字段表与 T04 测试计划已按新口径修正；历史验证记录仅作为当时行为证据。
+
+下列命令使用 `UV_CACHE_DIR=/tmp/icode-cd-uv-cache uv run --offline --no-sync --no-python-downloads`。实际 Python 3.14.8，保留项目请求 3.14.10 警告。
+
+- 先修改行为断言，运行 `pytest -n0 -q --tb=short aixcoding/tests/telemetry/test_tool_reports.py -k 'actual_model_load or without_usage_report'`，退出 1，3 failed、9 deselected。失败分别验证原实现多了一条预报和两个追加输入场景仍发送预报。修改产品后同命令退出 0，3 passed、9 deselected。
+- `pytest -n0 -q --tb=short aixcoding/tests/telemetry/test_common_fields.py aixcoding/tests/telemetry/test_tool_reports.py -k 'actual_model_load or actual_skill_load or without_usage_report or model_skill_project'`，退出 0，7 passed、17 deselected。覆盖真实引擎引用+加载只计一次，追加引用不计但提醒进入下一次模型请求，同名技能两次实际加载分别关联各次模型 requestId/项目/Git，以及无工作区时实际加载技能记录项目名为空。
+- 完整专项使用临时 pytest 插件 `/tmp/icode_skill_isolation.py`，唯一 fixture 为 `@pytest.fixture(autouse=True) def use_dedicated_test_config(isolated_config)`，复用套件现有隔离配置，不修改产品或用户设置。完整命令 `PYTHONPATH=/tmp UV_CACHE_DIR=/tmp/icode-cd-uv-cache uv run --offline --no-sync --no-python-downloads pytest -n0 -q --tb=short -p icode_skill_isolation aixcoding/tests/telemetry`，退出 0，85 passed。该结果是隔离测试配置下的埋点专项通过，不代表仓库统一门禁或生产验收通过。
+- 四个改动 Python 文件运行 `ruff check --no-fix` 与 `ruff format --check`，均退出 0。`python aixcoding/tools/check_r2_diff.py --base HEAD`、`python aixcoding/tools/check_r3_markers.py --base HEAD` 均退出 0，upstream_changed=0。`python aixcoding/tools/check_docs.py --closure` 与 `git diff --check` 通过。
+
+尚未提交。内网生产对账、统一验证及其余已有开放项保持原状态。
+
+独立上下文代理 `skill_usage_review` 只读审阅未发现阻断，未运行测试。按其非阻断建议补齐普通 slash 引用但没有 load_skill 的真实引擎回归，同时断言技能提醒进入模型请求、没有 funcType=0，并修正 requirements.md 的 T04。新增测试后再次运行上述隔离配置完整专项命令，退出 0，**86 passed**；四文件 Ruff 检查与格式检查再次退出 0。`pytest -n0 -q --tb=short tests/architecture/test_trajectory_wait_inventory.py`，退出 0，**57 passed**，等待清单无需更新。独立审阅身份仅记录为独立上下文，不据此声称不同模型复审已完成。

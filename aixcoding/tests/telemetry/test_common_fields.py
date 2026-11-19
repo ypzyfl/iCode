@@ -76,13 +76,13 @@ def test_common_fields_keep_desktop_identity_and_omit_missing_git_fields() -> No
 
 
 @pytest.mark.parametrize(("workspace", "expected"), [("", ""), ("/work/actual-project", "actual-project")])
-async def test_input_skill_project_name_uses_only_the_session_workspace(
+async def test_model_skill_project_name_uses_only_the_session_workspace(
     tmp_path, monkeypatch, telemetry_capture, workspace, expected
 ) -> None:
     from chrys.foundation.events.bus import EventBus
-    from chrys.foundation.events.types import SessionReady
+    from chrys.foundation.events.types import InvocationToolCallStart, SessionReady
+    from chrys.foundation.models.invocations import InvocationOrigin
     from chrys.orchestration.aixcoding.telemetry.lifecycle import attach, detach
-    from chrys.service.aixcoding.telemetry.events import report_skill_reference
 
     monkeypatch.chdir(tmp_path)
     bus = EventBus()
@@ -92,11 +92,19 @@ async def test_input_skill_project_name_uses_only_the_session_workspace(
             SessionReady(session_id="skill-workspace", primary_cwd=workspace, agent_profile="Code"),
             raise_handler_errors=True,
         )
-        report_skill_reference("review", "skill-workspace", "Code", workspace)
+        await bus.publish(
+            InvocationToolCallStart(
+                origin=InvocationOrigin("turn", "skill-workspace", "turn-one", None),
+                call_id="load-review",
+                tool_name="load_skill",
+                args={"skill_name": "review"},
+            ),
+            raise_handler_errors=True,
+        )
     finally:
         await detach(bus)
-    [request] = telemetry_capture.requests
-    payload = json.loads(request.content)
+    payloads = [json.loads(request.content) for request in telemetry_capture.requests]
+    [payload] = [body for body in payloads if body.get("funcType") == 0]
     assert payload["funcType"] == 0
     assert payload["projectName"] == expected
     assert "requestId" not in payload
