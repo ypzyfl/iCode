@@ -8,7 +8,7 @@ name: AIxCoding Tests
 
 on:
   pull_request:
-    branches: [main_aixcoding_cli]
+    branches: [main_aixcoding_cli, feat/telemetry-exploration]
   push:
     branches: [main_aixcoding_cli]
   schedule:
