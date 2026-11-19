@@ -349,6 +349,19 @@ def lookup_source(source_id: str | None) -> ModelSource | None:
     return row[1]
 
 
+def lookup_pass_source(origin: InvocationOrigin, pass_id: str) -> ModelSource | None:
+    """Find facts from this exact pass, never the session's latest sibling call."""
+    now = time.monotonic()
+    return next(
+        (
+            source
+            for expires, source in reversed(_sources.values())
+            if expires > now and source.origin == origin and source.pass_id == pass_id
+        ),
+        None,
+    )
+
+
 def forget_session_sources(session_id: str) -> None:
     for key, (_, source) in tuple(_sources.items()):
         if source.session_id == session_id:

@@ -6,7 +6,7 @@
 
 | 需求 | 拟定入口 | 断言与场景 |
 | --- | --- | --- |
-| T01 | `test_model_wire.py` | 经 `_assemble_stack` 的真实模型客户端，对拍三种协议、流式、辅助调用、SDK retry、wire retry、stall fallback、blank/overflow 和 thinking-binding resend。服务端存储单列 POST 重建与 GET 续读，检查工具归属、额外请求字段及旧报文 ID 的等值关系。 |
+| T01 | `test_model_wire.py`、`test_system_fields.py` | 经 `_assemble_stack` 的真实模型客户端，对拍三种协议、流式、辅助调用、SDK retry、wire retry、stall fallback、blank/overflow 和 thinking-binding resend。真实标题、审批、压缩与旁路问答的最终 HTTP 报文检查项目/Git/代理字段，覆盖双会话交错、主/子/Workflow、同会话兄弟调用、不同 pass、过期来源、构建事实优先、无 pass、无登记/会话不匹配及安装路径排除。服务端存储单列 POST 重建与 GET 续读，检查工具归属、额外请求字段及旧报文 ID 的等值关系。 |
 | T02 | `test_tool_reports.py` | 实际工具中间件发布 Start/Result，覆盖成功、审批拒绝、审批改参、超时、失败和取消。断言 save/PENDING/终态顺序和字段缺省。按设计 §6，`tool-detail/update` 的开始态和终态均省略三项执行计时字段，其余字段按旧样本对拍。 |
 | T03 | `test_code_reports.py` | 真实写入和快照 A→B→A、CRLF、replace_all、空文件、纯删除、大文件。比较每次行数、片段范围和 `codeStatus`。 |
 | T04 | `test_tool_reports.py`、`test_acp_metadata.py` | 普通与追加技能引用不发送 funcType=0，但提醒仍进入模型输入；实际 load_skill 每次产生一条 funcType=0，验证 requestId、项目名、Git 来源及再次加载不漏计；保留 funcType=3 工具记录。ACP 正常/取消及选择 Agent 无模型请求，检查 envelope。 |

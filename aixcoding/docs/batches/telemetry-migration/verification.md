@@ -774,3 +774,27 @@ TUI 自动标题客户端没有构建期工作区，模型埋点此前省略 `pr
 - `python aixcoding/tools/check_r2_diff.py --base HEAD`、`python aixcoding/tools/check_r3_markers.py --base HEAD`、`python aixcoding/tools/check_docs.py --closure` 及 `git diff --check` 均退出 0。R2 日志 `/tmp/icode-project-name-r2.log`，无新增上游范围。
 
 独立上下文代理 `skill_usage_review` 两轮只读复核，无功能阻断。首轮发现新增 symlink 测试使用 skip 的治理问题，已改为无需权限的边界模拟；其余测试建议已补齐。第二轮确认测试与需求/设计/测试计划一致，未独立运行测试，不据此声称不同模型复审身份已证明。未提交或推送；仍待实际安装包及现场出站报文验证，不关闭生产对账等原开放项。
+
+### 2026-11-19 system 请求补齐有来源的工作区与代理字段
+
+起点 HEAD `a9b16962`。只读定位脚本 `/tmp/icode-system-fields-20261119.py`（证据 JSON `/tmp/icode-system-fields-evidence-20261119.json`）通过真实 SDK HTTP mock 调用标题、审批、LastWords 独立压缩和旁路问答：正常标题/审批有项目及 Git 但独立客户端无 agentName；压缩/旁路问答缺项目、Git 与 agentName。该脚本在修改前退出 0，6 个最终 HTTP 请求场景符合当时预期；不将其旧缺字段断言用于验证修复。
+
+修复限于定制 `service/aixcoding/telemetry/{model,events,context}.py`。共同来源优先级为已有构建事实 → 相同 origin（含 parent/attempt）和 pass_id 的未过期模型来源 → 可确认的 SessionReady 会话主事实。所有匹配会话的 side call 均可进入该补值流程；有子代理/Workflow pass 但来源缺失时，不借主 profile/工作区。无 pass 的标题及旁路问答可补同会话主 profile；无 pass 的审批/压缩仅补同会话工作区，profile 无法确认时继续省略。Git 按所得工作区取值，projectName 保持安装目录排除。没有构建或会话事实时仍省略；不会编造 spanId、userId 或 parentSpanId，也不覆盖主请求的 requestId/桌面最终响应元数据。
+
+`lookup_pass_source` 复用原来源缓存的 4096 上界与 1800 秒 TTL，同步查询无 await，没有新增后台任务、等待条目或上游文件。原有未跟踪 telemetry-exploration 目录与模型上报策略草案未修改；既有签认字段保持。
+
+本轮所有 uv 命令均使用 `UV_CACHE_DIR=/tmp/icode-cd-uv-cache uv run --offline --no-sync --no-python-downloads`，现有 Python 3.14.8，保留项目请求 3.14.10 警告；没有安装/升级依赖、连接生产或改变沙箱权限。
+
+- 修改产品前新增测试，运行 `pytest -n0 -q --tb=short aixcoding/tests/telemetry/test_system_fields.py`，退出 1，8 failed、8 passed；四类正常请求缺项目或 agentName，同会话 child/workflow 缺代理信息的断言复现失败。
+- 初次修复后执行 `pytest -n0 -q --tb=short aixcoding/tests/telemetry/test_system_fields.py aixcoding/tests/telemetry/test_model_wire.py`，退出 0，45 passed。补强后新增文件最终共 34 passed，退出 0。
+- 新文件通过真实 TitleUpdater、ApprovalJudge、LastWordsGenerator._generate_once 和 answer_side_question 捕获 SDK 请求。两会话 HTTP 屏障强制交错；同一会话先登记本 invocation，再登记兄弟调用后触发系统请求，检查字段仍来自原 pass。另覆盖构建事实优先、不同 pass、TTL 到期、无登记、轨迹会话不匹配、无 pass、安装项目名排除及无轮次 span 缺省。无生产调用或新增 skip。
+- 使用已有临时隔离插件复用测试自带 isolated_config：`PYTHONPATH=/tmp UV_CACHE_DIR=/tmp/icode-cd-uv-cache uv run --offline --no-sync --no-python-downloads pytest -n0 -q --tb=short -p icode_skill_isolation aixcoding/tests/telemetry`，最终退出 0，**136 passed**。此前补强前同命令为 127 passed。该结果是隔离测试配置下完整埋点专项通过，不等于统一验证或生产验收。
+- `pytest -n0 -q --tb=short tests/architecture/test_trajectory_wait_inventory.py tests/architecture/test_layering.py`，退出 0，**280 passed**。等待清单未变。
+- 对三个产品文件和新测试运行 `ruff check --no-fix`、`ruff format --check`，均退出 0。`ty check --error-on-warning --python-platform linux src/chrys` 及 darwin、win32 两种静态目标均退出 0，不冒充三平台实机测试。
+- `python aixcoding/tools/check_r2_diff.py --base HEAD`、`python aixcoding/tools/check_r3_markers.py --base HEAD` 均退出 0，upstream_changed=0。R2 日志 `/tmp/icode-system-fields-r2.log`。文档检查与空白检查按最终状态执行并记录。
+
+独立上下文代理 skill_usage_review 初轮只读审阅无阻断，未运行测试；其提出的无 pass、构建事实优先与过期来源覆盖已补。未证明不同模型身份。未提交/推送，实际安装包与后端入库仍待现场验收，不关闭原有开放项。
+
+最终文档检查 `python aixcoding/tools/check_docs.py --closure` 原生命令退出 **1**：工作区原有未跟踪目录 `aixcoding/docs/batches/telemetry-exploration/` 缺少 design/plan/requirements/self-review/test-plan/verification 六份必需文件，报 6 个错误。本轮未更改该目录，不为通过检查补签、删除或移动他人草稿。全仓库文档门禁保持失败；`git diff --check` 单独执行退出 0。独立复核发现 design §4.2 原“无 pass 只使用构建上下文”一句与本轮规则冲突，已改为遵循补值优先级和边界。测试通过不代表该文档缺口已关闭。
+
+普通 `python aixcoding/tools/check_docs.py` 在最终文档状态退出 0，check_docs: OK；`--closure` 复查仍为上述 6 个原有目录缺项，退出 1，未将普通检查结果替代闭环门禁。

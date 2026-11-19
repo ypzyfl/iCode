@@ -24,9 +24,15 @@ from chrys.service.aixcoding.telemetry.context import (
     desktop_prompt,
     detect_channel,
     load_settings,
+    lookup_pass_source,
     remember_source,
 )
-from chrys.service.aixcoding.telemetry.events import record_main_source, report_desktop_usage, session_workspace_cwd
+from chrys.service.aixcoding.telemetry.events import (
+    record_main_source,
+    report_desktop_usage,
+    session_agent_name,
+    session_workspace_cwd,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -86,15 +92,29 @@ class TelemetryModelMiddleware(ChatMiddleware):
         source = None
         try:
             cwd = self._facts.workspace_cwd if self._facts else ""
+            agent_name = self._facts.agent_name if self._facts else ""
+            scope = current_pass()
             if (
-                not cwd
+                side_call
                 and trace is not None
-                and trace.actor.role in (ActorRole.TITLE_GEN, ActorRole.APPROVAL_JUDGE)
                 and trace.session_id == self._session_id
+                and (scope is None or scope.origin.session_id == self._session_id)
             ):
-                cwd = session_workspace_cwd(self._session_id)
+                owner = lookup_pass_source(scope.origin, scope.pass_id) if scope is not None else None
+                if owner is not None:
+                    cwd = cwd or owner.workspace_cwd
+                    agent_name = agent_name or owner.agent_name
+                main_owner = scope is not None and scope.origin.kind in ("turn", "side_question")
+                session_side_call = scope is None and trace.actor.role in (ActorRole.TITLE_GEN, ActorRole.SIDE_QUESTION)
+                if main_owner or session_side_call:
+                    cwd = cwd or session_workspace_cwd(self._session_id)
+                    agent_name = agent_name or session_agent_name(self._session_id)
+                elif scope is None:
+                    # Legacy independent calls can confirm the session workspace,
+                    # but cannot identify the originating main or child profile.
+                    cwd = cwd or session_workspace_cwd(self._session_id)
             git = await asyncio.to_thread(collect_git_info, cwd) if cwd else None
-            source = self._prepare(context, side_call=side_call, cwd=cwd, git=git)
+            source = self._prepare(context, side_call=side_call, cwd=cwd, git=git, agent_name=agent_name)
         except Exception:
             logger.debug("Model telemetry preparation failed.")
         await call_next()
@@ -123,8 +143,9 @@ class TelemetryModelMiddleware(ChatMiddleware):
         elif isinstance(result, ChatResponse):
             record(result)
 
-    def _prepare(self, context: ChatContext, *, side_call: bool, cwd: str, git: GitInfo | None) -> ModelSource:
-        facts = self._facts
+    def _prepare(
+        self, context: ChatContext, *, side_call: bool, cwd: str, git: GitInfo | None, agent_name: str
+    ) -> ModelSource:
         scope = current_pass()
         prompt = desktop_prompt.get()
         origin = scope.origin if scope is not None else None
@@ -140,9 +161,7 @@ class TelemetryModelMiddleware(ChatMiddleware):
             span_id=str(uuid5(_ROOT_NAMESPACE, f"{session_id}:{turn_id}")) if turn_id else "",
             parent_span_id=str(uuid4()),
             channel=channel,
-            agent_name=(prompt.runner_name or "")
-            if prompt is not None and channel.type == "desktop"
-            else (facts.agent_name if facts else ""),
+            agent_name=(prompt.runner_name or "") if prompt is not None and channel.type == "desktop" else agent_name,
             workspace_cwd=cwd,
             git=git,
             origin=origin,

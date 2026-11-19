@@ -151,9 +151,13 @@ TUI 直接复用引擎事件。ACP、headless 和 Workflow 通过同一适配层
 
 目标 `service/llm/clients.py::_assemble_stack` 是已核实的统一模型组栈点，含 `ChatMiddlewareLayer(wire_client)`，覆盖主 Agent、内部辅助调用、子 Agent 等路径。优先在此装配企业 middleware，替代旧 `instrumented.py` 及三个 provider 工厂分别接线。该层形参为 `middleware: Sequence[ChatMiddleware] | None`，定制 `build_middleware()` 返回 middleware 序列后整体装入；禁用、装配失败或返回空序列时保持原空链。
 
-模型请求前构造旧 `extra_body.telemetry`，复制 options 与 extra_body 后合并旧字段。三个构建入口显式提供实际 Agent profile 和工作区，由定制包为原工厂调用绑定短生命周期构建作用域。包装器保持原工厂参数与异常语义，只调用原工厂一次，在同一任务内恢复上下文。子 Agent / Workflow 的企业 session 取父会话，模型传输继续使用各自路由。工作区切换后由引擎重建提供新的构建上下文。KernelConversation 用实际 RunRequest 与 pass 标识绑定定制上下文，调用结束恢复该绑定。没有本次 pass 的辅助调用仅使用其真实构建上下文。
+模型请求前构造旧 `extra_body.telemetry`，复制 options 与 extra_body 后合并旧字段。三个构建入口显式提供实际 Agent profile 和工作区，由定制包为原工厂调用绑定短生命周期构建作用域。包装器保持原工厂参数与异常语义，只调用原工厂一次，在同一任务内恢复上下文。子 Agent / Workflow 的企业 session 取父会话，模型传输继续使用各自路由。工作区切换后由引擎重建提供新的构建上下文。KernelConversation 用实际 RunRequest 与 pass 标识绑定定制上下文，调用结束恢复该绑定。辅助调用的字段补值遵循下述来源优先级与边界。
 
-自动标题生成和审批判断可复用会话工作区。客户端未携带构建期工作区时，middleware 仅在轨迹标记为标题生成或审批判断且会话 ID 一致时，读取该会话最近一次 `SessionReady` 提供的实际工作区，补齐 `projectName` 和可用的 Git 字段。已有构建期工作区优先；未登记工作区或会话不匹配时省略这些字段。2026-11-18 的审批修正覆盖主、子代理审批调用，位于既有定制 model.py 内，无新增上游接线或等待项。
+2026-11-19 系统请求补值口径扩展：标题、审批、压缩、旁路问答等 side call 在轨迹 session_id 与 middleware 会话一致，且已有 pass 的 session_id 也一致时，可补齐有真实来源的工作区和 agentName。优先级为客户端构建事实 → 相同 InvocationOrigin（含 attempt/parent）及相同 pass_id 的未过期模型来源 → 可确认的会话主事实。来源查询复用既有容量 4096、TTL 1800 秒缓存，不使用同会话 latest 或其他 pass 的请求，也不生成额外的上报请求。
+
+绑定主 turn/side_question 的调用可以复用同会话最近一次 `SessionReady` 的工作区及主 profile。没有 pass 的标题和旁路问答按其会话主调用语义补这两项；没有 pass 的审批/压缩只能确认会话工作区，不推断主/子代理 profile，agentName 仍省略。有子代理或 Workflow pass 但无匹配模型来源时，不借用主 profile 或主工作区；已有构建事实仍可使用。Git 以补得的工作区重新按现有缓存规则采集，projectName 继续经过安装目录排除编码。无轨迹或会话不匹配时不走此补值链，保留其已有构建事实及字段缺省。
+
+此调整只补有来源的 projectName/Git/agentName；不新增模型报文 userId/parentSpanId，不编造无轮次时的 spanId。desktop 模型请求继续省略 agentName。系统请求使用独立 requestId，不覆盖主请求来源或桌面最终响应元数据。2026-11-18 的标题/审批修正被本规则覆盖，无新增上游接线或等待项。
 
 每次 middleware 进入生成企业 `requestId` 与 LLM span，用内部 `model_source_id` 关联。企业轮次 `spanId` 使用旧 namespace、session 与当前轨迹 turn 的 UUID5 算法。缺少可确认的 turn 时按旧字段规则省略。provider ID 负责兼容旧 `funcId`。kernel 操作 ID 负责本地 Start / Result 配对。HTTP attempt ID 供对账诊断。
 
