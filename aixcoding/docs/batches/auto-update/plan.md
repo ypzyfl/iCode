@@ -126,3 +126,6 @@ finding-B 在 Windows wrapper 锚定安装脚本 `throw` 约定、finding-D
   上线后真实链路验证随后端就绪补充 verification.md；
 - `artifact.url` 解析保留不消费（design §3.1）——直装通道留后续批次；
 - 会话 id 公共访问通道实施时核对（design §9 假设 2），不可得则 relaunch 降级不带 `-s`。
+- 2026-11-19 内网实测修复轮：联调手册 `manual-testing.md` 已入库（触发方法、
+  接口清单、状态文件、排障速查），实机冒烟与内网复验以该文档为入口；
+  证据见 verification.md「2026-11-19 内网实测修复轮」。

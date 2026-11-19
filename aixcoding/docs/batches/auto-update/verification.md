@@ -746,3 +746,41 @@ PR CI 结论以网页 checks 为准。评审 HOWTO ②「换 AI 交叉」为 Q1 
 - design 以追加修订（十九）落法、不重签（§4.1，R2 清单 3 个上游文件
   及各自行数未变）；四件活文档以补记同步，已签认原行不改写。
 - 本轮**未执行 git 写操作**；提交说明另备，未 commit / 未 push。
+
+### 2026-11-19 内网实测修复轮（revision 20）
+
+范围：分支 `fix/auto-update-restart`（基线 31c9cfdc，PR #137）——c0d12395
+（离线包重启失败：镜像根钉死生产 origin + 裸命令名重启）、2aa88439（重启改
+新终端窗口启动），及两轮评审处置：高 1-4（死代码、修订编号对齐、分支/
+落盘、Linux 显示环境判定）、5-7（osascript 后台化、Windows 失败清单路径
+转义、argv0 回退移除→安装器目录探测 + None 降级）、F6（Windows 重启移出
+try，重启失败不计失败 tally，与 POSIX 对齐）、F8（osascript 参数
+shlex.quote 传递）、8-9（branding 插值、测试缺口与过时注释）。
+`manual-testing.md` 为本轮内网联调手册，随本节首入库，作为 §10 手动冒烟
+的入口文档。
+
+命令与结果（R8）：
+
+- `uv run ruff check` / `ruff format --check`（commands.py、runner.py、
+  test_runner.py 三文件）→ All checks passed! / 3 files left unchanged
+- `uv run pytest aixcoding/tests/auto_update/ -n0 -m "not integration and
+  not gc_calibration"` → **72 passed**（其中 test_runner.py 19 passed，含
+  新增：显示环境判定、无 launcher 的 None 降级、ps_quote 引号转义、
+  sh -n 语法回归 linux/darwin 双参、POSIX e2e 三件）
+- `uv run python aixcoding/tools/gen_customizations.py --strict` → check OK
+  — 106/154/20/24/0 warning
+- `check_docs.py --closure` → OK；`check_r2_diff --base HEAD` → OK，
+  upstream_changed=0（零上游接触面）
+- 生成脚本语法另经 sh -n 固化用例覆盖（linux/darwin 双 snippet × wrapper
+  全文；`&;` 嵌套回归即由该用例拦截）
+
+遗留与未做：
+
+- 上游套件 `tests/app/tui/widgets/test_chat_panel_scroll.py::
+  test_a_new_message_stops_a_scroll_animation_under_way` 在 CI 上为墙钟
+  竞态 flaky（1.0s 动画在慢 runner 上提前播完，走底部锚定分支），与本批
+  无关；根治建议（duration 加长）属上游 R2——**责任人 2026-11-19 裁决
+  本分支不动上游**，根治另行向上游流程提报。
+- `test_cd_release_versions.py` × 4 红属 cd 重写工作线，非本批。
+- 未做：Windows 实机冒烟（§10 第 8 项）、真实内网新窗口联调（待发版到
+  测试机复验）；CI 结论以网页 checks 为准。

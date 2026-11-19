@@ -170,6 +170,30 @@
 > 零新增豁免，按 DEVELOPMENT §4.1 不触发重签，头部签认字段保持责任人
 > 2026-11-12 本人落盘值。本条由 AI 追加、git 留痕，证据见
 > verification.md「Peer Review 推荐方案 A 修复」。
+> 2026-11-19（二十）内网实测修复（责任人现场裁决，AI 实施，fix 分支
+> `fix/auto-update-restart`，基线 31c9cfdc；同两提交曾落旧分支
+> `fix/aixcoding-auto-update-restart`（责任人 2026-11-19 裁决：旧分支由
+> 其自行处理，本批不动），追溯以本条为准）：
+> ① **镜像根临时写死生产 origin**
+> （不分环境）——dev 网关未发布裸 origin 的文件镜像路径，D4 推导地址在
+> dev 环境始终 400；dev 镜像发布后恢复推导。② **重启改裸命令名**——离线
+> 包入口脚本 shebang 指向构建机 mktemp 解释器，绝对路径 exec 报 ENOENT
+> （首次真实更新发现），PATH 可解析时用 `aixcoding-cli` 重启。③ **重启
+> 不再占用当前终端**（责任人内网实测截图裁决）：原 exec 方式使新 TUI 与
+> 用户 shell 输出交错；改为 wrapper 在**新终端窗口**启动——Linux 走
+> x-terminal-emulator/gnome-terminal/konsole/xterm 链、macOS 走 osascript
+> Terminal do script、Windows 走 Start-Process 新控制台；无窗口环境
+> （SSH/headless）打印手动启动提示后退出。更新在重启前已完成，三分支均
+> 不改更新成败语义。§3.4 的「exec 重启」措辞以本条为准；shebang 根治
+> （build_offline_dist 入口脚本改写）经责任人裁决本轮不做。
+> 本条后续处置（同日评审轮，AI 实施）：④ **pin 的已知副作用**——期间 dev
+> 环境检查走 dev 网关、安装装的是生产制品（跨环境混装），dev 镜像发布恢复
+> 推导后消除（**责任人 2026-11-19 确认可接受**）；**Linux 启动分支补显示
+> 环境判定**（DISPLAY/WAYLAND_DISPLAY），
+> 使「无窗口环境打印手动启动提示」的承诺成立；「无窗口环境」提示降级为
+> relaunch_argv 返回 None 时的唯一出路（不再执行注定失败的 argv0 回退）；
+> Windows 重启移出 try 块（重启失败不计失败 tally，与 POSIX 对齐）；
+> osascript 参数改 shlex.quote 传递（session_id 含单引号亦安全）。
 
 ## 0. 前置事实
 
