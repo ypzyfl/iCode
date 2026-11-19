@@ -14,7 +14,7 @@
 
 | 验收标准 | 测试用例 | 层次 |
 |---|---|---|
-| TUI 显示 position 与 0 文案 | `queue_note(0)` / `queue_note(3)` / `queue_note(9)` 分支断言 | 单元 |
+| TUI 显示 position 与 0 文案 | `queue_note(0)` / `queue_note(1..9)` 分支断言（「约 N 人」+ 操作建议；`queueSize` 不进文案） | 单元 |
 | WaitingRow 文案与高度 | 设置文案后 `render()` 含文本、`get_content_height` == 1 | 单元 |
 | 无排队行为不变 | 不调用 setter 时 `render()` 与改造前等价（只有 dot） | 单元 |
 | CLI 去重 | 同 position 两帧只输出一次；变化时再输出 | 单元 |

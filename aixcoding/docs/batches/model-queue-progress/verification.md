@@ -169,3 +169,27 @@ uv run python aixcoding/tools/check_docs.py
 结果：ruff `All checks passed!`；三平台 ty 均通过；`1302 passed, 44 skipped`；对账 `check OK — 133 row(s) / 196 marker(s)`；`check_docs: OK`。
 
 **本轮未跑**：`tests/app/tui` 全量（新签名只是给已有方法加默认参数，向后兼容；上一轮该套件 `4194 passed`）。
+
+## 2026-11-19 文案调整：改为「当前模型请求量大…」
+
+- 变更：`queue_note` 排队文案由「排队中 · 前方 N 个请求 · 共 M 个」改为
+  「当前模型请求量大，请求排队约 N 人，请稍候或切换至其他模型」；`position 0` 仍为「正在获取模型资源」。
+  `queueSize` 不再进文案（事件载荷与 ACP `queueSize` 字段不变），**推翻同日「展示 queueSize」的决定**，requirements 已同步。
+- 全角逗号触发 `RUF001`，采用行级 `# noqa: RUF001`（owner 指定文案，理由写在该行注释与文件 docstring）。
+- 测试：`test_queue_note_branches` 改为断言「约 N 人」与操作建议；`test_queue_note_does_not_show_the_queue_size`
+  断言总数不再渲染（`queue_note(2, 5) == queue_note(2)`）。
+
+实跑（mock scripted 网关，真实 CLI）：
+
+```text
+uv run aixcoding-cli run "你好" -a Code -m QueueMock -C <mock 目录>
+• Code Agent ready · QueueMock · session …
+• 当前模型请求量大，请求排队约 3 人，请稍候或切换至其他模型
+• 当前模型请求量大，请求排队约 2 人，请稍候或切换至其他模型
+• 当前模型请求量大，请求排队约 1 人，请稍候或切换至其他模型
+• 正在获取模型资源
+✓ Done · 6.1s · 0 tool calls
+```
+
+门禁：`aixcoding/tests/llm` 49 passed、`ruff check` / `format` 通过、`ty`（win32）通过、`check_docs --closure` OK。
+**局限**：TUI 未截图（文案与 CLI 同源 `queue_note`，只用同一套单元断言；WaitingRow 单行渲染不因文案变化改高度）。

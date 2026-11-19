@@ -57,28 +57,23 @@ def _data_chunk(text: str) -> Any:
 
 
 def test_queue_note_branches() -> None:
-    """The copy distinguishes release, next-up, short queues and long queues."""
+    """Release, next-up and every queued position get their own copy."""
     from chrys.kernel.aixcoding.queue_progress import queue_note
 
     assert queue_note(-1) == ""
     assert queue_note(0) == "正在获取模型资源"
-    assert "2" in queue_note(2)
-    assert "3" in queue_note(3)
-    assert "4" in queue_note(4)
-    # The long-queue branch adds the actionable hint; the short one must not.
-    assert queue_note(4) != queue_note(3)
+    for position in (1, 2, 4, 9):
+        note = queue_note(position)
+        assert f"约 {position} 人" in note
+        assert "请稍候或切换至其他模型" in note
 
 
-def test_queue_note_reports_the_queue_size() -> None:
-    """The total queue length is shown once the gateway reports it."""
+def test_queue_note_does_not_show_the_queue_size() -> None:
+    """The total is accepted but not rendered: the copy speaks about the position only."""
     from chrys.kernel.aixcoding.queue_progress import queue_note
 
-    note = queue_note(2, 5)
-
-    assert "前方 2 个请求" in note
-    assert "共 5 个" in note
-    # Without a reported total the note stays as before, for callers that lack it.
-    assert "共" not in queue_note(2)
+    assert queue_note(2, 5) == queue_note(2)
+    assert "共" not in queue_note(2, 5)
 
 
 def test_queue_status_event_passes_the_headless_boundary() -> None:
