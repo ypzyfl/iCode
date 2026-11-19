@@ -56,17 +56,21 @@
 
 ## Session 文件重建正确性矩阵
 
-详细实验见 `research/session-reconstruction.md` 与 `experiments/session-reconstruction.md`。方向 reader 只接收 session_dir/session_id 和可选 expected turn，不使用 live message 或已知 A/T。
+详细实验见 `research/session-reconstruction.md` 与 `experiments/session-reconstruction.md`。当前方向 reader 只接收 session_dir/session_id 和可选 expected logical turn，不使用 live message 或已知 A/T；F2 裁决要求生产 reader 增加 expected pass 契约，V2 完成前不得声称已具备 pass 隔离。2026-11-19 F5 裁决保留既有精确数量断言，并统一标记完整支持、批准降级和待判别场景；空结果不得替代正常场景的完整性验收，也不设虚构覆盖率百分比。
 
-| 场景 | 必须区分的预期 | 当前证据 |
-|---|---|---|
-| 正常两轮/三模型响应 | 3 LLM/1 tool/1 ai-code，tool/ai-code取第二轮A1/T，重复分析完全一致 | 真实文件组合通过 |
-| 工具终态 gap | LLM保留，tool/ai-code为空，sequence hole标trajectory-untrusted，不从function_result猜成功 | 删除真实finished事件+verify_accounted_prefix通过 |
-| after blob缺失 | LLM/tool保留，ai-code跳过，不读当前工作区补历史 | read_blob=None降级通过 |
-| save=False | expected turn不存在则空报并skip；不得把旧session当本轮 | suppressed save组合通过；无guard只返回旧轮，风险已实证 |
-| fork继承 | 父历史不以新sessionId重报；无本地events标trajectory-absent | 真实fork文件通过 |
-| compaction | 当前轮A-final可按opener/nonmarker；archive仅有限去重fallback，不承诺完整补报 | Phase3保留原消息已核正；源码+上游2项锚点，真实engine×reader/去重组合待做 |
-| 全量edit/真实脱敏会话 | edit blocks准确、真实样本覆盖率可量化 | 留实施/授权样本，不宣称完成 |
+| 场景 | 分类 | 预期数量、必需字段与允许跳过 | 当前证据 |
+|---|---|---|---|
+| 正常两轮/三模型响应 | 完整支持 | 3 LLM/1 tool/1 ai-code；requestId/spanId/funcId/reportId及必要内容齐全，tool/ai-code取第二轮A1/T，不允许跳过 | 真实文件组合通过，重复分析完全一致 |
+| 工具终态 gap | 批准降级 | 原样本2 LLM/0 tool/0 ai-code；记录trajectory-untrusted和outcome unknown，不从function_result猜成功 | 删除真实finished事件+verify_accounted_prefix通过 |
+| after blob缺失 | 批准降级 | 原样本2 LLM/1 tool/0 ai-code；记录blob/args原因，不读当前工作区补历史 | read_blob=None降级通过 |
+| save=False | 批准降级 | 当前turn/pass为0 LLM/0 tool/0 ai-code并记录expected-turn-not-saved；不得把旧session当本轮 | suppressed save组合通过；无guard只返回旧轮，风险已实证 |
+| fork继承 | 完整防重 | 继承turn为0 LLM/0 tool/0 ai-code；无本地events记录trajectory-absent，不以新sessionId重报父历史 | 真实fork文件通过 |
+| trajectory absent/disabled | 批准降级（异常路径） | 可归属成功LLM按实际M计数；当前reader为0 tool/0 ai-code并记录缺失/不可信原因，不伪造终态 | absent已有局部证据；完整disabled组合待做 |
+| V1 延迟读取×下一轮保存 | 待判别 | 前一pass记录数等于其实际成功执行数，A/T/mutation/blob关联及必需字段完整；不得混入下一pass | 第一批前置，未执行 |
+| V1 延迟读取×回滚/压缩 | 待判别 | 不跨pass、A/T或mutation错配；逐项列出恢复与跳过记录，跳过是否足够由责任人裁决 | 第一批前置，未执行 |
+| V2 同logical两个pass | 待判别 | 首任务pending/running/completed时新pass均不丢失；同pass纯重放不重复，前序来源仅用于关联，旧工具不重报；1001仍一条 | 第一批前置，未执行 |
+| V3 当前轮真实压缩 | 待判别 | 同turn早期A1/T/代码修改经实际压缩后，恢复数量、关联和必需字段满足完整或经批准降级；不能恢复则停止扩张回评 | 第一批扩大开发前，未执行；完整矩阵留批次3 |
+| 全量edit/真实脱敏会话 | 待实施/授权样本 | edit blocks准确、逐场景预期数量和必需字段明确；真实样本覆盖率可量化 | 不宣称完成 |
 
 ## 性能与队列生命周期矩阵
 
@@ -75,7 +79,7 @@
 | 场景 | 必须区分的预期 | 当前证据 |
 |---|---|---|
 | 全量 vs expected-turn | 当前轮报文完全一致；expected过滤不应当作I/O优化 | 30轮等价断言通过，两者均约7→38ms线性增长 |
-| 通知去重 | 只处理expected当前轮，进程内合并；重试靠后端幂等 | 设计结论；生产dispatcher未实现 |
+| 通知去重 | 普通通知按session/logical turn/pass合并同pass重复，新pass在pending/running/completed均不丢弃；1001仍按logical turn一条；记录级幂等作第二道防线 | 2026-11-19 F2裁决的设计口径；生产dispatcher未实现，V2待执行 |
 | 持久化高水位 | 仅为性能缓存，不为已排除的崩溃补报服务 | 不作为正常正确性前置 |
 | 同session FIFO | 前项阻塞时后项不开始，释放后有序 | 队列原型通过 |
 | 跨session并发 | 两session reporter可同时执行 | 队列原型通过 |

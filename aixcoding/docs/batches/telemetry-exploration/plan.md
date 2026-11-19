@@ -4,31 +4,30 @@
 
 ## 当前环节与下一步（新对话先看本节）
 
-### 当前所在环节：探索批次交付收口
+### 当前所在环节：批次1实施准备
 
-截至 2026-11-17，以下工作已经完成：
+截至 2026-11-19，以下工作已经完成：
 
 1. 方向性调查、判别实验、风险与后台契约整理；
 2. 另一 AI 的独立评审和复审，五项分歧及残留建议均已收敛；
-3. 责任人确认三个实施批次、mock 归属批次1、独立 telemetry 集成分支及实验测试保留策略；
+3. 责任人确认三个实施批次、mock 归属批次1、独立 telemetry 集成分支及实验测试保留策略（组织方案后修订为长期根分支模式）；
 4. 探索文档门禁和实验证据记录；
-5. 最终交付复查（2026-11-17）：四个实验测试 30 passed、全目录 ruff format（454 files）、gen_customizations --strict（0 warnings）、check_docs、git diff --check 全部 exit 0，证据见 verification.md 末节。
+5. 最终交付复查（2026-11-17）：四个实验测试 30 passed、全目录 ruff format（454 files）、gen_customizations --strict（0 warnings）、check_docs、git diff --check 全部 exit 0，证据见 verification.md 末节；
+6. OpenAI Codex 技术评审 F1–F6 已按修订口径裁决并完成文档处置；V1–V3 判别实验未执行，相关发现未验证关闭。
 
 **探索 commit 已落长期分支 `feat/telemetry-exploration`（`7f3fe332`，2026-11-19）并推送 origin；按 2026-11-19 责任人裁决不创建探索独立 PR，该分支为长期根分支。**尚未修改 CI workflow、未编写任何生产 telemetry 实现，也未开始批次1的实施 design/R2。新对话必须以实际 `git status`、签认头部与文末实施策略为准。
 
-### 唯一下一步：完成探索批次的独立交付
+### 唯一下一步：批次1实施 design/R2 与长期分支 CI 触发准备
 
-> 2026-11-19 状态：探索 commit `7f3fe332` 已落分支 `feat/telemetry-exploration` 并推送 origin。**组织裁决变更（2026-11-19 责任人）：不创建探索独立 PR**——该分支为**长期根分支**，方案未确定前不合并 `main_aixcoding_cli`；后续每块工作基于它再建分支（如 `feat/telemetry-session-analysis`），做好后 PR 合回本分支；全部完成后再整体并入主干；若 session 分析路线最终不可行则整体废弃、不并入。签认边界不变：仍处探索阶段，实施遇到无法解决的问题时方案可能被推翻（self-review.md 签认头部意见、顶部引注及末节）。
+> 2026-11-19 状态：探索 commit `7f3fe332` 已落长期根分支 `feat/telemetry-exploration` 并推送 origin，探索批次签认和最终双 AI 自审均已完成；**不创建探索独立 PR**。OpenAI Codex 技术评审的 F1–F6 已由责任人按修订口径全部裁决：F1 记录级一致性、F2 pass 级执行归属、F3 当前轮压缩最小实验前置，F4 仅阻塞最终替代交付，F5 补统一完整性矩阵，F6 过期指令已清理。F1–F5 不因裁决而视为验证关闭。
 
-新对话不要重做探索或直接进入生产开发，应按以下顺序执行：
+新对话不要重做探索、重复签认或直接进入生产开发，应按以下顺序执行：
 
-1. 核查 `self-review.md`、`verification.md` 和四个实验测试是否完整，并实际运行最终测试、`uv run ruff format --check aixcoding/`（全目录口径，含 md 内嵌 Python）、`uv run python aixcoding/tools/gen_customizations.py --strict`（须 exit 0）、`check_docs.py` 和 `git diff --check`；
-2. 请责任人裁定现有 GLM、Deepseek 和另一 AI 的评审记录是否满足最终双 AI 自审；不足则先补一轮，不直接跳到签认；
-3. 上述复查和评审轮次满足后，请责任人在 `self-review.md` 完成最终签认；
-4. 经责任人逐条授权后，为探索批次建立独立特性分支（建议 `feat/telemetry-exploration`），提交并创建目标为 `main_aixcoding_cli` 的独立 PR；
-5. 探索 PR 合并后，才进入下方“探索交付后的实施顺序”。
+1. 按下方实施顺序准备长期分支 PR 双 CI，以及批次1 `requirements/design/test-plan`、mock design/DIRECTORY 修订和本批 D1 裁决；实施 design 必须列入 V1 延迟读取、V2 同 logical 两 pass、V3 当前轮真实压缩及 F5 支持/降级矩阵；
+2. 批次1和 mock design/R2 经责任人签认后，才开发 after_turn→reader→reporter→单端口 mock 垂直切片；V1–V3 未通过不得扩大 reporter/ACP 开发，必要补采、快照或锁及其成本须重新呈报；
+3. 各工作块完成验收后 PR 合回长期根分支；全部完成或确认失败才决定整体并入主干或废弃。
 
-当前步骤只交付文档和测试态实验，**不修改产品代码，不提前实施 mock/reporter，也不创建生产集成分支**。
+当前裁决只处置评审发现和文档，**不授权修改产品代码、实施 mock/reporter、修改 workflow 或执行 Git 写操作**。
 
 ### 探索交付后的实施顺序
 
@@ -143,7 +142,7 @@
 
 | 顺序 | 批次 | 核心范围 | 上游 R2 候选 | 主要退出条件 |
 |---|---|---|---|---|
-| 1 | `telemetry-after-turn-slice` | run-owned 身份、direct dispatcher、per-session owner/flush、expected-turn reader、独立 LLM/tool/ai-code reporter；mock 包含 1A 单端口骨架和 1B 本切片所需保存/join/幂等/冲突 | `run/turn_state.py`、`run/runner.py`、`run/finalizer.py`、`engine/session_lifecycle.py`；workflow/mock design 影响按实际文件登记 | 真实 A1→write_file→A2 到单端口 mock 的闭环；无 hooks、save=False、trajectory disabled、A1≠A2、正常 flush 通过 |
+| 1 | `telemetry-after-turn-slice` | run-owned 身份、direct dispatcher、per-session owner/flush、expected logical turn+pass reader、独立 LLM/tool/ai-code reporter；V1 延迟读取、V2 两 pass、V3 当前轮真实压缩及 F5 支持/降级矩阵；mock 包含 1A 单端口骨架和 1B 本切片所需保存/join/幂等/冲突 | `run/turn_state.py`、`run/runner.py`、`run/finalizer.py`、`engine/session_lifecycle.py`；若判别需要快照/锁或新增接缝，重新呈报 R2；workflow/mock design 影响按实际文件登记 | 真实 A1→write_file→A2 到单端口 mock 的闭环；无 hooks、save=False、trajectory disabled、A1≠A2、正常 flush 通过；V1–V3 判别完成且恢复/跳过清单经责任人裁决后才扩大 reporter/ACP 开发 |
 | 2 | `telemetry-acp-desktop` | ACP 输入捕获、selected Agent 1001、desktop 上下文、锁内 live-history 输出选择、final-model-identity/attribution、真实桌面 schema | `app/acp/server.py` | 输入/输出与桌面消费闭环；1001 每 logical turn 一条且关联首个成功 A，最终响应通常关联 A2；并发、save=False、取消不串值 |
 | 3 | `telemetry-parity-hardening` | M1-T、0.28 全字段 parity、slash/local child/hosted 保留场景、BR-9/BR-10、compaction/edit/脱敏、长会话/背压/全局资源关闭 | 由本批次 design 另行裁决 | 字段和异常矩阵关闭，所有保留/删除/差异有依据；offset 缓存是否实施由实测决定 |
 
@@ -162,14 +161,14 @@ main_aixcoding_cli
 
 - 各工作块分支从长期根分支切出，PR 回合到长期根分支；每块仍独立 requirements/design/R2/verification，不把长期分支变成不可审的巨型提交。
 - 当前 `aixcoding-tests.yml` 和 `aixcoding-upstream-ci.yml` 仅对目标为 `main_aixcoding_cli` 的 PR 自动触发。**首个工作块 PR 前，必须在实施 design 中登记并修改这两个 workflow 的 `pull_request.branches`，加入 `feat/telemetry-exploration`，并实证工作块 PR 双 CI 运行**；该 workflow 改动本身可直推长期根分支（一次性、低风险，人工核验）。不能只本地跑测试代替。
-- 长期根分支定期同步 `main_aixcoding_cli` 以限制漂移。最终 `feat/telemetry-exploration → main_aixcoding_cli` 整体合并前完成全部批次验收、整体回归、文档签认和最终 PR 双 CI；若主干会直接用于发布，真实后台内网冒烟也必须在合并前通过。
+- 长期根分支定期同步 `main_aixcoding_cli` 以限制漂移。最终 `feat/telemetry-exploration → main_aixcoding_cli` 整体合并前完成全部批次验收、整体回归、文档签认和最终 PR 双 CI；F4 同时要求以已交付 0.35.2 为基线完成保留/复用/替换/删除清单、唯一生产发送权、后台/桌面切换与回退验证，不默认要求历史数据迁移或提前选定开关机制；若主干会直接用于发布，真实后台内网冒烟也必须在合并前通过。
 - 本策略只是已确认的组织方案，不是修改 workflow 或执行 Git 写操作的授权；实际命令仍逐条授权。
 
 ### `aixcoding/tests/telemetry/` 处置
 
-**明确结论：四个文件都应该提交；已随长期根分支首个 commit `7f3fe332` 落地（2026-11-19），不等待任何实施批次。**四个文件为 `test_tool_identity_persistence.py`、`test_request_identity.py`、`test_after_turn_queue.py`、`test_acp_response_identity.py`。
+**明确结论：四个文件已随长期根分支首个 commit `7f3fe332` 提交并推送（2026-11-19），不创建探索独立 PR，也不等待任何实施批次。**四个文件为 `test_tool_identity_persistence.py`、`test_request_identity.py`、`test_after_turn_queue.py`、`test_acp_response_identity.py`。
 
-提交顺序为：探索最终测试/ruff/文档门禁复查 → 责任人完成 self-review 签认 → 在探索特性分支中将这四个文件与探索文档一起纳入提交和同一个独立 PR → CI 通过后随探索 PR 合并主干。可以在 PR 内按文档/测试分 commit，但不得继续只留在本地，也不拖到 after_turn/ACP 实施批次才提交。
+后续不再重复探索提交或 PR 步骤；工作块 PR 只携带该工作块实际变更。正式实现有等价或更强覆盖前，四个实验文件继续保留。
 
 它们用于复现 M0/M1、session 重建、队列和 N7 方向证据，位于根定制开发资产目录，不进 wheel，不影响生产运行，也不移入上游 `tests/`。
 

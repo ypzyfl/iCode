@@ -134,7 +134,7 @@ mutation → tool operation → parent exchange / assistant message
 
 ## 9. 后续讨论与沟通顺序
 
-1. 主要节点已收敛：独立评审/复审已完成，责任人已裁决实施组织（三批次+集成分支，2026-11-17）并签认探索批次；剩余 R2 授权待批次1 requirements/design（探索 PR 合并后启动），不以本导航代替批次 design。
+1. 主要节点已收敛：独立评审/复审已完成，责任人已裁决实施组织并经 2026-11-19 修订为长期根分支模式，探索批次已签认且 commit 已落分支；OpenAI Codex 技术评审 F1–F6 已裁决，F1–F3 对应 V1–V3 是批次1前置判别。剩余 R2 授权待批次1 requirements/design 签认后启动，不以本导航代替批次 design。
 2. 首个开发切片建议为真实 after_turn→reader→reporter→mock；共同 golden、外部 requestId 存储 join、工具/ai-code final DTO 与原子幂等在实现中验证。
 3. 随后完成真实 ACP server×桌面闭环：按 session/turn 输入捕获、selected Agent 1001/desktop 上下文、prompt_lock 内 live-history 选择、A2 原值、attribution 和 `final-model-identity`（桌面 schema 放宽接受 32hex）；Git 精度语义继续留实施。
 4. funcId 与 B4 已确认，B5/P2 三个执行时间字段已全部删除；slash 去重、cancelled/interrupted 和真实嵌套父 turn 按实际场景留实施/联调。

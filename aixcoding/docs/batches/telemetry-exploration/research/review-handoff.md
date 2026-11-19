@@ -2,7 +2,7 @@
 
 > 截至 2026-11-17。本文是交给后续评审 AI 的**当前有效结论入口**，只汇总已探索方案、推荐路线、风险、外部依赖和未证明事项；详细证据以链接专题为准。
 >
-> 当前状态（2026-11-19 更新）：主要方向性调查和独立评审/复审已收敛；责任人已裁决实施组织并经 2026-11-19 修订为**长期根分支模式**——`feat/telemetry-exploration` 为长期分支（探索 commit `7f3fe332` 已在其上，不建独立 PR、不提前合并主干），后续工作块基于它建分支、做好后 PR 合回，全部完成或确认失败（session 分析不可行则废弃）才整体并入 `main_aixcoding_cli`；mock 归属批次1，见 `../plan.md` 实施策略节。探索批次已签认（2026-11-17），后续裁决依次落盘：BR-1 语义修订（服务器不做成功判定）、ID 原值裁决（全部 ID 保持 32hex 不转 UUID）、上报过滤需求（仅报 catalog 下发模型）、BR-8 撤销（不新增 providerCallId）、parentSpanId 语义差异项澄清。下一环节为批次1 requirements/design/R2 与长期分支 CI 触发调整。**本文不是实施 design，不授权上游修改或 Git 写操作。**
+> 当前状态（2026-11-19 更新）：主要方向性调查和独立评审/复审已收敛；责任人已裁决实施组织并经 2026-11-19 修订为**长期根分支模式**——`feat/telemetry-exploration` 为长期分支（探索 commit `7f3fe332` 已在其上，不建独立 PR、不提前合并主干），后续工作块基于它建分支、做好后 PR 合回，全部完成或确认失败（session 分析不可行则废弃）才整体并入 `main_aixcoding_cli`；mock 归属批次1，见 `../plan.md` 实施策略节。探索批次已签认（2026-11-17），后续裁决依次落盘：BR-1 语义修订（服务器不做成功判定）、ID 原值裁决（全部 ID 保持 32hex 不转 UUID）、上报过滤需求（仅报 catalog 下发模型）、BR-8 撤销（不新增 providerCallId）、parentSpanId 语义差异项澄清。OpenAI Codex 技术评审 F1–F6 已按修订口径裁决：V1 延迟读取、V2 两 pass、V3 当前轮真实压缩是批次1前置判别，F4/F5 分别列入最终交付和完整性验收，F6 文档冲突已清理。下一环节为批次1 requirements/design/R2 与长期分支 CI 触发调整。**本文不是实施 design，不授权上游修改或 Git 写操作。**
 
 ## 1. 执行结论
 
@@ -224,12 +224,19 @@ B7/B8 均因责任人表示暂时无能力技术评审而明确委托 AI 制定�
 
 ## 12. 尚未调查或尚未证明
 
-### 留待实施/联调，不再阻塞开工决策
+### 批次1扩大开发前的判别门禁（2026-11-19 责任人裁决）
+
+- V1 延迟读取：正常追加后前一 pass 精确重建；回滚/压缩后不跨 pass、A/T 或 mutation 错配；逐项列出恢复与跳过记录，由责任人裁决降级是否足够以及是否需要快照或锁。
+- V2 同 logical 两 pass：首任务 pending/running/completed 时新 pass 均不丢失，同 pass 纯重放不重复；区分当前执行、前序关联来源和继承内容，旧工具不重报，1001 仍每 logical turn 一条。
+- V3 当前轮真实压缩：同 turn 早期 A1/T/代码修改经实际压缩后，仅凭保存数据核对恢复数量、关联和必需字段；不能恢复且不接受降级时停止扩张并回评补采/快照成本。
+- F5 统一矩阵：保留既有精确记录数断言，逐场景列完整支持、批准降级、不支持及必需字段，不设虚构覆盖率阈值。
+
+### 留待实施/联调
 
 - 生产 after_turn→reader→reporter→mock 最小垂直切片及真实保存/join。
 - M1-T：语义重放 200、不新增、同键冲突 409、并发原子唯一、孤儿晚到和 read-your-writes。
 - 真实 ACP server、输入捕获、selected Agent 1001、prompt_lock、attribution、`final-model-identity`、桌面 Zod 与并发/save=False。
-- 真实 engine compaction×reader、archive 去重、Phase 4、完整 edit 和授权脱敏样本。
+- 完整 compaction 矩阵、archive 去重、Phase 4、完整 edit 和授权脱敏样本可留批次3，但不替代上述最小 V3 前置判别。
 - 长会话、大 blob、慢盘、queue depth/背压和真实入口 flush。
 - slash 恰好一次、cancelled/interrupted、真实嵌套 turn 父 ID、Git 精度、公共字段 parity 和中间 attempt 后台口径。
 - D1 旧缺陷修复建议逐项裁决、上游提案通用性评审和 N11 推进顺序。
@@ -244,19 +251,19 @@ B7/B8 均因责任人表示暂时无能力技术评审而明确委托 AI 制定�
 
 ## 13. 建议的首个开发切片
 
-评审已收敛；实施批次经责任人签认和 R2 批准后，首个开发切片只建议打通：
+评审分歧及 F1–F6 裁决已收敛；实施批次经责任人签认和 R2 批准后，首个开发切片只建议打通：
 
 ```text
 真实 A1→write_file→A2
-  → 真实 after_turn 通知
-  → expected-turn 文件 reader
+  → 真实 after_turn 通知（session+logical turn+pass）
+  → pass 级执行归属与前序来源关联 reader
   → per-session reporter
   → mock 保存独立 LLM/tool/ai-code 并 join
 ```
 
-同时验证无 hooks、save=False、trajectory disabled、正常 flush 和 A1/A2 不错连。真实 ACP×桌面作为紧随其后的独立切片，完整 M1-T 异常矩阵随后展开，不把首个切片扩大成全量功能。
+同时验证无 hooks、save=False、trajectory disabled、正常 flush 和 A1/A2 不错连；V1–V3 未通过不得扩大 reporter/ACP 开发。真实 ACP×桌面作为紧随其后的独立切片，完整 M1-T 异常矩阵随后展开，不把首个切片扩大成全量功能。
 
-独立评审/复审均已确认主路线无方向性反例，五项分歧全部收敛。实施时必须保留：BR-9/BR-10（BR-8 已于 2026-11-19 撤销）、0.28 全字段 parity 的 M1-T/联调关闭门禁、N7 输入捕获与 1001 去重链、N1-A middleware 时序/registry 完整成本。失败模型零上报和 eventSubType=success 的统计差异同样进入 parity。
+独立评审/复审均已确认主路线无方向性反例。实施时必须保留：BR-9/BR-10（BR-8 已于 2026-11-19 撤销）、0.28 全字段 parity 的 M1-T/联调关闭门禁、N7 输入捕获与 1001 去重链、N1-A middleware 时序/registry 完整成本。失败模型零上报和 eventSubType=success 的统计差异同样进入 parity。最终替代交付另须完成 F4：以已交付 0.35.2 为基线的保留/复用/替换/删除清单、唯一生产发送权、后台/桌面切换与回退；不默认要求历史数据迁移或提前选定开关机制。
 
 ### 已确认的实施组织
 
@@ -264,7 +271,7 @@ B7/B8 均因责任人表示暂时无能力技术评审而明确委托 AI 制定�
 
 生产代码先隔离于长期根分支 `feat/telemetry-exploration`（2026-11-19 修订，取代原 `feat/telemetry-session-analysis` 集成分支方案），各工作块分支从它切出并 PR 回合，全面验证后整体合并 `main_aixcoding_cli`——若 session 分析路线最终不可行则整体废弃、不并入。首个工作块 PR 前必须把 `feat/telemetry-exploration` 加入 `aixcoding-tests.yml` 和 `aixcoding-upstream-ci.yml` 的 PR 触发并实证双 CI，因为当前只对目标为主干的 PR 自动运行。
 
-`aixcoding/tests/telemetry/` 四个测试态实验文件全部在当前探索批次独立 PR 中提交，不等待实施批次；不进 wheel、不移入上游 tests。正式生产实现及等价/更强覆盖合并后，再逐项裁决精简或退役。完整分支、验收、最终双 AI 自审判定和 CI 约束见 `../plan.md`。
+`aixcoding/tests/telemetry/` 四个测试态实验文件已随长期根分支首个 commit `7f3fe332` 提交并推送，不创建探索独立 PR，也不等待实施批次；不进 wheel、不移入上游 tests。正式生产实现及等价/更强覆盖合并后，再逐项裁决精简或退役。完整分支、验收、最终双 AI 自审判定和 CI 约束见 `../plan.md`。
 
 ## 14. 证据导航
 

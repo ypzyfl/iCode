@@ -1237,3 +1237,17 @@ uv run --no-sync pytest /private/tmp/icode-telemetry-review-71501235/test_after_
 ### 交付边界
 
 本轮实际验证不包括真实后台/桌面、新生产 dispatcher、私人 session 或新压缩组合实验。只读差异检查使用 `git diff --check`，新文件另做尾随空格及本地链接目标检查；不运行全量产品测试，不声称六个发现已处置。Git 写操作仍逐条授权，本节不预填 commit/push 成功记录。
+
+## 2026-11-19 F1–F6 裁决与文档处置复核
+
+责任人明确“全部按推荐口径裁决”。本轮将 Codex 修订后的第 9 节纳入 `research/technical-review-2026-11-19.md`，在 `self-review.md` 记录六项裁决及未关闭边界；同步修订 requirements、plan、test-plan、review-handoff、after-turn-lifecycle、performance-and-lifecycle 和 session-reconstruction。随后按责任人要求复查关联遗漏，补齐 requirements 状态段、plan 完成清单、review-handoff 与 open-risks 头部状态、new-version-solution-map 后续顺序，并全目录检索旧探索 PR 指令和旧通知合并键：现行有效入口 0 残留，唯一命中为 verification 历史记录。未修改探索 design.md 正文、ADR、产品代码或测试代码，未执行 Git 写操作。
+
+处置内容：F1 采用记录级事实一致和关联正确口径，不预设全局原子快照；F2 普通通知/reader 补 pass 级执行归属、前序来源和纯重放边界，1001 保持每 logical turn 一条；F3 最小真实当前轮压缩实验前置；F4 单写/切换/回退仅列入最终替代交付；F5 保留精确数量断言并补统一支持/降级矩阵；F6 清理 plan、review-handoff 与 new-version-solution-map 的过期独立 PR 指令，历史验证记录不回写。
+
+门禁命令：
+
+```cmd
+cd /d D:\Tech\Github\huawei\iCode\fork\iCode-fork && set "PYTHONPATH=" && set "PYTHONUTF8=1" && uv run ruff format --check aixcoding/ && uv run python aixcoding/tools/gen_customizations.py --strict && uv run python aixcoding/tools/check_docs.py --closure && git diff --check
+```
+
+结果：全目录 `463 files already formatted`；registry `106 registration rows / 154 markers / 20 designs / 24 retired ids / 0 warnings`；closure 扫描 27 ADR / 49 design / 48 self-review 并返回 `check_docs: OK`；`git diff --check` 无输出。全部 exit 0。此处只证明文档与登记门禁通过；V1–V3 未执行，F1–F5 未因此验证关闭，也未运行产品测试或宣称可替代已交付 0.35.2。

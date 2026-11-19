@@ -34,11 +34,14 @@
 
 本任务明确 best-effort、允许孤儿且不做崩溃补报，因此正常正确性不要求持久化全局高水位：
 
-- 通知层：按 `(sessionId, expectedTurnId)` 合并进程内重复 after_turn；
-- 记录层：使用已经确定的 requestId/funcId/reportId 幂等键，重试和跨进程语义重放由后台去重；
+- 通知层：普通分析通知按 `(sessionId, logicalTurnId, passId)` 合并同 pass 重复；不同 pass 在首任务 pending/running/completed 时均不得静默丢弃。selected Agent 1001 仍按 `(sessionId,logicalTurnId)` 保持一条，不随普通通知改为每 pass 一条；
+- reader：区分当前 pass 新执行、为关联所需的前序来源和 retry 纯重放/继承内容，不得每 pass 重报整个 logical turn；
+- 记录层：使用已经确定的 requestId/funcId/reportId 幂等键作为第二道防线，重试和跨进程语义重放由后台去重；
 - fork：只处理本 fork 显式执行的本地 turn，不主动扫描继承历史；
-- save=False：通知层直接跳过，reader 再做 expected-turn 防御；
+- save=False：通知层直接跳过，reader 再做 expected-turn/pass 防御；
 - 重启：不补扫旧历史，所以无需为“崩溃后恢复所有未报记录”设计 cursor。
+
+异步 worker 读取不受 FIFO 对 engine 写入的保护。2026-11-19 F1 裁决以记录级事实一致和关联正确为目标，不预设全局原子快照：正常追加后旧 pass 仍应精确重建；回滚/压缩后不得拼接不兼容、归属不同或证据不足的事实；不可恢复时显式记录并由责任人裁决该降级是否可接受。保存版本校验、受保护读取和当前轮不可变快照仅为候选机制，新增 I/O、锁等待和 R2 成本必须计入路线比较。
 
 文件 offset/检查点仅是性能缓存，可以丢失并安全重建，不能冒充可靠上报 ACK 或崩溃恢复机制。无界 queue 也不是免费的：生产 design 仍需通知合并、queue depth/丢弃日志和有界关闭策略，避免慢后台造成内存积压。
 

@@ -260,7 +260,7 @@ finalizer 可直接取得 session、status、saved、profile、cwd 和 live work
 
 ## 13. 2026-11-17 性能与通知契约复核
 
-新增 `../performance-and-lifecycle.md`。30轮真实文件基准中，全量与expected-turn reader均约7→38ms线性增长，证明expected-turn裁剪报文并不等于增量I/O；正常路线应只处理显式当前轮，不做启动历史回放。进程内按session/turn合并通知、后端幂等覆盖重试即可，不为已排除的崩溃补报引入持久化高水位；文件offset仅是可丢失的性能缓存。
+新增 `../performance-and-lifecycle.md`。30轮真实文件基准中，全量与expected-turn reader均约7→38ms线性增长，证明expected-turn裁剪报文并不等于增量I/O；正常路线应只处理显式当前轮，不做启动历史回放。2026-11-19 F2 裁决后，普通通知按session/logical turn/pass合并同pass重复，新pass不得被吞；后端记录级幂等是第二道防线。1001仍按logical turn一条。不为已排除的崩溃补报引入持久化高水位；文件offset仅是可丢失的性能缓存。
 
 当前真实 `turn_hooks.py` payload 不含稳定turnId/saved，且无hooks时early return；生产finalizer dispatcher必须显式补身份和保存结果。test-local per-session queue已验证FIFO、跨session并发、有界flush和幂等close，但engine不会自动追踪该worker，TUI/ACP/delete的真实flush仍需实施design/R2，不能写成已完成。
 
@@ -270,7 +270,7 @@ finalizer 可直接取得 session、status、saved、profile、cwd 和 live work
 
 `runner._record_trajectory_turn_started()` 在 `await recorder.turn_started()` 之前完成以下动作：生成 `pass_id`、选择或新建 logical turn ID、写 `TurnRecord`；随后才尝试激活 trajectory 并发布 `TurnStarted`。因此 trajectory disabled/activation 失败不会抹掉 runner 已确定的身份。当前真正缺口只是 finalizer 没有收到这组值。
 
-最小可靠路线是让 `TurnRuntimeState` 持有本次 run 的不可变身份快照，由 runner 在 recorder 调用前一次性写入，finalizer 只读取该快照。快照至少包含 `logical_turn_id + pass_id + turn_number + is_retry`。reader 以 logical ID 作为 expected turn，pass ID 用于当前 pass/trajectory 交叉校验；两者不得互换。`TurnRecord` 只用于按该 ID 验证持久化记录，禁止取 latest 冒充当前轮。
+最小可靠路线是让 `TurnRuntimeState` 持有本次 run 的不可变身份快照，由 runner 在 recorder 调用前一次性写入，finalizer 只读取该快照。快照至少包含 `logical_turn_id + pass_id + turn_number + is_retry`。reader 同时以 logical ID 和 pass ID 界定当前执行：logical ID 用于 turn/span 归属，pass ID 用于区分 retry 新执行并与 trajectory 交叉校验；两者不得互换。为关联当前执行而读取前序来源不属于重报，retry 中只重放或继承的历史内容不得再次形成执行记录。`TurnRecord` 只用于按该 ID 验证持久化记录，禁止取 latest 冒充当前轮。
 
 | 场景 | 可靠来源与处理 |
 |---|---|
@@ -293,7 +293,9 @@ finalizer 可直接取得 session、status、saved、profile、cwd 和 live work
 - runner 实际采用的 `turn_number`、`is_retry`，不重新读取可能漂移的数值计数；
 - `saved: bool`；status 保持现有 failed 优先于 interrupted 的顺序。
 
-dispatcher 的同步关键路径只校验快照、合并 `(session_id, logical_turn_id)` 重复通知并 `put_nowait`；文件分析和网络 I/O 留在 per-session worker。`saved=False` 或身份快照为空时直接记录并跳过。普通异常在定制边界隔离并记录，`CancelledError` 不吞。该通知只保证已入队，不保证 ACP 响应前已分析或已上报；N7 仍走独立的响应时 live-history 路线。
+dispatcher 的同步关键路径只校验快照、按 `(session_id, logical_turn_id, pass_id)` 合并同 pass 重复通知并 `put_nowait`；不同 pass 在首任务 pending/running/completed 时均不得静默丢弃。文件分析和网络 I/O 留在 per-session worker。`saved=False` 或身份快照为空时直接记录并跳过。普通异常在定制边界隔离并记录，`CancelledError` 不吞。该通知只保证已入队，不保证 ACP 响应前已分析或已上报；N7 仍走独立的响应时 live-history 路线。
+
+2026-11-19 F1/F2 裁决补充：reader 须区分当前 pass 新执行、关联所需前序来源和 retry 纯重放/继承内容，按原始执行身份上报，不得每 pass 重报整个 logical turn。selected Agent 1001 仍按 `(session_id,logical_turn_id)` 去重一条，跨 pass 稳定选择首个成功主模型 A，不改用最后 A2。异步读取以记录级事实一致和关联正确为目标，不预设全局原子快照；V1/V2 必须覆盖延迟读取、下一轮保存、回滚及新 pass 通知，缺失显式记录并交责任人裁决降级是否足够。
 
 ### 14.3 集中 owner 可以覆盖 TUI/ACP/delete/EOF，无需逐入口接线
 
