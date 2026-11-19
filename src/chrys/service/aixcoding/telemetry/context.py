@@ -152,6 +152,33 @@ class GitInfo:
         }
 
 
+def _project_name(workspace_cwd: str) -> str:
+    """Never report this copy's installation or bundled runtime as a project."""
+    if not workspace_cwd:
+        return ""
+    try:
+        workspace = Path(workspace_cwd).expanduser()
+        if workspace.is_absolute():
+            workspace = workspace.resolve()
+            prefixes = [Path(prefix).resolve() for prefix in (sys.prefix, sys.exec_prefix) if prefix]
+            installation_dirs = {Path(sys.executable).resolve().parent, *prefixes}
+            for prefix in prefixes:
+                installation_dirs.update((prefix / "bin", prefix / "Scripts"))
+            if pyapp := os.environ.get("PYAPP"):
+                launcher = Path(pyapp).expanduser()
+                if launcher.is_absolute():
+                    installation_dirs.update((launcher.parent.resolve(), launcher.resolve().parent))
+                # Our offline packages unpack Python inside the version directory.
+                installation_dirs.update(prefix.parent for prefix in prefixes if prefix.name == "python")
+                if any(workspace.is_relative_to(prefix) for prefix in prefixes):
+                    return ""
+            if workspace in installation_dirs:
+                return ""
+    except OSError, ValueError, RuntimeError:
+        return ""
+    return workspace_cwd.replace("\\", "/").rstrip("/").rsplit("/", 1)[-1] or workspace_cwd
+
+
 def common_fields(
     workspace_cwd: str = "",
     *,
@@ -160,13 +187,12 @@ def common_fields(
     git: GitInfo | None = None,
     version: str = __version__,
 ) -> dict[str, str]:
-    """Encode shared fields from captured facts, without performing I/O."""
-    project = workspace_cwd.replace("\\", "/").rstrip("/").rsplit("/", 1)[-1] or workspace_cwd
+    """Encode shared facts, excluding installation paths from the project name."""
     fields = {
         "pluginVersion": version,
         "channelType": channel.type,
         "channelName": "icode" if channel.type == "cli" else channel.name,
-        "projectName": project,
+        "projectName": _project_name(workspace_cwd),
     }
     if user_id:
         fields["userId"] = user_id

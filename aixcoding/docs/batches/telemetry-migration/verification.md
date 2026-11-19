@@ -756,3 +756,21 @@ TUI 自动标题客户端没有构建期工作区，模型埋点此前省略 `pr
 尚未提交。内网生产对账、统一验证及其余已有开放项保持原状态。
 
 独立上下文代理 `skill_usage_review` 只读审阅未发现阻断，未运行测试。按其非阻断建议补齐普通 slash 引用但没有 load_skill 的真实引擎回归，同时断言技能提醒进入模型请求、没有 funcType=0，并修正 requirements.md 的 T04。新增测试后再次运行上述隔离配置完整专项命令，退出 0，**86 passed**；四文件 Ruff 检查与格式检查再次退出 0。`pytest -n0 -q --tb=short tests/architecture/test_trajectory_wait_inventory.py`，退出 0，**57 passed**，等待清单无需更新。独立审阅身份仅记录为独立上下文，不据此声称不同模型复审已完成。
+
+### 2026-11-19 最终接口 projectName 排除安装目录
+
+本轮起点为合并后 HEAD `541e01e4`，前两次修复提交仍在历史中。此前移除 `common_fields("")` 的进程目录兜底，但上游 `Workspace.from_cwd()` / `SessionEnvironment.capture()` 能先把启动目录转为非空工作区，再经构建事实传入模型埋点；因此单改空值兜底不能覆盖最终安装目录值。本轮用真实引擎和最终 SDK/企业上报 HTTP MockTransport 复现，不把数据库中的具体记录直接归因为此路径。
+
+产品仅改定制 `service/aixcoding/telemetry/context.py`，新增 `_project_name` 并在共同字段编码时调用。根据当前 prefix、解释器目录与 PYAPP 启动器真实路径识别安装目录；对应 bin/Scripts、离线内嵌 python 上级版本目录及内嵌前缀子树同样排除。路径别名按解析后身份处理，目录名称相同的真实项目保留。命中后最终请求写 `projectName=""`，避免已有非空安装路径绕过原空值判断。其他报文字段、实际引擎 cwd、工具执行、会话恢复均不修改；无上游/R2/等待清单/依赖变更。签认字段与未跟踪策略草案保持原样。
+
+以下命令统一使用 `UV_CACHE_DIR=/tmp/icode-cd-uv-cache uv run --offline --no-sync --no-python-downloads`。`python --version` 退出 0，实际 Python 3.14.8；保留项目请求 3.14.10 警告，没有安装环境、连接生产、变更 hooks 或扩大沙箱权限。
+
+- 产品修改前，`pytest -n0 -q --tb=short aixcoding/tests/telemetry/test_project_name.py`，退出 1，7 failed、2 passed。四种安装路径、目录别名和两组最终 HTTP 模型报文断言复现安装名泄露；同名真实项目控制组通过。
+- 修改后初版同命令退出 0，9 passed。按独立审阅建议补充 prefix 子树、无 PYAPP、Scripts、启动器别名两端及 Git 字段保持，最终同命令退出 0，16 passed。目录和启动器别名使用 Path.resolve 的 OS 边界替身，不依赖创建符号链接权限，没有新增 skip。
+- 新增真实引擎回归同时执行 write_file 和 load_skill，捕获最终模型请求、工具 save、技能 funcType=0 及 ai-code/save；安装启动目录、版本目录、内嵌 Python 目录时 projectName 均为空，真实项目时为实际项目名。断言文件确实写入，模型调用三次、工具/技能 save 类型为 [0,3,3]，技能与代码仍关联各自模型 requestId。
+- 复用上一节临时隔离插件运行完整专项：`PYTHONPATH=/tmp UV_CACHE_DIR=/tmp/icode-cd-uv-cache uv run --offline --no-sync --no-python-downloads pytest -n0 -q --tb=short -p icode_skill_isolation aixcoding/tests/telemetry`，退出 0，**102 passed**。该结果仅为隔离测试配置下的完整埋点专项，不等于仓库统一验证或生产验收。
+- `ruff check --no-fix src/chrys/service/aixcoding/telemetry/context.py aixcoding/tests/telemetry/test_project_name.py` 与同文件 `ruff format --check` 退出 0。格式初查提示新增测试一处长行，已仅格式化该测试文件后复查通过。
+- `ty check --error-on-warning --python-platform linux src/chrys`，以及 darwin、win32 两种目标，均退出 0。此为静态目标检查，不冒充 Windows 实机测试。
+- `python aixcoding/tools/check_r2_diff.py --base HEAD`、`python aixcoding/tools/check_r3_markers.py --base HEAD`、`python aixcoding/tools/check_docs.py --closure` 及 `git diff --check` 均退出 0。R2 日志 `/tmp/icode-project-name-r2.log`，无新增上游范围。
+
+独立上下文代理 `skill_usage_review` 两轮只读复核，无功能阻断。首轮发现新增 symlink 测试使用 skip 的治理问题，已改为无需权限的边界模拟；其余测试建议已补齐。第二轮确认测试与需求/设计/测试计划一致，未独立运行测试，不据此声称不同模型复审身份已证明。未提交或推送；仍待实际安装包及现场出站报文验证，不关闭生产对账等原开放项。
