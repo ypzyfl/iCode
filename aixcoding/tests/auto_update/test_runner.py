@@ -1,7 +1,7 @@
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 
-"""Runner tests: wrapper command construction per OS, mirror derivation, and the
-detached wait-execute-relaunch order end-to-end (POSIX only — the Windows
+"""Runner tests: wrapper command construction per OS, the pinned mirror root, and
+the detached wait-execute-relaunch order end-to-end (POSIX only — the Windows
 sequence depends on real console behaviour; R13 skip, design §10).
 
 Design: aixcoding/docs/batches/auto-update/design.md §3.4, §3.6
@@ -29,31 +29,15 @@ from chrys.app.aixcoding.update.runner import (
 WIN32 = sys.platform == "win32"
 
 
-def _point_at(monkeypatch: pytest.MonkeyPatch, base_url: str) -> None:
-    monkeypatch.setattr(commands_module, "resolve_check_base", lambda: base_url)
-
-
-def test_mirror_root_derives_from_the_check_base(monkeypatch: pytest.MonkeyPatch) -> None:
-    _point_at(monkeypatch, "http://82.187.34.98/csas")
-
+def test_mirror_root_is_pinned_to_the_production_origin() -> None:
+    # Temporary pin (design revision 20): the dev gateway has not published the
+    # bare-origin file mirror, so a derived install URL answers 400 there and
+    # every dev update would fail at the download step.  The origin comes from
+    # the tier table's prod entry, so an IP change touches client.py only.
     assert commands_module.mirror_root() == "http://82.187.34.98/aixcoding/file/aixcoding"
 
 
-def test_mirror_root_follows_a_base_url_override(monkeypatch: pytest.MonkeyPatch) -> None:
-    _point_at(monkeypatch, "http://10.0.0.9/csas")
-
-    assert commands_module.mirror_root() == "http://10.0.0.9/aixcoding/file/aixcoding"
-
-
-def test_mirror_root_empty_on_an_unparseable_base(monkeypatch: pytest.MonkeyPatch) -> None:
-    _point_at(monkeypatch, "not-a-url")
-
-    assert commands_module.mirror_root() == ""
-
-
-def test_install_script_url_uses_the_platform_script(monkeypatch: pytest.MonkeyPatch) -> None:
-    _point_at(monkeypatch, "http://82.187.34.98/csas")
-
+def test_install_script_url_uses_the_platform_script() -> None:
     url = commands_module.install_script_url()
     expected_script = "install.ps1" if WIN32 else "install.sh"
     assert url == f"http://82.187.34.98/aixcoding/file/aixcoding/{expected_script}"
@@ -72,10 +56,88 @@ def test_posix_wrapper_shape(tmp_path: Path) -> None:
     )
     assert "mktemp" in script
     assert script.count('rm -f "$tmp"') == 2, "the temp file is cleaned in both branches"
-    assert "exec /bin/aixcoding-cli -s s1" in script
+    assert "/bin/aixcoding-cli -s s1" in script
+    assert "exec" not in script, "the relaunch never takes over the wrapper's terminal (revision 20)"
     assert ">> " in script and "update-failures" in script, "a failure appends one tally line"
     assert "如未出现命令提示符" in script, "the failure prints the conditional prompt hint (revision 10)"
     assert "update-skip-today" not in script, "the wrapper never deletes the flow's state files (design D2)"
+
+
+def test_posix_relaunch_snippet_opens_a_new_terminal_window(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "platform", "linux")
+    snippet = runner_module._posix_relaunch_snippet(["aixcoding-cli", "-s", "sess-1"])
+
+    assert 'if [ -z "$DISPLAY$WAYLAND_DISPLAY" ]' in snippet, (
+        "command -v alone cannot prove a window can open (SSH into a GNOME box, WSL)"
+    )
+    assert "x-terminal-emulator -e sh -c" in snippet, "Debian alternatives first (Ubuntu default)"
+    assert "gnome-terminal -- sh -c" in snippet
+    assert "konsole -e sh -c" in snippet
+    assert "xterm -e sh -c" in snippet
+    assert "aixcoding-cli" in snippet and "sess-1" in snippet
+    assert "手动运行" in snippet, "every no-window path prints the manual hint"
+
+
+def test_posix_relaunch_snippet_on_macos_uses_osascript(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "platform", "darwin")
+
+    snippet = runner_module._posix_relaunch_snippet(["aixcoding-cli"])
+
+    assert snippet.startswith("( osascript") and snippet.endswith(") &"), (
+        "backgrounded: a first-time Terminal automation prompt must not hang the wrapper"
+    )
+    assert "do script" in snippet, "Terminal.app opens the new window"
+    assert "aixcoding-cli" in snippet
+    assert "手动运行" in snippet, "osascript failure still tells the user how to start"
+
+
+def test_posix_relaunch_snippet_without_a_launcher_is_only_the_hint() -> None:
+    snippet = runner_module._posix_relaunch_snippet(None)
+
+    assert snippet == f"echo {runner_module._MANUAL_RELAUNCH_HINT!r} >&2", (
+        "no launcher — the hint alone, never an execution of a known-bad argv"
+    )
+
+
+def test_windows_relaunch_snippet_uses_start_process() -> None:
+    snippet = runner_module._windows_relaunch_snippet(["aixcoding-cli", "-s", "sess-1"])
+
+    assert snippet == "Start-Process -FilePath 'aixcoding-cli' -ArgumentList '-s', 'sess-1'", (
+        "Start-Process resolves PATH (+PATHEXT) and opens its own console window"
+    )
+
+
+def test_windows_relaunch_snippet_escapes_embedded_quotes() -> None:
+    snippet = runner_module._windows_relaunch_snippet(["aixcoding-cli", "-s", "it's"])
+
+    assert "it''s" in snippet, "PowerShell single-quoted literals double embedded quotes"
+
+
+def test_windows_relaunch_snippet_without_a_launcher_is_only_the_hint() -> None:
+    snippet = runner_module._windows_relaunch_snippet(None)
+
+    assert snippet.startswith("Write-Host '") and snippet.endswith("'"), (
+        "no launcher — the hint alone, never an execution of a known-bad argv"
+    )
+
+
+@pytest.mark.skipif(WIN32, reason="sh -n needs a POSIX shell")
+@pytest.mark.parametrize("platform_hint", ["linux", "darwin"])
+def test_posix_wrapper_scripts_are_valid_shell(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, platform_hint: str
+) -> None:
+    """Cheap regression against quote/nesting breakage in the generated script (review 9)."""
+    monkeypatch.setattr(sys, "platform", platform_hint)
+    script = build_posix_wrapper(
+        "http://m/install.sh",
+        runner_module._posix_relaunch_snippet(["aixcoding-cli", "-s", "sess-1"]),
+        4242,
+        tmp_path / "update-failures",
+    )[2]
+    target = tmp_path / f"wrapper-{platform_hint}.sh"
+    target.write_text(script, encoding="utf-8")
+
+    subprocess.run(["sh", "-n", str(target)], check=True, capture_output=True)
 
 
 def test_windows_wrapper_shape(tmp_path: Path) -> None:
@@ -98,18 +160,40 @@ def test_windows_wrapper_shape(tmp_path: Path) -> None:
     assert "Remove-Item" not in script, "the wrapper never deletes the flow's state files (design D2)"
 
 
-def test_relaunch_argv_prefers_the_path_absolute_command(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_relaunch_argv_launches_by_bare_command_when_on_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The installer puts the product command on PATH, so the relaunch uses the
+    # bare name — the new-window launchers resolve it through the wrapper's
+    # inherited PATH, and the bare name survives the install replacing version
+    # directories behind any absolute path.
     monkeypatch.setattr(runner_module.shutil, "which", lambda _: "/usr/local/bin/aixcoding-cli")
 
-    assert relaunch_argv(None) == ["/usr/local/bin/aixcoding-cli"]
-    assert relaunch_argv("sess-1") == ["/usr/local/bin/aixcoding-cli", "-s", "sess-1"]
+    assert relaunch_argv(None) == [runner_module.APP_COMMAND]
+    assert relaunch_argv("sess-1") == [runner_module.APP_COMMAND, "-s", "sess-1"]
 
 
-def test_relaunch_argv_falls_back_to_argv0(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_relaunch_argv_falls_back_to_the_installer_locations(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    # This process's PATH and the login shell's can differ; the installer's
+    # known directories are probed before giving up.
     monkeypatch.setattr(runner_module.shutil, "which", lambda _: None)
+    monkeypatch.setattr(runner_module, "_launcher_fallback_dirs", lambda: (tmp_path / "bin",))
+    (tmp_path / "bin").mkdir(parents=True)
+    launcher = tmp_path / "bin" / runner_module.APP_COMMAND
+    launcher.write_text("#!/bin/sh\n", encoding="utf-8")
+    launcher.chmod(0o755)
 
-    argv = relaunch_argv(None)
-    assert len(argv) == 1 and Path(argv[0]).is_absolute()
+    assert relaunch_argv(None) == [str(launcher)]
+    assert relaunch_argv("sess-1") == [str(launcher), "-s", "sess-1"]
+
+
+def test_relaunch_argv_is_none_when_no_launcher_exists(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    # A None result becomes the manual-relaunch hint — never an execution of
+    # the argv[0] entry script, whose offline shebang names a build-machine
+    # interpreter that does not exist on the user machine (revision 20).
+    monkeypatch.setattr(runner_module.shutil, "which", lambda _: None)
+    monkeypatch.setattr(runner_module, "_launcher_fallback_dirs", lambda: (tmp_path / "empty",))
+
+    assert relaunch_argv(None) is None
+    assert relaunch_argv("sess-1") is None
 
 
 @pytest.mark.skipif(
@@ -125,7 +209,7 @@ def test_wrapper_runs_wait_execute_relaunch_in_order(tmp_path: Path) -> None:
     relaunched = tmp_path / "relaunched"
     install = tmp_path / "install.sh"
     install.write_text(f"echo ok > {shlex.quote(str(done))}\n", encoding="utf-8")
-    relaunch = f"sh -c 'echo ok > {relaunched}'"  # the wrapper prefixes exec itself
+    relaunch = f"sh -c 'echo ok > {relaunched}'"  # a stand-in relaunch command list
 
     # A short-lived stand-in for the TUI process the wrapper must outlive.
     parent = subprocess.Popen(["sleep", "30"])
@@ -161,7 +245,7 @@ def test_wrapper_script_failure_tallies_and_stops(tmp_path: Path) -> None:
     tally = tmp_path / "update-failures"
     install = tmp_path / "install.sh"
     install.write_text("exit 1\n", encoding="utf-8")
-    relaunch = f"sh -c 'echo bad > {relaunched}'"  # the wrapper prefixes exec itself
+    relaunch = f"sh -c 'echo bad > {relaunched}'"  # a stand-in relaunch command list
 
     parent = subprocess.Popen(["sleep", "30"])
     try:
@@ -194,7 +278,7 @@ def test_wrapper_download_failure_tallies_and_stops(tmp_path: Path) -> None:
     relaunched = tmp_path / "relaunched"
     tally = tmp_path / "update-failures"
     install_url = (tmp_path / "missing" / "install.sh").as_uri()  # never exists
-    relaunch = f"sh -c 'echo bad > {relaunched}'"  # the wrapper prefixes exec itself
+    relaunch = f"sh -c 'echo bad > {relaunched}'"  # a stand-in relaunch command list
 
     parent = subprocess.Popen(["sleep", "30"])
     try:

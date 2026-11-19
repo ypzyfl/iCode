@@ -40,28 +40,110 @@ _FAILURE_MESSAGE = "Update failed - see the output above."
 # after the shell's prompt is a race: phrase it conditionally (the prompt may
 # already be on screen) — owner decision, design revision 10.
 _PROMPT_HINT = "如未出现命令提示符，请按回车返回命令行。"
+_MANUAL_RELAUNCH_HINT = f"更新完成。当前环境无法打开新终端窗口，请手动运行 {APP_COMMAND} 启动。"
 
 
-def relaunch_argv(session_id: str | None) -> list[str]:
+def _launcher_fallback_dirs() -> tuple[Path, ...]:
+    """The installer's known command locations, probed when PATH has no answer."""
+    return Path.home() / ".local" / "bin", Path("/usr/local/bin")
+
+
+def relaunch_argv(session_id: str | None) -> list[str] | None:
     """The argv that restarts the TUI, restoring ``session_id`` when known.
 
-    Resolved *before* the TUI exits (design D3): the PATH absolute path of
-    the product command survives the install replacing the version
-    directories behind the old binary; ``sys.argv[0]`` resolved is the
-    fallback when the alias is not on PATH.
+    Resolved *before* the TUI exits (design D3).  The installer puts the
+    product command on the user's PATH, so the relaunch launches by the bare
+    command name — the new-window launchers resolve it through the wrapper's
+    inherited PATH.  The bare name is trusted only after ``which`` proves it
+    resolves in this process's environment; a miss falls back to the
+    installer's known locations (this process's PATH and the login shell's
+    can differ).  ``None`` means no launcher exists at all — the callers
+    print the manual-relaunch hint instead of executing an argv that is known
+    to fail: the ``sys.argv[0]`` fallback this used to have is the entry
+    script PyApp runs this process with, whose offline-flavor shebang names a
+    build-machine interpreter that does not exist on the user machine, and a
+    new window would swallow that error instantly (first real update,
+    2026-11-19).
     """
-    executable = shutil.which(APP_COMMAND) or str(Path(sys.argv[0]).resolve())
+    executable: str | None = APP_COMMAND if shutil.which(APP_COMMAND) else None
+    if executable is None:
+        for directory in _launcher_fallback_dirs():
+            candidate = directory / APP_COMMAND
+            if candidate.is_file() and os.access(candidate, os.X_OK):
+                executable = str(candidate)
+                break
+    if executable is None:
+        return None
     argv = [executable]
     if session_id:
         argv += ["-s", session_id]
     return argv
 
 
-def _relaunch_shell_string(session_id: str | None) -> str:
-    argv = relaunch_argv(session_id)
-    if sys.platform == "win32":
-        return "& " + " ".join(f'"{part}"' for part in argv)
-    return " ".join(shlex.quote(part) for part in argv)
+def _ps_quote(value: str) -> str:
+    """A PowerShell single-quoted literal: embedded single quotes double."""
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _posix_relaunch_snippet(argv: list[str] | None) -> str:
+    """A sh snippet that launches ``argv`` in a NEW terminal window.
+
+    The wrapper shares the terminal the TUI just left: an in-place relaunch
+    interleaves the TUI with the user's shell (seen in the first real update,
+    2026-11-19).  macOS opens a Terminal.app window via osascript, backgrounded
+    so a first-time automation-authorization prompt cannot hang the wrapper;
+    Linux walks the common terminal emulators (x-terminal-emulator covers the
+    Debian alternatives system, then gnome-terminal/konsole/xterm), each
+    branch gated on a display being present — ``command -v`` only proves the
+    binary exists, not that it can open a window, and a backgrounded failure
+    on a headless box would be swallowed silently (SSH into a GNOME machine,
+    WSL).  Every no-window path prints the manual-relaunch hint, and with
+    ``argv=None`` (no launcher found at all) the snippet is that hint alone.
+    The update itself is already complete by this point, so no branch here
+    can change the update's outcome — the design revision 20 decision is
+    comfort, not correctness.
+    """
+    hint = f"echo {_MANUAL_RELAUNCH_HINT!r} >&2"
+    if argv is None:
+        return hint
+    command = " ".join(shlex.quote(part) for part in argv)
+    if sys.platform == "darwin":
+        apple = command.replace("\\", "\\\\").replace('"', '\\"')
+        osascript = f'tell application "Terminal" to do script "{apple}"'
+        return f"( osascript -e {shlex.quote(osascript)} >/dev/null || {hint} ) &"
+    quoted = shlex.quote(command)
+    return (
+        f"cmd={quoted}; "
+        'if [ -z "$DISPLAY$WAYLAND_DISPLAY" ]; then '
+        f"{hint}; "
+        "elif command -v x-terminal-emulator >/dev/null 2>&1; then "
+        'x-terminal-emulator -e sh -c "$cmd" & '
+        "elif command -v gnome-terminal >/dev/null 2>&1; then "
+        'gnome-terminal -- sh -c "$cmd" & '
+        "elif command -v konsole >/dev/null 2>&1; then "
+        'konsole -e sh -c "$cmd" & '
+        "elif command -v xterm >/dev/null 2>&1; then "
+        'xterm -e sh -c "$cmd" & '
+        f"else {hint}; fi"
+    )
+
+
+def _windows_relaunch_snippet(argv: list[str] | None) -> str:
+    """A PowerShell snippet that launches ``argv`` in a NEW console window.
+
+    ``Start-Process`` resolves a bare command name through PATH (+PATHEXT) and
+    opens its own console, so the relaunched TUI never shares the window with
+    the user's shell.  With ``argv=None`` (no launcher found), the snippet
+    degrades to the manual-relaunch hint — never an execution of a known-bad
+    path.
+    """
+    if argv is None:
+        return f"Write-Host {_ps_quote(_MANUAL_RELAUNCH_HINT)}"
+    exe, *args = argv
+    snippet = f"Start-Process -FilePath {_ps_quote(exe)}"
+    if args:
+        snippet += f" -ArgumentList {', '.join(_ps_quote(arg) for arg in args)}"
+    return snippet
 
 
 def build_posix_wrapper(install_url: str, relaunch: str, parent_pid: int, failures: Path) -> list[str]:
@@ -77,7 +159,13 @@ def build_posix_wrapper(install_url: str, relaunch: str, parent_pid: int, failur
         f"while kill -0 {parent_pid} 2>/dev/null; do sleep 0.2; done; "
         f"tmp=$(mktemp) || exit 1; "
         f'if curl -fsSL {shlex.quote(install_url)} -o "$tmp" && bash "$tmp"; then '
-        f'rm -f "$tmp"; exec {relaunch}; '
+        # No exec: the relaunch opens a NEW terminal window (revision 20) and
+        # must never take over the wrapper's terminal — the user's shell keeps
+        # it.  The relaunch snippet is a complete command list, so it sits
+        # inside the then-branch as-is; a newline (not ``;``) separates it
+        # from ``else`` because a snippet may legitimately end with ``&``
+        # (the backgrounded osascript), and ``&;`` is a syntax error.
+        f'rm -f "$tmp"; {relaunch}\n'
         f'else rm -f "$tmp"; date +%s >> {tally}; echo {_FAILURE_MESSAGE!r} >&2; '
         f"echo {_PROMPT_HINT!r} >&2; exit 1; fi"
     )
@@ -101,21 +189,29 @@ def build_windows_wrapper(install_url: str, relaunch: str, parent_pid: int, fail
     script = (
         f"while (Get-Process -Id {parent_pid} -ErrorAction SilentlyContinue) "
         f"{{ Start-Sleep -Milliseconds 200 }}; "
-        f"try {{ Invoke-RestMethod -Uri {install_url} -ErrorAction Stop | Invoke-Expression; {relaunch} }} "
-        f"catch {{ Add-Content -Path '{failures}' -Value (Get-Date -Format o); "
-        f"Write-Error '{_FAILURE_MESSAGE}'; Write-Host '{_PROMPT_HINT}'; exit 1 }}"
+        # The relaunch sits OUTSIDE the try (parity with the POSIX wrapper):
+        # a Start-Process failure must not tally "Update failed" — the install
+        # itself has already succeeded by then (peer review F6).
+        f"try {{ Invoke-RestMethod -Uri {install_url} -ErrorAction Stop | Invoke-Expression }} "
+        f"catch {{ Add-Content -Path {_ps_quote(str(failures))} -Value (Get-Date -Format o); "
+        f"Write-Error '{_FAILURE_MESSAGE}'; Write-Host '{_PROMPT_HINT}'; exit 1 }}; "
+        f"{relaunch}"
     )
     return ["powershell", "-NoProfile", "-Command", script]
 
 
 def build_wrapper(session_id: str | None, parent_pid: int, config_dir: Path) -> list[str]:
-    """The detached wrapper's argv for this platform (design §3.4)."""
-    relaunch = _relaunch_shell_string(session_id)
+    """The detached wrapper's argv for this platform (design §3.4, revision 20)."""
+    argv = relaunch_argv(session_id)
     from chrys.service.aixcoding.update.state import failures_path
 
     if sys.platform == "win32":
-        return build_windows_wrapper(install_script_url(), relaunch, parent_pid, failures_path(config_dir))
-    return build_posix_wrapper(install_script_url(), relaunch, parent_pid, failures_path(config_dir))
+        return build_windows_wrapper(
+            install_script_url(), _windows_relaunch_snippet(argv), parent_pid, failures_path(config_dir)
+        )
+    return build_posix_wrapper(
+        install_script_url(), _posix_relaunch_snippet(argv), parent_pid, failures_path(config_dir)
+    )
 
 
 def spawn_wrapper(argv: list[str]) -> subprocess.Popen[bytes]:
