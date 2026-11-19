@@ -1183,3 +1183,57 @@ cd /d D:\Tech\Github\huawei\iCode\fork\iCode-fork && set "PYTHONPATH=" && set "P
 **组织裁决变更（2026-11-19 责任人，取代原"探索批次独立 PR 交付"与独立集成分支方案）**：不创建探索独立 PR；`feat/telemetry-exploration` 为**长期根分支**——方案未确定前不合并 `main_aixcoding_cli`，后续每块工作基于它再建分支（如 `feat/telemetry-session-analysis`），确定做好后 PR 合回长期分支；所有工作确定完成后整体并入主干；**若 session 分析路线最终不可行则整体废弃、不并入**。CI 连带：工作块 PR 目标为长期分支，当前两 workflow 仅对 `main_aixcoding_cli` 的 PR 触发——首个工作块 PR 前须把 `feat/telemetry-exploration` 加入两个 workflow 的 `pull_request.branches` 并实证双 CI（该 workflow 改动本身可直推长期分支；届时按流程登记）。长期分支定期同步主干限制漂移。
 
 同步落盘（6 文件）：plan（顶部状态注记与第 16 行段落、实施顺序表、实施策略节重写为长期根分支+工作块分支结构与失败出口、tests 处置节改既成事实、签认/PR 待办更新）；review-handoff（头部状态、流程门禁第 3 条、第 13 节实施组织段）；requirements（头部状态）；self-review（2026-11-17 实施组织历史段加修订注记，不触发重签）。本轮除授权的 Git 四条外无其他写操作；上述文档修订待下一次授权 commit。
+
+## 2026-11-19 Codex 独立技术评审报告落盘与验证
+
+交付事实由责任人在会话确认：源码集中改造版 0.35.2 已交付。本轮以探索提交 `71501235f92b30eb9f576d9125a646f43a667e0c` 为被评对象、已交付提交 `a9b169626c5fde9169955a836a72cd2e4df71651` 为对照，新增 `research/technical-review-2026-11-19.md`，并在 self-review.md 追加索引。发现项全部待裁决，未修改方案、签认、产品代码或依赖。
+
+环境：项目既有 `.venv`；所有项目工具通过 `uv run --no-sync` 运行，统一使用可写缓存 `UV_CACHE_DIR=/private/tmp/icode-telemetry-review-71501235/uv-cache`。uv 提示该环境 Python 不满足固定 `Python 3.14.10`；不声称完成固定目标环境或完整测试套件验收。
+
+### 工作区原始检查
+
+以下命令均从仓库根执行并设置上述 UV_CACHE_DIR：
+
+```bash
+uv run --no-sync ruff check --no-fix aixcoding/
+uv run --no-sync ruff format --check aixcoding/
+uv run --no-sync python aixcoding/tools/check_docs.py --closure
+uv run --no-sync python aixcoding/tools/gen_customizations.py --strict
+```
+
+- Ruff check：`All checks passed!`，exit 0；format：`464 files already formatted`，exit 0。
+- 原始 closure：exit 1，6 errors；切换分支后仍保留的无关未跟踪 `telemetry-migration/design-model-reporting-policy.md` 使该目录被视作缺六件套的批次。没有移动、删除或纳入提交。
+- 原始 registry strict：exit 1，28 errors / 0 warnings；全部路径位于 `.codebuddy/worktrees/bg-01a1c9d3/`，不是本轮修改。没有更改扫描器、豁免或嵌套 worktree。
+
+### 干净提交副本验证
+
+为区分工作区无关资产与待交付文档，使用只读 `git archive HEAD` 导出完整已跟踪目标提交到临时目录，再复制本轮三份文档；没有使用 checkout/restore/stash 清理他人工作，没有弱化工具规则。
+
+```bash
+mkdir -p /private/tmp/icode-telemetry-review-71501235/clean
+git archive HEAD | tar -x -C /private/tmp/icode-telemetry-review-71501235/clean
+```
+
+将本轮 `research/technical-review-2026-11-19.md`、`self-review.md` 和本 verification.md 复制到副本同路径后，从原仓库运行：
+
+```bash
+uv run --no-sync python /private/tmp/icode-telemetry-review-71501235/clean/aixcoding/tools/check_docs.py --closure
+uv run --no-sync python /private/tmp/icode-telemetry-review-71501235/clean/aixcoding/tools/gen_customizations.py --strict
+```
+
+结果：closure 扫描 27 ADR / 49 design / 48 self-review，`check_docs: OK`，exit 0；registry 为 106 registration rows / 154 markers / 20 designs / 24 retired IDs / 0 warnings，exit 0。这是干净目标提交加本轮文档的结果，不冒充原始工作区门禁通过。
+
+### 既有队列实验抽查
+
+抽查固定探索提交中的原始测试内容，导出到临时路径后运行：
+
+```bash
+git show 71501235:aixcoding/tests/telemetry/test_after_turn_queue.py > /private/tmp/icode-telemetry-review-71501235/test_after_turn_queue.py
+uv run --no-sync pytest /private/tmp/icode-telemetry-review-71501235/test_after_turn_queue.py -n0 -q -o addopts= -p no:cacheprovider
+```
+
+本轮结果：`3 passed in 0.02s`，exit 0。只运行三个既有队列实验，不是 Smart Test、完整定制套件或生产端到端。临时导出避开原仓库与测试无关的自动 fixture；没有修改源测试或提交测试配置。FIFO、跨 session 和有界关闭通过；通知合并、真实 reader 一致性、真实当前轮压缩均未覆盖，不能据此关闭 F1/F2/F3。
+
+### 交付边界
+
+本轮实际验证不包括真实后台/桌面、新生产 dispatcher、私人 session 或新压缩组合实验。只读差异检查使用 `git diff --check`，新文件另做尾随空格及本地链接目标检查；不运行全量产品测试，不声称六个发现已处置。Git 写操作仍逐条授权，本节不预填 commit/push 成功记录。
