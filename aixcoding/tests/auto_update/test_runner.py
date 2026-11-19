@@ -68,10 +68,41 @@ def test_posix_wrapper_shape(tmp_path: Path) -> None:
     )
     assert "mktemp" in script
     assert script.count('rm -f "$tmp"') == 2, "the temp file is cleaned in both branches"
-    assert "exec /bin/aixcoding-cli -s s1" in script
+    assert "/bin/aixcoding-cli -s s1" in script
+    assert "exec" not in script, "the relaunch never takes over the wrapper's terminal (revision 21)"
     assert ">> " in script and "update-failures" in script, "a failure appends one tally line"
     assert "如未出现命令提示符" in script, "the failure prints the conditional prompt hint (revision 10)"
     assert "update-skip-today" not in script, "the wrapper never deletes the flow's state files (design D2)"
+
+
+def test_posix_relaunch_snippet_opens_a_new_terminal_window(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "platform", "linux")
+    snippet = runner_module._posix_relaunch_snippet(["aixcoding-cli", "-s", "sess-1"])
+
+    assert "x-terminal-emulator -e sh -c" in snippet, "Debian alternatives first (Ubuntu default)"
+    assert "gnome-terminal -- sh -c" in snippet
+    assert "konsole -e sh -c" in snippet
+    assert "xterm -e sh -c" in snippet
+    assert "aixcoding-cli" in snippet and "sess-1" in snippet
+    assert "手动运行 aixcoding-cli" in snippet, "a windowless environment prints the manual hint"
+
+
+def test_posix_relaunch_snippet_on_macos_uses_osascript(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "platform", "darwin")
+
+    snippet = runner_module._posix_relaunch_snippet(["aixcoding-cli"])
+
+    assert "osascript" in snippet and "do script" in snippet, "Terminal.app opens the new window"
+    assert "aixcoding-cli" in snippet
+    assert "手动运行 aixcoding-cli" in snippet, "osascript failure still tells the user how to start"
+
+
+def test_windows_relaunch_snippet_uses_start_process() -> None:
+    snippet = runner_module._windows_relaunch_snippet(["aixcoding-cli", "-s", "sess-1"])
+
+    assert snippet == "Start-Process -FilePath 'aixcoding-cli' -ArgumentList '-s', 'sess-1'", (
+        "Start-Process resolves PATH (+PATHEXT) and opens its own console window"
+    )
 
 
 def test_windows_wrapper_shape(tmp_path: Path) -> None:
@@ -125,7 +156,7 @@ def test_wrapper_runs_wait_execute_relaunch_in_order(tmp_path: Path) -> None:
     relaunched = tmp_path / "relaunched"
     install = tmp_path / "install.sh"
     install.write_text(f"echo ok > {shlex.quote(str(done))}\n", encoding="utf-8")
-    relaunch = f"sh -c 'echo ok > {relaunched}'"  # the wrapper prefixes exec itself
+    relaunch = f"sh -c 'echo ok > {relaunched}'"  # a stand-in relaunch command list
 
     # A short-lived stand-in for the TUI process the wrapper must outlive.
     parent = subprocess.Popen(["sleep", "30"])
