@@ -1174,4 +1174,12 @@ cd /d D:\Tech\Github\huawei\iCode\fork\iCode-fork && set "PYTHONPATH=" && set "P
 
 ## 2026-11-19 跨裁决联动一致性复查
 
-应责任人要求，对 BR-1 修订/ID 原值裁决/BR-8 撤销/嵌套 turn 澄清等历轮改动做联动遗漏检查。检索 BR 总范围引用与时点状态关键词后补改 9 处：①BR-8 撤销后的总范围引用 3 处（plan 实施策略节"BR-1–BR-10 实际部署"、review-handoff 第 8 节"BR-1–BR-10 目标契约"、checklist 现状行"BR-6~BR-10 尚未确认"——均改为排除 BR-8 的新范围，checklist 并补 BR-1/5 已按 2026-11-18 修订的指引）；②过时时点状态 6 处——review-handoff 头部状态（补记五轮后续裁决摘要：BR-1 修订/ID 原值/上报过滤/BR-8 撤销/parentSpanId 差异项，当前停等探索 PR）、N10/N11 行（mock 归属批次1、三批次已裁决）、第 8 节开工前流程门禁（前两条标记已完成，剩余=探索 PR+批次1 R2）、requirements 头部状态、new-version-solution-map 状态行、self-review 时点说明（更新为已签认）。终检：过时状态与旧 BR 范围检索在现行文档 0 残留（唯一命中为 verification 历史记录）；门禁 closure/format 37 files/diff --check 全部 exit 0。本轮未修改产品代码，未执行 Git 写操作。
+应责任人要求，对 BR-1 修订/ID 原值裁决/BR-8 撤销/嵌套 turn 澄清等历轮改动做联动遗漏检查。检索 BR 总范围引用与时点状态关键词后补改 9 处：①BR-8 撤销后的总范围引用 3 处（plan 实施策略节"BR-1–BR-10 实际部署"、review-handoff 第 8 节"BR-1–BR-10 目标契约"、checklist 现状行"BR-6~BR-10 尚未确认"——均改为排除 BR-8 的新范围，checklist 并补 BR-1/5 已按 2026-11-18 修订的指引）；②过时时点状态 6 处——review-handoff 头部状态、N10/N11 行（mock 归属批次1、三批次已裁决）、第 8 节开工前流程门禁、requirements 头部状态、new-version-solution-map 状态行、self-review 时点说明（更新为已签认）。终检：过时状态与旧 BR 范围检索在现行文档 0 残留（唯一命中为 verification 历史记录）。本轮未修改产品代码。
+
+## 2026-11-19 Git 序列执行与长期根分支组织裁决
+
+按逐条授权执行 Git 序列：①`git checkout -b feat/telemetry-exploration`（exit 0）；②`git add aixcoding/docs/batches/telemetry-exploration aixcoding/tests/telemetry`（41 文件全部 A 状态，无遗漏无 RM 残留）；③`git commit`（`7f3fe332`，author Zhoubin，41 文件 +8548 行；subject 计数按实际修正为"25 项研究"，与 body 一致；工作区提交后干净）；④`git push -u origin feat/telemetry-exploration`（新分支已推送并建立跟踪）。
+
+**组织裁决变更（2026-11-19 责任人，取代原"探索批次独立 PR 交付"与独立集成分支方案）**：不创建探索独立 PR；`feat/telemetry-exploration` 为**长期根分支**——方案未确定前不合并 `main_aixcoding_cli`，后续每块工作基于它再建分支（如 `feat/telemetry-session-analysis`），确定做好后 PR 合回长期分支；所有工作确定完成后整体并入主干；**若 session 分析路线最终不可行则整体废弃、不并入**。CI 连带：工作块 PR 目标为长期分支，当前两 workflow 仅对 `main_aixcoding_cli` 的 PR 触发——首个工作块 PR 前须把 `feat/telemetry-exploration` 加入两个 workflow 的 `pull_request.branches` 并实证双 CI（该 workflow 改动本身可直推长期分支；届时按流程登记）。长期分支定期同步主干限制漂移。
+
+同步落盘（6 文件）：plan（顶部状态注记与第 16 行段落、实施顺序表、实施策略节重写为长期根分支+工作块分支结构与失败出口、tests 处置节改既成事实、签认/PR 待办更新）；review-handoff（头部状态、流程门禁第 3 条、第 13 节实施组织段）；requirements（头部状态）；self-review（2026-11-17 实施组织历史段加修订注记，不触发重签）。本轮除授权的 Git 四条外无其他写操作；上述文档修订待下一次授权 commit。

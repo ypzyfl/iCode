@@ -14,11 +14,11 @@
 4. 探索文档门禁和实验证据记录；
 5. 最终交付复查（2026-11-17）：四个实验测试 30 passed、全目录 ruff format（454 files）、gen_customizations --strict（0 warnings）、check_docs、git diff --check 全部 exit 0，证据见 verification.md 末节。
 
-**当前尚未完成的是探索批次的独立 PR（分支/提交/push 待逐条授权）；最终 self-review 已由责任人周彬于 2026-11-17 签认。**尚未创建 telemetry 集成分支、未修改 CI workflow、未编写任何生产 telemetry 实现，也未开始批次1的实施 design/R2。探索文档和实验测试尚未提交；新对话必须以实际 `git status` 和签认头部为准。
+**探索 commit 已落长期分支 `feat/telemetry-exploration`（`7f3fe332`，2026-11-19）并推送 origin；按 2026-11-19 责任人裁决不创建探索独立 PR，该分支为长期根分支。**尚未修改 CI workflow、未编写任何生产 telemetry 实现，也未开始批次1的实施 design/R2。新对话必须以实际 `git status`、签认头部与文末实施策略为准。
 
 ### 唯一下一步：完成探索批次的独立交付
 
-> 2026-11-17 状态：第 1 步复查已通过（五项门禁全部 exit 0，见 verification.md 末节）；第 2 步已裁定（选项 A：认定 2026-11-17 另一 AI 独立评审+复审收敛为最终双 AI 自审轮次，模型标识未提供已如实记录）；第 3 步签认已完成（责任人周彬，确认意见含签认边界）。当前停在第 4 步：Git 写操作逐条授权后建分支 `feat/telemetry-exploration`、提交并创建独立 PR。签认边界：仍处探索阶段，实施中遇到无法解决的问题时方案可能被推翻（self-review.md 签认头部意见、顶部引注及末节已落盘）。
+> 2026-11-19 状态：探索 commit `7f3fe332` 已落分支 `feat/telemetry-exploration` 并推送 origin。**组织裁决变更（2026-11-19 责任人）：不创建探索独立 PR**——该分支为**长期根分支**，方案未确定前不合并 `main_aixcoding_cli`；后续每块工作基于它再建分支（如 `feat/telemetry-session-analysis`），做好后 PR 合回本分支；全部完成后再整体并入主干；若 session 分析路线最终不可行则整体废弃、不并入。签认边界不变：仍处探索阶段，实施遇到无法解决的问题时方案可能被推翻（self-review.md 签认头部意见、顶部引注及末节）。
 
 新对话不要重做探索或直接进入生产开发，应按以下顺序执行：
 
@@ -34,11 +34,11 @@
 
 | 顺序 | 下一环节 | 开始前提 |
 |---|---|---|
-| 1 | 创建 `feat/telemetry-session-analysis` 集成分支；在批次1 design 中登记并修改两个 workflow 的集成分支 PR 触发，实证双 CI | 探索 PR 已合并；责任人逐条授权 Git/文件改动 |
-| 2 | 批次1 `telemetry-after-turn-slice`：编写 requirements/design/R2，同时修订 mock design/DIRECTORY 并呈报本批 D1；签认后开发 after_turn→reader→reporter→单端口 mock 垂直切片 | 集成分支及 CI 可用；批次1及 mock design/R2 已签认，本批 D1 已裁决 |
-| 3 | 批次2 `telemetry-acp-desktop`：ACP 输入、1001/desktop、最终响应与真实桌面闭环 | 批次1已验收并回合集成分支；批次2 design/R2 已签认 |
+| 1 | 调整两个 workflow 把 `feat/telemetry-exploration` 加入 PR 触发（改动本身可直推长期分支），实证工作块 PR 双 CI | 长期分支已建立（已完成）；责任人逐条授权 Git/文件改动 |
+| 2 | 批次1 `telemetry-after-turn-slice`：基于长期分支建工作块分支，编写 requirements/design/R2，同时修订 mock design/DIRECTORY 并呈报本批 D1；签认后开发 after_turn→reader→reporter→单端口 mock 垂直切片，做好后 PR 合回长期分支 | CI 触发可用；批次1及 mock design/R2 已签认，本批 D1 已裁决 |
+| 3 | 批次2 `telemetry-acp-desktop`：ACP 输入、1001/desktop、最终响应与真实桌面闭环 | 批次1已验收并回合长期分支；批次2 design/R2 已签认 |
 | 4 | 批次3 `telemetry-parity-hardening`：M1-T、全字段 parity、保留场景和长会话/异常治理 | 批次2已验收；批次3 design/R2 已签认 |
-| 5 | 集成分支整体回归、文档签认、真实后台/数据治理内网门禁，最终 PR 合并主干 | 三个批次全部完成，无未处置重大问题；若主干直接发布，真实后台冒烟必须通过 |
+| 5 | 长期分支整体回归、文档签认、真实后台/数据治理内网门禁，最终整体 PR 并入主干；若 session 分析路线最终不可行则整体废弃、不并入 | 三个批次全部完成，无未处置重大问题；若主干直接发布，真实后台冒烟必须通过 |
 
 ### 新对话读取顺序
 
@@ -76,7 +76,7 @@
 - [x] 评审反馈与复审收敛：另一 AI 接受五项限定并核实文档落地；补记 N1-A middleware 时序/registry 成本、0.28 全字段 parity 的 M1-T/联调关闭门禁、1001 输入→after_turn→首个成功 A-final 的去重链（2026-11-17）
 - [x] 责任人确认实施组织：探索批次独立；生产实现采用 `feat/telemetry-session-analysis` 集成分支，三个开发批次分别 PR 回集成，全面验证后再合并主干；mock 归属批次1（2026-11-17，详见文末策略）
 - [x] 责任人确认 `aixcoding/tests/telemetry/` 四个测试态实验文件随探索批次保留和提交，作为可复现证据；不进 wheel、不移入上游 tests，正式实现有等价覆盖后再逐项裁决退役（2026-11-17）
-- [ ] 完成探索最终 self-review/签认和独立 PR；随后批次1先落实施 design/R2 与集成分支 CI 触发，再开发真实垂直切片。M1-T 必须关闭全字段 parity 和 BR-9/BR-10
+- [x] 完成探索最终 self-review/签认（2026-11-17 周彬签认；2026-11-19 裁决不建探索独立 PR，commit `7f3fe332` 落长期根分支 `feat/telemetry-exploration`）；随后批次1先落实施 design/R2 与长期分支 CI 触发，再开发真实垂直切片。M1-T 必须关闭全字段 parity 和 BR-9/BR-10
 - [x] 展开 N3 公共 after_turn 生命周期：核清正常 ACP 时序、save=False/强制取消边界、EventBus 复用和同步/后台分层；现有 EventBus+finalizer 定向测试 23 passed（2026-11-14）
 - [x] N3 大方向可行性已核清；N3-A/N3-B、同步策略、失败与 flush 细节不影响能否工作，留到实施或 N7 消费契约阶段（2026-11-14）
 - [x] N3/N8 接缝与 flush 专项：AI 推荐 direct finalizer + 进程级 reporter 按 session 隔离；flush 只排空已生成报文，不做 trailing-save 最终补扫。EventBus 需额外订阅 owner，active delete 失败需可续用；九组现有测试 241 passed。该项早期“trajectory disabled 身份降级”口径已由第32项 run-owned 四文件完整身份方案取代（2026-11-17）
@@ -130,13 +130,14 @@
 - [x] 探索交付前完成双 AI 自审、verification 证据闭环和 self-review 签认（2026-11-17：选项 A 裁定+周彬签认；closure 门禁通过，见 verification.md 末节）
 - [ ] 批次1各 reporter 出站边界实现模型来源过滤：仅上报 catalog 下发模型（`synced_from_server` 探针）的调用，自定义/不可判定 fail-closed 跳过并留 detail 日志；同名 stem、无文件 profile、探针缓存三个实现细节随批次1 design 裁决（2026-11-18 需求登记，分析见 research/model-source-filtering.md）
 
-## 实施批次与分支策略（2026-11-17 责任人确认）
+## 实施批次与分支策略（2026-11-17 确认，2026-11-19 责任人裁决修订为长期根分支模式）
 
-### 探索批次独立交付
+### 长期根分支（取代原"探索批次独立 PR 交付"）
 
-- `telemetry-exploration` 保持独立批次和独立 PR，不与生产实施混合验收。
-- 交付物为本目录文档、研究和实验记录，以及根 `aixcoding/tests/telemetry/` 的测试态实验；不含生产 telemetry 行为。
-- 完成最终 self-review、verification 和责任人签认后，可单独合并 `main_aixcoding_cli`，作为后续实施证据基线；该合并不授权或启用生产功能。
+- `feat/telemetry-exploration` 为**长期根分支**：探索 commit（`7f3fe332`，六件套+research+experiments+四个测试态实验）已落在其上；**不创建探索独立 PR、方案未确定前不合并 `main_aixcoding_cli`**。
+- 交付物（文档、研究、实验记录与 `aixcoding/tests/telemetry/`）随分支存续，作为后续实施的证据基线；不含生产 telemetry 行为。
+- 后续每块工作基于长期分支再建分支（如 `feat/telemetry-session-analysis`），**确定做好后 PR 合回长期分支**；全部工作确定完成后**再整体 PR 并入 `main_aixcoding_cli`**。
+- **失败出口**：若最终结论是"通过分析 session 文件实现 telemetry 不可行"，长期分支整体废弃、不并入主干。
 
 ### 三个开发批次
 
@@ -150,24 +151,23 @@ mock **放在批次1**，不放探索批次，也不另建大型前置 mock 批�
 
 真实后台与数据治理是独立内网验收门禁，不混入外网开发批次；BR-1~BR-7/BR-9/BR-10（BR-8 已撤销）实际部署、真实存储 join、桌面生产组合和代码/路径/参数治理按上线验收执行。
 
-### 独立集成分支
+### 长期根分支与工作块分支
 
 ```text
 main_aixcoding_cli
-  └─ feat/telemetry-session-analysis        # 长期集成分支
-      ├─ feat/telemetry-after-turn-slice    # 批次1
-      ├─ feat/telemetry-acp-desktop         # 批次2
-      └─ feat/telemetry-parity-hardening    # 批次3
+  └─ feat/telemetry-exploration              # 长期根分支（探索 commit 已在其上）
+      ├─ feat/telemetry-session-analysis     # 工作块分支（示例名，按批次/工作块命名）
+      ├─ ……（批次1/2/3 等各工作块分支，做好后 PR 合回长期根分支）
 ```
 
-- 三个实施分支分别从集成分支切出，PR 回合到集成分支；每批仍独立 requirements/design/R2/verification，不把集成分支变成巨型提交。
-- 当前 `aixcoding-tests.yml` 和 `aixcoding-upstream-ci.yml` 仅对目标为 `main_aixcoding_cli` 的 PR 自动触发。批次1首个实施 PR 前，必须在实施 design 中登记并修改这两个 workflow 的 `pull_request.branches`，加入 `feat/telemetry-session-analysis`，并实证批次 PR 双 CI 运行；不能只本地跑测试代替。
-- 集成分支定期同步主干以限制漂移。最终 `feat/telemetry-session-analysis → main_aixcoding_cli` 前完成全部批次验收、整体回归、文档签认和最终 PR 双 CI；若主干会直接用于发布，真实后台内网冒烟也必须在合并前通过。
-- 本策略只是已确认的组织方案，不是本次创建分支、修改 workflow 或执行 Git 写操作的授权；实际命令仍逐条授权。
+- 各工作块分支从长期根分支切出，PR 回合到长期根分支；每块仍独立 requirements/design/R2/verification，不把长期分支变成不可审的巨型提交。
+- 当前 `aixcoding-tests.yml` 和 `aixcoding-upstream-ci.yml` 仅对目标为 `main_aixcoding_cli` 的 PR 自动触发。**首个工作块 PR 前，必须在实施 design 中登记并修改这两个 workflow 的 `pull_request.branches`，加入 `feat/telemetry-exploration`，并实证工作块 PR 双 CI 运行**；该 workflow 改动本身可直推长期根分支（一次性、低风险，人工核验）。不能只本地跑测试代替。
+- 长期根分支定期同步 `main_aixcoding_cli` 以限制漂移。最终 `feat/telemetry-exploration → main_aixcoding_cli` 整体合并前完成全部批次验收、整体回归、文档签认和最终 PR 双 CI；若主干会直接用于发布，真实后台内网冒烟也必须在合并前通过。
+- 本策略只是已确认的组织方案，不是修改 workflow 或执行 Git 写操作的授权；实际命令仍逐条授权。
 
 ### `aixcoding/tests/telemetry/` 处置
 
-**明确结论：四个文件都应该提交；提交时间就是当前探索批次的独立 PR，不等待任何实施批次。**四个文件为 `test_tool_identity_persistence.py`、`test_request_identity.py`、`test_after_turn_queue.py`、`test_acp_response_identity.py`。
+**明确结论：四个文件都应该提交；已随长期根分支首个 commit `7f3fe332` 落地（2026-11-19），不等待任何实施批次。**四个文件为 `test_tool_identity_persistence.py`、`test_request_identity.py`、`test_after_turn_queue.py`、`test_acp_response_identity.py`。
 
 提交顺序为：探索最终测试/ruff/文档门禁复查 → 责任人完成 self-review 签认 → 在探索特性分支中将这四个文件与探索文档一起纳入提交和同一个独立 PR → CI 通过后随探索 PR 合并主干。可以在 PR 内按文档/测试分 commit，但不得继续只留在本地，也不拖到 after_turn/ACP 实施批次才提交。
 

@@ -2,7 +2,7 @@
 
 > 截至 2026-11-17。本文是交给后续评审 AI 的**当前有效结论入口**，只汇总已探索方案、推荐路线、风险、外部依赖和未证明事项；详细证据以链接专题为准。
 >
-> 当前状态（2026-11-19 更新）：主要方向性调查和独立评审/复审已收敛；责任人已裁决实施组织（三个开发批次 + `feat/telemetry-session-analysis` 集成分支，mock 归属批次1，见 `../plan.md` 实施策略节）；探索批次已签认（2026-11-17），后续裁决依次落盘：BR-1 语义修订（服务器不做成功判定）、ID 原值裁决（全部 ID 保持 32hex 不转 UUID）、上报过滤需求（仅报 catalog 下发模型）、BR-8 撤销（不新增 providerCallId）、parentSpanId 语义差异项澄清。当前停等探索批次独立 PR（Git 逐条授权），其后进入批次1 requirements/design/R2。**本文不是实施 design，不授权上游修改或 Git 写操作。**
+> 当前状态（2026-11-19 更新）：主要方向性调查和独立评审/复审已收敛；责任人已裁决实施组织并经 2026-11-19 修订为**长期根分支模式**——`feat/telemetry-exploration` 为长期分支（探索 commit `7f3fe332` 已在其上，不建独立 PR、不提前合并主干），后续工作块基于它建分支、做好后 PR 合回，全部完成或确认失败（session 分析不可行则废弃）才整体并入 `main_aixcoding_cli`；mock 归属批次1，见 `../plan.md` 实施策略节。探索批次已签认（2026-11-17），后续裁决依次落盘：BR-1 语义修订（服务器不做成功判定）、ID 原值裁决（全部 ID 保持 32hex 不转 UUID）、上报过滤需求（仅报 catalog 下发模型）、BR-8 撤销（不新增 providerCallId）、parentSpanId 语义差异项澄清。下一环节为批次1 requirements/design/R2 与长期分支 CI 触发调整。**本文不是实施 design，不授权上游修改或 Git 写操作。**
 
 ## 1. 执行结论
 
@@ -160,7 +160,7 @@ B7/B8 均因责任人表示暂时无能力技术评审而明确委托 AI 制定�
 
 1. ~~另一 AI 完成本轮评审，发现项收敛~~——已完成（评审/复审收敛，最终双 AI 自审经责任人裁定满足）。
 2. ~~责任人裁决是否新建实施批次、是否需 ADR，以及推进顺序~~——已裁决（三个开发批次 + 集成分支，无需 ADR，见 `../plan.md` 实施策略节）。
-3. 探索批次已签认并待独立 PR 合并；批次1 开工前须完成其 requirements/design/test-plan 并签认 R2（含修订 mock design/DIRECTORY、集成分支 CI 触发登记）。
+3. 探索批次已签认，commit `7f3fe332` 已落长期根分支 `feat/telemetry-exploration`（2026-11-19 裁决不建独立 PR）；批次1 开工前须完成其 requirements/design/test-plan 并签认 R2（含修订 mock design/DIRECTORY、长期分支 CI 触发调整）。
 4. 获授权后才修改上游文件或开始生产/mock 实现——不变。
 
 ### 首个实现必须验证的技术风险
@@ -262,7 +262,7 @@ B7/B8 均因责任人表示暂时无能力技术评审而明确委托 AI 制定�
 
 责任人已于 2026-11-17 确认：探索批次独立交付；生产实现拆为 `telemetry-after-turn-slice`、`telemetry-acp-desktop`、`telemetry-parity-hardening` 三个批次。批次1包含 mock 1A 单端口骨架和 1B 垂直切片 telemetry，开始前须修订既有 mock design/DIRECTORY 并签认；D1 按各批涉及范围签认，不全量阻塞批次1。真实后台与数据治理另作内网门禁。
 
-生产代码先隔离于 `feat/telemetry-session-analysis` 集成分支，三个批次分别从该分支切出并 PR 回合，全面验证后再合并 `main_aixcoding_cli`。批次1实施前必须把集成分支加入 `aixcoding-tests.yml` 和 `aixcoding-upstream-ci.yml` 的 PR 触发并实证双 CI，因为当前只对目标为主干的 PR 自动运行。
+生产代码先隔离于长期根分支 `feat/telemetry-exploration`（2026-11-19 修订，取代原 `feat/telemetry-session-analysis` 集成分支方案），各工作块分支从它切出并 PR 回合，全面验证后整体合并 `main_aixcoding_cli`——若 session 分析路线最终不可行则整体废弃、不并入。首个工作块 PR 前必须把 `feat/telemetry-exploration` 加入 `aixcoding-tests.yml` 和 `aixcoding-upstream-ci.yml` 的 PR 触发并实证双 CI，因为当前只对目标为主干的 PR 自动运行。
 
 `aixcoding/tests/telemetry/` 四个测试态实验文件全部在当前探索批次独立 PR 中提交，不等待实施批次；不进 wheel、不移入上游 tests。正式生产实现及等价/更强覆盖合并后，再逐项裁决精简或退役。完整分支、验收、最终双 AI 自审判定和 CI 约束见 `../plan.md`。
 
