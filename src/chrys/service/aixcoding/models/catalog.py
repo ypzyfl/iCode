@@ -330,6 +330,28 @@ def require_catalog_writable() -> None:
         raise ModelCatalogReadOnly("Model profiles are managed by the server catalog and cannot be edited locally.")
 
 
+def server_owned_profile_ids() -> frozenset[str]:
+    """Profile ids that currently own a server-synced file in the models directory.
+
+    A marked file's stem is the id of the profile it serves, under either the
+    ``.yaml`` or ``.yml`` suffix the scan shares with the sync. The TUI
+    management screen keeps these out of its editable list while the picker
+    still offers them for selection.
+    """
+    names, _ = _server_owned_names(catalog_directory())
+    return frozenset(name.rsplit(".", 1)[0] for name in names)
+
+
+def is_server_owned_profile_id(profile_id: str) -> bool:
+    """Whether *profile_id* currently resolves to a server-synced file."""
+    directory = catalog_directory()
+    for suffix in (".yaml", ".yml"):
+        path = directory / f"{profile_id}{suffix}"
+        if path.exists() and _is_server_synced(path):
+            return True
+    return False
+
+
 def _profile_field_names() -> set[str]:
     return {field.name for field in fields(ModelProfile)}
 

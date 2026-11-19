@@ -7,7 +7,7 @@
 
 - 责任人：周彬
 - 状态：已确认
-- 确认日期：2026-11-06
+- 确认日期：2026-11-19
 - 确认意见：无特别意见
 
 ## 方案概述
@@ -173,10 +173,12 @@ AGENTS.md/pyproject/po auto-merge 通过（语义核对列入核对矩阵）。
 
 | id | 落点 | marker 锚 | 预期计数 | anchor | risk | removal_condition |
 |---|---|---|---|---|---|---|
-| C136 | tests/app/tui/screens/test_manual_reload.py | AIxCoding catalog: upstream opens the local model dialog via F4 | 1 | 函数级 `@pytest.mark.skip` + reason 前缀（catalog F4 禁用与模型对话框断言互斥留痕） | 低（显式 skip；上游追加用例将显式暴露需复核） | 〔随组〕catalog 只读管控语义整体淘汰获裁时恢复上游测试（测试支撑） |
-| C137 | tests/app/tui/screens/test_manual_reload.py | AIxCoding catalog: upstream deletes the default profile in the local dialog | 1 | 函数级 skip + reason 前缀（与 C134 同 helper 同互斥语义，reason 逐字一致） | 低（同 C136） | 〔随组〕同 C136 |
-| C138 | tests/app/tui/screens/test_reload_profiles.py | AIxCoding catalog: upstream edits models in the local editor via F4 | 1 | 函数级 skip + reason 前缀（F4 模型编辑器保存互斥；前半段 reload 覆盖由同文件其余测试保留） | 低（同 C136） | 〔随组〕同 C136 |
 | C139 | tests/service/extensions/test_discovery.py | AIxCoding branding: extension skip message assertion | 1 | extensions 跳过消息 `AIxCoding's own tool categories` 断言（branding.py APP_DISPLAY_NAME 消费方） | 低（测试断言品牌适配，同 C133 先例） | 随 C050（品牌政策变更时逐点裁决） |
+
+> 退役登记（2026-11-19，model-config-restore 实施）：C136/C137/C138 三点已随 catalog 只读
+> 管控语义整体淘汰（removal_condition 预写条件成立）恢复上游测试形态（四文件与上游基线
+> `2fd777f6` diff 归零），退役记录由 `aixcoding/docs/batches/model-config-restore/design.md`
+> 持有，本节现役行同步删除；C139（品牌断言）不受影响保持现役；本文按 R10 待责任人重签。
 
 ## 既有定制点存活核对矩阵（runbook §3 结构层展开）
 

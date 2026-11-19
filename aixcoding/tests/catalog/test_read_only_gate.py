@@ -1,14 +1,12 @@
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 
-"""The UI gate for centralized model management (migrated from 0.28).
+"""The model-management restore gate (follow-up to catalog-sync + catalog-custom-coexist).
 
-The model configuration screen opens read-only no matter what the runtime is
-doing: the model list is owned by the server catalog. The rendered notice
-text is pinned upstream (tests/app/tui/screens/test_model_config.py); what
-these anchor here is the gate itself and the removed F4 entry
-(aixcoding/docs/batches/catalog-sync/design.md, R2 rows 5/6/10), plus the
-busy-state and indicator-entry anchors of catalog-readonly-coverage
-(aixcoding/docs/batches/catalog-readonly-coverage/design.md).
+The model configuration screen is writable again (official 0.35.2 behavior):
+user profiles can be created, edited, and deleted, while server-synced
+profiles are hidden from the management list and refused on the write paths
+(management-screen delete/save and ACP write/delete). The screen opens
+read-only only while a turn is busy, and the F4 entry is restored.
 """
 
 from __future__ import annotations
@@ -19,6 +17,7 @@ import pytest
 
 from chrys.app.tui.screens.models import screen as model_config_screen_module
 from chrys.app.tui.screens.models.screen import ModelConfigScreen
+from chrys.foundation.config.errors import ConfigError
 from chrys.service.profiles.models.registry import ModelProfileRegistry
 from chrys.service.profiles.models.schema import ModelProfile
 
@@ -99,14 +98,14 @@ def _make_controller(
 
 
 @pytest.mark.asyncio
-async def test_open_model_config_screen_is_always_read_only(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Even idle (no agent, nothing executing) the screen must open read-only."""
+async def test_open_model_config_is_writable_when_idle(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Idle (no agent, nothing executing): the management screen opens writable again."""
     controller, pushed, _ = _make_controller(monkeypatch)
 
     await controller._open_model_config()
 
     assert len(pushed) == 1
-    assert pushed[0]._read_only is True, "idle must still be read-only: management is centralized"
+    assert pushed[0]._read_only is False, "idle must restore the writable management screen"
 
 
 @pytest.mark.parametrize(
@@ -125,12 +124,10 @@ async def test_open_model_config_screen_is_read_only_while_busy(
     execution_busy: bool,
     submit_active: bool,
 ) -> None:
-    """Each signal of the upstream conditional gate, alone and combined, still opens read-only.
+    """Each signal of the upstream conditional gate, alone and combined, opens read-only.
 
     Upstream decides editability from ``agent_running or submit.active or
-    execution_busy()``; the centralized catalog makes the screen read-only in
-    every one of those states (the dimension the v0.33.0 models send-in-flight
-    test used to pin upstream — C135).
+    execution_busy()``; the restored screen keeps that exact conditional.
     """
     controller, pushed, _ = _make_controller(
         monkeypatch, agent_running=agent_running, execution_busy=execution_busy, submit_active=submit_active
@@ -140,12 +137,14 @@ async def test_open_model_config_screen_is_read_only_while_busy(
 
     assert len(pushed) == 1
     assert isinstance(pushed[0], ModelConfigScreen)
-    assert pushed[0]._read_only is True, "busy must not weaken the always-read-only gate"
+    assert pushed[0]._read_only is True, "a busy turn must still open the screen read-only"
 
 
 @pytest.mark.asyncio
-async def test_model_indicator_configure_entry_opens_read_only(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The indicator's configure entry routes through the real open chain to a read-only screen."""
+async def test_model_indicator_configure_entry_opens_writable_screen_when_idle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The indicator's configure entry routes through the real open chain to a writable screen."""
     controller, pushed, captured = _make_controller(monkeypatch)
 
     controller.on_model_tag_clicked("configure")
@@ -154,21 +153,64 @@ async def test_model_indicator_configure_entry_opens_read_only(monkeypatch: pyte
 
     assert len(pushed) == 1
     assert isinstance(pushed[0], ModelConfigScreen)
-    assert pushed[0]._read_only is True, "the configure entry opens the same always-read-only screen"
+    assert pushed[0]._read_only is False, "the configure entry opens the same writable screen when idle"
 
 
-def test_read_only_notice_uses_central_management_wording() -> None:
-    """The notice explains policy, not a transient agent-session condition."""
+def test_read_only_notice_keeps_upstream_agent_running_wording() -> None:
+    """The notice explains the transient agent-session condition, not a management policy."""
     fallback = model_config_screen_module._READ_ONLY_NOTICE.fallback
-    assert "centrally managed" in fallback
-    assert "Agent is running" not in fallback
+    assert "Agent is running" in fallback
+    assert "centrally managed" not in fallback
 
 
-def test_f4_binding_absent_from_main_screen() -> None:
-    """F4 no longer opens the model config: the footer key is gone entirely."""
+def test_f4_binding_present_on_main_screen() -> None:
+    """F4 opens the model config again: the footer key is restored."""
     from chrys.app.tui.screens.main.screen import MainScreen
 
-    for binding in MainScreen.BINDINGS:
-        key = getattr(binding, "key", None)
-        action = getattr(binding, "action", None)
-        assert not (key == "f4" or action == "models_config"), "the F4 models_config binding must stay removed"
+    bindings = {(getattr(binding, "key", None), getattr(binding, "action", None)) for binding in MainScreen.BINDINGS}
+    assert ("f4", "models_config") in bindings, "the F4 models_config binding must stay restored"
+
+
+def test_model_config_screen_hides_server_owned_profiles(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Server-synced profiles stay selectable in the picker but leave the management list."""
+    registry = ModelProfileRegistry()
+    registry.register(_profile("srv-model"))
+    registry.register(_profile("user-model"))
+    monkeypatch.setattr(
+        "chrys.service.aixcoding.models.catalog.server_owned_profile_ids",
+        lambda: frozenset({"srv-model"}),
+    )
+    screen = ModelConfigScreen(registry)
+
+    assert [profile.id for profile in screen._listed_profiles()] == ["user-model"]
+
+
+@pytest.mark.asyncio
+async def test_do_delete_refuses_server_owned_profile(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A stale sidebar must not let deletion touch a file the catalog owns."""
+    registry = ModelProfileRegistry()
+    registry.register(_profile("srv-model"))
+    screen = ModelConfigScreen(registry)
+    monkeypatch.setattr(
+        "chrys.service.aixcoding.models.catalog.is_server_owned_profile_id",
+        lambda _profile_id: True,
+    )
+
+    with pytest.raises(ConfigError):
+        await screen._do_delete("srv-model")
+
+
+@pytest.mark.asyncio
+async def test_save_only_refuses_server_owned_profile(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A save landing on a server-synced file would strip the marker — refuse it."""
+    registry = ModelProfileRegistry()
+    registry.register(_profile("srv-model"))
+    screen = ModelConfigScreen(registry)
+    screen._selected_profile_id = "srv-model"
+    monkeypatch.setattr(
+        "chrys.service.aixcoding.models.catalog.is_server_owned_profile_id",
+        lambda _profile_id: True,
+    )
+
+    with pytest.raises(ConfigError):
+        await screen._save_only()
