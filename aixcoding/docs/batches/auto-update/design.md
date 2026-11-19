@@ -170,6 +170,19 @@
 > 零新增豁免，按 DEVELOPMENT §4.1 不触发重签，头部签认字段保持责任人
 > 2026-11-12 本人落盘值。本条由 AI 追加、git 留痕，证据见
 > verification.md「Peer Review 推荐方案 A 修复」。
+> 2026-11-19（二十）内网实测修复（责任人现场裁决，AI 实施，fix 分支
+> `fix/aixcoding-auto-update-restart`）：① **镜像根临时写死生产 origin**
+> （不分环境）——dev 网关未发布裸 origin 的文件镜像路径，D4 推导地址在
+> dev 环境始终 400；dev 镜像发布后恢复推导。② **重启改裸命令名**——离线
+> 包入口脚本 shebang 指向构建机 mktemp 解释器，绝对路径 exec 报 ENOENT
+> （首次真实更新发现），PATH 可解析时用 `aixcoding-cli` 重启。③ **重启
+> 不再占用当前终端**（责任人内网实测截图裁决）：原 exec 方式使新 TUI 与
+> 用户 shell 输出交错；改为 wrapper 在**新终端窗口**启动——Linux 走
+> x-terminal-emulator/gnome-terminal/konsole/xterm 链、macOS 走 osascript
+> Terminal do script、Windows 走 Start-Process 新控制台；无窗口环境
+> （SSH/headless）打印手动启动提示后退出。更新在重启前已完成，三分支均
+> 不改更新成败语义。§3.4 的「exec 重启」措辞以本条为准；shebang 根治
+> （build_offline_dist 入口脚本改写）经责任人裁决本轮不做。
 
 ## 0. 前置事实
 
