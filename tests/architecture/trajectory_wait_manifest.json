@@ -4056,6 +4056,18 @@
         ["awaitable", "await self._sources.extension_context.collect(prompt)", "unresolved"]
       ]
     },
+    "chrys.service.aixcoding.llm_queue.queue_cancel": {
+      "QueueRequestTracker._post_cancel": [
+        ["async_context", "async with httpx.AsyncClient(timeout=CANCEL_TIMEOUT_SECONDS, transport=self._transport)", "unresolved"],
+        ["awaitable", "await client.post(endpoint, json=payload, headers={'token': self._api_key})", "unresolved"]
+      ],
+      "QueueRequestTracker.cancel_on_close": [
+        ["shield", "await asyncio.shield(task)", "unresolved"]
+      ],
+      "QueueRequestTracker.observing.observe": [
+        ["awaitable", "await on_status(status)", "unresolved"]
+      ]
+    },
     "chrys.service.aixcoding.llm_queue.queue_frames": {
       "_notify": [
         ["awaitable", "await on_status(status)", "unresolved"]
@@ -4522,7 +4534,8 @@
         ["wrapper", "await validate_stream_response(raw)", "unresolved", "chrys.service.llm.chat_completions.validation.validate_stream_response"],
         ["async_iteration", "async for chunk in chunks", "unresolved"],
         ["wrapper", "async for update in _read_after_ending(chunks, state)", "unresolved", "chrys.service.llm.chat_completions.client._read_after_ending"],
-        ["awaitable", "await sdk_stream.close()", "unresolved"]
+        ["awaitable", "await sdk_stream.close()", "unresolved"],
+        ["awaitable", "await queue_request.cancel_on_close()", "unresolved"]
       ],
       "ChatCompletionsClient.aclose": [
         ["awaitable", "await self._close_sdk()", "unresolved"]

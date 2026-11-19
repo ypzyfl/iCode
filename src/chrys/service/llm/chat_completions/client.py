@@ -232,6 +232,19 @@ class ChatCompletionsClient(WireClient):
         request = self._build_request(messages, options)
         request["stream_options"] = {"include_usage": True}
         requires_finish_reason = options.get(STREAM_REQUIRES_FINISH_REASON_OPTION) is True
+        # AIxCoding llm-queue: cancel queued request on abort
+        queue_request: Any = None
+        try:
+            from chrys.service.aixcoding.llm_queue import track_queue_request
+
+            queue_request = track_queue_request(
+                request,
+                model=self.model,
+                base_url=str(self.sdk_client.base_url),
+                api_key=self.sdk_client.api_key,
+            )
+        except Exception:
+            logger.debug("aixcoding llm-queue cancel unavailable", exc_info=True)
 
         async def updates() -> AsyncIterable[ChatResponseUpdate]:
             state = StreamState(self.VARIANT, origin=self.reasoning_origin())
@@ -248,10 +261,11 @@ class ChatCompletionsClient(WireClient):
 
                     # AIxCoding queue-progress: pass queue callback
                     observer = self._observer
-                    chunks = guard_queue_frames(
-                        chunks,
-                        on_status=observer.on_queue_status if observer is not None else None,
-                    )
+                    on_status = observer.on_queue_status if observer is not None else None
+                    # AIxCoding llm-queue: cancel queued request on abort
+                    if queue_request is not None:
+                        on_status = queue_request.observing(on_status)
+                    chunks = guard_queue_frames(chunks, on_status=on_status)
                 except Exception:
                     # The customization is optional: a broken import never blocks streaming.
                     logger.warning(
@@ -293,11 +307,16 @@ class ChatCompletionsClient(WireClient):
                     raise
                 raise _service_error(ex) from ex
             finally:
-                if sdk_stream is not None:
-                    try:
-                        await sdk_stream.close()
-                    except Exception:
-                        logger.debug("Failed to close OpenAI chat-completion stream", exc_info=True)
+                try:
+                    if sdk_stream is not None:
+                        try:
+                            await sdk_stream.close()
+                        except Exception:
+                            logger.debug("Failed to close OpenAI chat-completion stream", exc_info=True)
+                finally:
+                    # AIxCoding llm-queue: cancel queued request on abort
+                    if queue_request is not None:
+                        await queue_request.cancel_on_close()
 
         return self._build_response_stream(updates(), response_format=options.get("response_format"))
 

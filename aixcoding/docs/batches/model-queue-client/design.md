@@ -7,7 +7,7 @@
 
 - 责任人：李海潮
 - 状态：已确认
-- 确认日期：2026-11-18
+- 确认日期：2026-11-19
 - 确认意见：尽量不改上游，若必须要改，要少而集中的改（可选；审阅中形成的判断、附加条件或保留）
 - 待重签说明（2026-11-18 自审后）：R2 清单新增 `tests/architecture/trajectory_wait_manifest.json`（+5），`client.py` 行数按实际改为 +10/−0；正文同步补假设 5 的测试边界与登记 risk 行数。
 
@@ -85,13 +85,14 @@ R2 报批说明：
 | id | 落点 | marker 锚 | 预期计数 | anchor | risk | removal_condition |
 |---|---|---|---|---|---|---|
 | model-queue-client:queue-frame-guard | src/chrys/service/llm/chat_completions/client.py | AIxCoding llm-queue: guard gateway queue frames | 1 | `AsyncOpenAI.chat.completions` chunk 迭代（`StreamState.updates_for` 校验前） | 低（10 行接线，异常全吞错，删除即回滚） | 〔上游等价〕SDK 原生忽略未知具名事件且网关改以 HTTP 状态码表达排队拒绝，或网关不再对客户端下发 `queue_status` |
+| model-queue-client:queue-cancel | src/chrys/service/llm/chat_completions/client.py | AIxCoding llm-queue: cancel queued request on abort | 3 | `_open_stream`（tracker 构造 / `on_status` 包装 / `finally` 取消） | 中（放行空窗误判只多一次 `409` 旁路请求，契约内） | 〔上游等价〕上游提供 wire 层请求生命周期钩子（abort/close 回调） |
 
 ## 风险与最坏情况
 
 - 判据过宽：把其他 `choices=None` 的合法帧当排队帧丢弃 → 静默丢 usage。缓解：判据要求 `model_extra` 同时含 `position`、`queueSize` 且均为 `int`，并断言无 `id`/`usage`；测试覆盖"`choices=None` 但无排队字段"仍报 invalid response。
 - progress 续活失效：见假设 5。定制测试锚定"丢帧 → 上报 progress"的调用点；scope 传播本身在上游，不在本批测试射程内（test-plan 已标注该局限）。
 - 转译不命中：`body`/`code` 形态变化 → 退回重排队（可用性尚存，负载放大）。
-- `QUEUE_CANCELLED` 在 iCode 场景可达性低（不接 cancel 接口、断连即出队）→ 属**防御性覆盖**，保留以免服务端策略变化时误重试。
+- `QUEUE_CANCELLED` 在 v1.0 阶段不可达（不接 cancel 接口）；v1.1 起由本端 cancel 触发，但用户已主动中断、多半收不到该帧，转译保留作防御。
 - 回滚：删除接线并移除定制包，行为完全回到当前状态（无数据格式、无持久化、无对外契约变化）。
 
 ## ADR 判定
@@ -102,3 +103,115 @@ R2 报批说明：
 - ④ 依赖上游非公开接口或行为（SDK 对未知事件的处理、`classify` 的 `explicit_retryable` 短路、stall 看门狗的 progress 机制）：**是**
 
 → 出 ADR：`standards/adr/model-queue-client--queue-frame-interception.md`。
+
+---
+
+## 变更单 v1.1（2026-11-19，责任人裁决）：排队中主动取消
+
+> 契约来源：`ModelQueueFrontend.md` §2（`request_id`/`requestId` 为请求体可选字段）、§3.6（cancel 接口与状态码）、
+> `LlmRequestFlow.md` §5（`LlmProxyController.cancelQueue` → `concurrencyRegistry.cancel`）。
+> 原 v1.0 非目标"不对接 cancel"的依据是"客户端中断即断连、断连即出队"；责任人澄清该语义为
+> **断连后客户端主动补发取消通知（仅排队中）**，故该非目标撤销，本变更纳入同批次闭环。
+
+### 方案概述
+
+仍是一处上游接线 + 定制包承载，v1.0 的帧过滤不动：
+
+```text
+client.py::_open_stream                                service/aixcoding/llm_queue/queue_cancel.py
+  request = self._build_request(...)                   QueueRequestTracker(request, model, base_url, api_key)
+  tracker = track_queue_request(request, ...)            ├─ request_id = uuid4().hex → request["extra_body"]
+    │  （+1 行接线；失败返回 None，回退 v1.0）            │   （profile 已带 request_id 时复用）
+    ▼                                                    ├─ wrap(on_status)：position == -1 → 已放行，
+  chunks = guard_queue_frames(                           │                   否则 → 仍在排队
+      chunks, on_status=tracker.wrap(observer...))       └─ cancel_if_still_queued()
+  finally:                                                   仅当"排队中"才 POST cancel（2s 超时，全吞错）
+      await tracker.cancel_if_still_queued()
+```
+
+"是否仍在排队"的判据（复用 v1.0 已有语义，不新增协议理解）：
+
+- `queue_status` 的 `position >= 0` 帧 ⇒ 排队中；
+- `RELEASED_POSITION == -1` 是 guard 在**首个数据帧到达时**合成的放行信号（`queue_frames.py:61-62,123-126`）⇒ 已放行；
+- 从未收到任何 `queue_status` ⇒ 未排队（直通），两种情形都不发 cancel。
+
+### cancel 请求构造
+
+```
+POST {base_url 去尾斜杠、再去尾 /v1}/api/v3/chat/completions/cancel
+Content-Type: application/json
+token: <profile api_key>
+
+{"model": "<client.model>", "request_id": "<本次 wire 请求 id>"}
+```
+
+- `model` 取 `self.model`（profile `model_id`，即网关 `modelKey`）。
+- `base_url` 取 `str(self.sdk_client.base_url)`：mock 为 `http://127.0.0.1:8642/v1` → `http://127.0.0.1:8642/api/v3/chat/completions/cancel`；
+  内网若为 `http://<host>/aicoding/v1` → `http://<host>/aicoding/api/v3/chat/completions/cancel`（与 §2.1 一致）。
+- 独立 `httpx.AsyncClient`，`timeout=2s`，不复用 SDK 私有 `_client`；代理仍按环境变量（`trust_env` 默认开启，
+  内网由 `NO_PROXY` 保证）。
+- 结果处理：`204` 成功；`404 REQUEST_NOT_FOUND`、`409 REQUEST_ALREADY_RUNNING` 静默（契约内的正常结果）；
+  其余状态/异常 `logger.debug/warning`，绝不上抛。
+
+### 为什么挂 `_open_stream` 的 `finally`
+
+四条中断路径（TUI `UserInterrupt`、ACP `session/cancel`、CLI Ctrl+C、stall/异常）最终都会让 `updates()`
+生成器关闭并执行 `finally`（`client.py:295-300` 现有 `sdk_stream.close()` 已证明该路径可靠）。
+挂在 client 层比在 `kernel.abort()` / `engine.coordinator` 处挂更少接触面，且 `sdk_client.base_url`/`api_key`/`model`
+就在手边（`builder.py:485-493` 的注入点拿不到这三者）。
+
+已知窗口：**放行到首个 token 的空窗期**（`ModelQueueFrontend.md` §3.4），客户端仍认定为"排队中"，
+会多发一次 cancel → 服务端返回 `409` 被忽略。这是客户端可观测性的上限，代价为一次无副作用的旁路请求。
+
+### 上游改动清单（R2，相对 v1.0 的增量）
+
+| 文件 | 改什么 | 实际行数（+增/−删） | 标记注释位置 |
+|---|---|---|---|
+| `src/chrys/service/llm/chat_completions/client.py` | `_open_stream`：构造 tracker（13 行，含 lazy import）、`on_status` 交给 tracker 包装（+5/−4）、`finally` 用嵌套 `try/finally` 保证 `cancel_on_close` 在流关闭抛错/被取消时仍执行（+10/−9） | **+28/−9**（净 +19） | `# AIxCoding llm-queue: cancel queued request on abort` |
+| `tests/architecture/trajectory_wait_manifest.json` | 生成产物：刷新后重新打开 10 条 wait（4 条新增在 `queue_cancel`、`updates` 的 5 条因函数 wait 数变化重排 + 新增第 6 条），全部保持默认 `unresolved` | +14/−1 | 无（`MARKER_EXEMPTIONS`） |
+
+新增文件（非 R2）：`src/chrys/service/aixcoding/llm_queue/queue_cancel.py`、
+`aixcoding/tests/llm/test_model_queue_cancel.py`、`llm_queue/__init__.py` 导出（+13/−1，含 `RELEASED_POSITION`）。
+
+R2 报批说明：
+- 首稿预估 +11，实际 **+28/−9**：tracker 构造块按仓库格式展开为 13 行（首稿低估了 lazy import 与多行参数），
+  `on_status` 包装是"替换原 4 行调用"（+5/−4），`finally` 因评审要求"流关闭抛错/被取消时仍必须发 cancel"
+  改为嵌套 `try/finally`（+10/−9），净增从 +17 变 +19。
+- wait 清单首稿估 +5，实际 +14/−1：`_open_stream.updates` 的 wait 序号整体后移（新增第 6 条），
+  加上 `queue_cancel` 内 4 条；均为 `unresolved`，无人工规则需要重新套用。
+- 本变更使 R2 清单与定制点登记表发生变化，按 R10 需责任人把本文件头部状态退回「草案」后重签；
+  AI 不改头部，实现前必须完成重签。
+
+### 对外部行为的假设
+
+1. 假设：OpenAI SDK 会把 `extra_body` 里的自定义键原样并入请求 JSON，且 `request_id` 不落入
+   `PROTECTED_EXTRA_BODY_CHAT_OPTION_KEYS`（`profiles/models/options.py:72-104` 只管 profile 侧受管键）→
+   失效表现：字段未发出 → 服务端随机生成 id → cancel 必然 `404`，日志可见，功能降级为"取消无效"而非崩溃。
+2. 假设：网关按 `modelKey` + `request_id` 定位排队元素（`LlmRequestFlow.md:62,194`）→ 失效表现：cancel 恒 `404`。
+3. 假设：`base_url` 形态为 `<gateway>/v1` 或 `<gateway>`（OpenAI 兼容前缀）→ 失效表现：cancel URL 404/连接失败，
+   只记日志；**这是本变更最大的外部依赖**，需在联调时用真实 profile 核对一次。
+4. 假设：`sdk_client.api_key` 即 `token` 头的合法值（契约 §2 第 38 行允许 `token` 头或 Bearer）→ 失效表现：`403`/`401`，
+   仅影响 cancel。
+5. 假设：`RELEASED_POSITION == -1` 是客户端可得的唯一放行信号（网关放行后不再推 `queue_status`）→
+   失效表现：放行后仍判定"排队中"，多发一次 cancel → `409`，无害。
+6. 假设：`finally` 在任务取消（`CancelledError`）时仍执行 → 失效表现：中断不发 cancel，行为回到 v1.0（不是回归）。
+   CLI Ctrl+C 走 `asyncio.run` 取消，若取消发生在 loop 关闭前，cancel 任务可能来不及跑完（2s 超时上限），属已知限制。
+
+### 定制点登记（增量）
+
+登记行 `model-queue-client:queue-cancel`（预期计数 3）已并入上方 `## 定制点登记预告` 主表，与本批
+`queue-frame-guard` 同行维护；`gen_customizations.py --strict` 以该表为准。
+
+### 风险与最坏情况
+
+- **URL 推导不成立**（假设 3）：cancel 全部落空，队列残留回到 v1.0 现状；日志可观测，不引入新故障。
+- **误发 cancel**：放行空窗期多发一次 → `409`，服务端明确"已放行"，无副作用。
+- **重复取消**：契约幂等（重复取消返 `404`），重试重发产生新 id，旧 id 在 abort 时被 cancel。
+- **取消阻塞中断**：`2s` 超时上限 + 全吞错；若 `finally` 处于取消态，则跳过 await（不拖慢用户操作）。
+- **代理/证书差异**：独立 `httpx.AsyncClient` 不复用 SDK 连接池；代理按环境变量（`trust_env` 默认开启），内网 `NO_PROXY` 已由环境保证。
+- 回滚：删除 `queue_cancel.py`、`client.py` 的 11 行接线与登记行，恢复 v1.0（无 `request_id`、无 cancel）。
+
+### ADR 判定（增量）
+
+- 风险点与 v1.0 同源：仍依赖上游非公开行为（SDK `extra_body` 合并、`finally` 在取消时执行）；不新增 ADR，
+  在既有 `model-queue-client--queue-frame-interception` 的决策范围内。

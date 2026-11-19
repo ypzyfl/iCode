@@ -35,3 +35,25 @@
 
 - 队列事件不得影响 `_read_after_ending` 的 usage 收集：用例中 `[DONE]` 前带 usage chunk，断言 usage 正常上报。
 - 帧过滤与转译两条判定链回归：`is_retryable` 对普通 429 / 500 / 连接错误的结果与改造前一致（用同一批输入对比 `_legacy.is_transient` 结论）。
+
+## 变更单 v1.1 追加覆盖：排队中主动取消（2026-11-19）
+
+| 验收标准 | 测试用例 | 层次 |
+|---|---|---|
+| 流式请求带 `request_id` | 假 SSE 服务记录首帧前的请求体，断言 `request_id` 存在、长度固定、两次请求不同 | 端到端（真 SDK + 假服务） |
+| 排队中中断发 cancel | 假服务持续推 `queue_status`；消费 2 帧后 `aclose()` 流 → 断言收到 cancel，`model`/`request_id`/`token` 与主请求一致 | 端到端 |
+| 已放行后中断不发 cancel | 假服务推 `queue_status` → 数据帧；收到首帧后再 `aclose()` → 断言 cancel 计数为 0 | 端到端 |
+| 未排队中断不发 cancel | 假服务直接数据帧；`aclose()` → cancel 计数为 0 | 端到端 |
+| cancel 失败不阻断 | 假服务对 cancel 返 500 / 连接重置 / 挂起超过 2s → 流关闭与异常语义不变，仅日志 | 端到端 + 单元 |
+| `409`/`404` 静默 | 假服务返 `409 REQUEST_ALREADY_RUNNING`、`404 REQUEST_NOT_FOUND` → 不上抛、不重试 | 单元 + 端到端 |
+| URL 推导 | 单测覆盖 `http://h:1/v1/`、`http://h:1/v1`、`http://h:1`、`http://h/aicoding/v1`、含路径 `http://h/aicoding/v1/` 五种形态 → 均为 `<root>/api/v3/chat/completions/cancel` | 单元 |
+| profile 已带 `request_id` | profile `extra_body` 显式配置 → 不覆盖、直接复用 | 单元 |
+| 定制缺失回退 | monkeypatch import 失败 → 请求体无 `request_id`、不发 cancel、流式照常 | 单元 |
+| 非流式无影响 | 非流式请求 → 无 `request_id`、无 cancel、行为与 v1.0 一致 | 端到端 |
+
+### 异常与降级路径（增量）
+
+- cancel 网络错误/超时：`logger.warning`，不改变流关闭结果，不阻塞后续请求。
+- 取消态（`CancelledError`）下 `finally`：跳过 await 直接返回，避免拖慢中断；用例用 `task.cancel()` 驱动。
+- `base_url` 无法推导（非 http(s)）：tracker 降级为"不追踪"，不发 cancel。
+- `api_key` 为空：不发 cancel（服务端必然 401/403），只记日志。
