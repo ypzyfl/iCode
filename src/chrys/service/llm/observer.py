@@ -368,16 +368,24 @@ class WireCallObserver:
     share no state.
     """
 
-    __slots__ = ("_connection", "_on_intermediate_text")
+    __slots__ = ("_connection", "_on_intermediate_text", "_on_queue_status")
 
     def __init__(
         self,
         *,
         on_intermediate_text: Callable[[str], None] | None = None,
+        # AIxCoding queue-progress: observer callback
+        on_queue_status: Callable[[Any], Awaitable[None]] | None = None,
         connection: Mapping[str, str] | None = None,
     ) -> None:
         self._on_intermediate_text = on_intermediate_text
+        self._on_queue_status = on_queue_status
         self._connection = connection
+
+    @property
+    def on_queue_status(self) -> Callable[[Any], Awaitable[None]] | None:
+        """Report a gateway queue position, when the endpoint may queue this client's requests."""
+        return self._on_queue_status
 
     def begin(
         self,

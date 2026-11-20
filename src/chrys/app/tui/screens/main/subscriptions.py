@@ -27,6 +27,8 @@ from chrys.foundation.events.types import (
     Error,
     Event,
     ExecutionChanged,
+    # AIxCoding queue-progress: TUI subscription
+    GatewayQueueStatus,
     HookConfirmationRequest,
     HookConfirmationWithdrawn,
     HookExecutionsChanged,
@@ -171,6 +173,8 @@ class MainScreenSubscriptions:
             _sub(UserInjectResult, events.on_injection_outcome),
             _sub(Error, events.on_error),
             _sub(InvocationRetryAttempt, events.on_retry_attempt),
+            # AIxCoding queue-progress: TUI subscription
+            _sub(GatewayQueueStatus, events.on_queue_status),
             _sub(Warning, events.on_warning),
             _sub(SettingsReloaded, events.on_settings_reloaded),
             _sub(SessionRestored, sessions.on_session_restored),

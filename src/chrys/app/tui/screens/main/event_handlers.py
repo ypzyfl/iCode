@@ -79,6 +79,8 @@ from chrys.foundation.events.types import (
     CompactionStarted,
     ContextCompressed,
     Error,
+    # AIxCoding queue-progress: TUI handler
+    GatewayQueueStatus,
     HookConfirmationRequest,
     HookConfirmationWithdrawn,
     HookExecutionsChanged,
@@ -414,6 +416,7 @@ class BackendEventHandler:
         | InvocationContentFinished
         | InvocationContentAbandoned
         | Error
+        | GatewayQueueStatus
         | UnansweredInputDropped
         | TurnStarted,
     ) -> bool:
@@ -1081,6 +1084,8 @@ class BackendEventHandler:
 
     async def on_turn_started(self, event: TurnStarted) -> None:
         """Use the backend's index and item for a fresh opener; a retry keeps its opener and names its guidance."""
+        # AIxCoding queue-progress: TUI handler
+        self._ui().clear_queue_status()
         await self.apply_turn_event(event)
 
     async def apply_turn_event(self, event: UnansweredInputDropped | TurnStarted) -> None:
@@ -2277,6 +2282,16 @@ class BackendEventHandler:
             retry_msg, event.attempt, event.max_attempts, event.delay_seconds, wait_id=event.wait_id
         )
         s.debug("Retry", f"{event.message} ({event.attempt}/{event.max_attempts})")
+
+    # AIxCoding queue-progress: TUI handler
+    async def on_queue_status(self, event: GatewayQueueStatus) -> None:
+        """Show the gateway's queue position, and drop it once the queue lets the request through."""
+        if (event.session_id or "") != self._ui().chat_session_id():
+            return
+        # A release is still applied when the turn already ended: dropping a note is always safe.
+        if event.position >= 0 and (not self.agent_running or self._predates_active_run(event)):
+            return
+        self._ui().show_queue_status(event.position, event.queue_size)
 
 
 def _with_image_paths(draft: ChatDraft, cwd: Path) -> ChatDraft:

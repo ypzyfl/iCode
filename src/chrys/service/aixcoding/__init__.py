@@ -9,5 +9,7 @@ registered wiring points.  Current occupants: the shared
 at :mod:`chrys.service.aixcoding.models.catalog` (see
 ``aixcoding/docs/batches/catalog-sync/design.md``), and
 :mod:`chrys.service.aixcoding.skill_paths` (desktop-shared local skill roots;
-see ``aixcoding/docs/batches/skills-aixcoding-dirs/design.md``).
+see ``aixcoding/docs/batches/skills-aixcoding-dirs/design.md``), and
+:mod:`chrys.service.aixcoding.llm_queue` (gateway model-queue frames; see
+``aixcoding/docs/batches/model-queue-client/design.md``).
 """
