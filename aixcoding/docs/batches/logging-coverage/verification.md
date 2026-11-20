@@ -77,6 +77,12 @@
 - S1 已修：`_resolve_environment` 删 dead `source` 形参 + 调用处同步（`uv run pytest aixcoding/tests/config/ aixcoding/tests/logging_coverage/ -n0 -q` → **51 passed**；ruff check/format 过）；
 - N1 呈报不修（理由见 self-review.md ④增量行：`~/.chrys` 前缀在 Windows 指向不存在路径）。
 
+## 2026-11-20 PR #141 CI 修复（RUF001 行级 noqa 失效 → 方案 A 文件级头）
+
+- **现象**：CI `ruff check` 报 `guard_install.py:331` 两处 RUF001——F1 修复后 ruff format 按显示宽度（East Asian wide=2）将单行 WARNING 折为三行，行尾 noqa 被留在闭括号行、脱离字符串行诊断（noqa 按行匹配）；本地 format 重排后未重跑该文件 check，漏检。CI "1 fixed" 为 fix=true 自动清理失效 noqa。
+- **修复（责任人裁决方案 A）**：两文件改**文件级豁免头**（`guard_install.py` 新增 `# ruff: noqa: RUF001`；`startup/__init__.py` 并入现有 T201 头），删除全部 6 处行级 noqa——noqa 不在打点行，format 任意折行不再影响；零上游（不动 pyproject）。loader.py `noqa: T201` 头同款先例。design R13 节已随改（签认后修订注记）。
+- **复验**：`ruff format --check`（两文件）不再重排；`ruff check aixcoding/ src/chrys/`（CI 同口径）All checks passed；`pytest logging_coverage/ guard/ diagnostics::entry_wiring` 61 passed / 1 skipped。
+
 ## 2026-11-20 真实环境复验（责任人手动 + AI 构造场景，当前分支工作区代码）
 
 责任人手动验证通过：`/login`（登录成功 INFO/徽标）、启动本身。AI 在真实环境（`C:\Users\Zhoubin\AppData\Roaming\chrys`，先备份 `.rv-backup/` 后构造、终态还原核对）补验四场景，**全部命中**：

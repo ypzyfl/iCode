@@ -1,5 +1,7 @@
-# ruff: noqa: T201
-# (stderr notes are the observable-degradation channel, DEVELOPMENT.md §9)
+# ruff: noqa: T201, RUF001
+# (stderr notes are the observable-degradation channel, DEVELOPMENT.md §9;
+#  Chinese messages use full-width punctuation -- file-level so a ruff format
+#  reflow cannot strand a line-level noqa, PR #141 CI fix)
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 
 """Startup aggregation entry for AIxCoding customizations.
@@ -24,8 +26,8 @@ from .tasks import _configure_environment, _ensure_file_sink
 # user-facing degrade -- stderr stays (the sink task itself may be the one
 # that failed), the same Chinese message double-writes onto the aixcoding
 # tree (ADR-0017, DEVELOPMENT.md §9); without a sink the WARNING rides
-# stdlib lastResort to stderr. Inline RUF001 noqa: this file is outside the
-# tui/* directory exemption (batches/logging-coverage R13).
+# stdlib lastResort to stderr. Chinese messages ride the file-level RUF001
+# exemption at the top (batches/logging-coverage R13, PR #141 CI fix).
 _log = logging.getLogger("aixcoding.startup")
 _detail_log = logging.getLogger("aixcoding.detail.startup")
 _DETAIL_LEVEL = 5  # mirrors diagnostics.logging_support (session.py precedent)
@@ -40,7 +42,7 @@ def aixcoding_startup() -> None:
         try:
             task()
         except Exception as exc:
-            message = f"启动任务 {task.__name__} 失败（{exc}）；已跳过。"  # noqa: RUF001
+            message = f"启动任务 {task.__name__} 失败（{exc}）；已跳过。"
             print(f"aixcoding.startup: {message}", file=sys.stderr)
             _log.warning("%s", message)
             _detail_log.log(_DETAIL_LEVEL, "%s", message)

@@ -7,7 +7,7 @@
 
 - 责任人：周彬
 - 状态：已确认
-- 确认日期：2026-11-19
+- 确认日期：2026-11-20
 - 确认意见：无特别意见
 
 ## 方案概述
@@ -165,8 +165,8 @@
 
 | 文件 | 规则 | 理由 | 形态 |
 |---|---|---|---|
-| `src/chrys/kernel/aixcoding/guard/guard_install.py` | RUF001 | 中文 detail 文案含全角标点（`guard/pack/*` 已有目录级豁免，本文件不在其内；pyproject 不动） | 行级 `# noqa: RUF001`（每打点行一处） |
-| `src/chrys/app/aixcoding/startup/__init__.py` | RUF001 | 同上（`app/aixcoding/tui/*` 豁免不覆盖 startup） | 行级 `# noqa: RUF001` |
+| `src/chrys/kernel/aixcoding/guard/guard_install.py` | RUF001 | 中文打点文案含全角标点（`guard/pack/*` 已有目录级豁免，本文件不在其内；pyproject 不动） | **文件级 `# ruff: noqa: RUF001` 头**（签认后修订：原"行级 noqa"在 PR #141 CI 实证失效——ruff format 按 East Asian 显示宽度折行时，行尾 noqa 被留在闭括号行而脱离字符串行诊断；文件级头结构性免疫，loader.py `noqa: T201` 头同款先例；2026-11-20 责任人裁决方案 A） |
+| `src/chrys/app/aixcoding/startup/__init__.py` | RUF001 | 同上（`app/aixcoding/tui/*` 豁免不覆盖 startup） | **并入现有 `# ruff: noqa: T201` 头 → `T201, RUF001`**（同上修订） |
 
 其余文件已有目录级豁免覆盖：`src/chrys/service/aixcoding/**`（catalog/config/skill_paths/update.service）、`src/chrys/app/aixcoding/update/*`。沿批次① RUF001 豁免台账先例登记。
 
