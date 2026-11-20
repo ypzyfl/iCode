@@ -32,6 +32,7 @@
 | ② 2026-11-19 | DeepSeek-V4-Pro | design 方案合理性 | 检查失败打点位置错位 + 频控多余；通道不一致缺论证；skills 语义错位 + FileNotFoundError 未区分；guard 张力；detail 丢失边界 | 打点错位/频控/FileNotFoundError/丢失边界已修；通道归属三项呈报责任人裁决 |
 | ③ 2026-11-19 | 责任人裁决 | A/B/C 三项 | A 检查失败维持主通道（产品定位论证落 design）；B skills 全 detail-only；C guard 备份重置单点升主通道 | design/requirements 同步更新后签认 |
 | ④ 2026-11-20 | DeepSeek-V4-Pro | 实施代码 + 测试（diff 13 文件 +327/−63） | F1 blocker（路径泄漏+哨兵缺失）；F2/F3 次要 | F1 已修复（见上）；F2/F3 呈报拍板不修 |
+| PR 评审 2026-11-20 | CodeBuddy（同源 peer review） | PR #141 diff（head c6e13e6d） | R2/R11/幻觉 API 通过、破坏实验 4/4 ANCHORED；C1 PII 残留（修）/C2 锚定缺口（修）/C3 数字勘误（修）/C4 回填（修）/C5 观察留档/C6 措辞（修）/C7 PR 描述勘误（GitHub 侧） | 全处置见 verification.md peer review 节 |
 | ④增量 2026-11-20 | DeepSeek-V4-Pro | F1 修复复审 | **F1 复审通过、blocker 清零、收敛达标**；新增 S1（`_resolve_environment` source 形参 dead）/ N1（guard 文案相对基准未明示） | S1 已修（删形参+调用处同步，51 passed 回归绿）；N1 呈报不修：`~/.chrys` 前缀在 Windows 指向不存在路径（真实为 `%APPDATA%\chrys`），比现状 `hooks/` 相对形更误导，两平台歧义最小的就是现状 |
 
 > 轮④技术评审关键核实（评审 AI 结论，留档）：主通道 INFO 落卷链路无隐藏门槛（`DEFAULT_LEVEL=INFO` 追证）；`_warn` 三通道生产态无重复落卷；PEP 758 无括号 except 合规；guard 重置三入口单点覆盖；抽 2 用例验证非 vacuous（行为锚定）。

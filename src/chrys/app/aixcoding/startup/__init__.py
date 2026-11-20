@@ -42,7 +42,11 @@ def aixcoding_startup() -> None:
         try:
             task()
         except Exception as exc:
-            message = f"启动任务 {task.__name__} 失败（{exc}）；已跳过。"
+            # The exception NAME only on both channels: the str of an OSError
+            # carries the absolute path with the username -- the public channel
+            # stays path-free; the full traceback rides detail's exc_info
+            # (PR #141 review C1).
+            message = f"启动任务 {task.__name__} 失败（{type(exc).__name__}）；已跳过。"
             print(f"aixcoding.startup: {message}", file=sys.stderr)
             _log.warning("%s", message)
-            _detail_log.log(_DETAIL_LEVEL, "%s", message)
+            _detail_log.log(_DETAIL_LEVEL, "%s", message, exc_info=True)

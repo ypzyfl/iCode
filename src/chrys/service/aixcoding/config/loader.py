@@ -146,7 +146,13 @@ def load_config(config_dir: Path | None = None) -> AixcodingConfig:
     except FileNotFoundError:
         data = {}
         source = None
-    except (OSError, tomllib.TOMLDecodeError, UnicodeDecodeError) as exc:
+    except OSError:
+        # No {exc}: an OSError's text carries the absolute path (with the
+        # username) -- the public channel stays path-free (PR #141 review C1).
+        _warn("配置文件无法读取，已回退全部默认。")
+        data = {}
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError) as exc:
+        # These exception texts never carry a path (pure syntax/codec detail).
         _warn(f"配置文件无法解析（{exc}），已回退全部默认。")
         data = {}
     return AixcodingConfig(

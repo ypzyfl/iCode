@@ -64,3 +64,13 @@
 2. **catalog 覆盖抽验**：mock server（`python -m aixcoding.mock`）+ 自建与下发同 id 模型 → 触发同步 → 主卷出现「已被后端版本覆盖」WARNING、detail 同文案；
 3. **guard 重置抽验**：手工写坏 `hooks/hooks.yaml`（非法 YAML）→ 启动 → 主卷出现「已备份至 …pre-guard 并以安全护栏模板重置」WARNING、`.pre-guard` 文件存在；
 4. **机器验证**：`uv run python aixcoding/tools/verify.py --smart --paths <全部改动文件>`；`uv run pytest aixcoding/tests -n0`；`uv run pytest tests/architecture -n0`；`uv run python aixcoding/tools/gen_customizations.py --strict`（0 error / 0 warning）；`uv run ruff check <改动文件>` + `uv run ruff format --check <改动文件>`。
+
+
+## 实施回填（2026-11-20，PR #141 peer review C4）
+
+实施期组织由"域内分散追加"收敛为**集中为主**（卷归属断言设施统一复用：`_spy`/`detail_spy`/参数化），实际落点与上文"测试文件组织"表的差异：
+
+- 新建集中文件为 `aixcoding/tests/logging_coverage/test_coverage.py`（非 `diagnostics/test_logging_coverage.py`）——update 检查失败/静默/unbuildable/wrapper、skills、guard、config、startup、静态扫描、PII 哨兵全部在此；
+- `test_client.py`/`test_runner.py`/`skills` 域内既有文件**未改动**（其打点由集中文件以 `transport=`/monkeypatch 注入覆盖）；
+- 域内实际修订仅四文件：`test_flow.py`（CONFIRM/SKIP INFO+detail 双写）、`test_catalog_sync.py`（覆盖/清空/健康静默）、`test_config.py`（断言中文化）、`test_entry_wiring.py`（断言中文化）；
+- 覆盖矩阵用例名以实际为准：`test_check_failure_branches_warn_main_volume`（五分支参数化）、`test_check_no_update_204_stays_silent`、`test_skills_team_filenotfound_silent` + `test_skills_team_permission_error_logged_detail`（C2 补）、`test_guard_unparsable_reset_warns_main_volume` 等；peer review 处置新增 `test_config_oserror_message_carries_no_path`（C1）。

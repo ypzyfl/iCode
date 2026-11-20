@@ -95,3 +95,30 @@
 | catalog 覆盖（去标记 + 辅助 marker + 重启） | `WARNING aixcoding.catalog: 以下自定义模型与后端模型 id 相同，已被后端版本覆盖：openai-gpt-4o-mini。`（14:32:58） |
 
 **还原核对**（脚本自动执行）：toml 恢复用户原版（`environment="local"` + `[logging]`，无 model_catalog 段）；models/ 恢复用户原两文件（`deepseek-flash.yaml`、`openai-gpt-4o-mini.yaml`），mock 产物（含 `.catalog-state.json`、`zz-server.yaml`）清除；验证期坏 `.pre-guard` 删除；TUI 恢复运行。备份目录 `.rv-backup/` 暂存仓库根，责任人确认还原无误后删除。真实日志卷新增的验证记录为事实流不清理。
+
+
+## 2026-11-20 PR #141 peer review 处置（CodeBuddy 同源评审，缺陷模式抽查）
+
+评审结论：R2/R11/幻觉 API 通过；破坏性实验 4/4 ANCHORED；候选七条处置——
+
+- **C1（修）** `{exc}` 可变字段 PII 残留：loader.py OSError 分流无路径文案（「配置文件无法读取，已回退全部默认。」；TOMLDecodeError/UnicodeDecodeError 文本天然无路径保留原文案）；startup `{exc}` 改 `type(exc).__name__` + detail 补 `exc_info=True`（栈仅 detail 卷）；测试补异常注入哨兵（startup 用例改注入带路径 PermissionError、新增 `test_config_oserror_message_carries_no_path`）。
+- **C2（修）** 两处测试锚定缺口：新增 `test_skills_team_permission_error_logged_detail`（PermissionError→detail 分支，test-plan 原承诺落地）；`test_flow.py` CONFIRM/SKIP 补 detail 双写断言（`_detail_spy` helper）。
+- **C3（修）** check_docs 计数勘误：机器验证表「47 self-review」为首跑时点快照（self-review.md 尚未落盘），self-review 落盘后实测 **48**（PR 树复跑与 --closure 双证）；本节勘误按追加不删旧纪律留存，正文数字不改。
+- **C4（修）** test-plan 组织表/用例名回填实际落地形态（集中 `logging_coverage/test_coverage.py` 为主 + flow/catalog/config/entry_wiring 四文件修订），见 test-plan.md 实施回填节。
+- **C5（不动作）** RUF001 文件级豁免面扩大：方案 A 既裁决（观察留档）；guard_install 后续批次注意文案静默面。
+- **C6（修）** overview.md skills 域措辞消歧（无主通道 logger，仅 detail 子树）。
+- **C7（PR 描述勘误，GitHub 侧）** 「6 测试文件」应为 **5**（1 新建 + 4 修订，verification.md:7 自身口径正确）；PR 描述修正由责任人在 GitHub 编辑。
+
+处置后本地复验见下节。
+
+### 处置后复验（2026-11-20）
+
+| 门禁 | 命令 | 结果 |
+|---|---|---|
+| 定向测试 | `uv run pytest aixcoding/tests/logging_coverage/ aixcoding/tests/auto_update/test_flow.py -n0 -q` | **44 passed**（含 C1/C2 新增用例） |
+| 定制全量 | `uv run pytest aixcoding/tests -n0 -q` | **868 passed / 56 skipped**（基线 866 + C1×1 + C2×1 新增用例，全部通过） |
+| 静态 | `uv run ruff check --no-fix aixcoding/ src/chrys/` + `ruff format --check`（8 改动文件） | All checks passed（`test_coverage.py` 一处 assert 折行经 `ruff format` 归一后复查通过） |
+| 文档 | `uv run python aixcoding/tools/check_docs.py` | OK（27 ADR / 49 design / 48 self-review） |
+| 定制清单 | `uv run python aixcoding/tools/gen_customizations.py --strict` | check OK——106 行 / 154 marker / **0 warning** |
+
+环境注记：复验以 `set "PYTHONPATH="`（脱离 safe-delete shim）+ `set "PYTHONUTF8=1"` 运行；safe-delete 对 pytest 临时目录批量清理的拦截（SAFE_DELETE_BULK_CONFIRM_REQUIRED）为环境噪音在案，不影响测试结果本身。

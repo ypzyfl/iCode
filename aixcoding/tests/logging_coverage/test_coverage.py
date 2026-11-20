@@ -233,6 +233,24 @@ def test_skills_team_filenotfound_silent(
     assert not any("枚举失败" in r.getMessage() for r in detail_spy)
 
 
+def test_skills_team_permission_error_logged_detail(
+    monkeypatch: pytest.MonkeyPatch, detail_spy: list[logging.LogRecord], tmp_path: Path
+) -> None:
+    """PR #141 review C2: a readable-but-denied container logs the detail trace."""
+    monkeypatch.setattr("chrys.service.aixcoding.skill_paths.user_aixcoding_dir", lambda: tmp_path / ".aixcoding")
+    (tmp_path / ".aixcoding").mkdir()
+    (tmp_path / ".aixcoding" / "team-skills").mkdir()
+
+    def _denied(container: object) -> object:
+        raise PermissionError(f"[Errno 13] Permission denied: '{tmp_path}'")
+
+    monkeypatch.setattr("chrys.service.aixcoding.skill_paths.os.scandir", _denied)
+
+    user_aixcoding_skill_paths(_skills_config())
+
+    assert any("团队技能目录枚举失败" in r.getMessage() for r in detail_spy)
+
+
 # ---------------------------------------------------------------- guard install
 
 
@@ -393,6 +411,34 @@ def test_config_dir_unavailable_triple_channel(
     assert "aixcoding.config:" in capsys.readouterr().err
 
 
+def test_config_oserror_message_carries_no_path(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    detail_spy: list[logging.LogRecord],
+    tmp_path: Path,
+) -> None:
+    """PR #141 review C1: an OSError's path-bearing str never reaches the channels."""
+
+    def _denied(*_args: object, **_kwargs: object) -> str:
+        raise PermissionError(f"[Errno 13] Permission denied: '{tmp_path}\\aixcoding.toml'")
+
+    monkeypatch.setattr(Path, "read_text", _denied)
+
+    with _spy("aixcoding.config") as public:
+        load_config(config_dir=tmp_path)
+
+    warnings = _warn_records(public)
+    assert [r.getMessage() for r in warnings] == [
+        "\u914d\u7f6e\u6587\u4ef6\u65e0\u6cd5\u8bfb\u53d6\uff0c\u5df2\u56de\u9000\u5168\u90e8\u9ed8\u8ba4\u3002"
+    ]
+    assert all(
+        not _looks_like_path(r.getMessage())
+        for r in detail_spy
+        if "\u914d\u7f6e\u6587\u4ef6\u65e0\u6cd5\u8bfb\u53d6" in r.getMessage()
+    )
+    assert "\u914d\u7f6e\u6587\u4ef6\u65e0\u6cd5\u8bfb\u53d6" in capsys.readouterr().err
+
+
 # ---------------------------------------------------------------- startup
 
 
@@ -401,10 +447,14 @@ def test_startup_task_failure_triple_channel(
     capsys: pytest.CaptureFixture[str],
     detail_spy: list[logging.LogRecord],
 ) -> None:
-    """Acceptance 6: a failed startup task keeps stderr and double-writes (Chinese)."""
+    """Acceptance 6: a failed startup task keeps stderr and double-writes (Chinese).
+
+    PR #141 review C1: the exception carries a path-bearing str -- the channels
+    must show the exception NAME only, with the traceback detail-only.
+    """
 
     def _boom() -> None:
-        raise RuntimeError("wiring failed")
+        raise PermissionError("[Errno 13] Permission denied: 'C:\\Users\\victim\\chrys\\aixcoding-logs'")
 
     import chrys.app.aixcoding.startup as startup_module
 
@@ -415,6 +465,10 @@ def test_startup_task_failure_triple_channel(
 
     warnings = _warn_records(public)
     assert len(warnings) == 1
-    assert "启动任务 _boom 失败" in warnings[0].getMessage()
-    assert any("启动任务 _boom 失败" in r.getMessage() for r in detail_spy)
+    message = warnings[0].getMessage()
+    assert "启动任务 _boom 失败（PermissionError）" in message
+    assert not _looks_like_path(message), "the exception name only -- never its path-bearing str"
+    detail_records = [r for r in detail_spy if "启动任务 _boom 失败" in r.getMessage()]
+    assert detail_records and all(not _looks_like_path(r.getMessage()) for r in detail_records)
+    assert all(r.exc_info for r in detail_records), "the full traceback rides detail's exc_info"
     assert "aixcoding.startup:" in capsys.readouterr().err
