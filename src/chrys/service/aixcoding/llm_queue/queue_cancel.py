@@ -26,6 +26,9 @@ import httpx
 from chrys.service.aixcoding.llm_queue.queue_frames import RELEASED_POSITION, QueueStatus
 
 logger = logging.getLogger(__name__)
+_detail_logger = logging.getLogger("aixcoding.detail.llm_queue")
+"""File-only technical channel (ADR-0017): unlike the module logger, it reaches
+a file on every surface (CLI, TUI and ACP), at DETAIL level."""
 
 CANCEL_PATH: Final = "/api/v3/chat/completions/cancel"
 """The gateway's queue-cancel endpoint, resolved against the gateway root."""
@@ -95,8 +98,15 @@ class QueueRequestTracker:
         async def observe(status: QueueStatus) -> None:
             if status.position == RELEASED_POSITION:
                 self._released = True
-            else:
+                _detail_logger.info("网关已放行排队请求（request_id=%s）", self._request_id)
+            elif not self._position_seen:
                 self._position_seen = True
+                _detail_logger.info(
+                    "网关排队：position=%d queueSize=%d（request_id=%s）",
+                    status.position,
+                    status.queue_size,
+                    self._request_id,
+                )
             if on_status is not None:
                 await on_status(status)
 
@@ -109,8 +119,24 @@ class QueueRequestTracker:
         request must outlive the await that cancelled the stream. The task is kept
         in ``_PENDING_CANCELS`` so it is never collected mid-flight.
         """
-        if not self.queued or self._endpoint is None or not self._api_key:
+        if not self.queued:
+            if self._position_seen:
+                _detail_logger.debug(
+                    "网关排队取消跳过：请求在中断前已被放行（request_id=%s）",
+                    self._request_id,
+                )
             return
+        if self._endpoint is None:
+            _detail_logger.warning("网关排队取消跳过：没有可用的取消地址（request_id=%s）", self._request_id)
+            return
+        if not self._api_key:
+            message = "网关排队取消跳过：没有 api_key，请求将留在队列中（request_id=%s）"
+            logger.warning(message, self._request_id)
+            _detail_logger.warning(message, self._request_id)
+            return
+        message = "正在离开网关队列：POST %s，model=%s，request_id=%s"
+        logger.info(message, self._endpoint, self._model, self._request_id)
+        _detail_logger.info(message, self._endpoint, self._model, self._request_id)
         task = asyncio.ensure_future(self._post_cancel())
         _PENDING_CANCELS.add(task)
         task.add_done_callback(_PENDING_CANCELS.discard)
@@ -125,36 +151,61 @@ class QueueRequestTracker:
         if endpoint is None:  # narrowed here too: the checker does not follow cancel_on_close's guard
             return
         payload = {"model": self._model, "request_id": self._request_id}
+        _detail_logger.info(
+            "发送取消排队请求：POST %s，body=%s，token=%s",
+            endpoint,
+            _preview(payload),
+            "已携带" if self._api_key else "空",
+        )
         try:
             async with httpx.AsyncClient(timeout=CANCEL_TIMEOUT_SECONDS, transport=self._transport) as client:
                 response = await client.post(endpoint, json=payload, headers={"token": self._api_key})
         except httpx.TransportError:
             # Also the symptom of a cancel URL derived from an unexpected base_url: loud on purpose.
-            logger.warning(
-                "gateway queue cancel could not reach %s (request_id=%s); the request may still be queued",
-                endpoint,
+            message = "网关排队取消无法连接 %s（request_id=%s），请求可能仍在队列中"
+            logger.warning(message, endpoint, self._request_id, exc_info=True)
+            _detail_logger.warning(message, endpoint, self._request_id, exc_info=True)
+            return
+        except Exception:
+            logger.debug("网关排队取消失败（request_id=%s）", self._request_id, exc_info=True)
+            _detail_logger.warning(
+                "网关排队取消在收到响应前失败（request_id=%s，endpoint=%s）",
                 self._request_id,
+                endpoint,
                 exc_info=True,
             )
             return
-        except Exception:
-            logger.debug("gateway queue cancel failed (request_id=%s)", self._request_id, exc_info=True)
-            return
         if response.status_code == httpx.codes.NO_CONTENT:
-            logger.info("left the gateway queue (request_id=%s)", self._request_id)
+            logger.info("已离开网关队列（request_id=%s）", self._request_id)
+            _detail_logger.info(
+                "取消排队响应：status=204，请求已出队（request_id=%s，endpoint=%s）",
+                self._request_id,
+                endpoint,
+            )
         elif response.status_code in (httpx.codes.NOT_FOUND, httpx.codes.CONFLICT):
             # The contract's normal no-ops: already released, finished, or already cancelled.
             logger.debug(
-                "gateway queue cancel was a no-op (%s, request_id=%s, endpoint=%s)",
+                "网关排队取消为正常 no-op（status=%s，request_id=%s，endpoint=%s）",
                 response.status_code,
+                self._request_id,
+                endpoint,
+            )
+            _detail_logger.info(
+                "取消排队响应：status=%s，body=%s（request_id=%s，endpoint=%s）",
+                response.status_code,
+                _preview(response.text),
                 self._request_id,
                 endpoint,
             )
         else:
-            logger.warning(
-                "gateway queue cancel returned %s (request_id=%s)",
+            message = "网关排队取消返回 %s（request_id=%s）"
+            logger.warning(message, response.status_code, self._request_id)
+            _detail_logger.warning(
+                "取消排队响应：status=%s，body=%s（request_id=%s，endpoint=%s）",
                 response.status_code,
+                _preview(response.text),
                 self._request_id,
+                endpoint,
             )
 
 
@@ -173,14 +224,23 @@ def track_queue_request(
     ``transport`` exists so tests can observe the cancel call; production passes none.
     """
     if not model:
+        _detail_logger.debug("网关排队取消未启用：请求没有 model")
         return None
     endpoint = cancel_endpoint(base_url)
     if endpoint is None:
-        logger.debug("gateway queue cancel skipped: unusable base_url %r", base_url)
+        logger.debug("网关排队取消跳过：base_url %r 无法推导取消地址", base_url)
+        _detail_logger.warning("网关排队取消不可用：base_url %r 无法推导取消地址", base_url)
         return None
     request_id = _attach_request_id(request)
     if request_id is None:
         return None
+    _detail_logger.debug(
+        "网关排队取消已就绪：request_id=%s endpoint=%s model=%s base_url=%r",
+        request_id,
+        endpoint,
+        model,
+        base_url,
+    )
     return QueueRequestTracker(
         request_id=request_id,
         model=model,
@@ -196,7 +256,8 @@ def _attach_request_id(request: dict[str, Any]) -> str | None:
     if extra is None:
         extra = {}
     elif not isinstance(extra, dict):
-        logger.debug("gateway queue cancel skipped: extra_body is not a mapping")
+        logger.debug("网关排队取消跳过：extra_body 不是映射")
+        _detail_logger.warning("网关排队取消不可用：extra_body 不是映射")
         return None
     existing = extra.get(REQUEST_ID_FIELD)
     if isinstance(existing, str) and existing.strip():
@@ -208,3 +269,9 @@ def _attach_request_id(request: dict[str, Any]) -> str | None:
     request_id = uuid.uuid4().hex
     extra[REQUEST_ID_FIELD] = request_id
     return request_id
+
+
+def _preview(value: object, limit: int = 500) -> str:
+    """A bounded ``repr`` for a cancel body: enough to identify it, never a whole payload."""
+    text = repr(value)
+    return text if len(text) <= limit else f"{text[:limit]}…"

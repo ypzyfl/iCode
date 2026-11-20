@@ -10,6 +10,7 @@ customization lives.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from types import SimpleNamespace
 from typing import Any
@@ -183,6 +184,123 @@ async def test_queue_status_heartbeat_restarts_the_stall_watchdog() -> None:
 
     assert len(reports) == 2
     assert len(forwarded) == 1
+
+
+async def test_queue_position_and_release_are_logged(caplog: pytest.LogCaptureFixture) -> None:
+    """An intranet run can tell a queue from a silent stream: arrival and release are logged."""
+    from chrys.service.aixcoding.llm_queue import guard_queue_frames
+
+    caplog.set_level(logging.INFO, logger="chrys.service.aixcoding.llm_queue.queue_frames")
+
+    async def chunks() -> AsyncIterator[Any]:
+        yield _queue_chunk(2, 5)
+        yield _queue_chunk(1, 4)
+        yield _data_chunk("hi")
+
+    _ = [chunk async for chunk in guard_queue_frames(chunks())]
+
+    assert "网关排队：position=2 queueSize=5" in caplog.text
+    assert "网关已放行排队请求（此前收到 2 个排队帧）" in caplog.text
+
+
+async def test_queue_frame_payload_is_logged(detail_records: list[logging.LogRecord]) -> None:
+    """The received frame's parsed shape and extra fields are visible, not only the numbers."""
+    from chrys.service.aixcoding.llm_queue import guard_queue_frames
+
+    chunk = SimpleNamespace(
+        choices=None,
+        id=None,
+        usage=None,
+        model_extra={"position": 2, "queueSize": 5, "traceId": "t-1"},
+    )
+
+    async def chunks() -> AsyncIterator[Any]:
+        yield chunk
+        yield _data_chunk("hi")
+
+    _ = [item async for item in guard_queue_frames(chunks())]
+
+    messages = [record.getMessage() for record in detail_records]
+    assert any("网关排队帧（解析后）" in message and "traceId" in message for message in messages)
+    assert any("网关排队等待" in message for message in messages)
+    assert any("排队放行后收到首个数据帧" in message for message in messages)
+
+
+async def test_rejection_body_is_logged(detail_records: list[logging.LogRecord]) -> None:
+    """A terminal rejection logs the parsed gateway body, including its traceId."""
+    from chrys.foundation.errors import ProviderResponseError
+    from chrys.service.aixcoding.llm_queue import guard_queue_frames
+
+    with pytest.raises(ProviderResponseError):
+        async for _ in guard_queue_frames(_failing(_api_error("QUEUE_TIMEOUT"))):
+            pass
+
+    messages = [record.getMessage() for record in detail_records]
+    assert any("响应解析" in message and "trace-1" in message for message in messages)
+
+
+async def test_queue_frame_logs_name_the_request_id(detail_records: list[logging.LogRecord]) -> None:
+    """The file-only detail channel ties both transitions to the gateway's request id."""
+    from chrys.service.aixcoding.llm_queue import QueueRequestTracker, QueueStatus
+    from chrys.service.aixcoding.llm_queue.queue_frames import RELEASED_POSITION
+
+    tracker = QueueRequestTracker(
+        request_id="rid", model="m", endpoint="http://h/api/v3/chat/completions/cancel", api_key="k"
+    )
+    observe = tracker.observing(None)
+    await observe(QueueStatus(position=2, queue_size=5))
+    await observe(QueueStatus(position=RELEASED_POSITION, queue_size=0))
+
+    messages = [record.getMessage() for record in detail_records]
+    assert any("position=2 queueSize=5" in message and "request_id=rid" in message for message in messages)
+    assert any("已放行排队请求" in message and "request_id=rid" in message for message in messages)
+
+
+@pytest.mark.parametrize(
+    "chunk",
+    [
+        SimpleNamespace(choices=None, id="chatcmpl-x", usage=None, model_extra={"position": 2, "queueSize": 5}),
+        SimpleNamespace(choices=[], id=None, usage=None, model_extra={"position": 2, "queueSize": 5}),
+    ],
+)
+def test_unrecognised_queue_shape_is_reported(chunk: Any, caplog: pytest.LogCaptureFixture) -> None:
+    """A frame that carries queue fields but fails the contract names why the stream will fail."""
+    from chrys.service.aixcoding.llm_queue import queue_position
+
+    caplog.set_level(logging.WARNING, logger="chrys.service.aixcoding.llm_queue.queue_frames")
+
+    assert queue_position(chunk) is None
+    assert "无法识别的网关排队帧" in caplog.text
+    assert "position=2" in caplog.text
+
+
+async def test_terminal_rejection_is_logged(caplog: pytest.LogCaptureFixture) -> None:
+    """The translation to a non-retryable failure is visible, not just the final UI message."""
+    from chrys.foundation.errors import ProviderResponseError
+    from chrys.service.aixcoding.llm_queue import guard_queue_frames
+
+    caplog.set_level(logging.INFO, logger="chrys.service.aixcoding.llm_queue.queue_frames")
+
+    with pytest.raises(ProviderResponseError):
+        async for _ in guard_queue_frames(_failing(_api_error("QUEUE_TIMEOUT"))):
+            pass
+
+    assert "code=QUEUE_TIMEOUT retryable=False" in caplog.text
+
+
+async def test_queue_full_is_reported_in_the_detail_channel(
+    detail_records: list[logging.LogRecord],
+) -> None:
+    """``QUEUE_FULL`` stays retryable, and the detail log says the retry lane will back off."""
+    from openai import APIError
+
+    from chrys.service.aixcoding.llm_queue import guard_queue_frames
+
+    with pytest.raises(APIError):
+        async for _ in guard_queue_frames(_failing(_api_error("QUEUE_FULL"))):
+            pass
+
+    assert any("QUEUE_FULL" in record.getMessage() for record in detail_records)
 
 
 async def test_unavailable_customization_falls_back_to_the_plain_stream(

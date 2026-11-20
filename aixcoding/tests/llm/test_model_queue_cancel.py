@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -282,6 +283,70 @@ async def test_released_tracker_is_not_queued() -> None:
 
     await tracker.observing(None)(QueueStatus(position=RELEASED_POSITION, queue_size=0))
     assert tracker.queued is False
+
+
+async def test_cancel_attempt_and_success_are_logged(caplog: pytest.LogCaptureFixture) -> None:
+    """The intranet log shows what was cancelled, where, and whether the gateway accepted it."""
+    caplog.set_level(logging.INFO, logger="chrys.service.aixcoding.llm_queue.queue_cancel")
+
+    tracker = await _queued_tracker(httpx.MockTransport(lambda request: httpx.Response(204)))
+    await tracker.cancel_on_close()
+
+    assert "正在离开网关队列" in caplog.text
+    assert "request_id=rid" in caplog.text
+    assert "已离开网关队列" in caplog.text
+
+
+async def test_missing_api_key_while_queued_is_reported(caplog: pytest.LogCaptureFixture) -> None:
+    """A keyless gateway deployment silently loses the cancel: the log must say so."""
+    caplog.set_level(logging.WARNING, logger="chrys.service.aixcoding.llm_queue.queue_cancel")
+
+    tracker = await _queued_tracker(httpx.MockTransport(lambda request: httpx.Response(204)), api_key="")
+    await tracker.cancel_on_close()
+
+    assert "没有 api_key" in caplog.text
+    assert "留在队列中" in caplog.text
+    assert "request_id=rid" in caplog.text
+
+
+async def test_cancel_404_is_reported_in_the_detail_channel(
+    detail_records: list[logging.LogRecord],
+) -> None:
+    """A 404 is a normal no-op, but its endpoint is the only clue when the URL was derived wrong."""
+    tracker = await _queued_tracker(httpx.MockTransport(lambda request: httpx.Response(404)))
+    await tracker.cancel_on_close()
+
+    messages = [record.getMessage() for record in detail_records]
+    assert any("status=404" in message and CANCEL_URL in message for message in messages)
+
+
+async def test_cancel_request_and_response_body_are_logged(
+    detail_records: list[logging.LogRecord],
+) -> None:
+    """The cancel POST's address/body and the gateway's status/body are both in the detail log."""
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(404, json={"error": {"code": "REQUEST_NOT_FOUND", "traceId": "t-9"}})
+
+    tracker = await _queued_tracker(httpx.MockTransport(handler))
+    await tracker.cancel_on_close()
+
+    messages = [record.getMessage() for record in detail_records]
+    assert any("发送取消排队请求：POST" in message and "body=" in message for message in messages)
+    assert any("status=404" in message and "REQUEST_NOT_FOUND" in message for message in messages)
+
+
+def test_armed_tracker_is_reported_in_the_detail_channel(
+    detail_records: list[logging.LogRecord],
+) -> None:
+    """The request id the gateway will know is written before the stream can queue."""
+    from chrys.service.aixcoding.llm_queue import track_queue_request
+
+    tracker = track_queue_request({}, model="m", base_url="http://h/v1", api_key="k")
+
+    assert tracker is not None
+    messages = [record.getMessage() for record in detail_records]
+    assert any("取消已就绪" in message and tracker.request_id in message for message in messages)
 
 
 class _HeldOpenStream(httpx.AsyncByteStream):

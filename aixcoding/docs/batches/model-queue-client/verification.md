@@ -227,3 +227,69 @@ All checks passed!
 uv run ruff format aixcoding/tests/llm
 1 file reformatted（复检通过）
 ```
+
+## 2026-11-20 内网联调日志补强（仅定制包）
+
+**目的**：内网联调不能只靠猜——排队帧到达/放行、拒绝转译、cancel 跳过原因必须可从日志判定。
+**范围**：只改 `service/aixcoding/llm_queue/` 两个定制文件 + 测试，**无上游文件改动、R2 清单不变**。
+
+### 新增日志
+
+| 位置 | 事件 | 通道 / 级别 |
+|---|---|---|
+| `queue_frames.guard_queue_frames` | 首个排队帧 | 模块 logger INFO：`网关排队：position=N queueSize=M`；detail INFO：`网关排队帧（解析后）：…`（含 `id`/`choices` 形状/`usage`/`model_extra`） |
+| 同上 | 心跳 | detail DEBUG：`网关排队心跳：position=N queueSize=M（第 K 帧），解析后：…` |
+| 同上 | 放行 | 模块 logger INFO：`网关已放行排队请求（此前收到 N 个排队帧）`；detail DEBUG：`排队放行后收到首个数据帧：…` |
+| 同上 | `QUEUE_TIMEOUT` / `QUEUE_CANCELLED` 转译 | 模块 logger INFO：`网关拒绝排队请求：code=… retryable=False`；detail INFO：同一行 + `响应解析`（type/code/message/body/traceId） |
+| 同上 | `QUEUE_FULL` 放行 | detail INFO：交给 wire 重试通道 + `响应解析` |
+| 同上 | 契约漂移帧（带 `position`/`queueSize` 但不满足判据） | **模块 logger WARNING** + detail WARNING：记录 `choices` 形状、`id`/`usage`、两个队列值、`model_extra`，不记录正文 |
+| `queue_frames._notify` | 前端回调失败 | 模块 logger 由 DEBUG 升 **WARNING** + detail WARNING：`排队状态回调失败…` |
+| `QueueRequestTracker.observing` | 首帧/放行（带 request_id） | detail INFO：`网关排队：…（request_id=…）` / `网关已放行排队请求（request_id=…）` |
+| `queue_cancel.track_queue_request` | tracker 建立 / base_url 不可用 / extra_body 非 mapping | detail DEBUG（含 `endpoint`/`base_url`）/ detail WARNING |
+| `queue_cancel.cancel_on_close` | 发起 cancel | 模块 logger INFO + detail INFO：`正在离开网关队列：POST <url>，model/request_id` |
+| `queue_cancel._post_cancel` | 取消请求报文 | detail INFO：`发送取消排队请求：POST <url>，body={'model':…,'request_id':…}，token=已携带`（不记 token 值） |
+| 同上 | 取消响应 | 204 detail INFO；404·409 detail INFO（status + `body` + endpoint）；非 2xx detail WARNING（status + `body` + endpoint） |
+| 同上 | **排队中但 api_key 为空** | **模块 logger WARNING** + detail WARNING：`网关排队取消跳过：没有 api_key，请求将留在队列中` |
+
+### 日志查看路径（内网操作手册口径）
+
+| 形态 | 详细日志 | 说明 |
+|---|---|---|
+| TUI | `%APPDATA%\chrys\logs\debug.log`（Linux/macOS：`~/.chrys/logs/debug.log`） | INFO+；DEBUG 需打开 F6 日志面板 |
+| CLI / ACP | `%APPDATA%\chrys\aixcoding-logs\aixcoding.detail.log`（Linux/macOS：`~/.chrys/aixcoding-logs/aixcoding.detail.log`） | 文件专用、隔离，DETAIL 级全量；**CLI 没有 INFO 文件日志，必须看这份** |
+| 事件发布/TUI 渲染 | 无独立日志 | 以界面/ACP 通知为准；本期不为打包改上游文件 |
+
+> `aixcoding.toml` 的 `[logging] level` 只控制 `aixcoding` 树，不影响 `chrys.service.aixcoding.llm_queue`，不要把它当队列日志开关。
+
+### 验证
+
+```text
+uv run pytest aixcoding/tests/llm -n0 -q
+62 passed in 4.14s
+
+uv run ruff check <改动文件>
+All checks passed!
+（ruff format 已执行）
+
+uv run ty check --error-on-warning --python-platform win32 src/chrys
+All checks passed!
+
+# detail 通道落盘探针（临时目录 setup_logging 后 emit 一条）
+aixcoding.detail.llm_queue: 网关排队：position=1 queueSize=2（request_id=abc）
+```
+
+新增用例：首帧/放行 INFO、detail 带 request_id、排队帧解析后的 `model_extra`、终止拒绝
+`响应解析`（含 traceId）、契约漂移 WARNING、`QUEUE_FULL` detail、cancel 发起/204、
+无 api_key WARNING、404 detail、cancel 请求报文与响应 body、tracker armed detail。
+
+**原始 SSE 边界**：guard 拿到的是 SDK 解析后的 chunk，不是 `event:`/`data:` 原文；因此日志记录
+`id`/`choices` 形状/`usage`/`model_extra` 的解析结果。需要逐字节原文时，用 curl 抓取或开启
+`log.raw_http_capture`（上游能力，写 `<session>/llm_raw_http.jsonl`），本批次不新增原始流日志。
+
+**同日文案调整（2026-11-20）**：本次 queue 联调的全部日志改为中文
+（`code`/`request_id`/`endpoint`/`position`/`queueSize` 等技术标识保留原文），测试断言同步为中文，
+避免内网联调同事现场翻译。`chat_completions/client.py` 内两条定制日志
+（`aixcoding llm-queue 取消排队不可用` / `aixcoding llm-queue 网关排队帧将导致流失败`）
+也改为中文：仅字符串替换、**行数不变**，该文件已在 `model-queue-client` 的 R2 批准池内。
+`terminal_queue_rejection` 在网关未给 message 时的兜底文案同步改为
+`网关排队拒绝了该请求（<code>）`。

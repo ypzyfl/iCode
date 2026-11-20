@@ -244,7 +244,7 @@ class ChatCompletionsClient(WireClient):
                 api_key=self.sdk_client.api_key,
             )
         except Exception:
-            logger.debug("aixcoding llm-queue cancel unavailable", exc_info=True)
+            logger.debug("aixcoding llm-queue 取消排队不可用", exc_info=True)
 
         async def updates() -> AsyncIterable[ChatResponseUpdate]:
             state = StreamState(self.VARIANT, origin=self.reasoning_origin())
@@ -268,9 +268,7 @@ class ChatCompletionsClient(WireClient):
                     chunks = guard_queue_frames(chunks, on_status=on_status)
                 except Exception:
                     # The customization is optional: a broken import never blocks streaming.
-                    logger.warning(
-                        "aixcoding llm-queue unavailable; gateway queue frames will fail the stream", exc_info=True
-                    )
+                    logger.warning("aixcoding llm-queue 网关排队帧将导致流失败", exc_info=True)
                 received = False
                 async for chunk in chunks:
                     received = True
