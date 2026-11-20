@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import os
 import time
 from pathlib import Path
@@ -23,7 +24,7 @@ import pytest
 
 from chrys import __version__ as CURRENT_VERSION
 from chrys.app.aixcoding.update import flow as flow_module
-from chrys.app.aixcoding.update.dialog import LATER, UpdateConfirmDialog
+from chrys.app.aixcoding.update.dialog import CONFIRM, LATER, SKIP, UpdateConfirmDialog
 from chrys.service.aixcoding.update.state import (
     UpdateState,
     failures_path,
@@ -338,3 +339,58 @@ async def test_fresh_check_updates_the_cache(board: Any) -> None:
 
     state = read_state(board.tmp_path)
     assert state.latest == "999.0.0", "the fetched candidate is cached for tomorrow"
+
+
+# --------------------------------------------------------------------- logging
+
+
+@contextlib.contextmanager
+def _user_decision_spy() -> Any:
+    """Capture records on the public update logger (batches/logging-coverage).
+
+    The tree may inherit root's WARNING threshold, which would silently drop
+    the INFO records under test -- pin the logger's own level and restore it.
+    """
+    logger = logging.getLogger("aixcoding.update")
+    saved_level = logger.level
+    records: list[logging.LogRecord] = []
+
+    class _Capture(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            records.append(record)
+
+    handler = _Capture()
+    handler.setLevel(logging.NOTSET)
+    logger.setLevel(logging.INFO)
+    logger.addHandler(handler)
+    try:
+        yield records
+    finally:
+        logger.removeHandler(handler)
+        logger.setLevel(saved_level)
+
+
+async def test_confirm_logs_user_decision_info(board: Any) -> None:
+    """Coverage acceptance 2b: confirming the update is a user-facing INFO event."""
+    write_state(board.tmp_path, UpdateState(latest="9.9.9"))
+    board.state["answers"] = [CONFIRM]
+
+    with _user_decision_spy() as public:
+        await flow_module._flow(_FakeApp(), _FakeScreen())
+
+    infos = [r.getMessage() for r in public if r.levelno == logging.INFO]
+    assert any("已确认自动更新" in m and "9.9.9" in m for m in infos)
+    assert board.state["updates"], "the confirm path still starts the update"
+
+
+async def test_skip_logs_user_decision_info(board: Any) -> None:
+    """Coverage acceptance 2b: skipping a version is a user-facing INFO event."""
+    write_state(board.tmp_path, UpdateState(latest="9.9.9"))
+    board.state["answers"] = [SKIP]
+
+    with _user_decision_spy() as public:
+        await flow_module._flow(_FakeApp(), _FakeScreen())
+
+    infos = [r.getMessage() for r in public if r.levelno == logging.INFO]
+    assert any("已跳过版本 9.9.9" in m for m in infos)
+    assert read_state(board.tmp_path).skipped_version == "9.9.9", "the skip still persists"

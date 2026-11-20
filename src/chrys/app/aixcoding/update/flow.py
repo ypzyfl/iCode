@@ -54,7 +54,12 @@ if TYPE_CHECKING:
     from chrys.app.tui.app import ChrysApp
     from chrys.app.tui.screens.main.screen import MainScreen
 
-logger = logging.getLogger(__name__)
+# AIxCoding logging (batches/logging-coverage): the update domain rides the
+# aixcoding tree (ADR-0017, DEVELOPMENT.md §9) -- user decisions (confirm /
+# skip) are user-facing INFO on the main channel, technical trace is detail.
+_log = logging.getLogger("aixcoding.update")
+_detail_log = logging.getLogger("aixcoding.detail.update")
+_DETAIL_LEVEL = 5  # mirrors diagnostics.logging_support (session.py precedent)
 
 #: Startup-modal wait budgets (revision 13): how long phase 1 waits for the
 #: agent-load dialog to appear, and how long phase 2 waits for every modal
@@ -196,7 +201,7 @@ async def _run_flow(app: ChrysApp, screen: MainScreen) -> None:
     except asyncio.CancelledError:
         raise
     except Exception:
-        logger.debug("auto-update flow failed", exc_info=True)
+        _detail_log.log(_DETAIL_LEVEL, "自动更新流程失败。", exc_info=True)
 
 
 async def _flow(app: ChrysApp, screen: MainScreen) -> None:
@@ -227,12 +232,17 @@ async def _flow(app: ChrysApp, screen: MainScreen) -> None:
     while True:
         answer = await _ask(app, state, now=time.time())
         if answer == CONFIRM:
+            suffix = f"（新版本 {state.latest}）" if state.latest else ""
+            _log.info("已确认自动更新%s，程序即将退出并安装新版本。", suffix)
+            _detail_log.log(_DETAIL_LEVEL, "已确认自动更新%s，程序即将退出并安装新版本。", suffix)
             _start_update(app, screen, config_dir)
             return
         # LATER needs no record: the dialog shows again on the next start
         # (revision 9).  SKIP persists the version.
         if answer == SKIP:
             state = mark_skipped(config_dir, state, state.latest, now=time.time())
+            _log.info("已跳过版本 %s，不再提醒。", state.latest)
+            _detail_log.log(_DETAIL_LEVEL, "已跳过版本 %s，不再提醒。", state.latest)
         now = time.time()
         if state.checked_at > 0 and 0 <= now - state.checked_at < CHECK_INTERVAL_SECONDS:
             return
@@ -272,7 +282,9 @@ async def _fetch_in_background() -> AppUpdate | None:
         try:
             found = asyncio.run(check_for_update())
         except Exception:
-            logger.debug("update check failed", exc_info=True)
+            # The rare asyncio.run-level failure: every network/status/parse
+            # failure was already logged inside check_for_update's branches.
+            _detail_log.log(_DETAIL_LEVEL, "更新检查任务异常。", exc_info=True)
             found = None
         with contextlib.suppress(RuntimeError):  # the loop closed while the check ran
             loop.call_soon_threadsafe(deliver, found)

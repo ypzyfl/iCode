@@ -12,6 +12,7 @@ catalog-sync/test-plan.md).
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import hashlib
 import inspect
 import json
@@ -1915,3 +1916,64 @@ def test_snapshot_includes_preserved_custom_profiles(monkeypatch: pytest.MonkeyP
     runtime = catalog_module._SyncRuntime(registry, lambda _result: None, timeout=1.0)
     runtime._publish(_catalog("a"), result)
     assert sorted(registry.list_ids()) == ["a", "mine"], "both backend and preserved user profiles are installed"
+
+
+# --------------------------------------------------------------- logging coverage
+
+
+@contextlib.contextmanager
+def _public_catalog_spy() -> Iterator[list[logging.LogRecord]]:
+    """Capture records on the public catalog logger (batches/logging-coverage)."""
+    logger = logging.getLogger("aixcoding.catalog")
+    records: list[logging.LogRecord] = []
+
+    class _Capture(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            records.append(record)
+
+    handler = _Capture()
+    handler.setLevel(logging.NOTSET)
+    logger.addHandler(handler)
+    try:
+        yield records
+    finally:
+        logger.removeHandler(handler)
+
+
+def test_overwrite_of_custom_profile_warns_on_main_volume(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Coverage: a served id overwriting the user's custom profile is a public WARNING."""
+    directory = _wire_disk(monkeypatch, tmp_path)
+    directory.mkdir()
+    _add_marker_anchor(directory)
+    (directory / "a.yaml").write_text("id: a\nname: Mine\nprovider: openai\nmodel_id: mine-m\n", encoding="utf-8")
+
+    with _public_catalog_spy() as public:
+        catalog_module.apply_catalog(_catalog("a"))
+
+    warnings = [r.getMessage() for r in public if r.levelno >= logging.WARNING]
+    assert warnings == ["以下自定义模型与后端模型 id 相同，已被后端版本覆盖：a。"]
+
+
+def test_upgrade_clear_warns_on_main_volume(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Coverage: clearing the pre-marker directory is a public WARNING (user files deleted)."""
+    directory = _wire_disk(monkeypatch, tmp_path)
+    directory.mkdir()
+    (directory / "old.yaml").write_text("name: Old\nprovider: openai\nmodel_id: o\n", encoding="utf-8")
+
+    with _public_catalog_spy() as public:
+        catalog_module.apply_catalog(_catalog("a"))
+
+    warnings = [r.getMessage() for r in public if r.levelno >= logging.WARNING]
+    assert warnings == ["检测到旧版无标记模型目录；已清空 1 个配置文件，本次按后端目录重建。"]
+
+
+def test_healthy_sync_stays_silent_on_main_volume(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Coverage: a normal sync (no conflicts, no upgrade clear) emits no public record."""
+    directory = _wire_disk(monkeypatch, tmp_path)
+    directory.mkdir()
+    _add_marker_anchor(directory)
+
+    with _public_catalog_spy() as public:
+        catalog_module.apply_catalog(_catalog("a"))
+
+    assert [r for r in public if r.levelno >= logging.WARNING] == []

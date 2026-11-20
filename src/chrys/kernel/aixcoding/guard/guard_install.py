@@ -28,6 +28,7 @@ so a crash mid-install cannot leave a half-written ``hooks.yaml`` behind.
 from __future__ import annotations
 
 import contextlib
+import logging
 import os
 import re
 import shutil
@@ -40,6 +41,16 @@ from pathlib import Path
 import yaml
 
 from chrys.foundation import platform as platform_api
+
+# AIxCoding logging (batches/logging-coverage): the guard's own state
+# (install/update/idempotence/missing assets) stays detail-only -- the guard
+# is invisible infrastructure by owner ruling; the one public exception is
+# _replace_unparsable, which overwrites a user-authored hooks file (ADR-0017,
+# DEVELOPMENT.md §9). Chinese messages carry inline RUF001 noqa (this file
+# is outside the guard/pack directory exemption, batches/logging-coverage R13).
+_detail_log = logging.getLogger("aixcoding.detail.guard")
+_log = logging.getLogger("aixcoding.guard")
+_DETAIL_LEVEL = 5  # mirrors diagnostics.logging_support (session.py precedent)
 
 GUARD_ASSET_DIR = Path(__file__).resolve().parent / "pack"
 """Directory holding the shipped rule pack in source checkouts, wheels and PyApp builds."""
@@ -144,6 +155,7 @@ def install_guard_hooks(*, hooks_dir: Path | None = None, asset_dir: Path | None
     source_dir = resolve_asset_dir() if asset_dir is None else asset_dir
     missing = missing_guard_assets(source_dir)
     if missing:
+        _detail_log.log(_DETAIL_LEVEL, "护栏规则包资源缺失：%s", ", ".join(map(str, missing)))  # noqa: RUF001
         raise FileNotFoundError(f"Guard hooks assets are missing from this build: {', '.join(map(str, missing))}")
 
     target_dir = hooks_dir_for(platform_api.get_platform().config_dir) if hooks_dir is None else hooks_dir
@@ -157,6 +169,7 @@ def install_guard_hooks(*, hooks_dir: Path | None = None, asset_dir: Path | None
     hooks_file = target_dir / GUARD_CONFIG_NAME
     if not hooks_file.exists():
         _write_text_atomic(hooks_file, template_literal_text(template_text), backup=False)
+        _detail_log.log(_DETAIL_LEVEL, "首次安装安全护栏：模板写入 %s。", hooks_file)  # noqa: RUF001
         return GuardInstallReport(target_dir, hooks_file, merged_into_existing=False, backup=None)
 
     raw = hooks_file.read_bytes()
@@ -174,11 +187,17 @@ def install_guard_hooks(*, hooks_dir: Path | None = None, asset_dir: Path | None
         return _replace_unparsable(hooks_file, template_text, had_bom)
 
     _write_text_atomic(hooks_file, merged_text, backup=True, had_bom=had_bom)
+    backup_path = hooks_file.with_name(f"{hooks_file.name}{BACKUP_SUFFIX}")
+    _detail_log.log(
+        _DETAIL_LEVEL,
+        "安全护栏已就绪（合并进既有 hooks 配置；备份 %s）。",  # noqa: RUF001
+        backup_path,
+    )
     return GuardInstallReport(
         target_dir,
         hooks_file,
         merged_into_existing=True,
-        backup=hooks_file.with_name(f"{hooks_file.name}{BACKUP_SUFFIX}"),
+        backup=backup_path,
     )
 
 
@@ -302,6 +321,20 @@ def _replace_unparsable(hooks_file: Path, template_text: str, had_bom: bool) -> 
     backup = hooks_file.with_name(f"{hooks_file.name}{BACKUP_SUFFIX}")
     shutil.copyfile(hooks_file, backup)
     _write_text_atomic(hooks_file, template_literal_text(template_text), backup=False, had_bom=had_bom)
+    # The one public-channel exception (owner ruling 2026-11-19): this
+    # overwrites a user-authored hooks file -- a user-asset change the user
+    # can act on (restore from the backup), unlike the guard's own state.
+    # The public message names the backup by its fixed hooks/-relative shape:
+    # the absolute path (with the username inside) stays detail-only
+    # (batches/logging-coverage review F1).
+    _log.warning(
+        "检测到无法解析的 hooks 配置，已备份并重置为安全护栏模板；原配置可从 hooks/hooks.yaml.pre-guard 备份恢复。"
+    )  # noqa: RUF001
+    _detail_log.log(
+        _DETAIL_LEVEL,
+        "检测到无法解析的 hooks 配置，已备份至 %s 并以安全护栏模板重置；原配置可从该备份恢复。",  # noqa: RUF001
+        backup,
+    )
     return GuardInstallReport(
         hooks_file.parent,
         hooks_file,

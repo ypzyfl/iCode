@@ -15,9 +15,20 @@ containment so adding a task cannot break CLI startup.
 
 from __future__ import annotations
 
+import logging
 import sys
 
 from .tasks import _configure_environment, _ensure_file_sink
+
+# AIxCoding logging (batches/logging-coverage): a failed startup task is a
+# user-facing degrade -- stderr stays (the sink task itself may be the one
+# that failed), the same Chinese message double-writes onto the aixcoding
+# tree (ADR-0017, DEVELOPMENT.md §9); without a sink the WARNING rides
+# stdlib lastResort to stderr. Inline RUF001 noqa: this file is outside the
+# tui/* directory exemption (batches/logging-coverage R13).
+_log = logging.getLogger("aixcoding.startup")
+_detail_log = logging.getLogger("aixcoding.detail.startup")
+_DETAIL_LEVEL = 5  # mirrors diagnostics.logging_support (session.py precedent)
 
 # Startup tasks in order; each must stay idempotent + individually fail-safe.
 _TASKS = (_configure_environment, _ensure_file_sink)
@@ -29,4 +40,7 @@ def aixcoding_startup() -> None:
         try:
             task()
         except Exception as exc:
-            print(f"aixcoding.startup: task {task.__name__} failed ({exc}); skipped", file=sys.stderr)
+            message = f"启动任务 {task.__name__} 失败（{exc}）；已跳过。"  # noqa: RUF001
+            print(f"aixcoding.startup: {message}", file=sys.stderr)
+            _log.warning("%s", message)
+            _detail_log.log(_DETAIL_LEVEL, "%s", message)

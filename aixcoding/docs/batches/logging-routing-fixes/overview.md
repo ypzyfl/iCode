@@ -18,7 +18,7 @@ aixcoding logger 树（定制层）
     └── handler② _DetailMarker → ~/.chrys/aixcoding-logs/aixcoding.detail.log（1MB×3 独立轮转）
 ```
 
-- 域 logger：`aixcoding.auth`（登录域）、`aixcoding.catalog`（目录域，批次① D 项首次启用其公共通道）；
+- 域 logger：`aixcoding.auth`（登录域）、`aixcoding.catalog`（目录域——批次① D 项首次启用，environment-config 批次随退役 env 机制移除，logging-coverage 批次 2026-11-20 为"自定义模型被覆盖/清空"两处用户资产事件恢复）；logging-coverage 批次另启用 `aixcoding.update`（检查失败/确认/跳过）、`aixcoding.config`（九处配置错误）、`aixcoding.startup`（task 失败）、`aixcoding.guard`（仅备份重置单点）、`aixcoding.skills`（仅 detail）、`aixcoding.detail.*` 对应子树；
 - detail 域 logger：`aixcoding.detail.auth`、`aixcoding.detail.catalog`；
 - 级别：主通道默认 INFO（`[logging] level` 可调 DEBUG/INFO/WARNING/ERROR/CRITICAL，重启生效）；detail 固定 DETAIL=5（低于 DEBUG，F6 面板 handler 的 DEBUG 门槛天然拦截）；
 - 面板显示过滤：F6 面板内按 Space 循环 DEBUG→INFO→WARNING→ERROR（仅显示过滤，不改文件）。

@@ -81,16 +81,33 @@ from chrys.service.profiles.models.schema import (
     ModelProfile,
 )
 
-# AIxCoding 方案六 (2026-11-04; revised 2026-11-05 logging-routing-fixes):
-# catalog records are technical events on the file-only "aixcoding.detail.catalog"
-# logger (ADR-0017) — the main volume and the F6 panel carry user-facing events
-# only (DEVELOPMENT.md §9). The detail subtree never propagates to the panel or
-# the upstream log.
+# AIxCoding 方案六 (2026-11-04; revised 2026-11-05 logging-routing-fixes, then
+# 2026-11-19 logging-coverage): catalog records are technical events on the
+# file-only "aixcoding.detail.catalog" logger (ADR-0017) — the main volume and
+# the F6 panel carry user-facing events only (DEVELOPMENT.md §9). The public
+# exception (owner rulings 2026-11-05 D and 2026-11-19): events that change
+# the user's own assets (a custom profile overwritten by a served id, the
+# pre-marker directory cleared) additionally carry a public WARNING double
+# write. The detail subtree never propagates to the panel or the upstream log.
+_log = logging.getLogger("aixcoding.catalog")
 _detail_log = logging.getLogger("aixcoding.detail.catalog")
 
 #: AIxCoding detail logging: level of the file-only channel; mirrors
 #: ``DETAIL_LEVEL`` in diagnostics.logging_support (ADR-0017), as auth does.
 _DETAIL_LEVEL = 5
+
+#: Budget for the public overwrite warning's id list (batches/logging-coverage
+#: review S4): a runaway custom-id list must not flood the main volume; the
+#: detail record keeps the full list.
+_OVERWRITE_JOIN_LIMIT = 200
+
+
+def _join_bounded(ids: tuple[str, ...]) -> str:
+    joined = ", ".join(ids)
+    if len(joined) <= _OVERWRITE_JOIN_LIMIT:
+        return joined
+    return f"{joined[:_OVERWRITE_JOIN_LIMIT]}…（共 {len(ids)} 个）"
+
 
 #: Marker injected into profiles written by a server sync (catalog-custom-coexist).
 #: Only a literal ``True`` marks a file as server-owned and therefore deletable;
@@ -983,6 +1000,7 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
                     continue
                 path.unlink()
                 cleared += 1
+            _log.warning("检测到旧版无标记模型目录；已清空 %d 个配置文件，本次按后端目录重建。", cleared)
             _detail_log.log(
                 _DETAIL_LEVEL,
                 "检测到旧版无标记模型目录；已清空 %d 个配置文件，本次按后端目录重建。",
@@ -1021,6 +1039,7 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
     # Warn only after the whole sync succeeded: the overwrite already happened
     # (os.replace), and a failed publish must not claim a change that did not land.
     if overwritten:
+        _log.warning("以下自定义模型与后端模型 id 相同，已被后端版本覆盖：%s。", _join_bounded(overwritten))
         _detail_log.log(
             _DETAIL_LEVEL,
             "以下自定义模型与后端模型 id 相同，已被后端版本覆盖：%s。",
