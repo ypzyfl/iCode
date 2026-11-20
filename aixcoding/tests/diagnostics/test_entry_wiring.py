@@ -60,7 +60,7 @@ def test_startup_contains_task_failures(monkeypatch, capsys):
     monkeypatch.setattr(startup, "_TASKS", (ok, boom, after))
     startup.aixcoding_startup()
     assert calls == ["ok", "after"]
-    assert "task boom failed" in capsys.readouterr().err
+    assert "启动任务 boom 失败" in capsys.readouterr().err
 
 
 def test_startup_idempotent_when_tasks_are(tmp_path: Path, monkeypatch, aix_logger_state):

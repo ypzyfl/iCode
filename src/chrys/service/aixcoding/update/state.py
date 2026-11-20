@@ -30,7 +30,10 @@ from pathlib import Path
 
 from chrys.foundation.platform.files import atomic_write_text
 
-logger = logging.getLogger(__name__)
+# AIxCoding logging (batches/logging-coverage): update-domain detail trace
+# rides the aixcoding tree (ADR-0017, DEVELOPMENT.md §9).
+_detail_log = logging.getLogger("aixcoding.detail.update")
+_DETAIL_LEVEL = 5  # mirrors diagnostics.logging_support (session.py precedent)
 
 CHECK_INTERVAL_SECONDS = 24 * 60 * 60
 STATE_FILE_NAME = "aixcoding-update.json"
@@ -102,7 +105,7 @@ def write_state(config_dir: Path, state: UpdateState) -> bool:
     try:
         atomic_write_text(state_path(config_dir), payload + "\n")
     except OSError:
-        logger.debug("update state: could not save %s", state_path(config_dir), exc_info=True)
+        _detail_log.log(_DETAIL_LEVEL, "无法保存更新状态 %s。", state_path(config_dir), exc_info=True)
         return False
     return True
 
@@ -151,7 +154,7 @@ def create_skip_today(config_dir: Path, *, now: float) -> bool:
     try:
         atomic_write_text(skip_today_path(config_dir), f"{now}\n")
     except OSError:
-        logger.debug("update state: could not save %s", skip_today_path(config_dir), exc_info=True)
+        _detail_log.log(_DETAIL_LEVEL, "无法保存今日跳过标记 %s。", skip_today_path(config_dir), exc_info=True)
         return False
     return True
 

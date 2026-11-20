@@ -8,8 +8,9 @@ params (strict mode — unknown/missing/invalid is a 400 the client simply
 treats as a failed check), a v2 manifest on 200, ``204``/``304`` for "no
 applicable release", and the version comparison entirely server-side.  The
 client maps the params, parses ``version``/``artifact.url``/``forceUpgrade``
-out of a 200 body, and stays silent on every failure — the flow must never
-disturb startup.
+out of a 200 body, and never raises -- a failed check logs a public WARNING
+(the user wants to know) and returns None; "no applicable release" (204/304)
+and an unbuildable query stay detail-only, so the flow never disturbs startup.
 
 The base URL resolves the way the model catalog's does
 (``catalog.py::catalog_base_url``): the shared ``[update].base_url`` from
@@ -38,7 +39,13 @@ from chrys import __version__
 from chrys.foundation.platform import get_platform
 from chrys.service.aixcoding.config import load_config
 
-logger = logging.getLogger(__name__)
+# AIxCoding logging (batches/logging-coverage): the update domain rides the
+# aixcoding tree -- the main channel carries user-facing events (check
+# failures are something the user wants to know and can report), detail
+# carries the wire/technical trace (ADR-0017, DEVELOPMENT.md §9).
+_log = logging.getLogger("aixcoding.update")
+_detail_log = logging.getLogger("aixcoding.detail.update")
+_DETAIL_LEVEL = 5  # mirrors diagnostics.logging_support (session.py precedent)
 
 RELEASE_CHECK_URL_PATH = "api/v2/releases/check"
 _TIMEOUT_SECONDS = 15.0
@@ -143,8 +150,11 @@ def _parse_response(response: httpx.Response) -> AppUpdate | None:
             version = payload["version"]
             download_url = payload["artifact"]["url"]
         except Exception as exc:
-            logger.debug(
-                "update check: unparseable manifest body: %s: %s (body=%s)",
+            _log.warning("自动更新检查失败，本次跳过。")
+            _detail_log.log(_DETAIL_LEVEL, "自动更新检查失败，本次跳过。")
+            _detail_log.log(
+                _DETAIL_LEVEL,
+                "更新检查响应解析失败：%s: %s（body=%s）",
                 type(exc).__name__,
                 exc,
                 _body_preview(response),
@@ -156,11 +166,17 @@ def _parse_response(response: httpx.Response) -> AppUpdate | None:
                 download_url=download_url,
                 force_upgrade=payload.get("forceUpgrade") is True,
             )
-        logger.debug("update check: manifest missing version/artifact.url (body=%s)", _body_preview(response))
+        _log.warning("自动更新检查失败，本次跳过。")
+        _detail_log.log(_DETAIL_LEVEL, "自动更新检查失败，本次跳过。")
+        _detail_log.log(_DETAIL_LEVEL, "更新检查响应缺少 version/artifact.url（body=%s）", _body_preview(response))
         return None
     if response.status_code in (204, 304):
         return None  # current / platform mismatch / gray-release miss / ETag fallback
-    logger.debug("update check: unexpected status %s (body=%s)", response.status_code, _body_preview(response))
+    _log.warning("自动更新检查失败，本次跳过。")
+    _detail_log.log(_DETAIL_LEVEL, "自动更新检查失败，本次跳过。")
+    _detail_log.log(
+        _DETAIL_LEVEL, "更新检查响应状态异常：HTTP %s（body=%s）", response.status_code, _body_preview(response)
+    )
     return None
 
 
@@ -177,7 +193,9 @@ async def check_for_update(
     """
     params = build_query_params(current_version)
     if params is None:
-        logger.debug("update check skipped: unbuildable query params")
+        # Not a check failure: this machine's platform/arch/version shape is
+        # outside the contract, so the check never runs -- detail only.
+        _detail_log.log(_DETAIL_LEVEL, "更新检查查询参数不可构造（平台/架构/版本不匹配），本次不检查。")
         return None
     url = check_url()
     try:
@@ -186,8 +204,9 @@ async def check_for_update(
         async with asyncio.timeout(_TIMEOUT_SECONDS):
             async with httpx.AsyncClient(timeout=_TIMEOUT_SECONDS, trust_env=False, transport=transport) as client:
                 request = client.build_request("GET", url, params=params, headers=_request_headers())
-                logger.debug(
-                    "update check: sending request\n  method: %s\n  url: %s\n  headers: %s\n  timeout: %gs",
+                _detail_log.log(
+                    _DETAIL_LEVEL,
+                    "更新检查请求：GET %s\n  url: %s\n  headers: %s\n  timeout: %gs",
                     request.method,
                     request.url,
                     dict(request.headers),
@@ -195,21 +214,28 @@ async def check_for_update(
                 )
                 response = await client.send(request)
     except httpx.TimeoutException, TimeoutError:
-        logger.debug("update check: timed out after %gs (GET %s?%s)", _TIMEOUT_SECONDS, url, urlencode(params))
+        _log.warning("自动更新检查失败，本次跳过。")
+        _detail_log.log(_DETAIL_LEVEL, "自动更新检查失败，本次跳过。")
+        _detail_log.log(
+            _DETAIL_LEVEL, "更新检查请求超时（%.0f 秒）：GET %s?%s", _TIMEOUT_SECONDS, url, urlencode(params)
+        )
         return None
     except Exception as exc:
-        logger.debug(
-            "update check: request failed: %s: %s (GET %s?%s)",
+        _log.warning("自动更新检查失败，本次跳过。")
+        _detail_log.log(_DETAIL_LEVEL, "自动更新检查失败，本次跳过。")
+        _detail_log.log(
+            _DETAIL_LEVEL,
+            "更新检查请求失败：%s: %s（GET %s?%s）",
             type(exc).__name__,
             exc,
             url,
             urlencode(params),
         )
         return None
-    logger.debug(
-        "update check: got response\n  status: %s\n  elapsed: %gs\n  body: %s",
+    _detail_log.log(
+        _DETAIL_LEVEL,
+        "更新检查收到响应\n  status: %s\n  body: %s",
         response.status_code,
-        response.elapsed.total_seconds(),
         _body_preview(response),
     )
     return _parse_response(response)

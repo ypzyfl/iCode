@@ -30,7 +30,12 @@ from chrys.foundation.branding import APP_COMMAND
 
 from .commands import install_script_url
 
-logger = logging.getLogger(__name__)
+# AIxCoding logging (batches/logging-coverage): the update domain rides the
+# aixcoding tree (ADR-0017, DEVELOPMENT.md §9) -- a wrapper that fails to
+# start right after the user chose "update now" is a user-facing ERROR.
+_log = logging.getLogger("aixcoding.update")
+_detail_log = logging.getLogger("aixcoding.detail.update")
+_DETAIL_LEVEL = 5  # mirrors diagnostics.logging_support (session.py precedent)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -243,8 +248,9 @@ def start_update_and_exit(
         argv = build_wrapper(session_id, pid, config_dir)
         process = spawn_wrapper(argv)
     except Exception:
-        logger.warning("auto-update: could not start the update wrapper", exc_info=True)
+        _log.error("自动更新启动失败：更新助手未能启动，本次不会退出程序。")
+        _detail_log.log(_DETAIL_LEVEL, "自动更新启动失败：更新助手未能启动，本次不会退出程序。", exc_info=True)
         return False
-    logger.debug("auto-update: wrapper started (pid %s): %s", process.pid, argv)
+    _detail_log.log(_DETAIL_LEVEL, "更新助手已启动（pid %s）：%s", process.pid, argv)
     exit_app()
     return True

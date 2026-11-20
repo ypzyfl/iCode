@@ -1,5 +1,7 @@
-# ruff: noqa: T201
-# (stderr notes are the observable-degradation channel, DEVELOPMENT.md §9)
+# ruff: noqa: T201, RUF001
+# (stderr notes are the observable-degradation channel, DEVELOPMENT.md §9;
+#  Chinese messages use full-width punctuation -- file-level so a ruff format
+#  reflow cannot strand a line-level noqa, PR #141 CI fix)
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 
 """Startup aggregation entry for AIxCoding customizations.
@@ -15,9 +17,20 @@ containment so adding a task cannot break CLI startup.
 
 from __future__ import annotations
 
+import logging
 import sys
 
 from .tasks import _configure_environment, _ensure_file_sink
+
+# AIxCoding logging (batches/logging-coverage): a failed startup task is a
+# user-facing degrade -- stderr stays (the sink task itself may be the one
+# that failed), the same Chinese message double-writes onto the aixcoding
+# tree (ADR-0017, DEVELOPMENT.md §9); without a sink the WARNING rides
+# stdlib lastResort to stderr. Chinese messages ride the file-level RUF001
+# exemption at the top (batches/logging-coverage R13, PR #141 CI fix).
+_log = logging.getLogger("aixcoding.startup")
+_detail_log = logging.getLogger("aixcoding.detail.startup")
+_DETAIL_LEVEL = 5  # mirrors diagnostics.logging_support (session.py precedent)
 
 # Startup tasks in order; each must stay idempotent + individually fail-safe.
 _TASKS = (_configure_environment, _ensure_file_sink)
@@ -29,4 +42,11 @@ def aixcoding_startup() -> None:
         try:
             task()
         except Exception as exc:
-            print(f"aixcoding.startup: task {task.__name__} failed ({exc}); skipped", file=sys.stderr)
+            # The exception NAME only on both channels: the str of an OSError
+            # carries the absolute path with the username -- the public channel
+            # stays path-free; the full traceback rides detail's exc_info
+            # (PR #141 review C1).
+            message = f"启动任务 {task.__name__} 失败（{type(exc).__name__}）；已跳过。"
+            print(f"aixcoding.startup: {message}", file=sys.stderr)
+            _log.warning("%s", message)
+            _detail_log.log(_DETAIL_LEVEL, "%s", message, exc_info=True)
