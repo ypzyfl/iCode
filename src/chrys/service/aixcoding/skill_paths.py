@@ -84,14 +84,15 @@ def desktop_app_data_dir() -> Path:
     return get_platform().app_data_dir
 
 
-def _real_subdirectory_paths(container: Path) -> list[Path]:
+def _real_subdirectory_paths(container: Path, *, log_label: str) -> list[Path]:
     """Return each immediate real subdirectory of *container*, resolved.
 
     Mirrors the desktop client's container enumeration (``userTeamSkillRoots``
     and its external-root walk): hidden entries, symbolic links, and Windows
     junctions are skipped, results are sorted by name, an unreadable or
     missing container yields no roots, and one broken entry never removes the
-    other roots.
+    other roots.  *log_label* names the directory kind in the failure trace
+    (team roots vs. desktop environment/account containers).
     """
     try:
         with os.scandir(container) as entries:
@@ -100,7 +101,7 @@ def _real_subdirectory_paths(container: Path) -> list[Path]:
         # The common case: the user never created this tree — not an event.
         return []
     except OSError as exc:
-        _detail_log.log(_DETAIL_LEVEL, "技能目录枚举失败：%s", exc)
+        _detail_log.log(_DETAIL_LEVEL, "%s枚举失败：%s", log_label, exc)
         return []
     roots: list[Path] = []
     for entry in found:
@@ -121,7 +122,7 @@ def _team_skill_dirs(container: Path) -> list[str]:
     Stringified view of ``_real_subdirectory_paths`` — the desktop client's
     ``userTeamSkillRoots`` enumeration semantics live there.
     """
-    return [str(root) for root in _real_subdirectory_paths(container)]
+    return [str(root) for root in _real_subdirectory_paths(container, log_label="团队技能目录")]
 
 
 def user_aixcoding_skill_paths(config: SkillsConfig) -> list[str]:
@@ -173,8 +174,8 @@ def desktop_installed_skill_paths() -> list[str]:
         # roots — the hand-placed trees collected by the caller stay intact.
         return []
     roots: list[str] = []
-    for user_container in [data_root, *_real_subdirectory_paths(data_root)]:
-        for account in _real_subdirectory_paths(user_container / "users"):
+    for user_container in [data_root, *_real_subdirectory_paths(data_root, log_label="桌面端环境目录")]:
+        for account in _real_subdirectory_paths(user_container / "users", log_label="桌面端账号目录"):
             content_root = account.joinpath(*_DESKTOP_SKILLS_PARTS)
             try:
                 if not content_root.is_dir() or content_root.is_symlink() or content_root.is_junction():
