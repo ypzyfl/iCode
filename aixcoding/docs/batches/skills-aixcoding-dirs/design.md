@@ -7,7 +7,7 @@
 
 - 责任人：李海潮
 - 状态：已确认
-- 确认日期：2026-11-18
+- 确认日期：2026-11-23
 - 确认意见：无特殊意见
 
 > v2（2026-11-09 自审修订）：推翻 v1 的测试隔离方案——0.28 的「裸 `Path.home()` + 上游测试散点
@@ -27,6 +27,11 @@
 > `PlatformInfo.app_data_dir` 字段（`aixcoding_dir` 之外的第二处 platform 接触面）与
 > conftest 同步 patch 行——**R2 清单与登记计数变化，按 R10 必须重签**；本文件已转「草案」，
 > 签认字段由责任人本人填写。
+
+> v5（2026-11-23 阻塞裁决，待责任人重签）：2026-11-18 备案的「扫得到、用不了」阻塞落地为
+> 方案 E1——上游 `loader.py` Agent Skills 规范门字符集加大写（裁决过程见 R12 记录⑤）。
+> R2 清单增第 12 项、登记表增 `skills-aixcoding-dirs:loader-name-charset`——**R2 清单与
+> 登记计数变化，按 R10 必须重签**；本文件已转「草案」，签认字段由责任人本人填写。
 
 ## 目标与验收条件
 
@@ -66,7 +71,11 @@
    环境与账号均按名排序，目录缺失不报错；
 9. （v4）**安装 ≠ 启用**：桌面端禁用（`enabled: false`）的技能同样可被发现（责任人
    2026-11-18 裁决，理由见 R12 记录④）；不解析桌面端 `skill.json` / `active-candidates.json`
-   等内部状态文件。
+   等内部状态文件；
+10. （v5）桌面端安装技能的大写驼峰名（本机实况 `React-Code-Standard` 等 3 个）通过 Agent
+    Skills 规范门被正常加载；其余非法形态（上游测试反例 `Bad_Name` 的下划线、首尾/连续
+    连字符、超 64 字符）仍被拒——上游 `tests/service/skills/test_loader.py` 语义不变，
+    本批不改任何上游测试文件。
 
 ## 方案概述（B1：函数体下沉定制包，上游留挂点；目录根挂 platform 单例）
 
@@ -189,6 +198,18 @@ team 子目录由定制包运行时枚举而非把容器根交给 loader——�
 `enabled` 过滤（耦合另一产品的版本化内部状态文件，格式漂移即误杀/漏过，插件端已明确避开）、
 桌面端把启用技能镜像到共享目录（语义最干净，但需跨仓改动与桌面发版协同，本轮不可交付）。
 
+**R12 记录⑤（v5，2026-11-23 阻塞裁决：技能名字符集放宽，责任人已裁决方案 E1）**：v4 交付的
+路径层让桌面端安装技能「扫得到」，但 Agent Skills 规范门（`loader.py` 的 `VALID_NAME_RE`，
+仅小写 kebab）把桌面端市场/团队技能的大写驼峰名全部拒收（本机实况 3 个：`React-Code-Standard`、
+`Vue-Migration-Guide`、`Prompt-Engineering-Handbook`）——「扫得到、用不了」；同一道门也拦
+桌面端拉起的会话（profile 物化目录名 = SKILL.md 名）。插件端 `parseSkillMarkdown` 不校验
+字符集，CLI 是唯一严格执行上游规范门的端，放宽后三端口径实际收敛。安全性核实：技能名不进
+LLM 工具名（仅 `load_skill` / `read_skill_resource` / `run_skill_script` 三个固定工具），
+只进 catalog 系统提醒文本（`xml_escape` 后），放宽字符集无协议面风险；`name == 目录名` 门
+（`loader.py:444`）不动，驼峰目录名与驼峰 `name` 一致即可过。三方案对比见「备选方案对比」
+E1–E3；责任人 2026-11-23 裁决 E1（正则字符集加 `A-Z`，其余约束不动，上游测试文件不改）。
+E2（桌面端安装时规范化）留作长期方向，落地后本点按登记表 `removal_condition` 提请退役。
+
 ## 备选方案对比
 
 | 方案 | 优点 | 缺点 | 升级冲突面 | 结论 |
@@ -201,6 +222,9 @@ team 子目录由定制包运行时枚举而非把容器根交给 loader——�
 | **D1（v4 选定）安装存储全量扫描（插件同构）** | 三端口径一致；零新增配置键；所有环境/账号一次覆盖 | 「已禁用」技能在独立会话可见（责任人已接受）；platform/conftest 各增 1 处 | 小 | **是**（R12 记录④） |
 | D2 按 `active-candidates.json` 的 `enabled` 过滤 | 尊重桌面端禁用语义 | 解析他产品版本化内部状态文件；格式漂移即误杀/漏过；跨环境/账号合并规则随之变复杂 | 小 | 否（脆弱的隐式契约） |
 | D3 桌面端把启用技能镜像到共享目录 | 语义最干净、CLI 侧零上游改动 | 跨仓改动 + 桌面发版协同，本轮不可交付；镜像目录本身还需清理/同步策略 | 零（CLI 侧） | 否（本轮不可行，留作长期方向） |
+| **E1（v5 选定）上游规范门字符集加大写** | 单点约 5 行；三端口径实际收敛；fork 行为锚可机检 | 与 Agent Skills 规范（小写 kebab）口径分叉，升级时单点对照 | 小（`loader.py` 低频演进区，0.26 以来未变动该正则） | **是**（R12 记录⑤） |
+| E2 桌面端安装时规范化 `name` | 源头统一三端、CLI 零改动 | 跨仓排期；存量已装技能不受益；规范化改变用户可见标识 | 零（CLI 侧） | 否（本轮不可交付，E1 的长期退役通道） |
+| E3 fork 宽松 fallback loader | 不动上游 | 重写/绕过上游 load 循环，重复建设；升级锚不稳 | 大（上游重构即漂移） | 否（过度设计） |
 
 ## 上游改动清单（R2）
 
@@ -218,6 +242,7 @@ team 子目录由定制包运行时枚举而非把容器根交给 loader——�
 | 10 | `src/chrys/service/hooks/docs/configuration.md` | 信任模型段补 `.aixcoding/skills/` 提及 | 改 1 行 | 同上 |
 |    | **实施备案**：0.34 已重构该段（仅描述 hooks 自身信任门，不再列举技能目录清单），无可补位置——该项自然取消，上游接触面净减少 | | | |
 | 11 | `src/chrys/service/hooks/docs/project-hooks.md` | 两处目录清单补提及 | 约 +4 | 同 C167 口径（Goals 列表提及处注释行，登记 C171） |
+| 12 | `src/chrys/service/skills/loader.py`（v5） | `VALID_NAME_RE` 字符集加 `A-Z`（结构不变）+ 上方注释与 `validate_skill_metadata` 错误文案同步（"lowercase letters" → "letters"）；其余约束（64 长度、首尾/连续连字符、`name == 目录名`）与上游测试文件不动 | 约 +5 | 正则定义上方 1 行 + 错误文案上方 1 行 `# AIxCoding skills: …` |
 
 **R1 细则二（逐行归属，必答）**：
 
@@ -232,9 +257,12 @@ team 子目录由定制包运行时枚举而非把容器根交给 loader——�
   由上游 loader 解析并按类型安全传给三条 build 路径——字段只能定义在上游。**可接受折中**：
   与既有 `auto_load_user_agents_skills` 同构，语义内聚于 skills 配置面。
 - 清单 6–11 文档：`docs/` 描述上游+定制整体用户可见行为，用户只读上游 docs，无法外置。
+- 清单 12 正则与文案（v5）：两处均为 `validate_skill_metadata` 函数体内容，上游无校验挂点
+  机制可外置；外置只能 E3 全量接管 load 循环（已否决）。**可接受折中**：与上游规范门同址
+  放宽字符集，行为分叉面限定为一个正则字符类 + 一句文案。
 
-合计：约 38 行代码（挂点 15 + platform 12 + conftest 2 + schema 7 + loader 2）/ 5 文件
-+ 约 37 行文档 / 6 文件（v4 不动文档清单）。上游测试文件从 v1 的 5 个散点收敛为 conftest 1 处；
+合计：约 43 行代码（挂点 15 + platform 12 + conftest 2 + schema 7 + loader 2 + 规范门 5（v5））/ 6 文件
++ 约 37 行文档 / 6 文件（v4 起不动文档清单）。上游测试文件从 v1 的 5 个散点收敛为 conftest 1 处；
 对比旧版（40 行代码 + 238 行测试 + 约 90 行文档 + 64 行新上游文档）。
 
 ## 定制包新增（R4/R9）
@@ -315,6 +343,11 @@ v4 增：桌面端安装存储的环境 × 账号枚举（排序、跳隐藏目�
     （`file-system-skill-registry.ts:1660-1710`），`system/` 下的包不移动不删除 —
     → 扫 `system/` 必然包含禁用技能；这是 2026-11-18 责任人明确接受的语义（R12 记录④），
     不是缺陷。若上游/桌面端改为「禁用即删目录」，行为自然收敛，无需改代码。
+11. **技能名不进 LLM 工具名（v5，已核实）**：技能面只暴露三个固定工具（`load_skill` /
+    `read_skill_resource` / `run_skill_script`），技能名仅进 catalog 系统提醒文本
+    （`xml_escape` 后）与警告消息 → 字符集放宽无工具名协议约束风险 → 失效表现：若上游未来
+    把技能名物化为 per-skill 工具名，驼峰名可能撞上游工具名正则；缓解：本条 + 行为锚测试
+    在升级时暴露。
 
 ## 定制点登记预告
 
@@ -326,6 +359,7 @@ v4 增：桌面端安装存储的环境 × 账号枚举（排序、跳隐藏目�
 | skills-aixcoding-dirs:conftest-app-data-dir | tests/conftest.py | AIxCoding skills: keep the desktop app-data root inside the pinned sandbox | 2 | 两处 `dataclasses.replace` 的 `app_data_dir` patch 行（v4） | 中：随 C159-C160 | 随 C159-C160 |
 | C161 | src/chrys/service/profiles/agents/schema.py | AIxCoding skills: | 1 | `SkillsConfig` 开关字段区 | 低：上游重排字段区时冲突面小 | 〔配置契约变更〕本 design ADR 判定决策一反转（开关撤离 profile schema） |
 | C162 | src/chrys/service/profiles/agents/loader.py | AIxCoding skills: | 1 | `_parse_skills` 解析块 | 低：随 C161 | 随 C161 |
+| skills-aixcoding-dirs:loader-name-charset | src/chrys/service/skills/loader.py | AIxCoding skills: | 2 | `VALID_NAME_RE` 定义 + `validate_skill_metadata` 错误文案（v5，R12 记录⑤） | 低：上游演进该正则/文案时冲突面 ≤5 行（0.26 以来未变动）；`--strict` 报计数不符 | 〔政策变更〕桌面端安装时规范化 `name`（E2）落地后提请退役；〔上游等价〕上游自身放宽规范门时以上游为准 |
 
 <!-- 2026-11-11 备案：原 C167-C171（docs/en、docs/zh-Hans 四页与 project-hooks.md 的
      marker 登记）随文档改动整体还原而撤销——该批改动与 main_aixcoding_cli 上并行
@@ -356,6 +390,9 @@ v4 增：桌面端安装存储的环境 × 账号枚举（排序、跳隐藏目�
 9. **（v4）跨环境/跨账号合并**：同一机器多个环境（development/production）或多个账号安装同名
    技能时按枚举次序先到先得（环境目录按名排序、账号目录按名排序），可能加载"另一个账号"
    的技能。缓解：属同一 OS 用户的可读数据，不构成新的越权面；文档明示合并规则。
+10. **（v5）与 Agent Skills 规范口径分叉**：上游按规范（小写 kebab）实现，fork 放宽为同时接受
+    大写——上游未来收紧或改写规范门时需单点对照（登记 anchor + fork 行为锚测试双保险）。
+    回滚：revert 该约 5 行即恢复上游规范门（被拒技能回到 `skill_load_error`，与 0.35.2 现状一致）。
 
 ## ADR 判定
 
@@ -384,6 +421,10 @@ v4 增：桌面端安装存储的环境 × 账号枚举（排序、跳隐藏目�
 > 复用 user 开关、`app_data_dir` 通用字段）同样不另起 ADR——记录由 R12 记录④、
 > 「备选方案对比」D1/D2/D3、「对上游隐式行为的假设」9/10 与风险 8/9 承载，
 > 测试行为锚为 `aixcoding/tests/skills` 的禁用技能与地址重定向两条用例。
+>
+> **2026-11-23 备案（v5 阻塞裁决，同一惯例）**：v5 的决策（规范门字符集加大写、E2/E3 否决）
+> 不另起 ADR——记录由 R12 记录⑤、「备选方案对比」E1–E3、「对上游隐式行为的假设」11 与
+> 风险 10 承载，测试行为锚为 `aixcoding/tests/skills` 的驼峰名接受与下划线拒绝两条用例。
 
 ## 验证方式（实施阶段执行，此处为计划）
 
@@ -396,4 +437,8 @@ v4 增：桌面端安装存储的环境 × 账号枚举（排序、跳隐藏目�
 - 冒烟（真实 HOME/工作区）：`uv run aixcoding-cli run "列出可用技能" -a Code` 确认
   `hanhai-h5` 与桌面端安装的 `React-Code-Standard` 等被发现，且 `.agents` 同名时 aixcoding 胜出；
 - 门禁：ruff / format / `ty check --error-on-warning`（三平台）；i18n 无需刷新（零 msg 改动）；
-- `uv run python aixcoding/tools/gen_customizations.py --strict` 登记核对。
+- `uv run python aixcoding/tools/gen_customizations.py --strict` 登记核对；
+- （v5）`uv run pytest aixcoding/tests/skills -n0`（驼峰接受 + 下划线拒绝锚）与
+  `uv run pytest tests/service/skills/test_loader.py tests/service/skills/test_adapter.py -n0`
+  （上游语义不变，`Bad_Name` 反例须仍绿）；冒烟确认本机实存 3 个驼峰技能从
+  `skill_load_error` 变为可加载。
