@@ -78,16 +78,18 @@ reporter×3（同 session 内 LLM→tool→ai-code 有序）
 
 分层契约（N3 §5）：dispatcher 同步路径只做校验/合并/入队；分析与网络全在 worker；通知只保证已入队。`saved=False` 或快照空 → 记录并跳过。普通异常隔离、`CancelledError` 不吞。
 
-## 2. 上游 R2 接缝（7 文件，函数级）
+## 上游改动清单（R2）
+
+> 原第 2 节「上游 R2 接缝（7 文件，函数级）」；标题按 R2 门禁（check_r2_diff）标准命名，2.1/2.2 小节编号保留。
 
 ### 2.1 N3 四文件（依据探索 N3 §14.4，逐项落实）
 
 | # | 文件 | 改动 | 量级 |
 |---|---|---|---:|
-| R2-1 | `orchestration/engine/run/turn_state.py` | `TurnRuntimeState` 增加 run-owned 不可变身份快照（`logical_turn_id/pass_id/turn_number/is_retry`）+ `pre_run` 前清空 + `reset_after_session_shutdown()` 同步清理；不含 telemetry 业务字段 | 15–25 行 |
-| R2-2 | `orchestration/engine/run/runner.py` | `pre_run()` 开始清旧快照；`_record_trajectory_turn_started()` 在 ID 确定后、`await recorder.turn_started()` 前一次性写入快照 | 10–18 行 |
-| R2-3 | `orchestration/engine/run/finalizer.py` | `_save_and_drain_hooks()` 的 save/checkpoint 后、外部 hooks 前：构造 `TurnTelemetryNotice`（含局部 `saved`；turn 终态 `status` 字段已于 2026-11-23 二次裁决移除、留待批次2，见 self-review.md）并 lazy import 调用定制 dispatcher；不改外部 hook 语义 | 18–30 行 |
-| R2-4 | `orchestration/engine/session_lifecycle.py` | `_teardown()` 与 `_delete_session_reporting()` 集中调用定制 per-session 有界 flush+close（delete 在 trajectory close/detach/物理删除前；删除失败后 worker 可重建；close 幂等） | 12–24 行 |
+| R2-1 | `src/chrys/orchestration/engine/run/turn_state.py` | `TurnRuntimeState` 增加 run-owned 不可变身份快照（`logical_turn_id/pass_id/turn_number/is_retry`）+ `pre_run` 前清空 + `reset_after_session_shutdown()` 同步清理；不含 telemetry 业务字段 | 15–25 行 |
+| R2-2 | `src/chrys/orchestration/engine/run/runner.py` | `pre_run()` 开始清旧快照；`_record_trajectory_turn_started()` 在 ID 确定后、`await recorder.turn_started()` 前一次性写入快照 | 10–18 行 |
+| R2-3 | `src/chrys/orchestration/engine/run/finalizer.py` | `_save_and_drain_hooks()` 的 save/checkpoint 后、外部 hooks 前：构造 `TurnTelemetryNotice`（含局部 `saved`；turn 终态 `status` 字段已于 2026-11-23 二次裁决移除、留待批次2，见 self-review.md）并 lazy import 调用定制 dispatcher；不改外部 hook 语义 | 18–30 行 |
+| R2-4 | `src/chrys/orchestration/engine/session_lifecycle.py` | `_teardown()` 与 `_delete_session_reporting()` 集中调用定制 per-session 有界 flush+close（delete 在 trajectory close/detach/物理删除前；删除失败后 worker 可重建；close 幂等） | 12–24 行 |
 
 不修改：`turn_hooks.py`、EventBus、ACP `server.py/session_manager.py`、TUI app、headless entry（N3 §14.4 已排除）。`app/acp/server.py` 是批次2（N7）接缝，不入本批。
 
@@ -95,9 +97,9 @@ reporter×3（同 session 内 LLM→tool→ai-code 有序）
 
 | # | 文件 | 改动 |
 |---|---|---|
-| R2-5 | `kernel/aixcoding/auth/environments.py` | `_BASE_PATHS[LOCAL]` 两个 origin `localhost:7777` → `localhost:15678`（docstring 端口表同步） |
-| R2-6 | `service/aixcoding/update/client.py` | `_TIER_BASES["local"]` `127.0.0.1:7778` → `127.0.0.1:15678`（注释同步；dev/prod 不动） |
-| R2-7 | `service/aixcoding/models/catalog.py` | `_CATALOG_BASES["local"]` `127.0.0.1:7777` → `127.0.0.1:15678`（dev/prod 不动） |
+| R2-5 | `src/chrys/kernel/aixcoding/auth/environments.py` | `_BASE_PATHS[LOCAL]` 两个 origin `localhost:7777` → `localhost:15678`（docstring 端口表同步） |
+| R2-6 | `src/chrys/service/aixcoding/update/client.py` | `_TIER_BASES["local"]` `127.0.0.1:7778` → `127.0.0.1:15678`（注释同步；dev/prod 不动） |
+| R2-7 | `src/chrys/service/aixcoding/models/catalog.py` | `_CATALOG_BASES["local"]` `127.0.0.1:7777` → `127.0.0.1:15678`（dev/prod 不动） |
 
 telemetry 产品端指向为**新增配置**（见 §3.4），不属改默认值。`app/cli/serve.py:41` 的 `_DEFAULT_PORT=7777` 是独立产品 serve 命令端口，与 mock 无关，**不在本批范围**。
 
