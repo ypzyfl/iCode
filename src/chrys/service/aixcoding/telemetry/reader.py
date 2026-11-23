@@ -73,12 +73,14 @@ def read_turn_facts(session_dir: Path, *, session_id: str, logical_turn_id: str,
     profiles: dict[str, str] = {}
     result = read_trajectory(events_path)
     for event in result.events:
+        operation_id = event.operation_id
         if (
             event.event_type == EventType.MODEL_EXCHANGE_STARTED
             and event.turn_id == pass_id
+            and operation_id is not None
             and event.payload.get("model_profile_id")
         ):
-            profiles[event.operation_id] = str(event.payload["model_profile_id"])
+            profiles[operation_id] = str(event.payload["model_profile_id"])
     for call in turn.model_calls:
         if call.pass_id != pass_id:
             facts.skipped.append(f"llm-prior-pass:{call.model_call_id}")
@@ -100,14 +102,19 @@ def read_turn_facts(session_dir: Path, *, session_id: str, logical_turn_id: str,
         if event.turn_id != pass_id:
             continue  # V2: only this pass's executions; prior passes keep theirs
         if event.event_type == EventType.TOOL_OPERATION_STARTED:
-            tools[event.operation_id] = ToolFact(
-                tool_op_id=event.operation_id,
+            operation_id = event.operation_id
+            if operation_id is None:
+                continue
+            tools[operation_id] = ToolFact(
+                tool_op_id=operation_id,
                 model_call_id=event.parent_operation_id,
                 call_item_id=str(event.payload.get("call_item_id") or "") or None,
                 outcome=None,
             )
-        elif event.event_type == EventType.TOOL_OPERATION_FINISHED and event.operation_id in tools:
-            tools[event.operation_id].outcome = str(event.payload.get("outcome") or "")
+        elif event.event_type == EventType.TOOL_OPERATION_FINISHED:
+            operation_id = event.operation_id
+            if operation_id is not None and operation_id in tools:
+                tools[operation_id].outcome = str(event.payload.get("outcome") or "")
     for tool in tools.values():
         if tool.outcome == "success":
             facts.tools.append(tool)
