@@ -33,6 +33,7 @@ directory rather than parsing the desktop's internal state files).
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -40,6 +41,12 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from chrys.foundation.models.session_env import SessionEnvironment
     from chrys.service.profiles.agents.schema import SkillsConfig
+
+# AIxCoding logging (batches/logging-coverage): skill-root loading is a
+# background degrade (skills silently absent when it fails), so everything
+# here is detail-only on the aixcoding tree (ADR-0017, DEVELOPMENT.md §9).
+_detail_log = logging.getLogger("aixcoding.detail.skills")
+_DETAIL_LEVEL = 5  # mirrors diagnostics.logging_support (session.py precedent)
 
 # Directory names of the desktop-client local skill layout.
 _TREE_NAME = ".aixcoding"
@@ -89,7 +96,11 @@ def _real_subdirectory_paths(container: Path) -> list[Path]:
     try:
         with os.scandir(container) as entries:
             found = sorted(entries, key=lambda entry: entry.name)
-    except OSError:
+    except FileNotFoundError:
+        # The common case: the user never created this tree — not an event.
+        return []
+    except OSError as exc:
+        _detail_log.log(_DETAIL_LEVEL, "团队技能目录枚举失败：%s", exc)
         return []
     roots: list[Path] = []
     for entry in found:
@@ -104,6 +115,36 @@ def _real_subdirectory_paths(container: Path) -> list[Path]:
     return roots
 
 
+def _team_skill_dirs(container: Path) -> list[str]:
+    """Return each immediate team directory of *container* as a skill root.
+
+    Mirrors the desktop client's ``userTeamSkillRoots``: hidden entries,
+    symbolic links, and Windows junctions are skipped, roots are sorted by
+    name, an unreadable or missing container yields no roots, and one broken
+    entry never removes the other roots.
+    """
+    try:
+        with os.scandir(container) as entries:
+            found = sorted(entries, key=lambda entry: entry.name)
+    except FileNotFoundError:
+        # The common case: the user never created this tree — not an event.
+        return []
+    except OSError as exc:
+        _detail_log.log(_DETAIL_LEVEL, "团队技能目录枚举失败：%s", exc)
+        return []
+    roots: list[str] = []
+    for entry in found:
+        try:
+            if entry.name.startswith(".") or entry.is_symlink() or entry.is_junction():
+                continue
+            if not entry.is_dir(follow_symlinks=False):
+                continue
+            roots.append(str(Path(entry.path).resolve()))
+        except OSError:
+            continue
+    return roots
+
+
 def user_aixcoding_skill_paths(config: SkillsConfig) -> list[str]:
     """Return the HOME-level AIxCoding skill roots when the toggle is on.
 
@@ -112,15 +153,24 @@ def user_aixcoding_skill_paths(config: SkillsConfig) -> list[str]:
     desktop scan order, followed by the desktop client's installed-skill
     storage.  Hand-placed roots come first so they win a same-name conflict.
     """
-    if not config.auto_load_aixcoding_user_skills:
-        return []
-    paths: list[str] = []
-    base = user_aixcoding_dir().resolve()
-    for tree in (base, base.parent / _INTELLIJ_TREE_NAME):
-        paths.append(str((tree / _SKILLS_SUBDIRECTORY).resolve()))
-        paths.append(str((tree / _MARKET_SKILLS_SUBDIRECTORY).resolve()))
-        paths.extend(str(root) for root in _real_subdirectory_paths(tree / _TEAM_SKILLS_SUBDIRECTORY))
-    paths.extend(desktop_installed_skill_paths())
+    try:
+        if not config.auto_load_aixcoding_user_skills:
+            return []
+        paths: list[str] = []
+        base = user_aixcoding_dir().resolve()
+        for tree in (base, base.parent / _INTELLIJ_TREE_NAME):
+            paths.append(str((tree / _SKILLS_SUBDIRECTORY).resolve()))
+            paths.append(str((tree / _MARKET_SKILLS_SUBDIRECTORY).resolve()))
+            paths.extend(_team_skill_dirs(tree / _TEAM_SKILLS_SUBDIRECTORY))
+        paths.extend(desktop_installed_skill_paths())
+    except Exception:
+        # Logged before the upstream adapter's own swallow (batches/logging-coverage
+        # plan B): the record lands in the detail volume, then the original
+        # exception propagates unchanged.
+        _detail_log.log(_DETAIL_LEVEL, "读取 aixcoding 技能根目录（用户）失败。", exc_info=True)
+        raise
+    if paths:
+        _detail_log.log(_DETAIL_LEVEL, "已登记 aixcoding 技能根目录（用户）：%s", ", ".join(paths))
     return paths
 
 
@@ -159,8 +209,15 @@ def cwd_aixcoding_skill_paths(config: SkillsConfig, runtime: SessionEnvironment 
     the project trust gate: the AIxCoding directory is a product-owned root,
     not repository-authored content (skills-aixcoding-dirs design decision 2).
     """
-    if not config.auto_load_aixcoding_cwd_skills:
-        return []
-    if runtime is None or not runtime.cwd:
-        return []
-    return [str((Path(runtime.cwd) / _TREE_NAME / _SKILLS_SUBDIRECTORY).resolve())]
+    try:
+        if not config.auto_load_aixcoding_cwd_skills:
+            return []
+        if runtime is None or not runtime.cwd:
+            return []
+        paths = [str((Path(runtime.cwd) / _TREE_NAME / _SKILLS_SUBDIRECTORY).resolve())]
+    except Exception:
+        # Same contract as the user variant above: detail trace, then re-raise.
+        _detail_log.log(_DETAIL_LEVEL, "读取 aixcoding 技能根目录（工作区）失败。", exc_info=True)
+        raise
+    _detail_log.log(_DETAIL_LEVEL, "已登记 aixcoding 技能根目录（工作区）：%s", ", ".join(paths))
+    return paths

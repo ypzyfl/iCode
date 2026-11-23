@@ -1,0 +1,4 @@
+# All files default code owner (branch-protection: Require review from Code Owners)
+* @ypzyfl
+# Lock the rules file itself
+/.github/CODEOWNERS @ypzyfl

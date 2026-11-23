@@ -1,16 +1,20 @@
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 
-"""Server-owned model catalog.
+"""Server-owned model catalog, coexisting with user-written profiles.
 
-``~/.chrys/models/`` has exactly one owner at a time, and there is no merge
-between two sources:
+``~/.chrys/models/`` files each belong to one side at a time, told apart by
+the ``synced_from_server`` marker — there is no merging of the two sources
+within a file:
 
 * **The catalog is in charge.**  A tier base (or an explicit
   ``AIXCODING_MODEL_CATALOG_URL``) always names a source — see
   :data:`_CATALOG_BASES`, which covers every tier — so the question is only
-  whether a sync has ever succeeded.  Every successful sync *replaces the
-  directory wholesale* — files the catalog no longer contains are deleted —
-  and its contents become server-owned.  A failed sync changes nothing.
+  whether a sync has ever succeeded.  Every successful sync rewrites the
+  served models, each carrying a ``synced_from_server: true`` marker, and
+  deletes only marked files the catalog no longer contains — unmarked files
+  are the user's own profiles and survive every sync, coexisting with the
+  catalog (the first sync over an all-unmarked directory clears it once: an
+  upgrade convergence, not a user wipe).  A failed sync changes nothing.
 * **Until that first success the directory's content is untouched** — no
   credential (never logged in) or every fetch failed so far, so the files
   on disk are whatever the user or an installer left there.  With auto-sync
@@ -25,12 +29,14 @@ a later failed fetch (offline start) degrades to the previous catalog instead of
 silently handing write access back to the user, which the next sync would undo.
 
 Publishing is two-phase at the file level: every profile is first staged as
-``<id>.yaml.tmp``, then each temp file is moved onto its final name with
-``os.replace`` (atomic within a volume), then files the catalog no longer
-contains are deleted, then the state file is written.  A failure mid-way leaves
-the previous catalog readable — no file is lost, at worst old and new coexist
-until the next sync converges — and every ``OSError`` on the publish path is
-converted into the module's failure channel instead of escaping to the caller.
+``<id>.yaml.tmp`` carrying the marker, then each temp file is moved onto its
+final name with ``os.replace`` (atomic within a volume), then marked files the
+catalog no longer contains are deleted, then the state file is written.  The
+first-upgrade clear — wiping unmarked leftovers of a pre-marker directory —
+runs only after the whole publish succeeded, so a failure mid-way leaves the
+previous catalog readable: no file is lost, at worst old and new coexist until
+the next sync converges.  Every ``OSError`` on the publish path is converted
+into the module's failure channel instead of escaping to the caller.
 
 Catalog profiles carry no credentials by default: the host injects provider
 environment variables, matching the desktop host's model-projection behaviour.
@@ -62,8 +68,11 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
 
+from chrys.foundation.text.encoding import decode_bytes
 from chrys.foundation.text.yaml_io import dump_yaml
 from chrys.service.aixcoding.config import load_config
+from chrys.service.profiles.file_scan import read_profile_mapping
+from chrys.service.profiles.models.loader import load_profile_from_yaml
 from chrys.service.profiles.models.registry import ModelProfileRegistry
 from chrys.service.profiles.models.schema import (
     API_STYLE_CHAT_COMPLETIONS,
@@ -72,16 +81,39 @@ from chrys.service.profiles.models.schema import (
     ModelProfile,
 )
 
-# AIxCoding 方案六 (2026-11-04; revised 2026-11-05 logging-routing-fixes):
-# catalog records are technical events on the file-only "aixcoding.detail.catalog"
-# logger (ADR-0017) — the main volume and the F6 panel carry user-facing events
-# only (DEVELOPMENT.md §9). The detail subtree never propagates to the panel or
-# the upstream log.
+# AIxCoding 方案六 (2026-11-04; revised 2026-11-05 logging-routing-fixes, then
+# 2026-11-19 logging-coverage): catalog records are technical events on the
+# file-only "aixcoding.detail.catalog" logger (ADR-0017) — the main volume and
+# the F6 panel carry user-facing events only (DEVELOPMENT.md §9). The public
+# exception (owner rulings 2026-11-05 D and 2026-11-19): events that change
+# the user's own assets (a custom profile overwritten by a served id, the
+# pre-marker directory cleared) additionally carry a public WARNING double
+# write. The detail subtree never propagates to the panel or the upstream log.
+_log = logging.getLogger("aixcoding.catalog")
 _detail_log = logging.getLogger("aixcoding.detail.catalog")
 
 #: AIxCoding detail logging: level of the file-only channel; mirrors
 #: ``DETAIL_LEVEL`` in diagnostics.logging_support (ADR-0017), as auth does.
 _DETAIL_LEVEL = 5
+
+#: Budget for the public overwrite warning's id list (batches/logging-coverage
+#: review S4): a runaway custom-id list must not flood the main volume; the
+#: detail record keeps the full list.
+_OVERWRITE_JOIN_LIMIT = 200
+
+
+def _join_bounded(ids: tuple[str, ...]) -> str:
+    joined = ", ".join(ids)
+    if len(joined) <= _OVERWRITE_JOIN_LIMIT:
+        return joined
+    return f"{joined[:_OVERWRITE_JOIN_LIMIT]}…（共 {len(ids)} 个）"
+
+
+#: Marker injected into profiles written by a server sync (catalog-custom-coexist).
+#: Only a literal ``True`` marks a file as server-owned and therefore deletable;
+#: absent / false / non-bool means a user's own profile, which a sync preserves.
+#: The key is sync-only metadata: ``ModelProfile`` / the loader never see it.
+_SYNCED_FROM_SERVER_KEY = "synced_from_server"
 
 #: Fork-private configuration contract: read and parsed by this module alone
 #: (never declared in the settings system), so they carry the ``AIXCODING_``
@@ -194,6 +226,10 @@ class CatalogSyncResult:
     profile_ids: tuple[str, ...]
     default_profile_id: str = ""
     previous_profile_ids: tuple[str, ...] = ()
+    #: User profiles kept on disk (no server marker), for the in-memory snapshot.
+    preserved_profiles: tuple[ModelProfile, ...] = ()
+    #: Server ids that overwrote a same-id user profile, for the post-sync warning.
+    overwritten_custom_ids: tuple[str, ...] = ()
 
     @property
     def removed_profile_ids(self) -> tuple[str, ...]:
@@ -311,6 +347,28 @@ def require_catalog_writable() -> None:
         raise ModelCatalogReadOnly("Model profiles are managed by the server catalog and cannot be edited locally.")
 
 
+def server_owned_profile_ids() -> frozenset[str]:
+    """Profile ids that currently own a server-synced file in the models directory.
+
+    A marked file's stem is the id of the profile it serves, under either the
+    ``.yaml`` or ``.yml`` suffix the scan shares with the sync. The TUI
+    management screen keeps these out of its editable list while the picker
+    still offers them for selection.
+    """
+    names, _ = _server_owned_names(catalog_directory())
+    return frozenset(name.rsplit(".", 1)[0] for name in names)
+
+
+def is_server_owned_profile_id(profile_id: str) -> bool:
+    """Whether *profile_id* currently resolves to a server-synced file."""
+    directory = catalog_directory()
+    for suffix in (".yaml", ".yml"):
+        path = directory / f"{profile_id}{suffix}"
+        if path.exists() and _is_server_synced(path):
+            return True
+    return False
+
+
 def _profile_field_names() -> set[str]:
     return {field.name for field in fields(ModelProfile)}
 
@@ -402,6 +460,17 @@ def _positive_int(value: object) -> int:
     return max(0, number)
 
 
+#: The server nests three options inside ``models[]`` entries while iCode
+#: keeps them as flat ``ModelProfile`` fields. Only these aliases are copied:
+#: everything else in the nested objects (notably ``completionOptions.reasoning``)
+#: has no consumer on this side and is deliberately left behind.
+_CATALOG_NESTED_FIELDS: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
+    ("completionOptions", (("maxTokens", "max_output_tokens"),)),
+    ("capabilities", (("uploadImage", "vision"),)),
+    ("requestOptions", (("verifySsl", "verify_ssl"),)),
+)
+
+
 def translate_models_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Translate the server's ``models`` payload into iCode-native items.
 
@@ -440,6 +509,13 @@ def translate_models_payload(payload: dict[str, Any]) -> dict[str, Any]:
         context_length = _positive_int(entry.get("contextLength"))
         if context_length:
             item["max_context_tokens"] = context_length
+        for group, aliases in _CATALOG_NESTED_FIELDS:
+            nested = entry.get(group)
+            if not isinstance(nested, dict):
+                continue
+            for source, target in aliases:
+                if source in nested:
+                    item[target] = nested[source]
         items.append(item)
 
     # The server's shape carries no version and no default: the caller
@@ -710,11 +786,88 @@ def _remove_orphan_tmp(directory: Path) -> None:
 
 
 def _write_profile(path: Path, profile: ModelProfile) -> None:
-    """Serialize *profile* to *path* (final or staging — same content)."""
-    path.write_text(dump_yaml(_profile_to_dict(profile)), encoding="utf-8")
+    """Serialize *profile* to *path* (final or staging — same content).
+
+    Server-sync writes carry the ``synced_from_server`` marker so a later sync
+    can tell them from a user's own profile. The key is injected into the YAML
+    mapping only: ``ModelProfile`` and the loader stay unaware of it.
+    """
+    data = _profile_to_dict(profile)
+    data[_SYNCED_FROM_SERVER_KEY] = True
+    path.write_text(dump_yaml(data), encoding="utf-8")
     if profile.api_key:
         # Credentials were supplied by the catalog: keep them off group/other.
         path.chmod(0o600)
+
+
+def _probe_server_marker(path: Path) -> bool | None:
+    """True/False = definitive marker state; None = unreadable or malformed.
+
+    Keeping "cannot tell" distinct from "no marker" lets callers refuse the
+    destructive first-upgrade clear when any probe failed: a system-wide parse
+    failure must not look like an all-unmarked directory and wipe it (R6).
+    Reads through the loader's own ``decode_bytes`` detection, so encoding is
+    never a reason to be unreadable — a utf-8-only read would mislabel a
+    foreign-encoded file and veto the upgrade clear forever (B1).
+    """
+    try:
+        text = decode_bytes(path.read_bytes(), errors="strict")
+        return read_profile_mapping(text).get(_SYNCED_FROM_SERVER_KEY) is True
+    except Exception:
+        # yaml.ScannerError/ParserError/ConstructorError are not ValueError;
+        # neither are decode or IO failures. A file we cannot read is no proof
+        # of a marker, and must never abort the sync — but the failure is
+        # logged (B1): a silently skipped clear is indistinguishable from a
+        # no-op, and the leftover would look like a bug.
+        _detail_log.log(_DETAIL_LEVEL, "无法判读模型配置 %s 的同步标记；按不可判定处理。", path, exc_info=True)
+        return None
+
+
+def _is_server_synced(path: Path) -> bool:
+    """Whether *path* carries the server marker; unreadable => not server-owned."""
+    return _probe_server_marker(path) is True
+
+
+def _server_owned_names(directory: Path) -> tuple[set[str], bool]:
+    """Filenames carrying the marker, plus whether any marker probe failed."""
+    names: set[str] = set()
+    probe_failed = False
+    for pattern in ("*.yaml", "*.yml"):
+        for path in directory.glob(pattern):
+            marker = _probe_server_marker(path)
+            if marker is None:
+                probe_failed = True
+            elif marker:
+                names.add(path.name)
+    return names, probe_failed
+
+
+def _load_custom_profiles(directory: Path) -> tuple[tuple[str, ModelProfile], ...]:
+    """Load unmarked files as ``(filename, profile)`` pairs.
+
+    The complete filename is the file's on-disk identity: a sync writes
+    ``<id>.yaml`` only, so ``os.replace`` overwrites by *filename* — and a
+    same-stem ``.yml`` is a different file the sync never touches. Callers
+    must classify collisions/preservation by the full filename (B2), not the
+    stem or the profile's explicit id. An unreadable or malformed file is
+    skipped (with a detail log) but never deleted — a broken user file is
+    still the user's file.
+    """
+    found: list[tuple[str, ModelProfile]] = []
+    for pattern in ("*.yaml", "*.yml"):
+        for path in sorted(directory.glob(pattern)):
+            if _is_server_synced(path):
+                continue
+            try:
+                found.append((path.name, load_profile_from_yaml(path)))
+            except Exception:
+                _detail_log.log(
+                    _DETAIL_LEVEL,
+                    "自定义模型配置 %s 无法加载；保留文件但本次同步不纳入内存列表。",
+                    path,
+                    exc_info=True,
+                )
+    return tuple(found)
 
 
 def _profile_to_dict(profile: ModelProfile) -> dict[str, Any]:
@@ -724,16 +877,23 @@ def _profile_to_dict(profile: ModelProfile) -> dict[str, Any]:
 
 
 def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> CatalogSyncResult:
-    """Replace the whole model directory with *catalog*, in two file-level phases.
+    """Publish *catalog* over the model directory, in two file-level phases.
 
-    Phase one stages every profile as ``<id>.yaml.tmp`` next to the final
-    names — a failure there has not touched the previous catalog at all. Phase
-    two moves each staging file onto its final name with ``os.replace`` (atomic
-    within a volume), deletes files the catalog no longer contains, and writes
-    the state file. A failure mid-phase-two leaves no file lost — every id
-    either still holds its previous content or already holds its new one — and
-    the next sync converges the directory wholesale, which is why there is no
-    resume bookkeeping to keep honest.
+    Phase one stages every profile as ``<id>.yaml.tmp`` carrying the
+    ``synced_from_server`` marker next to the final names — a failure there
+    has not touched the previous catalog at all. Phase two moves each staging
+    file onto its final name with ``os.replace`` (atomic within a volume),
+    deletes marked files the catalog no longer contains, and writes the state
+    file. Unmarked files are the user's own profiles and are never touched:
+    a file named ``<id>.yaml`` is overwritten by the served profile (reported
+    once the whole sync succeeded), any other file — including a same-stem
+    ``.yml`` — survives and stays in the in-memory snapshot. A directory with
+    profile files but not a single marker (and no unreadable file) is a
+    pre-marker catalog: its leftovers are cleared once, after the publish
+    succeeded. A failure mid-phase-two leaves no file lost — every id either
+    still holds its previous content or already holds its new one — and the
+    next sync converges the directory, which is why there is no resume
+    bookkeeping to keep honest.
 
     Raises:
         ModelCatalogError: if the catalog is unusable or the directory cannot
@@ -750,6 +910,53 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
     directory = catalog_directory()
     previous_state = read_catalog_state()
     previous_ids = previous_state.profile_ids if previous_state else ()
+    # Classify before writing: a file is server-owned only when it carries the
+    # marker. Everything else is the user's own and survives this sync. Collect
+    # the kept profiles for the in-memory snapshot and detect overwrites for
+    # the warning. A sync writes <id>.yaml only, so the comparison uses the
+    # complete filename, not the stem or the profile's explicit id — a
+    # same-stem .yml is a different file os.replace never touches (B2).
+    server_owned: set[str] = set()
+    marker_probe_failed = False
+    custom_files: tuple[tuple[str, ModelProfile], ...] = ()
+    profile_files: tuple[Path, ...] = ()
+    if directory.is_dir():
+        server_owned, marker_probe_failed = _server_owned_names(directory)
+        custom_files = _load_custom_profiles(directory)
+        profile_files = tuple(sorted({*directory.glob("*.yaml"), *directory.glob("*.yml")}))
+    # First-upgrade migration: a directory that has profile files but not a
+    # single server marker is a pre-marker catalog. Clear it once so models the
+    # backend retired cannot linger as "custom". An empty directory is a fresh
+    # install, not an upgrade — nothing to clear. The risk that a never-synced
+    # user directory is wiped is a known, accepted ruling (catalog-custom-coexist).
+    # Guard (R6): if any marker probe failed (malformed/unreadable), we cannot
+    # prove the directory is all-unmarked, so do NOT clear — preserve it and let
+    # a later healthy sync converge instead of wiping a directory we can't read.
+    # The veto is logged (B1): the directory looks untouched otherwise, and the
+    # leftover would read as a bug rather than a deliberate preservation.
+    upgrade_clear = bool(profile_files) and not server_owned and not marker_probe_failed
+    if profile_files and not server_owned and marker_probe_failed:
+        _detail_log.log(
+            _DETAIL_LEVEL,
+            "目录无服务器标记但存在无法判读的配置文件；跳过升级清空，保留全部原文件。",
+        )
+    if upgrade_clear:
+        custom_files = ()  # nothing survives: do not install doomed files in memory
+    # os.path.normcase keys make the judgment match what os.replace actually
+    # replaces on each platform (S6): on Windows the filesystem — and
+    # pathlib.glob — are case-insensitive, so a user's "A.YAML" IS the file a
+    # sync writes as "a.yaml" and is judged overwritten; on POSIX normcase is
+    # the identity and the two names are genuinely different files, preserved.
+    final_names = {os.path.normcase(f"{profile.id}.yaml"): profile.id for profile in catalog.items}
+    # A file is overwritten iff its complete filename is one this sync writes:
+    # os.replace covers <id>.yaml and nothing else (B2). The report label is
+    # the server id itself. The in-memory visibility of a surviving file whose
+    # explicit id collides with a server id is settled by _publish's server-id
+    # filter.
+    overwritten = tuple(
+        final_names[os.path.normcase(name)] for name, _ in custom_files if os.path.normcase(name) in final_names
+    )
+    preserved_profiles = tuple(profile for name, profile in custom_files if os.path.normcase(name) not in final_names)
     try:
         directory.mkdir(parents=True, exist_ok=True)
         _remove_orphan_tmp(directory)
@@ -762,11 +969,12 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
         for tmp_path, final_path in staged:
             os.replace(tmp_path, final_path)
 
-        final_names = {f"{profile.id}.yaml" for profile in catalog.items}
-        for pattern in ("*.yaml", "*.yml"):
-            for path in sorted(directory.glob(pattern)):
-                if path.name not in final_names:
-                    path.unlink()
+        # Only files we previously wrote (marker present) that the new catalog
+        # no longer contains are removed. Unmarked user files are never touched.
+        # normcase keeps the difference matching os.replace's own semantics (S6).
+        stale = {name for name in server_owned if os.path.normcase(name) not in final_names}
+        for name in stale:
+            (directory / name).unlink()
 
         write_catalog_state(
             CatalogState(
@@ -776,6 +984,28 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
                 default_profile_id=catalog.default_profile_id,
             )
         )
+        # First-upgrade clear runs only after the whole publish succeeded (R5/B):
+        # an OSError in staging/replace/state leaves old files intact for retry,
+        # restoring the two-phase "failure never touches old data" guarantee.
+        # Only remove pre-marker files the backend did not overwrite by name;
+        # a same-stem file now holds the freshly written backend profile.
+        if upgrade_clear:
+            cleared = 0
+            for path in profile_files:
+                # normcase here too (B5): on Windows, "A.YAML" was already
+                # replaced by the backend write — a raw-name comparison misses
+                # it against {"a.yaml"} and would unlink the just-published
+                # profile while reporting success.
+                if os.path.normcase(path.name) in final_names:
+                    continue
+                path.unlink()
+                cleared += 1
+            _log.warning("检测到旧版无标记模型目录；已清空 %d 个配置文件，本次按后端目录重建。", cleared)
+            _detail_log.log(
+                _DETAIL_LEVEL,
+                "检测到旧版无标记模型目录；已清空 %d 个配置文件，本次按后端目录重建。",
+                cleared,
+            )
     except OSError as exc:
         for path in sorted(directory.glob(f"*{PROFILE_TMP_SUFFIX}")):
             try:
@@ -795,14 +1025,26 @@ def apply_catalog(catalog: ModelCatalog, *, source: str = SOURCE_REMOTE) -> Cata
         profile_ids=catalog.profile_ids(),
         default_profile_id=catalog.default_profile_id,
         previous_profile_ids=previous_ids,
+        preserved_profiles=preserved_profiles,
+        overwritten_custom_ids=overwritten,
     )
     _detail_log.log(
         _DETAIL_LEVEL,
-        "已应用模型目录 %s：来自 %s，共 %d 个模型配置。",
+        "已应用模型目录 %s：来自 %s，共 %d 个模型配置；保留 %d 个自定义模型。",
         catalog.version,
-        len(catalog.items),
         source,
+        len(catalog.items),
+        len(result.preserved_profiles),
     )
+    # Warn only after the whole sync succeeded: the overwrite already happened
+    # (os.replace), and a failed publish must not claim a change that did not land.
+    if overwritten:
+        _log.warning("以下自定义模型与后端模型 id 相同，已被后端版本覆盖：%s。", _join_bounded(overwritten))
+        _detail_log.log(
+            _DETAIL_LEVEL,
+            "以下自定义模型与后端模型 id 相同，已被后端版本覆盖：%s。",
+            ", ".join(overwritten),
+        )
     return result
 
 
@@ -1048,7 +1290,15 @@ class _SyncRuntime:
         if registry is None or refresh_ui is None:
             return
         try:
-            registry.install_snapshot(catalog.items)
+            # Server items plus user profiles preserved on disk: without the
+            # latter a poll would erase them from memory though the files remain.
+            # A kept file whose YAML id collides with a server id must NOT win
+            # here — install_snapshot is a dict keyed by id (last one wins), so
+            # filtering those out keeps the "backend wins an id collision"
+            # ruling true in memory too (peer review R1).
+            server_ids = {profile.id for profile in catalog.items}
+            kept = tuple(profile for profile in result.preserved_profiles if profile.id not in server_ids)
+            registry.install_snapshot((*catalog.items, *kept))
         except Exception:
             _detail_log.log(_DETAIL_LEVEL, "模型目录注册表安装失败；下次同步将重试。", exc_info=True)
             return

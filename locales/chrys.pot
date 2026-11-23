@@ -9240,9 +9240,8 @@ msgstr ""
 msgid "tui.model_config.provider_model"
 msgstr ""
 
-#. English: • Model configuration is centrally managed. Profiles can be
-#. selected but not edited here.
-#. chrys-meta={"fingerprint":"972e20ba261eb9e79e71f2e85ca3c5428a813c36411616392421fece4b3e4065","multiline":false,"placeholders":[]}
+#. English: • Agent is running. This page is read-only.
+#. chrys-meta={"fingerprint":"2c1d9c5ee6873b430118a5b327031a85ab31bd7977a7d912ebcffa6d633308bf","multiline":false,"placeholders":[]}
 #: src/chrys/app/tui/screens/models/screen.py
 msgid "tui.model_config.read_only_notice"
 msgstr ""
@@ -9251,6 +9250,13 @@ msgstr ""
 #. chrys-meta={"fingerprint":"9477d2c9e38ba2b51d8d76039aef85b4d0be325ab302cc567a88fe0047153286","multiline":false,"placeholders":[]}
 #: src/chrys/app/tui/screens/models/screen.py
 msgid "tui.model_config.saved"
+msgstr ""
+
+#. English: • Managed by the server catalog. This profile cannot be modified
+#. here.
+#. chrys-meta={"fingerprint":"c61961f84eb739d12cb461f61e207374a6166de5c59a68475ed7c385b77dc4a7","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/models/screen.py
+msgid "tui.model_config.server_managed"
 msgstr ""
 
 #. English: Skip TLS verification

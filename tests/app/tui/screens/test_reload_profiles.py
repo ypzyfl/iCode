@@ -114,11 +114,6 @@ async def test_build_failure_before_normalization_leaves_active_runtime_and_file
         await ask_after_reload(session, "keep writing")
 
 
-# AIxCoding catalog: upstream edits models in the local editor via F4; under
-# server-side catalog management the F4 entry is disabled and the list is
-# read-only (aixcoding/docs/batches/catalog-sync/design.md) - re-evaluate at
-# the next upgrade.
-@pytest.mark.skip(reason="AIxCoding catalog: model list is server-managed read-only; local model editor does not apply")
 async def test_later_model_editor_save_rebuilds_children_from_the_shared_registry(agent_engine, tmp_path, monkeypatch):
     from chrys.orchestration.sub_agents import tools as child_build
     from chrys.service.llm.mock import MockChatClient, MockResponse

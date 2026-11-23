@@ -72,11 +72,16 @@ if TYPE_CHECKING:
     from chrys.service.profiles.models.registry import ModelProfileRegistry
     from chrys.service.profiles.models.schema import ModelProfile
 
-# AIxCoding catalog: read-only notice wording — read-only is permanent
-# policy, not an agent-session condition (aixcoding/docs/batches/catalog-sync/design.md).
 _READ_ONLY_NOTICE = msg(
     "tui.model_config.read_only_notice",
-    fallback="• Model configuration is centrally managed. Profiles can be selected but not edited here.",
+    fallback="• Agent is running. This page is read-only.",
+)
+
+# AIxCoding catalog: server-managed notice wording — the refusal toast when a
+# write path meets a server-synced profile (aixcoding/docs/batches/model-config-restore/design.md).
+_SERVER_MANAGED_NOTICE = msg(
+    "tui.model_config.server_managed",
+    fallback="• Managed by the server catalog. This profile cannot be modified here.",
 )
 
 _MODEL_SETTINGS_TITLE = msg("tui.model_config.title.settings", fallback="Model Settings")
@@ -974,9 +979,13 @@ class ModelConfigScreen(BaseDialog[str]):
             return
 
         self._populate_sidebar()
-        # Select the global default profile, or the first available profile.
+        # Select the global default profile, or the first listed profile: the
+        # default may be server-managed and thus absent from the sidebar.
+        # AIxCoding catalog: default selection skips server-owned entries
+        # (model-config-restore/design.md).
+        listed_ids = {profile.id for profile in profiles}
         target_id = self._global_default_profile_id
-        if not target_id or self._registry.get(target_id) is None:
+        if not target_id or target_id not in listed_ids:
             target_id = profiles[0].id
         ol = self.query_one("#mc-list", OptionList)
         with contextlib.suppress(OptionDoesNotExist):
@@ -985,8 +994,20 @@ class ModelConfigScreen(BaseDialog[str]):
         self._apply_read_only_state()
 
     def _listed_profiles(self) -> list[ModelProfile]:
-        """The registry's profiles in the order the sidebar lists them: as a person reads their names."""
-        return sorted(self._registry.list_profiles(), key=lambda profile: reading_order(profile.name))
+        """The registry's user-editable profiles in reading order of their names.
+
+        Server-synced profiles stay selectable in the picker but are not the
+        user's to edit or delete, so the management screen does not list them.
+        """
+        # AIxCoding catalog: sidebar hides server-owned profiles — the
+        # management list filters out server-synced ids (model-config-restore/design.md).
+        from chrys.service.aixcoding.models.catalog import server_owned_profile_ids
+
+        server_ids = server_owned_profile_ids()
+        return sorted(
+            (profile for profile in self._registry.list_profiles() if profile.id not in server_ids),
+            key=lambda profile: reading_order(profile.name),
+        )
 
     def _populate_sidebar(self) -> None:
         ol = self.query_one("#mc-list", OptionList)
@@ -1607,6 +1628,15 @@ class ModelConfigScreen(BaseDialog[str]):
         """
         if self._read_only:
             return
+        # AIxCoding catalog: delete/save refuse server-owned profiles — a
+        # stale sidebar must not delete a catalog-owned file
+        # (model-config-restore/design.md).
+        from chrys.service.aixcoding.models.catalog import is_server_owned_profile_id
+
+        if is_server_owned_profile_id(profile_id):
+            # The sidebar may be stale: a sync can land while the screen is
+            # open and turn the selected profile server-managed mid-edit.
+            raise ConfigError(_SERVER_MANAGED_NOTICE.bind())
         from chrys.service.profiles.models.env_bridge import get_active_profile_id, get_global_default_profile_id
         from chrys.service.profiles.models.resolver import resolve_profile_selector, resolve_selectable_profile
         from chrys.service.profiles.models.schema import is_model_profile_selectable
@@ -1969,6 +1999,15 @@ class ModelConfigScreen(BaseDialog[str]):
         """
         if self._read_only:
             return None
+        # AIxCoding catalog: delete/save refuse server-owned profiles —
+        # saving over a synced file would strip its sync marker
+        # (model-config-restore/design.md).
+        from chrys.service.aixcoding.models.catalog import is_server_owned_profile_id
+
+        if self._selected_profile_id and is_server_owned_profile_id(self._selected_profile_id):
+            # Same staleness guard as deletion: never write over a file the
+            # catalog owns, or the next sync would treat it as user-owned.
+            raise ConfigError(_SERVER_MANAGED_NOTICE.bind())
         from chrys.service.profiles.models.env_bridge import get_active_profile_id
         from chrys.service.profiles.models.resolver import resolve_profile_selector, resolve_selectable_profile
         from chrys.service.profiles.models.serializer import save_profile

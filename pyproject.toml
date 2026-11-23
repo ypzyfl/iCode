@@ -246,6 +246,9 @@ ignore = [
 "src/chrys/app/aixcoding/tui/*" = ["RUF001"]
 # AIxCoding catalog: full-width Chinese punctuation (approved: batches/catalog-auth-gating/design.md)
 "src/chrys/service/aixcoding/**" = ["RUF001"]
+# AIxCoding update: Chinese full-width punctuation and locally-built wrapper argv
+# (approved: batches/auto-update/design.md, R13 exemption ledger)
+"src/chrys/app/aixcoding/update/*" = ["RUF001", "S603"]
 # AIxCoding custom tests: fake creds/asserts, frozen Chinese-message assertions (aixcoding/tests)
 "aixcoding/tests/**" = ["S", "PERF401", "RUF001"]
 # Guard rule messages, operator output and test assets keep Chinese full-width punctuation

@@ -363,10 +363,7 @@ async def test_model_action_label_relocalizes_in_place(
 
 @pytest.mark.asyncio
 async def test_same_and_changed_profile_switches_refresh_model_tag() -> None:
-    # AIxCoding catalog: registry is the live name source — a catalog sync
-    # renames the profile under a running session and the tag must follow it;
-    # a profile id the registry does not know falls back to the runtime snapshot.
-    app = _ModelIndicatorApp(_registry(_valid_model(name="Reloaded Model")))
+    app = _ModelIndicatorApp(_registry(_valid_model()))
 
     async with app.run_test(size=(120, 24)) as pilot:
         screen = app.main_screen
@@ -404,7 +401,7 @@ async def test_same_and_changed_profile_switches_refresh_model_tag() -> None:
 
 @pytest.mark.asyncio
 async def test_session_ready_and_runtime_update_confirm_and_refresh_model_tag() -> None:
-    app = _ModelIndicatorApp(_registry(_valid_model(name="Ready Model")))
+    app = _ModelIndicatorApp(_registry(_valid_model()))
 
     async with app.run_test(size=(120, 24)) as pilot:
         screen = app.main_screen
@@ -425,7 +422,7 @@ async def test_session_ready_and_runtime_update_confirm_and_refresh_model_tag() 
         screen._state.runtime.details_confirmed = False
         screen._refresh_model_indicator()
         await screen._events.on_agent_runtime_updated(
-            AgentRuntimeUpdated(runtime_details=_runtime_details("Updated Model", profile_id="updated-model"))
+            AgentRuntimeUpdated(runtime_details=_runtime_details("Updated Model"))
         )
         await pilot.pause()
 
@@ -437,7 +434,7 @@ async def test_session_ready_and_runtime_update_confirm_and_refresh_model_tag() 
 async def test_load_operation_state_machine_resets_only_destructive_confirmation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    app = _ModelIndicatorApp(_registry(_valid_model(name="Confirmed Old Model")))
+    app = _ModelIndicatorApp(_registry(_valid_model()))
 
     async with app.run_test(size=(80, 24)) as pilot:
         screen = app.main_screen
@@ -486,7 +483,7 @@ async def test_started_then_failed_sequence_settles_per_operation_kind(
     label_after: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    app = _ModelIndicatorApp(_registry(_valid_model(name="Confirmed Old Model")))
+    app = _ModelIndicatorApp(_registry(_valid_model()))
 
     async with app.run_test(size=(80, 24)) as pilot:
         screen = app.main_screen

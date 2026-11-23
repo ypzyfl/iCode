@@ -87,7 +87,7 @@ def test_invalid_environment_warns_and_falls_back(
     else:
         write_toml(tmp_path, f'environment = "{raw}"\n')
     assert load_config(tmp_path).environment == "prod"
-    assert "aixcoding.config: invalid environment" in capsys.readouterr().err
+    assert "aixcoding.config: 环境配置无效" in capsys.readouterr().err
 
 
 def test_invalid_toml_preserves_environment_variable(
@@ -101,7 +101,7 @@ def test_invalid_toml_preserves_environment_variable(
     assert cfg.environment == "local"
     assert cfg.diagnostics.logging.level == logging.INFO
     assert cfg.model_catalog.base_url == ""
-    assert "cannot parse" in capsys.readouterr().err
+    assert "配置文件无法解析" in capsys.readouterr().err
 
 
 def test_bad_level_name_falls_back(tmp_path: Path):
@@ -117,8 +117,8 @@ def test_bad_types_fall_back_safely(tmp_path: Path, capsys):
     assert cfg.diagnostics.logging.panel is False
     assert cfg.model_catalog.base_url == ""
     err = capsys.readouterr().err
-    assert "invalid environment" in err
-    assert "invalid model_catalog.base_url" in err
+    assert "环境配置无效" in err
+    assert "配置项 model_catalog.base_url 无效" in err
 
 
 def test_cache_returns_one_snapshot(tmp_path: Path):
@@ -165,7 +165,7 @@ def test_auto_sync_invalid_warns_and_falls_back(tmp_path: Path, capsys):
     write_toml(tmp_path, '[model_catalog]\nauto_sync = "yes"\n')
     cfg = load_config(tmp_path)
     assert cfg.model_catalog.auto_sync is None
-    assert "invalid model_catalog.auto_sync" in capsys.readouterr().err
+    assert "配置项 model_catalog.auto_sync 无效" in capsys.readouterr().err
 
 
 def test_bad_base_url_does_not_discard_auto_sync(tmp_path: Path, capsys):
@@ -174,4 +174,4 @@ def test_bad_base_url_does_not_discard_auto_sync(tmp_path: Path, capsys):
     cfg = load_config(tmp_path)
     assert cfg.model_catalog.base_url == ""
     assert cfg.model_catalog.auto_sync is True
-    assert "invalid model_catalog.base_url" in capsys.readouterr().err
+    assert "配置项 model_catalog.base_url 无效" in capsys.readouterr().err

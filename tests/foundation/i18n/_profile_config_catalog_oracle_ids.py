@@ -284,6 +284,9 @@ PROFILE_CONFIG_MESSAGE_IDS: frozenset[str | tuple[str, str]] = frozenset(
         "tui.model_config.provider_base_url",
         "tui.model_config.provider_model",
         "tui.model_config.read_only_notice",
+        # AIxCoding catalog: server_managed oracle entry — the refusal notice
+        # key added by model-config-restore (batches/model-config-restore/design.md).
+        "tui.model_config.server_managed",
         "tui.model_config.skip_tls_verification",
         "tui.model_config.streaming",
         "tui.model_config.title.configuration",
