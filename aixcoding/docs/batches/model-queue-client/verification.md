@@ -293,3 +293,32 @@ aixcoding.detail.llm_queue: 网关排队：position=1 queueSize=2（request_id=a
 也改为中文：仅字符串替换、**行数不变**，该文件已在 `model-queue-client` 的 R2 批准池内。
 `terminal_queue_rejection` 在网关未给 message 时的兜底文案同步改为
 `网关排队拒绝了该请求（<code>）`。
+
+## 2026-11-20 独立评审修复（C2/C3）
+
+- **C2 接线顺序**：`_open_stream` 把 `guard_queue_frames` 与 `track_queue_request` 改为同一次
+  lazy import；导入失败时不构造 tracker、不注入 `request_id`。消除「request_id 已发出但 guard
+  不可用、流关闭永不取消」的中间态。client.py 相对 base 实测 `+38/−5`。
+- **C3 使用约束**：profile 显式 `request_id` 仍复用（单飞行测试依赖），detail 日志提示并发共享；
+  design assumption 7 / 风险条与 requirements 已知限制已登记，不改行为。
+
+命令：
+
+```text
+uv run pytest aixcoding/tests/llm -n0 -q
+67 passed in 8.23s
+
+uv run pytest tests/service/llm -q -n4 -m "not integration and not gc_calibration"
+2099 passed in 45.17s
+
+uv run ruff check / format --check <改动文件>
+All checks passed!
+
+uv run ty check --error-on-warning --python-platform win32 src/chrys
+All checks passed!
+
+uv run python aixcoding/tools/gen_customizations.py --strict
+check OK — 134 row(s) / 199 marker(s)
+```
+
+**待重签**：`model-queue-client/design.md` 的 C2 行数与 C3 约束属正文 R2 变更，AI 未改头部。

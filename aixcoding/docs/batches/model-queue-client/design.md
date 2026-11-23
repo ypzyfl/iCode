@@ -166,7 +166,7 @@ token: <profile api_key>
 
 | 文件 | 改什么 | 实际行数（+增/−删） | 标记注释位置 |
 |---|---|---|---|
-| `src/chrys/service/llm/chat_completions/client.py` | `_open_stream`：构造 tracker（13 行，含 lazy import）、`on_status` 交给 tracker 包装（+5/−4）、`finally` 用嵌套 `try/finally` 保证 `cancel_on_close` 在流关闭抛错/被取消时仍执行（+10/−9） | **+28/−9**（净 +19） | `# AIxCoding llm-queue: cancel queued request on abort` |
+| `src/chrys/service/llm/chat_completions/client.py` | `_open_stream`：构造 tracker（13 行，含 lazy import）、`on_status` 交给 tracker 包装（+5/−4）、`finally` 用嵌套 `try/finally` 保证 `cancel_on_close` 在流关闭抛错/被取消时仍执行（+10/−9）；2026-11-20 C2 把 guard/tracker 改为同一次导入（+1 净行） | **+29/−9**（净 +20；相对 base 总计 +38/−5） | `# AIxCoding llm-queue: cancel queued request on abort` |
 | `tests/architecture/trajectory_wait_manifest.json` | 生成产物：刷新后重新打开 10 条 wait（4 条新增在 `queue_cancel`、`updates` 的 5 条因函数 wait 数变化重排 + 新增第 6 条），全部保持默认 `unresolved` | +14/−1 | 无（`MARKER_EXEMPTIONS`） |
 
 新增文件（非 R2）：`src/chrys/service/aixcoding/llm_queue/queue_cancel.py`、
@@ -178,6 +178,10 @@ R2 报批说明：
   改为嵌套 `try/finally`（+10/−9），净增从 +17 变 +19。
 - wait 清单首稿估 +5，实际 +14/−1：`_open_stream.updates` 的 wait 序号整体后移（新增第 6 条），
   加上 `queue_cancel` 内 4 条；均为 `unresolved`，无人工规则需要重新套用。
+- **2026-11-20 评审 C2 修复**：`guard_queue_frames` 与 `track_queue_request` 改为同一次 lazy import；
+  导入失败时不构造 tracker、不注入 `request_id`，消除「已带 id 但 guard 不可用、永不取消」的中间态。
+  client.py 相对 base 实测 +38/−5；v1.1 增量由 +28/−9 变为 +29/−9（净 +20）。
+  本条属正文 R2 变更，按 R10 需责任人重签头部（AI 未改）。
 - 本变更使 R2 清单与定制点登记表发生变化，按 R10 需责任人把本文件头部状态退回「草案」后重签；
   AI 不改头部，实现前必须完成重签。
 
@@ -195,6 +199,9 @@ R2 报批说明：
    失效表现：放行后仍判定"排队中"，多发一次 cancel → `409`，无害。
 6. 假设：`finally` 在任务取消（`CancelledError`）时仍执行 → 失效表现：中断不发 cancel，行为回到 v1.0（不是回归）。
    CLI Ctrl+C 走 `asyncio.run` 取消，若取消发生在 loop 关闭前，cancel 任务可能来不及跑完（2s 超时上限），属已知限制。
+7. **使用约束（2026-11-20 评审 C3）**：profile 显式配置 `request_id` 时复用该值（单飞行测试依赖）→
+   同一 profile 的并发请求共享一个 id，网关的 position 心跳与 cancel 归属会交叉 →
+   缓解：detail 日志提示复用；该字段仅用于单飞行测试，不作为并发特性。
 
 ### 定制点登记（增量）
 
@@ -208,6 +215,8 @@ R2 报批说明：
 - **重复取消**：契约幂等（重复取消返 `404`），重试重发产生新 id，旧 id 在 abort 时被 cancel。
 - **取消阻塞中断**：`2s` 超时上限 + 全吞错；若 `finally` 处于取消态，则跳过 await（不拖慢用户操作）。
 - **代理/证书差异**：独立 `httpx.AsyncClient` 不复用 SDK 连接池；代理按环境变量（`trust_env` 默认开启），内网 `NO_PROXY` 已由环境保证。
+- **profile 固定 `request_id` 的并发共享**（2026-11-20 评审 C3）：同一 profile 的多个并发请求会复用同一个 id，
+  cancel 与 position 心跳的归属可能交叉；仅在单飞行测试场景使用，detail 日志会提示复用。
 - 回滚：删除 `queue_cancel.py`、`client.py` 的 11 行接线与登记行，恢复 v1.0（无 `request_id`、无 cancel）。
 
 ### ADR 判定（增量）

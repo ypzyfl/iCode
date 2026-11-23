@@ -251,7 +251,13 @@ def track_queue_request(
 
 
 def _attach_request_id(request: dict[str, Any]) -> str | None:
-    """The ``request_id`` this request carries, generated into ``extra_body`` when absent."""
+    """The ``request_id`` this request carries, generated into ``extra_body`` when absent.
+
+    A profile-provided value is reused by design (single-flight tests rely on it).
+    Concurrent requests on the same profile then share one id, so the gateway's
+    position heartbeat and cancel attribution can cross; use a fixed id only for
+    a single in-flight request.
+    """
     extra = request.get("extra_body")
     if extra is None:
         extra = {}
@@ -261,6 +267,10 @@ def _attach_request_id(request: dict[str, Any]) -> str | None:
         return None
     existing = extra.get(REQUEST_ID_FIELD)
     if isinstance(existing, str) and existing.strip():
+        _detail_logger.debug(
+            "复用 profile 指定的 request_id=%s；同一 profile 的并发请求会共享该 id，取消/心跳归属可能混淆",
+            existing,
+        )
         return existing
     # Copied before writing: ``build_request`` shallow-copies the options, so this
     # mapping may be the caller's own and must not gain a per-request id.

@@ -57,28 +57,34 @@ R1 自查（必答）：
 
 ## 上游改动清单（R2）
 
-| 文件 | 改什么 | 预估行数 | 标记注释位置 |
-|---|---|---|---|
-| `src/chrys/service/llm/observer.py` | `WireCallObserver` 增加 `on_queue_status` 参数与只读属性 | +10 | `# AIxCoding queue-progress: observer callback` |
-| `src/chrys/service/llm/clients.py` | `create_client(...)` 增加同名参数并传给 observer | +6 | `# AIxCoding queue-progress: client factory passthrough` |
-| `src/chrys/service/llm/chat_completions/client.py` | guard 调用处传 `self._observer.on_queue_status` | +2/−1 | `# AIxCoding queue-progress: pass queue callback` |
-| `src/chrys/orchestration/engine/build/builder.py` | 透传参数到 client 构造 | +3 | `# AIxCoding queue-progress: build passthrough` |
-| `src/chrys/orchestration/engine/build/construction.py` | async 闭包：`await bus.publish(GatewayQueueStatus(...))` | +14 | `# AIxCoding queue-progress: publish queue status` |
-| `src/chrys/orchestration/session_host.py` | `_HEADLESS_RUN_EVENT_TYPES` 元组加入事件类型 + import（否则 CLI/ACP 静默丢弃） | +2 | `# AIxCoding queue-progress: headless event type` |
-| `src/chrys/foundation/events/types.py` | 新增 `GatewayQueueStatus(Event)`（position/queue_size） | +12 | `# AIxCoding queue-progress: event type` |
-| `src/chrys/app/tui/screens/main/subscriptions.py` | 订阅一行 | +1 | `# AIxCoding queue-progress: TUI subscription` |
-| `src/chrys/app/tui/screens/main/event_handlers.py` | `on_queue_status` handler + 轮次开始清等待行文案 | +12 | `# AIxCoding queue-progress: TUI handler` |
-| `src/chrys/app/tui/screens/main/view_adapter.py` | `show_queue_status` / `clear_queue_status`（等待行文案） | +10 | `# AIxCoding queue-progress: TUI render` |
-| `src/chrys/app/tui/screens/main/ports.py` | `MainScreenPresentationView` 协议声明两个方法 | +2 | `# AIxCoding queue-progress: ports protocol` |
-| `src/chrys/app/tui/screens/main/main_screen_presenter.py` | `MainScreenPresenter` 两个转发方法 | +6 | `# AIxCoding queue-progress: presenter facade` |
-| `src/chrys/app/tui/widgets/chat/waiting_row.py` | 等待行增加可选文案（与 dot 同行） | +12 | `# AIxCoding queue-progress: waiting row note` |
-| `src/chrys/app/cli/progress.py` | `TurnProgress.handle` 新 case（**不是** `InvocationActivity.handle`：后者签名收 `InvocationEvent` 且首行取 `event.origin`）+ 名次变化去重 | +14 | `# AIxCoding queue-progress: CLI line` |
-| `src/chrys/app/acp/server.py` | `chrys/queue_status` 通知 + 白名单注册 + 同 position 不重发 | +16 | `# AIxCoding queue-progress: ACP notification` |
-| `tests/app/tui/screens/test_prompt_shortcut_send.py` | 共享测试替身 `Builds.create_client` 接受并忽略新参数（被 ACP/TUI 多层测试复用） | +1 | `# AIxCoding queue-progress: test double accepts the callback` |
+| 文件 | 改什么 | 预估行数 | 实测 numstat（2026-11-20） | 标记注释位置 |
+|---|---|---|---|---|
+| `src/chrys/service/llm/observer.py` | `WireCallObserver` 增加 `on_queue_status` 参数与只读属性 | +10 | +9/−1 | `# AIxCoding queue-progress: observer callback` |
+| `src/chrys/service/llm/clients.py` | `create_client(...)` 增加同名参数并传给 observer | +6 | +12/−1 | `# AIxCoding queue-progress: client factory passthrough` |
+| `src/chrys/service/llm/chat_completions/client.py` | guard 调用处传 `self._observer.on_queue_status` | +2/−1 | +2/−1（client.py 总计 +38/−5，含 client 批；C2 后） | `# AIxCoding queue-progress: pass queue callback` |
+| `src/chrys/orchestration/engine/build/builder.py` | 透传参数到 client 构造 | +3 | +4/−0 | `# AIxCoding queue-progress: build passthrough` |
+| `src/chrys/orchestration/engine/build/construction.py` | async 闭包：`await bus.publish(GatewayQueueStatus(...))` | +14 | +15/−1 | `# AIxCoding queue-progress: publish queue status` |
+| `src/chrys/orchestration/session_host.py` | `_HEADLESS_RUN_EVENT_TYPES` 元组加入事件类型 + import（否则 CLI/ACP 静默丢弃） | +2 | +4/−0 | `# AIxCoding queue-progress: headless event type` |
+| `src/chrys/foundation/events/types.py` | 新增 `GatewayQueueStatus(Event)`（position/queue_size） | +12 | +14/−0 | `# AIxCoding queue-progress: event type` |
+| `src/chrys/app/tui/screens/main/subscriptions.py` | 订阅一行 | +1 | +4/−0 | `# AIxCoding queue-progress: TUI subscription` |
+| `src/chrys/app/tui/screens/main/event_handlers.py` | `on_queue_status` handler + 轮次开始清等待行文案 | +12 | +15/−0 | `# AIxCoding queue-progress: TUI handler` |
+| `src/chrys/app/tui/screens/main/view_adapter.py` | `show_queue_status` / `clear_queue_status`（等待行文案） | +10 | +22/−0 | `# AIxCoding queue-progress: TUI render` |
+| `src/chrys/app/tui/screens/main/ports.py` | `MainScreenPresentationView` 协议声明两个方法 | +2 | +3/−0 | `# AIxCoding queue-progress: ports protocol` |
+| `src/chrys/app/tui/screens/main/main_screen_presenter.py` | `MainScreenPresenter` 两个转发方法 | +6 | +7/−0 | `# AIxCoding queue-progress: presenter facade` |
+| `src/chrys/app/tui/widgets/chat/waiting_row.py` | 等待行增加可选文案（与 dot 同行） | +12 | +16/−1 | `# AIxCoding queue-progress: waiting row note` |
+| `src/chrys/app/cli/progress.py` | `TurnProgress.handle` 新 case（**不是** `InvocationActivity.handle`：后者签名收 `InvocationEvent` 且首行取 `event.origin`）+ 名次变化去重 | +14 | +24/−0 | `# AIxCoding queue-progress: CLI line` |
+| `src/chrys/app/acp/server.py` | `chrys/queue_status` 通知 + 白名单注册 + 同 position 不重发 | +16 | +28/−0 | `# AIxCoding queue-progress: ACP notification` |
+| `tests/app/tui/screens/test_prompt_shortcut_send.py` | 共享测试替身 `Builds.create_client` 接受并忽略新参数（被 ACP/TUI 多层测试复用） | +1 | +2/−0 | `# AIxCoding queue-progress: test double accepts the callback` |
+| `tests/architecture/trajectory_wait_manifest.json` | progress 批刷新 wait 清单（生成产物，`MARKER_EXEMPTIONS`） | 未列 | +10/−2（progress 增量；文件总计 +29/−3，含 client 两表） | — |
 
-合计 16 文件、约 123 行。
+合计 **17 文件**；首版预估约 123 行，实测（numstat）约 **+191/−7**：
+15 个专属文件 +179/−4、`client.py` 内 progress 部分 +2/−1、manifest progress 增量约 +10/−2。
+
+**2026-11-20 回填（评审 C1/C7）**：上表新增 manifest 行并回填实测 numstat；
+正文变更按 R10 需责任人重签，AI 未改头部签认行。
 
 **R2 追加记录（2026-11-18 实施中）**：`ports.py` 与 `main_screen_presenter.py` 不在首版清单内，是 TUI 分层（handler → `MainScreenPresenter` → `MainScreenPresentationView` 协议 → `ViewAdapter`）的必然接触面；跳过 facade 直连 `_view` 属穿透私有成员。追加经责任人批准（对 AI「R2 从 13 文件 114 行变为 15 文件 122 行」申请的答复为「design.md 为已确认」），共 +8 行。
+**2026-11-20 回填（C1/C7）**：`tests/architecture/trajectory_wait_manifest.json` 为第 17 个文件（progress 批增量），实测行数已入上表；本行为正文变更，需责任人重签。
 
 R1 自查（逐行归属）：上游每处均为"挂点 + 一行调用/一个字段/一个元组条目"，无既有逻辑搬动。
 

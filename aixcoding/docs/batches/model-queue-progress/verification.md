@@ -194,3 +194,38 @@ uv run aixcoding-cli run "你好" -a Code -m QueueMock -C <mock 目录>
 
 门禁：`aixcoding/tests/llm` 49 passed、`ruff check` / `format` 通过、`ty`（win32）通过、`check_docs --closure` OK。
 **局限**：TUI 未截图（文案与 CLI 同源 `queue_note`，只用同一套单元断言；WaitingRow 单行渲染不因文案变化改高度）。
+
+## 2026-11-20 独立评审修复（C0/C1/C2/C3/C7）
+
+- **C0 轮次边界锚定**：新增 5 条用例——CLI `TurnStarted` 清去重、ACP 同 position 按 session 去重/
+  `released` 后重发、TUI `on_turn_started → clear_queue_status → apply_turn_event`、
+  `MainScreenPresenter` 转发 `show/clear_queue_status`、`MainScreenViewAdapter` 落到 WaitingRow 文案。
+- **C1/C7 R2 回填**：design R2 表新增 `tests/architecture/trajectory_wait_manifest.json` 行
+  （progress 增量约 +10/−2），并按 numstat 回填 17 文件实测约 **+191/−7**；正文变更待责任人重签。
+- **C2 接线顺序**：client 批将 `guard_queue_frames` 与 `track_queue_request` 改为同一次导入，
+  导入失败时不注入 `request_id`，消除「已带 id 但 guard 不可用、永不取消」的中间态。
+- **C3 使用约束**：profile 显式 `request_id` 复用时，detail 日志提示并发共享归属风险；
+  docstring 与 requirements 登记为「仅单飞行测试使用」。
+
+命令：
+
+```text
+uv run pytest aixcoding/tests/llm -n0 -q
+67 passed in 8.23s
+
+uv run ruff check <改动文件>
+All checks passed!
+（ruff format 已执行）
+
+uv run ty check --error-on-warning --python-platform win32 src/chrys
+All checks passed!
+
+uv run python aixcoding/tools/check_docs.py --closure
+check_docs: OK
+
+uv run python aixcoding/tools/gen_customizations.py --strict
+check OK
+```
+
+**未跑**：`tests/app/tui` / `tests/app/cli` / `tests/app/acp` 全量（本轮只加测试与文档，
+未改三个前端的运行时代码）；真实网关联调仍待内网执行。

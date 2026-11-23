@@ -202,6 +202,117 @@ def test_cli_release_clears_the_dedupe() -> None:
     assert len(writer.lines) == 2
 
 
+def test_cli_turn_started_clears_the_dedupe() -> None:
+    """A new turn must print the same position again, not inherit the previous turn's dedupe."""
+    from chrys.app.cli.progress import TurnProgress
+    from chrys.foundation.events.types import GatewayQueueStatus, TurnStarted
+
+    writer = _RecordingWriter()
+    progress = TurnProgress(writer, render=lambda reference: "", context=lambda: None)  # type: ignore[arg-type]
+
+    progress.handle(GatewayQueueStatus(session_id="s1", position=2, queue_size=5))
+    progress.handle(TurnStarted(session_id="s1", turn_id="t2"))
+    progress.handle(GatewayQueueStatus(session_id="s1", position=2, queue_size=5))
+
+    assert len(writer.lines) == 2
+
+
+async def test_acp_queue_status_is_deduped_per_session() -> None:
+    """The same position is sent once per session, and a release lets it be sent again."""
+    from chrys.app.acp.server import ChrysAcpServer
+    from chrys.foundation.events.types import GatewayQueueStatus
+
+    class _Client:
+        def __init__(self) -> None:
+            self.sent: list[tuple[str, dict[str, Any]]] = []
+
+        async def ext_notification(self, method: str, params: dict[str, Any]) -> None:
+            self.sent.append((method, params))
+
+    client = _Client()
+    server = ChrysAcpServer(manager=object(), initial_vision=False)  # type: ignore[arg-type]
+    server.on_connect(client)  # type: ignore[arg-type]
+
+    await server._handle_turn_event("fallback", GatewayQueueStatus(session_id="s1", position=2, queue_size=5), None)  # type: ignore[arg-type]
+    await server._handle_turn_event("fallback", GatewayQueueStatus(session_id="s1", position=2, queue_size=5), None)  # type: ignore[arg-type]
+    await server._handle_turn_event("fallback", GatewayQueueStatus(session_id="s2", position=2, queue_size=5), None)  # type: ignore[arg-type]
+    await server._handle_turn_event("fallback", GatewayQueueStatus(session_id="s1", position=-1, queue_size=0), None)  # type: ignore[arg-type]
+    await server._handle_turn_event("fallback", GatewayQueueStatus(session_id="s1", position=2, queue_size=5), None)  # type: ignore[arg-type]
+
+    assert client.sent == [
+        ("chrys/queue_status", {"sessionId": "s1", "position": 2, "queueSize": 5}),
+        ("chrys/queue_status", {"sessionId": "s2", "position": 2, "queueSize": 5}),
+        ("chrys/queue_status", {"sessionId": "s1", "released": True}),
+        ("chrys/queue_status", {"sessionId": "s1", "position": 2, "queueSize": 5}),
+    ]
+
+
+async def test_tui_turn_started_clears_the_waiting_row_note() -> None:
+    """The handler chain must call the presenter's clear before applying the turn."""
+    from chrys.app.tui.screens.main.event_handlers import BackendEventHandler
+    from chrys.foundation.events.types import TurnStarted
+
+    calls: list[str] = []
+
+    class _Presenter:
+        def clear_queue_status(self) -> None:
+            calls.append("clear")
+
+    handler = object.__new__(BackendEventHandler)
+    handler._presenter = _Presenter()  # type: ignore[attr-defined]
+
+    async def _apply(event: Any) -> None:
+        calls.append("apply")
+
+    handler.apply_turn_event = _apply
+
+    await handler.on_turn_started(TurnStarted(session_id="s1", turn_id="t1"))
+
+    assert calls == ["clear", "apply"]
+
+
+def test_tui_presenter_forwards_queue_status_to_the_view() -> None:
+    """The presenter facade is the only path from the handler to the WaitingRow view."""
+    from chrys.app.tui.screens.main.main_screen_presenter import MainScreenPresenter
+
+    calls: list[tuple[str, int, int]] = []
+
+    class _View:
+        def show_queue_status(self, position: int, queue_size: int = 0) -> None:
+            calls.append(("show", position, queue_size))
+
+        def clear_queue_status(self) -> None:
+            calls.append(("clear", 0, 0))
+
+    presenter = MainScreenPresenter(_View())  # type: ignore[arg-type]
+    presenter.show_queue_status(2, 5)
+    presenter.clear_queue_status()
+
+    assert calls == [("show", 2, 5), ("clear", 0, 0)]
+
+
+def test_tui_view_adapter_sets_and_clears_the_waiting_row_note() -> None:
+    """The view adapter maps the presenter call onto the WaitingRow's note, and clears it."""
+    from chrys.app.tui.screens.main.view_adapter import MainScreenViewAdapter
+    from chrys.app.tui.widgets.chat.waiting_row import WaitingRow
+    from chrys.kernel.aixcoding.queue_progress import queue_note
+
+    row = WaitingRow()
+
+    class _Screen:
+        def query(self, widget_type: Any) -> list[Any]:
+            return [row] if widget_type is WaitingRow else []
+
+    adapter = object.__new__(MainScreenViewAdapter)
+    adapter._screen = _Screen()  # type: ignore[attr-defined]
+
+    adapter.show_queue_status(2, 5)
+    assert row._queue_note == queue_note(2, 5)
+
+    adapter.clear_queue_status()
+    assert row._queue_note == ""
+
+
 def test_waiting_row_note_is_set_and_cleared() -> None:
     """The row keeps the note until cleared, so a new turn must clear it explicitly."""
     from chrys.app.tui.widgets.chat.waiting_row import WaitingRow

@@ -18,6 +18,8 @@
 
 - 轮次：设计评审 1 轮（落盘 `aixcoding/docs/pr/model-queue-progress设计评审.md`）+ 实现评审 1 轮 + 修复 + 复审
 - 评审范围：commit `0b496751` 与工作区修复；R2 最终 16 文件约 126 行
+- R2 回填（2026-11-20，独立评审 C1/C7）：**17 文件、实测约 +191/−7**；`tests/architecture/trajectory_wait_manifest.json` 已补入 design R2 表，正文变更待责任人重签。
+- 轮次边界锚定（2026-11-20，独立评审 C0）：新增 5 条（CLI `TurnStarted`、ACP 跨会话去重/released、TUI handler→presenter、presenter→view、view adapter→WaitingRow）。
 - blocker 处置：
   1. **同轮内文案不释放**（`event_handlers.py` / `view_adapter.py`）→ 已修。根因是放行后没有任何信号，等待行在后续每次等待都会带"排队中"。修法：guard 在首个数据块时上报 `RELEASED_POSITION = -1`，TUI 清文案、CLI 重置去重、ACP 发 `released: true` 并清该会话记录。
   2. **ACP 去重跨会话串号**（`server.py`）→ 已修。判重键改为 `session_id → position` 的字典；放行时删该会话条目；`ext_notification` 成功后才记录（发送失败可重试）。

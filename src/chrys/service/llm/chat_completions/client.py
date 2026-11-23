@@ -233,18 +233,24 @@ class ChatCompletionsClient(WireClient):
         request["stream_options"] = {"include_usage": True}
         requires_finish_reason = options.get(STREAM_REQUIRES_FINISH_REASON_OPTION) is True
         # AIxCoding llm-queue: cancel queued request on abort
+        # Import both together: a half-available customization could otherwise send a
+        # request_id that no guard ever observes, leaving the request queued after abort.
+        guard_queue_frames: Any = None
         queue_request: Any = None
         try:
-            from chrys.service.aixcoding.llm_queue import track_queue_request
-
-            queue_request = track_queue_request(
-                request,
-                model=self.model,
-                base_url=str(self.sdk_client.base_url),
-                api_key=self.sdk_client.api_key,
-            )
+            from chrys.service.aixcoding.llm_queue import guard_queue_frames, track_queue_request
         except Exception:
-            logger.debug("aixcoding llm-queue 取消排队不可用", exc_info=True)
+            logger.warning("aixcoding llm-queue 网关排队帧将导致流失败", exc_info=True)
+        else:
+            try:
+                queue_request = track_queue_request(
+                    request,
+                    model=self.model,
+                    base_url=str(self.sdk_client.base_url),
+                    api_key=self.sdk_client.api_key,
+                )
+            except Exception:
+                logger.debug("aixcoding llm-queue 取消排队不可用", exc_info=True)
 
         async def updates() -> AsyncIterable[ChatResponseUpdate]:
             state = StreamState(self.VARIANT, origin=self.reasoning_origin())
@@ -256,9 +262,7 @@ class ChatCompletionsClient(WireClient):
                 sdk_stream = raw.parse()
                 chunks = aiter(sdk_stream)
                 # AIxCoding llm-queue: guard gateway queue frames (src/chrys/service/aixcoding/llm_queue)
-                try:
-                    from chrys.service.aixcoding.llm_queue import guard_queue_frames
-
+                if guard_queue_frames is not None:
                     # AIxCoding queue-progress: pass queue callback
                     observer = self._observer
                     on_status = observer.on_queue_status if observer is not None else None
@@ -266,9 +270,6 @@ class ChatCompletionsClient(WireClient):
                     if queue_request is not None:
                         on_status = queue_request.observing(on_status)
                     chunks = guard_queue_frames(chunks, on_status=on_status)
-                except Exception:
-                    # The customization is optional: a broken import never blocks streaming.
-                    logger.warning("aixcoding llm-queue 网关排队帧将导致流失败", exc_info=True)
                 received = False
                 async for chunk in chunks:
                     received = True
