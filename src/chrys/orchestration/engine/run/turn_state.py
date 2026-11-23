@@ -89,6 +89,20 @@ class PendingInputOperations:
             operation.invalidate(reason)
 
 
+# AIxCoding telemetry: run-owned turn identity snapshot (src/chrys/service/aixcoding/telemetry)
+# Immutable per-run identity stamped by the runner before awaiting the trajectory
+# recorder, so consumers (telemetry finalizer) can address the run without
+# reading live turn state or depending on trajectory activation.
+@dataclass(frozen=True)
+class RunTurnIdentity:
+    """Identity of the current run: logical turn + pass + numbering facts."""
+
+    logical_turn_id: str
+    pass_id: str
+    turn_number: int
+    is_retry: bool
+
+
 @dataclass
 class TurnRuntimeState:
     """Turn product state; lease owns the unique task and all lifetime fences."""
@@ -99,6 +113,14 @@ class TurnRuntimeState:
     """When the user asked for the running pass: sent its message, or pressed Continue or Retry.
 
     Its turn marker keeps it.
+    """
+
+    current_run_identity: RunTurnIdentity | None = None
+    """Run-owned identity snapshot for the current run; None between runs.
+
+    Written once by the runner once IDs are decided (before the recorder
+    await), cleared on pre-run and session shutdown; missing identity is an
+    explicit degraded state, never a reason to fall back to latest-known.
     """
 
     paused_sub_agents: set[str] = field(default_factory=set)
@@ -188,6 +210,8 @@ class TurnRuntimeState:
         old_scope = self.lease.reset_after_session_shutdown(prompt_admission_owner=prompt_admission_owner)
         self.current_input = CurrentTurnInput()
         self.pass_started_at = None
+        # AIxCoding telemetry: run-owned turn identity snapshot (src/chrys/service/aixcoding/telemetry)
+        self.current_run_identity = None
         self.history_start_index = 0
         self.cancelled_injection_ids.clear()
         self.inflight_injection_ids.clear()

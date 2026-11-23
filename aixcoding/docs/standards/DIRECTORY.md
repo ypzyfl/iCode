@@ -103,10 +103,14 @@ iCode-fork/
 
 **形态语义（2026-10-25 决策澄清）**：目录名描述职责域（mock 专区），实现形态由子包内文件表达——当前全部为 HTTP server 形态（即每子包 `server.py`），不因形态更名目录（曾议 `mock_server/`，维持 `mock/`，详见 `docs/batches/mock/design.md` 决策记录）。进程内替身不属本专区：测试专用 fake/stub 归 `aixcoding/tests/`（§5），产品内可注入测试挂钩归 `src/chrys/{tier}/aixcoding/`（按 §3 落位）；非 server 形态 mock 资产出现时按 §2 判定树重新论证落点。
 
-**包根编排层（2026-10-25 登记）**：`__main__.py` 为组合启动器——`python -m aixcoding.mock`
-一键起基础组合（默认 `model_catalog` :7777 含内嵌 auth + `update` :7778；`--all` /
-`--only` / `--list`），仅编排各子包既有 `create_server(...)`，不承载 mock 实现；端口
-fail-fast 不静默换。设计依据 `docs/batches/mock/design.md`。
+**包根编排层（2026-10-25 登记；2026-11-20 修订单端口）**：`__main__.py` 为组合启动器——
+`python -m aixcoding.mock` 一键起**单端口组合**（统一端口 **15678**，挂载全部子服务路由：
+auth/catalog/update/telemetry；参数形态随单端口组合由批次1 design 细化），编排各子包既有
+路由组装能力，不承载 mock 实现；各子包独立 factory/单服务 CLI 仅用于底层测试与调试；端口
+fail-fast 不静默换。设计依据 `docs/batches/mock/design.md`（含 2026-11-20 单端口决策记录：
+15678 位于 15001–49151 安全区，避开本机实测动态端口范围 1024–15000 与标准临时区）。
+**落地状态：单端口形态已随 telemetry-after-turn-slice 批次1 落地（2026-11-21：
+`combined.py` 组合层挂载 model_catalog(含 auth)/update/telemetry，launcher 默认 :15678）。**
 
 每个子包统一结构：
 

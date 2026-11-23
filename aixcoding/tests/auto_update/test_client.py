@@ -142,7 +142,7 @@ async def test_total_timeout_bounds_a_slow_answer(
 @pytest.mark.parametrize(
     ("environment", "expected"),
     [
-        pytest.param("local", "http://127.0.0.1:7778", id="local-mock"),
+        pytest.param("local", "http://127.0.0.1:15678", id="local-mock"),
         pytest.param("dev", "http://81.89.182.150/csas", id="dev"),
         pytest.param("prod", "http://82.187.34.98/csas", id="prod"),
         pytest.param("unknown", "http://82.187.34.98/csas", id="unknown-falls-back-to-prod"),

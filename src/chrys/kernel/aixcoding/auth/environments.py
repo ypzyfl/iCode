@@ -8,7 +8,7 @@ only in path prefix. Three deployment tiers ship as constants:
 =========  ========  ==============================================
 Tier       authUrl   dataUrl
 =========  ========  ==============================================
-LOCAL      :7777     the bundled mock (``aixcoding/mock/auth/server.py``)
+LOCAL      :15678    the bundled single-port mock combo (``python -m aixcoding.mock``)
 DEV        81.89.182.150  ``/csas/api/v1`` vs ``/aicoding/api/v1``
 PROD       82.187.34.98   ``/csas/api/v1`` vs ``/aicoding/api/v1``
 =========  ========  ==============================================
@@ -36,8 +36,9 @@ from urllib.parse import urlsplit
 
 from .types import Environment
 
+# Local default unified to the single-port mock combo (telemetry-after-turn-slice R2-5).
 _BASE_PATHS: dict[Environment, tuple[str, str]] = {
-    Environment.LOCAL: ("http://localhost:7777/api/v1", "http://localhost:7777/api/v1"),
+    Environment.LOCAL: ("http://localhost:15678/api/v1", "http://localhost:15678/api/v1"),
     Environment.DEV: ("http://81.89.182.150/csas/api/v1", "http://81.89.182.150/aicoding/api/v1"),
     Environment.PROD: ("http://82.187.34.98/csas/api/v1", "http://82.187.34.98/aicoding/api/v1"),
 }

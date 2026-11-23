@@ -1624,6 +1624,7 @@
       "SessionLifecycle._delete_session_reporting": [
         ["awaitable", "await self._side_questions.quiesce()", "unresolved"],
         ["wrapper", "await self.fire_session_end_hooks()", "unresolved", "chrys.orchestration.engine.session_lifecycle.SessionLifecycle.fire_session_end_hooks"],
+        ["awaitable", "await delete_telemetry_owner.flush_session(session_id, timeout=5.0)", "unresolved"],
         ["awaitable", "await tasks.stop_all()", "unresolved"],
         ["wrapper", "await self.close_trajectory_log()", "unresolved", "chrys.orchestration.engine.session_lifecycle.SessionLifecycle.close_trajectory_log"],
         ["awaitable", "await self._persistence.delete_session(session_id, allow_active=release_current_lock)", "unresolved"],
@@ -1683,6 +1684,7 @@
         ["awaitable", "await self._loader.cancel_outbox_recovery()", "session-transition-work"],
         ["wrapper", "await self._stop_background_tasks()", "session-transition-work", "chrys.orchestration.engine.session_lifecycle.SessionLifecycle._stop_background_tasks"],
         ["awaitable", "await self._usage_publisher.settle()", "session-transition-work"],
+        ["awaitable", "await telemetry_owner.flush_session(self._session.session_id, timeout=5.0)", "session-transition-work"],
         ["wrapper", "await self.fire_session_end_hooks()", "session-transition-work", "chrys.orchestration.engine.session_lifecycle.SessionLifecycle.fire_session_end_hooks"],
         ["awaitable", "await self._session.hook_manager.drain_session()", "session-transition-work"],
         ["awaitable", "await self._writer.save_current_session()", "session-transition-work"],
@@ -4061,6 +4063,18 @@
       ],
       "sync_catalog": [
         ["wrapper", "await fetch_catalog(url, timeout=timeout)", "unresolved", "chrys.service.aixcoding.models.catalog.fetch_catalog"]
+      ]
+    },
+    "chrys.service.aixcoding.telemetry.owner": {
+      "TelemetryOwner.flush_session": [
+        ["timeout", "await asyncio.wait_for(worker.queue.join(), timeout=timeout)", "unresolved"]
+      ],
+      "_process_notice": [
+        ["thread_pool", "await asyncio.to_thread(_deliver_notice, notice)", "unresolved"]
+      ],
+      "_run_worker": [
+        ["queue", "await queue.get()", "unresolved"],
+        ["wrapper", "await _process_notice(notice)", "unresolved", "chrys.service.aixcoding.telemetry.owner._process_notice"]
       ]
     },
     "chrys.service.aixcoding.update.client": {

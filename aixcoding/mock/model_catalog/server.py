@@ -415,6 +415,19 @@ def build_handler_class() -> type[BaseHTTPRequestHandler]:
                 self._send_llm_stream(model)
             else:
                 self._send_json(200, _llm_completion_body(model))
+            # Telemetry capture hook (single-port combo, mock 1B): when the
+            # composition layer provides a capture callback, every chat request
+            # records its own attempt header — BR-1 semantics, no success
+            # verdict, no aggregation. Absent callback ⇒ this mock behaves
+            # exactly as before (independent factory stays hook-free).
+            capture = getattr(self.server, "telemetry_capture", None)
+            if capture is not None:
+                capture(
+                    attempt=self.headers.get("Chrys-Request-Attempt-Id"),
+                    request_model=model,
+                    response_model=model,
+                    stream=body.get("stream") is True,
+                )
 
         def _read_llm_body(self) -> dict[str, Any] | None:
             """Read one chat request body; ``MAX_LLM_BODY_BYTES`` keeps it bounded."""

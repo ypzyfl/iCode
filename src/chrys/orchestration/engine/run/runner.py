@@ -24,6 +24,7 @@ from chrys.orchestration.engine.run.prompt_content import PromptContentPreparer
 from chrys.orchestration.engine.run.retry import RetryCoordinator
 from chrys.orchestration.engine.run.runtime_skills import RuntimeSkillRefresher
 from chrys.orchestration.engine.run.turn_hooks import TurnHookDispatcher
+from chrys.orchestration.engine.run.turn_state import RunTurnIdentity
 from chrys.orchestration.engine.state.machine import EngineState, Trigger
 from chrys.orchestration.invoker.contracts import (
     AbortCause,
@@ -459,6 +460,9 @@ class TurnRunner:
         *note_message_id* is a guided retry's frontend id for its guidance,
         published with the pass's ``TurnStarted``.
         """
+        # AIxCoding telemetry: run-owned turn identity snapshot (src/chrys/service/aixcoding/telemetry)
+        # Clear any stale identity from a previous run before this run's IDs exist.
+        self._turn_state.current_run_identity = None
         self._turn_state.lease.advance_conversation_revision()
         # Fresh and retry turns alike make this launch's surface the session's last one.
         self._session.mark_surface()
@@ -574,6 +578,15 @@ class TurnRunner:
                     user_message_id=user_message_id,
                 ),
             )
+        # AIxCoding telemetry: run-owned turn identity snapshot (src/chrys/service/aixcoding/telemetry)
+        # Stamp the run identity before the recorder await: trajectory
+        # disabled/activation failure must not erase it (N3 §14.1).
+        self._turn_state.current_run_identity = RunTurnIdentity(
+            logical_turn_id=turn_id,
+            pass_id=pass_id,
+            turn_number=turn_number,
+            is_retry=is_retry,
+        )
         await recorder.turn_started(
             turn_id=pass_id,
             logical_turn_id=turn_id,

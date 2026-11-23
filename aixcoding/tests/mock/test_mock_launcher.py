@@ -1,12 +1,14 @@
 # (unit test — asserts are pytest idiom; urllib opens only the loopback mock under test)
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
-"""Unit tests for the mock launcher (aixcoding/mock/__main__.py).
 
-Selection resolution (default combo / --all / --only / mutual exclusion /
-unknown names) plus — the B1 regression — a real start→stop round trip for
-every service starter: the catalog stop once called a non-existent
-``running.server`` attribute and raised AttributeError on every stop path
-(Ctrl+C shutdown and the occupied-port rollback alike).
+"""Unit tests for the mock launcher (aixcoding/mock/__main__.py, single-port combo).
+
+Selection resolution (default combo / --only / mutual exclusion / unknown
+names) plus a real start→stop round trip: the combined server must answer
+auth, catalog and update routes on ONE port (the 2026-11-20 single-port
+decision), and the standalone auth starter keeps its own port. Stops go
+through the launcher's own stop callables (must not raise — the B1
+regression), then the port must be released.
 """
 
 from __future__ import annotations
@@ -17,68 +19,71 @@ import urllib.request
 from urllib.parse import urlparse
 
 from aixcoding.mock import __main__ as launcher
+from aixcoding.mock.combined import start_combined
 
 
-def test_default_combo_is_catalog_plus_update() -> None:
-    assert launcher._resolve_selection("", False) == ["model_catalog", "update"]
+def test_default_selection_is_the_full_combo() -> None:
+    assert launcher._resolve_selection("") == ["model_catalog", "update", "telemetry"]
 
 
-def test_all_currently_equals_the_default_combo() -> None:
-    # telemetry (:4321) joins --all when its mock migrates.
-    assert launcher._resolve_selection("", True) == ["model_catalog", "update"]
-
-
-def test_only_takes_a_subset_in_given_order() -> None:
-    assert launcher._resolve_selection("auth", False) == ["auth"]
-    assert launcher._resolve_selection("update,model_catalog", False) == ["update", "model_catalog"]
+def test_only_takes_a_subset() -> None:
+    assert launcher._resolve_selection("auth") == ["auth"]
+    assert launcher._resolve_selection("update") == ["update"]
+    assert launcher._resolve_selection("model_catalog,telemetry") == ["model_catalog", "telemetry"]
 
 
 def test_unknown_name_is_rejected() -> None:
-    assert launcher._resolve_selection("telemetry", False) is None
-    assert launcher._resolve_selection("auth,telemetry", False) is None
+    assert launcher._resolve_selection("nope") is None
+    assert launcher._resolve_selection("auth,nope") is None
 
 
 def test_auth_and_model_catalog_are_mutually_exclusive() -> None:
-    """Both bind :7777 — the selection must refuse the combination up front."""
-    assert launcher._resolve_selection("auth,model_catalog", False) is None
+    """They share the auth route space — the selection must refuse up front."""
+    assert launcher._resolve_selection("auth,model_catalog") is None
 
 
-def test_every_starter_round_trips() -> None:
-    """Start every registered service for real, probe it, stop it via the
-    launcher's own stop callable (must not raise — B1), then confirm the port
-    is released.
+def _probe(opener: urllib.request.OpenerDirector, url: str, acceptable: tuple[int, ...]) -> None:
+    """Any of *acceptable* proves the route answers (alive); anything else fails."""
+    try:
+        with opener.open(url, timeout=5) as response:
+            assert response.status in acceptable, f"{url} -> {response.status}"
+    except urllib.error.HTTPError as exc:
+        assert exc.code in acceptable, f"{url} -> HTTP {exc.code}"
 
-    Iterates ``_SERVICES`` so a newly registered mock joins the round trip
-    automatically (telemetry will, per its design notes). One test (not
-    parametrized) on purpose: the round trips share the launcher's daemon
-    threads and must run sequentially inside one worker. Each starter takes
-    ``port=0`` — the OS-assigned ephemeral port the server factories support
-    for tests (their base_url/origin read the bound port back) — so the round
-    trip never depends on the fixed dev ports (7777/7778), which the CLI path
-    keeps fail-fast on purpose (DIRECTORY.md §6).
-    """
+
+def test_combined_server_answers_all_services_on_one_port() -> None:
+    """Auth + catalog + update routes on a single origin (single-port combo)."""
+    origin, server, _thread = start_combined(port=0, with_auth=True)
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    for _port, _description, starter in launcher._SERVICES.values():
-        origin, stop = starter(port=0)
-        try:
-            try:
-                with opener.open(origin, timeout=5) as response:
-                    # Any HTTP answer proves the server is up (a bare origin
-                    # path 404s on catalog/update, answers 200 on auth).
-                    assert response.status in (200, 404)
-            except urllib.error.HTTPError as exc:
-                assert exc.code in (200, 404)
-        finally:
-            stop()  # B1 regression: this must not raise AttributeError
-        probe = socket.socket()
-        try:
-            # Match the servers' own bind semantics (HTTPServer sets
-            # allow_reuse_address = 1): on Linux a bare bind into leftover
-            # TIME_WAIT tuples fails with EADDRINUSE even though the port is
-            # free for a server, while Windows allows it — aligning the probe
-            # makes the check mean the same thing on both platforms.
-            probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            # released for the next round trip (port actually bound above)
-            probe.bind(("127.0.0.1", urlparse(origin).port))
-        finally:
-            probe.close()
+    try:
+        # auth route: verify page answers 200 (no token bookkeeping needed)
+        _probe(opener, f"{origin}/device/verify", (200, 302, 404))
+        # catalog route: auth-gated, so an anonymous probe is 401 — still an answer
+        _probe(opener, f"{origin}/llm/api/v1/continue-config/dispatch", (200, 401))
+        # update route: frozen release-check path, query-less GET is a 400 — an answer
+        _probe(opener, f"{origin}/api/v2/releases/check", (200, 204, 304, 400))
+    finally:
+        server.shutdown()
+        server.server_close()
+    _assert_port_released(origin)
+
+
+def test_standalone_auth_starter_round_trips() -> None:
+    origin, stop = launcher._start_auth(port=0)
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    try:
+        _probe(opener, f"{origin}/device/verify", (200, 302, 404))
+    finally:
+        stop()  # B1 regression: this must not raise AttributeError
+    _assert_port_released(origin)
+
+
+def _assert_port_released(origin: str) -> None:
+    probe = socket.socket()
+    try:
+        # Match the servers' own bind semantics (HTTPServer sets
+        # allow_reuse_address = 1) so the check means the same on both platforms.
+        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        probe.bind(("127.0.0.1", urlparse(origin).port))
+    finally:
+        probe.close()
