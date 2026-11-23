@@ -10,6 +10,7 @@ Design: ``aixcoding/docs/batches/model-queue-client/design.md``.
 
 from chrys.service.aixcoding.llm_queue.queue_cancel import (
     QueueRequestTracker,
+    attach_queue_request_id,
     cancel_endpoint,
     track_queue_request,
 )
@@ -27,6 +28,7 @@ __all__ = [
     "TERMINAL_QUEUE_CODES",
     "QueueRequestTracker",
     "QueueStatus",
+    "attach_queue_request_id",
     "cancel_endpoint",
     "guard_queue_frames",
     "queue_position",

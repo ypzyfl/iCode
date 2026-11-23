@@ -208,6 +208,15 @@ class ChatCompletionsClient(WireClient):
         return self._complete(request, options)
 
     async def _complete(self, request: dict[str, Any], options: Mapping[str, Any]) -> ChatResponse:
+        # AIxCoding llm-queue: a blocking completion carries a request_id too, so the
+        # gateway can correlate it. No queue frames flow on this path, so no tracker
+        # is armed and an abort cannot leave the queue.
+        try:
+            from chrys.service.aixcoding.llm_queue import attach_queue_request_id
+
+            attach_queue_request_id(request)
+        except Exception:
+            logger.debug("aixcoding llm-queue 非流式请求附加 request_id 失败", exc_info=True)
         try:
             # The raw wrapper (it adds ``X-Stainless-Raw-Response: true``)
             # keeps the status, headers and body the diagnostics quote.

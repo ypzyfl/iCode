@@ -201,12 +201,13 @@ def test_profile_request_id_is_reused() -> None:
     assert request["extra_body"]["request_id"] == "given-id"
 
 
-def test_underivable_endpoint_leaves_the_request_alone() -> None:
+def test_underivable_endpoint_keeps_request_id_without_tracker() -> None:
     from chrys.service.aixcoding.llm_queue import track_queue_request
 
     request: dict[str, Any] = {}
     assert track_queue_request(request, model="m", base_url="ftp://h", api_key="k") is None
-    assert "extra_body" not in request
+    request_id = request["extra_body"]["request_id"]
+    assert isinstance(request_id, str) and len(request_id) == 32
 
 
 @pytest.mark.parametrize("status", [204, 404, 409, 500])
@@ -479,8 +480,8 @@ CHAT_COMPLETION = {
 }
 
 
-async def test_non_streaming_request_is_never_tracked(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Only streaming requests queue at the gateway, so only they carry a request_id."""
+async def test_non_streaming_request_carries_id_without_tracker(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Only streaming requests are tracked; blocking requests still carry a correlation request_id."""
     from chrys.kernel import Message
     from chrys.service.aixcoding.llm_queue import track_queue_request as real
     from chrys.service.llm.chat_completions.client import ChatCompletionsClient
@@ -517,4 +518,6 @@ async def test_non_streaming_request_is_never_tracked(monkeypatch: pytest.Monkey
         await client.aclose()
 
     assert armed == []
-    assert "request_id" not in json.dumps(json.loads(main_requests[0].content))
+    body = json.loads(main_requests[0].content)
+    request_id = body["request_id"]
+    assert isinstance(request_id, str) and len(request_id) == 32

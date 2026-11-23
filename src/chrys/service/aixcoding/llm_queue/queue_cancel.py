@@ -219,20 +219,25 @@ def track_queue_request(
 ) -> QueueRequestTracker | None:
     """Give *request* a ``request_id`` and return its queue tracker.
 
-    ``None`` means the customization is not armed (no model, no id, or a base URL
-    whose cancel endpoint cannot be derived): the request then goes out as before.
-    ``transport`` exists so tests can observe the cancel call; production passes none.
+    The id is attached whenever the request can carry one, also when the
+    cancel endpoint cannot be derived from *base_url*: server-side log
+    correlation does not depend on the cancel address. ``None`` then only
+    means the tracker is not armed: an abort cannot leave the queue, but the
+    request still carries its id. ``transport`` exists so tests can observe
+    the cancel call; production passes none.
     """
     if not model:
         _detail_logger.debug("网关排队取消未启用：请求没有 model")
         return None
+    request_id = attach_queue_request_id(request)
+    if request_id is None:
+        return None
     endpoint = cancel_endpoint(base_url)
     if endpoint is None:
-        logger.debug("网关排队取消跳过：base_url %r 无法推导取消地址", base_url)
-        _detail_logger.warning("网关排队取消不可用：base_url %r 无法推导取消地址", base_url)
-        return None
-    request_id = _attach_request_id(request)
-    if request_id is None:
+        logger.debug("网关排队取消跳过：base_url %r 无法推导取消地址（request_id=%s）", base_url, request_id)
+        _detail_logger.warning(
+            "网关排队取消不可用：base_url %r 无法推导取消地址（request_id=%s）", base_url, request_id
+        )
         return None
     _detail_logger.debug(
         "网关排队取消已就绪：request_id=%s endpoint=%s model=%s base_url=%r",
@@ -250,9 +255,11 @@ def track_queue_request(
     )
 
 
-def _attach_request_id(request: dict[str, Any]) -> str | None:
-    """The ``request_id`` this request carries, generated into ``extra_body`` when absent.
+def attach_queue_request_id(request: dict[str, Any]) -> str | None:
+    """Attach and return the ``request_id`` *request* carries, generating one when absent.
 
+    Called for every Chat Completions completion, streamed or not: the id is the
+    gateway's log-correlation key, so it goes out even when no tracker is armed.
     A profile-provided value is reused by design (single-flight tests rely on it).
     Concurrent requests on the same profile then share one id, so the gateway's
     position heartbeat and cancel attribution can cross; use a fixed id only for
@@ -267,7 +274,8 @@ def _attach_request_id(request: dict[str, Any]) -> str | None:
         return None
     existing = extra.get(REQUEST_ID_FIELD)
     if isinstance(existing, str) and existing.strip():
-        _detail_logger.debug(
+        logger.info("复用请求自带的 request_id=%s", existing)
+        _detail_logger.info(
             "复用 profile 指定的 request_id=%s；同一 profile 的并发请求会共享该 id，取消/心跳归属可能混淆",
             existing,
         )
@@ -278,6 +286,8 @@ def _attach_request_id(request: dict[str, Any]) -> str | None:
     request["extra_body"] = extra
     request_id = uuid.uuid4().hex
     extra[REQUEST_ID_FIELD] = request_id
+    logger.info("已生成并附加 request_id=%s（extra_body 携带，SDK 合并到请求体顶层）", request_id)
+    _detail_logger.info("已生成并附加 request_id=%s（extra_body 携带，SDK 合并到请求体顶层）", request_id)
     return request_id
 
 

@@ -63,7 +63,8 @@ R1 自查（必答）：
 
 | 文件 | 改什么 | 实际行数 | 标记注释位置 |
 |---|---|---|---|
-| `src/chrys/service/llm/chat_completions/client.py` | `updates()` 内把 `chunks` 换成 `guard_queue_frames(chunks)`：函数内 lazy import 定制包，任何异常回退原迭代器（全吞错） | +10/−0 | `# AIxCoding llm-queue: guard gateway queue frames (src/chrys/service/aixcoding/llm_queue)` |
+| `src/chrys/service/llm/chat_completions/client.py` | `updates()` 内把 `chunks` 换成 `guard_queue_frames(chunks)`：函数内 lazy import 定制包，任何异常回退原迭代器（全吞错）；v1.2 在 `_complete` 增加非流式 attach | +19/−0 | `# AIxCoding llm-queue: guard gateway queue frames`、`# AIxCoding llm-queue: a blocking completion carries a request_id too` |
+| `tests/orchestration/engine/test_settings_reload.py` | v1.2 重载等价比较前移除并校验两个不同的合法 `request_id`，其余请求体仍全字段相等 | +5/−1 | `# AIxCoding llm-queue: reload equivalence excludes the per-request correlation id` |
 | `tests/architecture/trajectory_wait_manifest.json` | 生成产物：新增 1 条 wait 节点 `chrys.service.aixcoding.llm_queue.queue_frames:guard_queue_frames:1`（`await anext(iterator)`，规则 `unresolved`），刷新命令 `uv run python -m tests.support.trajectory_wait_inventory` | +5 | 无（`MARKER_EXEMPTIONS` 生成产物，见 `aixcoding/tools/_common.py`） |
 
 R2 报批说明：
@@ -85,6 +86,8 @@ R2 报批说明：
 |---|---|---|---|---|---|---|
 | model-queue-client:queue-frame-guard | src/chrys/service/llm/chat_completions/client.py | AIxCoding llm-queue: guard gateway queue frames | 1 | `AsyncOpenAI.chat.completions` chunk 迭代（`StreamState.updates_for` 校验前） | 低（10 行接线，异常全吞错，删除即回滚） | 〔上游等价〕SDK 原生忽略未知具名事件且网关改以 HTTP 状态码表达排队拒绝，或网关不再对客户端下发 `queue_status` |
 | model-queue-client:queue-cancel | src/chrys/service/llm/chat_completions/client.py | AIxCoding llm-queue: cancel queued request on abort | 3 | `_open_stream`（tracker 构造 / `on_status` 包装 / `finally` 取消） | 中（放行空窗误判只多一次 `409` 旁路请求，契约内） | 〔上游等价〕上游提供 wire 层请求生命周期钩子（abort/close 回调） |
+| model-queue-client:queue-request-id | src/chrys/service/llm/chat_completions/client.py | AIxCoding llm-queue: a blocking completion carries a request_id too | 1 | `_complete`（非流式请求发送前 attach） | 低（仅附加网关契约字段并记录日志，异常维持原有降级） | 〔上游等价〕上游提供所有协议统一的请求 ID 注入钩子 |
+| model-queue-client:queue-request-id-reload-test | tests/orchestration/engine/test_settings_reload.py | AIxCoding llm-queue: reload equivalence excludes the per-request correlation id | 1 | `test_manual_reload_next_provider_request`（比较前移除并校验 id） | 低（仅测试归一化，仍逐字段比较其余请求体） | 〔上游等价〕上游原生生成请求 ID 并同步调整该测试 |
 
 ## 风险与最坏情况
 
@@ -223,3 +226,27 @@ R2 报批说明：
 
 - 风险点与 v1.0 同源：仍依赖上游非公开行为（SDK `extra_body` 合并、`finally` 在取消时执行）；不新增 ADR，
   在既有 `model-queue-client--queue-frame-interception` 的决策范围内。
+
+---
+
+## 变更单 v1.2（2026-11-23，责任人裁决）：所有 Chat Completions 请求携带 request_id
+
+责任人在对话中选择方案 A，并要求流式/非流式都必须携带 `request_id`，主日志与落盘明细日志均有记录：
+
+- 流式沿用 `track_queue_request`；生成/复用 id 与 cancel endpoint 推导解耦，推导失败时仍保留 id，仅不武装 tracker。
+- 非流式 `_complete` 在 SDK 调用前执行同一 `attach_queue_request_id`，不接 tracker（非流式无排队帧）。
+- 新生成与复用 profile id 均写模块主日志和 `aixcoding.detail.llm_queue` 明细文件通道（INFO）。
+- 不扩展 anthropic/openai_responses：网关对接契约仅提供 Chat Completions 端点。
+- wire 回归测试同时断言流式/非流式实际 JSON 顶层 `request_id`、profile 复用与双日志通道。
+
+### 上游改动清单（R2，相对 v1.1 的增量）
+
+| 文件 | 改什么 | 实际行数 | 标记注释位置 |
+|---|---|---|---|
+| `src/chrys/service/llm/chat_completions/client.py` | `_complete` 发送前 lazy import 并 attach；失败仅记日志，维持原有降级行为 | +9/−0 | `# AIxCoding llm-queue: a blocking completion carries a request_id too` |
+| `tests/orchestration/engine/test_settings_reload.py` | 重载等价比较前移除并校验两个不同的合法 `request_id`，其余请求体仍全字段相等 | +5/−1 | `# AIxCoding llm-queue: reload equivalence excludes the per-request correlation id` |
+
+非上游改动：`queue_cancel.py` 拆分公开 attach、调整 tracker 推导顺序并双写 INFO 日志；`llm_queue/__init__.py` 导出；
+新增 `aixcoding/tests/llm/test_llm_queue_request_id.py`，并同步 `aixcoding/tests/llm/test_model_queue_cancel.py` 两处旧行为断言。
+登记行 `model-queue-client:queue-request-id`、`model-queue-client:queue-request-id-reload-test` 已并入主表。
+本正文增量按 R10 仍需责任人本人重签头部，AI 未代填。
