@@ -88,8 +88,9 @@ DEFAULT_RESOURCE_EXTENSIONS: tuple[str, ...] = (
 # Depth 1 means the skill root only; depth 2 adds one subdirectory level, depth 3 two.
 DEFAULT_SEARCH_DEPTH = 3
 
-# Lowercase letters, numbers, hyphens; no leading/trailing/consecutive hyphens.
-VALID_NAME_RE = re.compile(r"^[a-z0-9]([a-z0-9]*-[a-z0-9])*[a-z0-9]*$")
+# AIxCoding skills: accept the desktop client's CamelCase skill names (skills-aixcoding-dirs v5)
+# Letters, numbers, hyphens; no leading/trailing/consecutive hyphens.
+VALID_NAME_RE = re.compile(r"^[a-zA-Z0-9]([a-zA-Z0-9]*-[a-zA-Z0-9])*[a-zA-Z0-9]*$")
 
 # YAML frontmatter delimited by "---" lines; the \uFEFF (regex-level escape)
 # allows an optional UTF-8 BOM before the opening delimiter. Each delimiter is one
@@ -142,9 +143,10 @@ def validate_skill_metadata(name: str | None, description: str | None, compatibi
     if not name or not name.strip():
         return "frontmatter is missing a `name`"
     if len(name) > MAX_NAME_LENGTH or not VALID_NAME_RE.match(name):
+        # AIxCoding skills: message kept in sync with the relaxed charset (skills-aixcoding-dirs v5)
         return (
             f"invalid skill name '{name}': must be {MAX_NAME_LENGTH} characters or fewer, "
-            "using only lowercase letters, numbers, and hyphens, with no leading, trailing, "
+            "using only letters, numbers, and hyphens, with no leading, trailing, "
             "or consecutive hyphens"
         )
     if not description or not description.strip():

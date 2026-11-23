@@ -3,16 +3,18 @@
 """aixcoding local skill roots — unit tests for the desktop-shared contract.
 
 Covers ``chrys.service.aixcoding.skill_paths`` (the seven desktop roots, the
+desktop-installed storage across environments and accounts, the
 team-directory enumeration, both profile toggles) and the upstream hook in
 ``_collect_skill_paths`` that merges them.  Isolation is per-test monkeypatch
-of ``skill_paths.user_aixcoding_dir`` — this suite does not depend on the
-upstream tests' config-dir redirect.
+of ``skill_paths.user_aixcoding_dir`` / ``desktop_app_data_dir`` — this suite
+does not depend on the upstream tests' config-dir redirect.
 """
 
 from __future__ import annotations
 
 import contextlib
 import dataclasses
+import json
 import sys
 from pathlib import Path
 
@@ -37,6 +39,7 @@ def _fake_home(monkeypatch: pytest.MonkeyPatch, home: Path) -> None:
     import chrys.service.aixcoding.skill_paths as skill_paths
 
     monkeypatch.setattr(skill_paths, "user_aixcoding_dir", lambda: home / ".aixcoding")
+    monkeypatch.setattr(skill_paths, "desktop_app_data_dir", lambda: home / "app-data")
 
 
 def _place_skill(root: Path, skill_name: str = "demo") -> Path:
@@ -44,6 +47,20 @@ def _place_skill(root: Path, skill_name: str = "demo") -> Path:
     skill_dir.mkdir(parents=True)
     (skill_dir / "SKILL.md").write_text(SKILL_MD, encoding="utf-8")
     return root
+
+
+def _place_desktop_skill(
+    app_data: Path,
+    environment: str,
+    account: str,
+    skill_name: str = "demo",
+) -> Path:
+    """Create the desktop's installed-skill content dir and one skill; return the root."""
+    container = app_data / "AIxCoding"
+    if environment:
+        container = container / environment
+    content_root = container / "users" / account / "private" / "skills" / "system"
+    return _place_skill(content_root, skill_name)
 
 
 # --- HOME trees: roots appear / toggle off -----------------------------------
@@ -205,6 +222,140 @@ def test_scan_order_matches_desktop(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     assert cwd_aix_index < agents_cwd_index
 
 
+# --- Desktop installed storage (v4) --------------------------------------------
+
+
+def test_desktop_installed_skill_paths_enumerated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every environment times every account contributes one root, sorted by name."""
+    home = tmp_path / "home"
+    app_data = home / "app-data"
+    development_first = _place_desktop_skill(app_data, "development", "u-1")
+    development_second = _place_desktop_skill(app_data, "development", "u-2")
+    production = _place_desktop_skill(app_data, "production", "u-1")
+    _fake_home(monkeypatch, home)
+
+    paths = _collect_skill_paths(SkillsConfig())
+
+    for root in (development_first, development_second, production):
+        assert str(root.resolve()) in paths
+    assert paths.index(str(development_first.resolve())) < paths.index(str(development_second.resolve()))
+    assert paths.index(str(development_second.resolve())) < paths.index(str(production.resolve()))
+
+
+def test_desktop_installed_skill_paths_without_environment_layer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The data root itself is a user container too (legacy layout)."""
+    home = tmp_path / "home"
+    app_data = home / "app-data"
+    root = _place_desktop_skill(app_data, "", "u-1")
+    _fake_home(monkeypatch, home)
+
+    paths = _collect_skill_paths(SkillsConfig())
+
+    assert str(root.resolve()) in paths
+
+
+def test_desktop_installed_skill_paths_skip_hidden_and_symlink(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home = tmp_path / "home"
+    app_data = home / "app-data"
+    real_root = _place_desktop_skill(app_data, "development", "u-1")
+    _place_desktop_skill(app_data, ".hidden-environment", "u-1")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere_root = _place_skill(elsewhere / "users" / "u-1" / "private" / "skills" / "system")
+    with contextlib.suppress(OSError):  # platform without symlink privilege
+        (app_data / "AIxCoding" / "linked-environment").symlink_to(elsewhere, target_is_directory=True)
+    with contextlib.suppress(OSError):
+        (app_data / "AIxCoding" / "development" / "users" / "linked-account").symlink_to(
+            elsewhere, target_is_directory=True
+        )
+    _fake_home(monkeypatch, home)
+
+    paths = _collect_skill_paths(SkillsConfig())
+
+    assert str(real_root.resolve()) in paths
+    assert all(".hidden-environment" not in path for path in paths)
+    assert str(elsewhere_root.resolve()) not in paths
+
+
+def test_desktop_installed_skill_paths_missing_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A machine without the desktop client adds no roots and never raises."""
+    home = tmp_path / "home"
+    _fake_home(monkeypatch, home)
+
+    paths = _collect_skill_paths(SkillsConfig())
+
+    assert all("AIxCoding" not in path for path in paths)
+
+
+def test_desktop_data_root_permission_error_keeps_hand_placed_roots(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """N1 anchor: an unreadable data root yields no installed roots without
+    discarding the hand-placed trees already collected by the caller."""
+    home = tmp_path / "home"
+    _place_skill(home / ".aixcoding" / "skills")
+    _fake_home(monkeypatch, home)
+    data_root = home / "app-data" / "AIxCoding"
+    real_is_dir = Path.is_dir
+
+    def _denied_is_dir(self: Path, *args: object, **kwargs: object) -> bool:
+        if self == data_root:
+            raise PermissionError("denied")
+        return real_is_dir(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "is_dir", _denied_is_dir)
+
+    paths = _collect_skill_paths(SkillsConfig())
+
+    assert str((home / ".aixcoding" / "skills").resolve()) in paths
+    assert all("AIxCoding" not in path for path in paths)
+
+
+def test_desktop_installed_skill_paths_skipped_when_toggle_off(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home = tmp_path / "home"
+    app_data = home / "app-data"
+    _place_desktop_skill(app_data, "development", "u-1")
+    _fake_home(monkeypatch, home)
+
+    paths = _collect_skill_paths(SkillsConfig(auto_load_aixcoding_user_skills=False))
+
+    assert all(str(app_data.resolve()) not in path for path in paths)
+
+
+def test_desktop_installed_roots_between_intellij_and_agents(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Scan order: hand-placed trees, then the installed storage, then .agents."""
+    home = tmp_path / "home"
+    app_data = home / "app-data"
+    _place_skill(home / ".aixcoding_intellij" / "skills")
+    desktop_root = _place_desktop_skill(app_data, "development", "u-1")
+    _fake_home(monkeypatch, home)
+    monkeypatch.setattr("chrys.service.skills.adapter.user_agents_dir", lambda: home / ".agents")
+
+    paths = _collect_skill_paths(SkillsConfig())
+
+    intellij_index = paths.index(str((home / ".aixcoding_intellij" / "skills").resolve()))
+    desktop_index = paths.index(str(desktop_root.resolve()))
+    agents_index = paths.index(str((home / ".agents" / "skills").resolve()))
+    assert intellij_index < desktop_index < agents_index
+
+
+def test_desktop_disabled_skill_is_still_discovered(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Installation is not enablement: the desktop's enabled flag is never read."""
+    home = tmp_path / "home"
+    app_data = home / "app-data"
+    content_root = _place_desktop_skill(app_data, "development", "u-1", "disabled-skill")
+    (content_root.parent / "active-candidates.json").write_text(
+        json.dumps({"candidates": [{"candidate": {"skillNameEn": "disabled-skill", "enabled": False}}]}),
+        encoding="utf-8",
+    )
+    _fake_home(monkeypatch, home)
+
+    paths = _collect_skill_paths(SkillsConfig())
+
+    assert str(content_root.resolve()) in paths
+
+
 # --- Profile parsing -----------------------------------------------------------
 
 
@@ -264,6 +415,24 @@ def test_platform_redirect_covers_aixcoding_dir(tmp_path: Path, monkeypatch: pyt
         # dataclasses.replace keeps unspecified fields intact.
         redirected = dataclasses.replace(fake, config_dir=pinned)
         assert redirected.aixcoding_dir == pinned / ".aixcoding"
+        assert redirected.data_dir == fake.data_dir
+    finally:
+        platform_module.get_platform.cache_clear()
+
+
+def test_platform_redirect_covers_app_data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The installed-storage helper reads ``PlatformInfo.app_data_dir``, so the
+    same redirect isolates the desktop client's storage from upstream tests."""
+    pinned = tmp_path / "platform-config"
+    fake = dataclasses.replace(platform_module.get_platform(), app_data_dir=pinned / "app-data")
+    monkeypatch.setattr(platform_module, "detect_platform", lambda: fake)
+    platform_module.get_platform.cache_clear()
+    try:
+        assert skill_paths_module.desktop_app_data_dir() == pinned / "app-data"
+        assert skill_paths_module.desktop_app_data_dir() != platform_module._conventional_app_data_dir()
+        # dataclasses.replace keeps unspecified fields intact.
+        redirected = dataclasses.replace(fake, config_dir=pinned)
+        assert redirected.app_data_dir == pinned / "app-data"
         assert redirected.data_dir == fake.data_dir
     finally:
         platform_module.get_platform.cache_clear()
