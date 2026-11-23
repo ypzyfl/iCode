@@ -288,6 +288,30 @@ def test_desktop_installed_skill_paths_missing_root(tmp_path: Path, monkeypatch:
     assert all("AIxCoding" not in path for path in paths)
 
 
+def test_desktop_data_root_permission_error_keeps_hand_placed_roots(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """N1 anchor: an unreadable data root yields no installed roots without
+    discarding the hand-placed trees already collected by the caller."""
+    home = tmp_path / "home"
+    _place_skill(home / ".aixcoding" / "skills")
+    _fake_home(monkeypatch, home)
+    data_root = home / "app-data" / "AIxCoding"
+    real_is_dir = Path.is_dir
+
+    def _denied_is_dir(self: Path, *args: object, **kwargs: object) -> bool:
+        if self == data_root:
+            raise PermissionError("denied")
+        return real_is_dir(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "is_dir", _denied_is_dir)
+
+    paths = _collect_skill_paths(SkillsConfig())
+
+    assert str((home / ".aixcoding" / "skills").resolve()) in paths
+    assert all("AIxCoding" not in path for path in paths)
+
+
 def test_desktop_installed_skill_paths_skipped_when_toggle_off(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home = tmp_path / "home"
     app_data = home / "app-data"

@@ -165,7 +165,12 @@ def desktop_installed_skill_paths() -> list[str]:
     skill is still discovered.
     """
     data_root = desktop_app_data_dir() / _DESKTOP_APP_DIRECTORY
-    if not data_root.is_dir():
+    try:
+        if not data_root.is_dir():
+            return []
+    except OSError:
+        # An unreadable data root (e.g. permission denied) yields no installed
+        # roots — the hand-placed trees collected by the caller stay intact.
         return []
     roots: list[str] = []
     for user_container in [data_root, *_real_subdirectory_paths(data_root)]:

@@ -124,8 +124,12 @@
   AIxCoding 技能全部缺席）。触发条件为 `<appData>/AIxCoding` 权限拒绝，罕见。
   建议最小修复：168 行包 try/except OSError → `return []`（与本函数
   「unreadable container yields no roots」docstring 契约一致），3 行。
-  评审未擅自修改（超出 PR#143 评审 9 项范围，待责任人裁决）。
+  **2026-11-23 责任人授权修复**：按建议方案落地（`desktop_installed_skill_paths`
+  数据根 `is_dir()` 包 try/except OSError → `return []`）；新增回归锚
+  `test_desktop_data_root_permission_error_keeps_hand_placed_roots`（数据根
+  PermissionError 时 hand-placed 根仍在、安装根为零）；复跑
+  `aixcoding/tests/skills` **28 passed**，ruff/format 全绿。
 
 ### 未修项
 
-- 无 blocker；N1 为唯一 minor 备案，待裁决。
+- 无 blocker/minor 未修。N1 已于 2026-11-23 修复并留档（见上）。

@@ -57,3 +57,6 @@
 | 5 | 登记对账 | `uv run python aixcoding/tools/gen_customizations.py --strict` | OK — **108 行登记 / 159 marker / 0 warning**（与 peer review 复跑一致；v4/v5 commit message 中的 115/162、116/164 为当时基线数字，merge 后漂移属正常） |
 | 6 | 文档校验 | `uv run python aixcoding/tools/check_docs.py` | OK（27 ADR / 49 design / 48 self-review） |
 | 7 | Peer review 独立复跑（评审方留证） | 同 #1/#2 子集 + #5 + #6 | 27 passed；115 passed, 8 skipped（test_loader+test_adapter 子集）；--strict OK；check_docs OK |
+| 8 | N1 修复回归（2026-11-23 授权修复后） | `uv run pytest aixcoding/tests/skills -n0 -q -p no:cacheprovider` | **28 passed**（+N1 锚：数据根 PermissionError 不连累 hand-placed 根）；ruff/format 全绿 |
+| 9 | 本机冒烟（真实桌面端存储，plan v4 待办补验） | 实机调用 `desktop_installed_skill_paths()` + `load_file_skill` | 发现 1 安装根（`development` 环境 × 1 账号）；3 个真实驼峰技能 **Prompt-Engineering-Handbook / React-Code-Standard / Vue-Migration-Guide** 全部被发现且经 `load_file_skill` 返回 `Skill`——v5「扫得到、用不了」阻塞实证解除 |
+| 10 | 污染回归（本机实存技能，plan v4 待办补验） | `uv run pytest tests/service/skills/test_adapter.py tests/orchestration/workflows/test_agent_parity.py -n0 -q` | **67 passed, 1 skipped**——本机实存技能未污染上游测试 |

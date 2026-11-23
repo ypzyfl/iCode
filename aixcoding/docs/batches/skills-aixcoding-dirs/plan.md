@@ -46,10 +46,10 @@ PR #107，终态提交 `0697ab68`）。
   `tests/conftest.py` 两处补齐 patch、定制包 `desktop_app_data_dir()` +
   `desktop_installed_skill_paths()`（追加进 `user_aixcoding_skill_paths`）
 - [x] 定制测试：`aixcoding/tests/skills` 新增 8–8f 用例（含「禁用技能仍被扫」反向锚）
-- [ ] 验证与门禁：`verify.py --smart`、污染回归（本机 3 个已安装技能）、冒烟
+- [x] 验证与门禁：`verify.py --smart`、污染回归（本机 3 个已安装技能）、冒烟
   （`React-Code-Standard` 等被发现）、ruff/format/ty 三平台、`--strict` 登记对账
-  ——ruff/format/ty 三平台与 `--strict` 已于 2026-11-23 复跑留档（verification.md v4/v5
-  矩阵）；**本机污染回归与冒烟无留档，待责任人补验或裁决豁免**
+  ——2026-11-23 全部补验留档（verification.md v4/v5 矩阵 #8-#10）：本机冒烟发现
+  3 个真实驼峰技能且全部加载为 `Skill`、污染回归 67 passed, 1 skipped
 - [x] 双 AI 自审（换与主力开发不同的 AI）+ `self-review.md` 追加本轮记录 + 交付 PR
   ——Kimi-K3.1-pro 独立评审（2026-11-23，0 blocker + N1 备案）已追加 self-review.md
 
