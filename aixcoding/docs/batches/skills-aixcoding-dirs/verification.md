@@ -40,3 +40,20 @@
 |---|---|---|---|
 | 第一轮 | 独立评审 AI（CodeBuddy 子代理，只读，very thorough） | 1 blocker + 6 minor + 14 项核对通过 | 全部处置（见 self-review.md） |
 | 第二轮 | 独立复审 AI（同上，增量复审） | 修复项通过；新发现 3 小项（断言方向反、design 验证命令旧路径、行号漂移）+ configuration.md 备案判断成立 | 全部修复；复跑全绿 |
+| 第三轮（v4/v5） | Kimi-K3.1-pro / CodeBuddy（独立会话，与开发 AI 不同模型） | 0 blocker + 1 minor 备案（N1 desktop 根枚举失败连累 hand-placed 列表） | N1 备案待责任人裁决（见 self-review.md） |
+
+## v4/v5 验证矩阵（2026-11-23 复跑）
+
+> 全部命令于 2026-11-23 在开发机（Windows，Python 3.14.8）实际执行，执行时点为
+> PR#143 评审修复（A1 函数私有化 + minor 7/8 重复收敛）后的终态工作区；
+> 合并 `origin/main_aixcoding_cli@b591daa2`（PR#139/#141）后数字。
+
+| # | 验证项 | 命令 | 结果 |
+|---|---|---|---|
+| 1 | 定制套件（v4 七用例 + app_data_dir 机制回归 + v5 双向锚） | `uv run pytest aixcoding/tests/skills -n0 -q -p no:cacheprovider` | **27 passed**（v3 基线 17 → +7 v4 用例 +1 机制回归 +2 v5 字符集） |
+| 2 | 上游直接相关面（含 `Bad_Name` 反例） | `uv run pytest tests/service/skills/test_loader.py tests/service/skills/test_adapter.py tests/foundation/platform -n0 -q -p no:cacheprovider` | **458 passed, 83 skipped**——字符集放宽后上游反例仍绿 |
+| 3 | ruff check / format | `uv run ruff check <3 修改文件>`；`ruff format --check <同上>` | 0 error；格式全绿 |
+| 4 | ty 三平台 | `uv run ty check --error-on-warning --python-platform {win32,linux,darwin} src/chrys` | 三平台全绿 |
+| 5 | 登记对账 | `uv run python aixcoding/tools/gen_customizations.py --strict` | OK — **108 行登记 / 159 marker / 0 warning**（与 peer review 复跑一致；v4/v5 commit message 中的 115/162、116/164 为当时基线数字，merge 后漂移属正常） |
+| 6 | 文档校验 | `uv run python aixcoding/tools/check_docs.py` | OK（27 ADR / 49 design / 48 self-review） |
+| 7 | Peer review 独立复跑（评审方留证） | 同 #1/#2 子集 + #5 + #6 | 27 passed；115 passed, 8 skipped（test_loader+test_adapter 子集）；--strict OK；check_docs OK |

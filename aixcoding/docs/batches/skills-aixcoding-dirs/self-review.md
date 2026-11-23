@@ -76,3 +76,56 @@
   HOME 之下的路径包含关系）——均由测试失败输出直接暴露，当场修正；
 - 登记表初版不符合 `gen_customizations.py` 规范（id 格式、落点列混排、except 注释
   anchor 前缀不统一）——初检 26 错，按 guard-hooks 先例格式重写后通过。
+
+## 2026-11-23 评审结论：通过（v4/v5 独立评审，1 轮；0 blocker + 1 minor 备案）
+
+- 评审范围：v4（2026-11-18 安装存储纳入，提交 32a89d03）+ v5（2026-11-23 规范门字符集
+  放宽，提交 3cba1a05）+ main 合并（30d7e9f9）+ PR#143 评审修复后的终态工作区。
+  PR diff 11 文件（3 上游代码 + 1 定制代码 + 2 定制测试 + 5 批次文档）。
+- 开发 AI：GLM-5.3 / CodeBuddy（v4/v5 实现）。
+- 评审 AI：**Kimi-K3.1-pro / CodeBuddy**（独立会话，只读评审；与开发 AI 不同模型，
+  满足 plan「双 AI 自审（换与主力开发不同的 AI）」要求）。
+- 前置说明：本 AI 同时执行了 PR#143 peer review 的修复项（A1 函数私有化、minor 7/8
+  重复收敛），故该三处不作为独立评审发现计入；评审对象为修复后终态。
+
+### 检查项结论（8 项）
+
+- **越权 / R2 对名**：上游 platform/conftest/loader 三文件全部改动行带
+  `# AIxCoding skills:` 标记，与 design R2 清单第 2/3/12 项对名一致；v5 loader 两处
+  （`VALID_NAME_RE` + 错误文案）对应登记 `skills-aixcoding-dirs:loader-name-charset`。
+- **幻觉 API**：`Path.is_junction()` / `DirEntry.is_junction()`（3.12+，3.14 pin 可用）、
+  `dataclasses.replace`、`os.scandir` 均为真实 API，无幻觉。
+- **吞错边界**：`_real_subdirectory_paths` 吞 OSError 时必有 detail 日志（不静默）；
+  `user_/cwd_aixcoding_skill_paths` 外层 except 记 detail 后 re-raise（不吞），上游
+  adapter 的 swallow 契约不变。
+- **Windows 路径语义**：根列表统一 `resolve()`；symlink/junction 双跳过；
+  `entry.is_dir(follow_symlinks=False)`；`desktop_installed_skill_paths` 的 content_root
+  已排除链接故无需再 resolve——一致。
+- **v4 实现保真**：全环境×全账号枚举、`data_root` 兼作 user_container（legacy 无环境层
+  布局）、`active-candidates.json` 不解析（D1 安装≠启用）与 design 一致。
+- **v5 实现保真**：`VALID_NAME_RE` 仅加 `A-Z`，原合法名集合是严格子集（无收窄回归）；
+  错误文案同步；`MAX_NAME_LENGTH` 及其余约束不动。
+- **测试有效性**：v4 七用例（8-8f：枚举+排序 / legacy 布局 / hidden+symlink 双链接 /
+  缺根不抛 / 开关关闭 / intellij&lt;desktop&lt;agents 次序 / 禁用仍发现反向锚）+
+  `test_platform_redirect_covers_app_data_dir` 机制回归 + v5 双向锚（CamelCase 接受 /
+  `Bad_Name` 拒绝）——断言方向核实无恒真，隔离为双 monkeypatch
+  （`user_aixcoding_dir` + `desktop_app_data_dir`），不依赖上游 conftest 重定向。
+- **上游测试影响面**（本机复跑）：`aixcoding/tests/skills` 27 passed；
+  `tests/service/skills/test_loader.py test_adapter.py tests/foundation/platform`
+  458 passed, 83 skipped——上游 `Bad_Name` 反例仍绿。
+
+### 新发现 minor（1 条，备案，处置由责任人裁决）
+
+- **N1 desktop 存储根枚举失败连累 hand-placed 根列表**：`skill_paths.py:168`
+  `data_root.is_dir()` 未包 try/except（同函数 175 行 `content_root.is_dir()` 却有
+  per-entry 隔离，实现内部不一致）。Python 3.14 `Path.is_dir()` 对 permission errors
+  传播 OSError，将冒泡至 `user_aixcoding_skill_paths` 外层 except——**已收集的
+  skills/market-skills/team 根随异常整体丢失**（会话不阻塞、detail 有日志，但用户级
+  AIxCoding 技能全部缺席）。触发条件为 `<appData>/AIxCoding` 权限拒绝，罕见。
+  建议最小修复：168 行包 try/except OSError → `return []`（与本函数
+  「unreadable container yields no roots」docstring 契约一致），3 行。
+  评审未擅自修改（超出 PR#143 评审 9 项范围，待责任人裁决）。
+
+### 未修项
+
+- 无 blocker；N1 为唯一 minor 备案，待裁决。

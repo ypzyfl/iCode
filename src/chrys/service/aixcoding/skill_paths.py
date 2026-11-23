@@ -100,7 +100,7 @@ def _real_subdirectory_paths(container: Path) -> list[Path]:
         # The common case: the user never created this tree — not an event.
         return []
     except OSError as exc:
-        _detail_log.log(_DETAIL_LEVEL, "团队技能目录枚举失败：%s", exc)
+        _detail_log.log(_DETAIL_LEVEL, "技能目录枚举失败：%s", exc)
         return []
     roots: list[Path] = []
     for entry in found:
@@ -118,31 +118,10 @@ def _real_subdirectory_paths(container: Path) -> list[Path]:
 def _team_skill_dirs(container: Path) -> list[str]:
     """Return each immediate team directory of *container* as a skill root.
 
-    Mirrors the desktop client's ``userTeamSkillRoots``: hidden entries,
-    symbolic links, and Windows junctions are skipped, roots are sorted by
-    name, an unreadable or missing container yields no roots, and one broken
-    entry never removes the other roots.
+    Stringified view of ``_real_subdirectory_paths`` — the desktop client's
+    ``userTeamSkillRoots`` enumeration semantics live there.
     """
-    try:
-        with os.scandir(container) as entries:
-            found = sorted(entries, key=lambda entry: entry.name)
-    except FileNotFoundError:
-        # The common case: the user never created this tree — not an event.
-        return []
-    except OSError as exc:
-        _detail_log.log(_DETAIL_LEVEL, "团队技能目录枚举失败：%s", exc)
-        return []
-    roots: list[str] = []
-    for entry in found:
-        try:
-            if entry.name.startswith(".") or entry.is_symlink() or entry.is_junction():
-                continue
-            if not entry.is_dir(follow_symlinks=False):
-                continue
-            roots.append(str(Path(entry.path).resolve()))
-        except OSError:
-            continue
-    return roots
+    return [str(root) for root in _real_subdirectory_paths(container)]
 
 
 def user_aixcoding_skill_paths(config: SkillsConfig) -> list[str]:

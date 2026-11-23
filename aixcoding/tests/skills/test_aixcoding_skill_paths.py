@@ -405,7 +405,7 @@ def test_platform_redirect_covers_app_data_dir(tmp_path: Path, monkeypatch: pyte
     platform_module.get_platform.cache_clear()
     try:
         assert skill_paths_module.desktop_app_data_dir() == pinned / "app-data"
-        assert skill_paths_module.desktop_app_data_dir() != platform_module.conventional_app_data_dir()
+        assert skill_paths_module.desktop_app_data_dir() != platform_module._conventional_app_data_dir()
         # dataclasses.replace keeps unspecified fields intact.
         redirected = dataclasses.replace(fake, config_dir=pinned)
         assert redirected.app_data_dir == pinned / "app-data"
