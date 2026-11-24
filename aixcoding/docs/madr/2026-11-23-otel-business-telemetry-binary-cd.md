@@ -22,3 +22,11 @@
 - 伴随包已发布 `v0.1.0a4`，来源提交 `09a392a7c790339186536d760cd627bc0c42edb4`，manifest SHA256 为 `8cd05caedd54506e64ffbde17d3aeb8fe967cbf1605f46a88f68b51c0a08a92d`。该版本的固定宿主环境安装验证与 59 项单测通过。
 - CD 改为消费 `adapter_release` 与 `adapter_manifest_sha256`，先核验固定 manifest，再下载 wheel、工具及验证报告，逐项检查摘要和工具归档布局，保留同一 manifest 作为最终制品的适配器来源记录。
 - 私有 Release 下载仍通过上游专用只读 secret，原生编译、六平台矩阵和最终资源包验收继续由 iCode 执行。
+
+## 2026-11-24 Windows 隔离目录修复交付
+
+- 默认伴随包更新为已发布的 `v0.1.0a5`，来源提交 `cc6ac417a558ca8d81fae2fa033b2a6c0b48c827`，正式 `release-manifest.json` SHA256 为 `7fb24304c7d873fac1de712b208a7743a9121d3e11307caaa95b66f771a05633`。版本和摘要必须成对消费。
+- 修复来自伴随包 PR #3：在首次启动 PyApp 前创建隔离用户的 AppData/XDG 目录，解决 Windows 首次 `--version` 的 `unable to find platform directories`。未改宿主运行时代码或依赖。
+- 正式发布工作流 https://github.com/MEDADA/aixcoding-telemetry-adapter/actions/runs/45378593083 成功；Windows x64、ARM64 原生目录 API 检查通过，固定宿主环境安装 wheel 后 61 项单测成功（Linux 跳过 1 项 Windows API 检查）。已下载全部正式资产，使用伴随包校验器和本仓输入校验器核验摘要、来源、报告及工具布局。
+- 本次仅更新输入组合；完整平台资源包与业务/ACP smoke 以新 CD 运行结果为准。历史 a4 不覆盖，回滚必须恢复整套已验收组合。
+
