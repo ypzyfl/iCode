@@ -36,6 +36,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 CUSTOM_PATH_PREFIXES = ("aixcoding/",)
 CUSTOM_EXACT_PATHS = (
+    ".github/workflows/aixcoding-telemetry-cd.yml",
     ".github/workflows/aixcoding-tests.yml",
     ".github/workflows/aixcoding-upstream-ci.yml",
     ".github/CODEOWNERS",
