@@ -1,6 +1,6 @@
 # 批次1 test-plan：telemetry-after-turn-slice
 
-> 状态：随实现同步成文（2026-11-23）；矩阵行均为已实际执行的测试（结果见 verification.md 对应节）。
+> 状态：随实现同步成文（2026-11-23；§6 于 2026-11-24 追加）；矩阵行均为已实际执行的测试（结果见 verification.md 对应节）。
 
 ## 1. 测试矩阵
 
@@ -17,7 +17,7 @@
 ## 2. flush 与生命周期
 
 - flush 排空/幂等/重建：owner 单测（6 项内）+ V2 probe；
-- 真实 teardown flush：所有端到端测试的 `engine.shutdown()` 均经过 `_teardown` 集成路径（R2-4）。
+- 真实 teardown flush：所有端到端测试的 `engine.shutdown()` 均经过 `_teardown` 集成路径（R2-4）——只被执行、未作断言；专门的断言见 §6。
 
 ## 3. 本批明确不覆盖（留批次2/3）
 
@@ -44,3 +44,12 @@
 | 中文路径/超大 blocks 往返 | 同上 | 1 passed |
 | fault 控制端点校验 | 同上 | 1 passed |
 | owner 3 session×5 pass 并发（FIFO/排空/无串扰） | 同上 | 1 passed |
+
+## 6. engine 生命周期断言（2026-11-24 追加，PR #144 CI 修复轮）
+
+§2 所述 teardown 路径此前只被端到端测试顺带执行、没有专门断言。本节两条经真实 engine 入口补上断言；背景、反证与实测事实见 verification.md「测试覆盖」。
+
+| 覆盖点 | 文件 | 结果 |
+|---|---|---|
+| 有已保存会话：`engine.shutdown()` 先 flush 后 close 该会话 worker，worker 被移除，该轮报告到达 mock | `tests/telemetry/test_engine_teardown.py` | 1 passed |
+| 删除当前会话（`SessionDelete`）：删除流程 flush+close 后引擎 detached（`session_id` 为 None），随后的 `shutdown()` 不再触碰 owner | 同上 | 1 passed |

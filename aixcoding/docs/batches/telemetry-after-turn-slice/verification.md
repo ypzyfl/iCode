@@ -203,3 +203,59 @@ design §8 第 5 步完成。下一步：第 6 步（边界矩阵：无 hooks/sa
 **签认后改动补审（责任人裁决 2026-11-23：选项 B）**：上述架构修复与 F1 二次裁决的 status 回退均发生在独立评审轮与 self-review 签认之后，最终提交形态未经评审 AI 复核——补一轮轻量独立 AI 复审（范围：status 回退 diff + manifest 恢复；提示词由开发 AI 出具、责任人转交），收敛后进入 Git 授权序列。
 
 **补审轮结论（独立评审 AI，2026-11-23）**：**无 blocker，可进入提交流程**。检查点 A-F 全过——A 回退完整性（`TurnTelemetryNotice` 构造点仅 3 处均无 status；`finalizer.py` diff 仅含 notice 块，签名/调用点无 `interrupted`；dto/analyzer 的 `code_status` 系 ai-code 既有字段非残留）；B 注释准确性（三要素+再引入条件齐备）；C 文档一致性；D 回退副作用（`failed`→`fire_after_turn` 正常、上游 `interrupted` 局部变量及既有用途零改动）；E manifest 分类恢复正确（`_teardown` 18 节点：side-question-background×2 + execution-state-notification×1 + session-transition-work×15 含新 flush；已审查节点 expression/primitive/wrapper_target 无改动）；F 归类先例合理（新 flush 与同方法 `settle`/`fire_session_end_hooks` 调用点一致；方法内部 await 默认 unresolved）。Findings 1 条 nit（R2-3 历史记录缺二次裁决交叉标注）**已补注处置**（见上文 R2-3 行）。评审方声明：与开发 AI 不同源、可能共盲、终裁在责任人；验证数字未重跑，基于 diff 与源码/文档静态核对。
+
+## 2026-11-24 PR #144 CI 修复与门禁口径对齐
+
+PR #144（base `feat/telemetry-exploration`）连续三轮暴露出本地复查口径与 CI 不一致。前两轮的 run 因后续推送被标记 cancelled，下表失败点取自责任人转贴的当轮日志。
+
+| 轮次（head） | 失败点 | 根因 | 修复提交 |
+|---|---|---|---|
+| Run #183 / #266（`847e69a2`） | 定制侧 ty（linux × `$CUSTOM_SRC`） | `reader.py` 把 `TrajectoryEvent.operation_id`（`str \| None`）直接当 `str` 用作 dict key 与 `ToolFact.tool_op_id` | `e2bfc91a`：两处循环取局部变量收窄 |
+| Run #184 / #267（`e2bfc91a`） | `check_r2_diff` 报 4 个上游文件未授权 | design.md R2 表标题非标准名（`## 2. 上游 R2 接缝…`）、路径缺 `src/chrys/` 前缀，门禁解析器未识别 | `6f773c84`：标题改 `## 上游改动清单（R2）`、R2-1~7 路径补前缀 |
+| Run #185 / #268（`6f773c84`） | 上游 CI 三个 core 分片的 ty 步骤（测试步骤均通过；AIxCoding Tests 已绿） | `SessionResources.session_id` 类型为 `str \| None`（删除当前会话后引擎 detached 时为 None——此前写作「首次落盘前」，有误，见下文「测试覆盖」），`finalizer.py` / `session_lifecycle.py` 三处直接传给要求 `str` 的定制 API | 本次：调用点加 None 守卫（见下） |
+
+**本次修复（责任人 2026-11-24 确认动上游文件）**：
+
+- `finalizer.py` `_save_and_drain_hooks()`：取局部 `session_id`，条件改为 `identity is not None and session_id is not None`，注释同步为「Missing snapshot or session id ⇒ skip」。相对 PR base +24 行（R2-3 区间 18–30）。
+- `session_lifecycle.py` `_teardown()`：`try` 内取局部 `session_id`，`if session_id is not None` 包住 owner 获取与 flush/close（owner 获取移入守卫系采纳独立复审建议，见下）。相对 PR base +26 行；design.md R2-4 量级区间 12–24 → 12–26（责任人裁决），签认头部未动。
+- `trajectory_wait_manifest.json`：`SessionLifecycle._teardown` 第 11 个 await 表达式同步为新写法——同一等待、同一位置的等价改写（属性访问改为同值局部变量），沿用 `session-transition-work`。
+- 语义：`session_id` 为 None 即引擎已 detached（当前会话被删除；此前写作「会话尚未落盘」，有误，见下文「测试覆盖」）。该会话的 worker 已在删除流程中 flush 并 close，teardown 跳过不会遗留孤儿 worker。
+
+**本地门禁口径订正**（读自 `.github/workflows/{ci,aixcoding-tests,aixcoding-upstream-ci}.yml`）：上游 ty 为 `ty check --error-on-warning src/chrys`（三个 core 分片各自平台），本地以显式 `--python-platform linux/darwin/win32` 等价复现；定制侧 ty 的 `$CUSTOM_SRC`（`src/chrys/*/aixcoding`）为其子集；R2/R3 的 `--base` 为 `git merge-base origin/main_iCode HEAD`（本批 `2fd777f6`），不是 PR base；`check_docs.py` 须带 `--closure`。
+
+**本次验证**（全部按上述口径，工作区即待提交内容）：
+
+| 项 | 结果 |
+|---|---|
+| ruff check --no-fix / format --check（两 workflow 路径并集） | All checks passed / 3244 files already formatted |
+| ty 全量 `src/chrys` × linux / darwin / win32 | 三平台 All checks passed |
+| compileall -q src | 通过 |
+| check_docs --closure | OK（27 ADR / 50 design / 49 self-review） |
+| check_import_boundaries | OK（1260 files） |
+| gen_customizations --strict | OK（110 rows / 161 markers / 24 retired / 0 warning） |
+| check_r2_diff --base 2fd777f6 | OK（upstream_changed=84 全部落入审批池） |
+| check_r3_markers --base 2fd777f6 | OK（upstream_changed=84 / marker_checked=81 / exempt=3） |
+| pytest aixcoding/tests（-m "not integration and not gc_calibration"） | 896 passed, 56 skipped |
+| pytest tests/architecture -n 0 | 1247 passed, 3 skipped |
+| Smart Test（--paths finalizer.py / session_lifecycle.py / design.md）产品测试选集 | 16312 passed, 139 skipped |
+
+**本地未覆盖（如实）**：上游 CI 的全量测试分片（约 3.9 万用例分 12 shard）本地仅以 Smart Test 选集替代；Guard hooks、Install wheel 等 job 本次改动未触及、未重跑。产品测试选集在 manifest 表达式同步**之前**执行，之后只重跑了 architecture 全套（manifest 为测试数据，不被产品代码读取）。
+
+**教训**：此前本地复查未按 workflow 实际命令执行——首轮未跑 ty 与 R2/R3 等治理门禁；修 ty 时只跑 linux 平台且范围限于 `telemetry/` 子目录，漏掉目录外的调用方；R2 的 base 误用 PR base；check_docs 漏 `--closure`。另曾误判「未新增 await 则 manifest 不受影响」——已登记 await 的表达式文本变更同样需要同步。还曾仅凭搜索 `flush_session` / `close_session` 的文本出现位置就断言 teardown 的 telemetry 分支没有测试经由 engine 覆盖，未读 `_run_turn`，经实读更正（见下文「测试覆盖」）。此后本地复查以 workflow 实际命令为准。
+
+**独立复审（2026-11-24，独立评审 AI DeepSeek-V4-Pro，责任人转交、标识经其确认）**：对象为上述 ty 修复。结论 Good、无阻塞项；1 条可选建议（`session_lifecycle.py` 把 `get_telemetry_owner()` 移入 `session_id is not None` 守卫内，避免无 id 时无谓初始化惰性单例）已采纳——行数不变，manifest 表达式不变。
+
+**design.md §2 两小表合并（责任人裁决 2026-11-24）**：R2 表标题改标准名（`6f773c84`）后，门禁解析器把原 2.2 小节第二张表的表头行误当作数据行，报 `R2 row names '文件' which is not a file in the repo — ignored`（无害、不阻塞，当轮漏报）。处置：原 2.1（R2-1~4）与原 2.2（R2-5~7）合并为 `## 上游改动清单（R2）` 下的一张表，R2-5~7 量级列记「—」（原设计未单列），文内 3 处小节引用同步，签认头部未动。
+
+**复验（采纳建议与表合并之后，口径同上）**：ruff check / format 通过；ty 全量 `src/chrys` 三平台通过；compileall 通过；check_docs --closure、check_import_boundaries、gen_customizations --strict、check_r3_markers OK；check_r2_diff OK，且本批 design.md 的警告已消失（剩余 13 条均属历史批次）；pytest aixcoding/tests 896 passed, 56 skipped；直接引用 `_teardown` / `SessionLifecycle` 的两个上游测试文件 29 passed；pytest tests/architecture 1247 passed, 3 skipped。Smart Test 产品测试选集未重跑（责任人裁决不需要）：其后仅有的代码改动是把一行无 await 的单例获取移入守卫。
+
+**测试覆盖（更正与补测）**：本节此前写「`_teardown` 的 telemetry 分支没有测试经由 engine 覆盖」，该断言有误——`test_pipeline_delivery.py` 的 `_run_turn` 在返回前调用 `engine.shutdown()`，6 个管线与边界测试实际都执行过 `_teardown` 的非 None 路径，只是没有断言其效果；当时仅凭搜索 `flush_session` / `close_session` 的文本出现位置就下了结论。真实缺口是：None 跳过路径没有任何测试执行，非 None 路径被执行但无断言。按责任人裁决在本 PR 补 `aixcoding/tests/telemetry/test_engine_teardown.py`（harness 镜像 `test_pipeline_delivery.py`，经真实 engine 入口）：
+
+- `test_shutdown_flushes_then_closes_the_session_worker`：跑一轮后 `engine.shutdown()`，断言 teardown 先 flush 后 close（顺序与 session id 由包装 owner 方法的 spy 记录）、worker 被移除、该轮报告到达 mock。
+- `test_shutdown_after_deleting_the_current_session_skips_telemetry`：跑一轮后经 `SessionDelete` 删除当前会话——`_delete_session_reporting` 先 flush+close 该会话 worker，再 `detach_for_delete()` 使 `session_id` 为 None——随后 `engine.shutdown()`，断言没有新增任何 owner 调用。此条同时覆盖了 R2-4 的删除流程一处。
+
+**反证**（两次，第二次在最终版测试上）：临时去掉 `_teardown` 的 None 守卫后第二条失败（shutdown 多出 `('flush', None)`），恢复后通过；第一条不受守卫影响。实测另得两条事实：其一，`engine.start()` 即分配 `session_id`（`ActiveSession.begin()`），「启动后不发消息就关闭」不是 None 路径，None 路径的真实场景是删除当前会话之后的 shutdown；其二，`EventBus` 的订阅回调必须是 async（`bus.py` 直接 `await handler(event)`），同步回调会执行但留一条 handler failed 日志——新测试已用 async 回调。现有 harness 的 `bus.subscribe(Error, errors.append)` 是同步回调，按同一实现推断只在真的出现 Error 事件时会多一条这样的日志、不影响收集，属既有写法，本次未改。
+
+**test-plan 同步**：test-plan.md 追加 §6 登记上述两条；其 §2 原已写明端到端测试的 `engine.shutdown()` 均经过 `_teardown` 集成路径，与上述更正一致。
+
+**补测后复验**（代码与测试定稿后、本段写入前，口径同上）：ruff check / format 通过（3245 files）；ty 全量 `src/chrys` 三平台通过；compileall 通过；check_docs --closure OK（27 / 50 / 49）；check_import_boundaries OK（1261 files）；gen_customizations --strict OK（110 / 161 / 24 / 0）；check_r2_diff OK（changed=702，upstream_changed=84，本批无警告）；check_r3_markers OK（84 / 81 / 3）；pytest aixcoding/tests **898 passed, 56 skipped**（含新增 2 条）；直接引用 `_teardown` / `SessionLifecycle` 的两个上游测试文件 29 passed；pytest tests/architecture 1247 passed, 3 skipped。两个上游文件相对 PR base 仍为 +24 / +26。

@@ -1684,7 +1684,7 @@
         ["awaitable", "await self._loader.cancel_outbox_recovery()", "session-transition-work"],
         ["wrapper", "await self._stop_background_tasks()", "session-transition-work", "chrys.orchestration.engine.session_lifecycle.SessionLifecycle._stop_background_tasks"],
         ["awaitable", "await self._usage_publisher.settle()", "session-transition-work"],
-        ["awaitable", "await telemetry_owner.flush_session(self._session.session_id, timeout=5.0)", "session-transition-work"],
+        ["awaitable", "await telemetry_owner.flush_session(session_id, timeout=5.0)", "session-transition-work"],
         ["wrapper", "await self.fire_session_end_hooks()", "session-transition-work", "chrys.orchestration.engine.session_lifecycle.SessionLifecycle.fire_session_end_hooks"],
         ["awaitable", "await self._session.hook_manager.drain_session()", "session-transition-work"],
         ["awaitable", "await self._writer.save_current_session()", "session-transition-work"],

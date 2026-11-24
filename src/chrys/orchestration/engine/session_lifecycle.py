@@ -811,9 +811,11 @@ class SessionLifecycle:
         from chrys.service.aixcoding.telemetry.owner import get_telemetry_owner
 
         try:
-            telemetry_owner = get_telemetry_owner()
-            await telemetry_owner.flush_session(self._session.session_id, timeout=5.0)
-            telemetry_owner.close_session(self._session.session_id)
+            session_id = self._session.session_id
+            if session_id is not None:
+                telemetry_owner = get_telemetry_owner()
+                await telemetry_owner.flush_session(session_id, timeout=5.0)
+                telemetry_owner.close_session(session_id)
         except Exception:
             logger.debug("telemetry session flush contained an error", exc_info=True)
         # Fire ``session_end`` hooks BEFORE we tear down anything — they

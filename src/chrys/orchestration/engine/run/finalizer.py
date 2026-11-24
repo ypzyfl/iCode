@@ -384,16 +384,17 @@ class TurnFinalizer:
         # AIxCoding telemetry: after-turn notice (src/chrys/service/aixcoding/telemetry)
         # Immutable notice after save/checkpoint, before external hooks; identity
         # comes from the run-owned snapshot (R2-1/2), saved is this call's local
-        # truth. Missing identity ⇒ skip (explicit degradation, no latest-known
-        # fallback).
+        # truth. Missing snapshot or session id ⇒ skip (explicit degradation, no
+        # latest-known fallback).
         identity = self._turn_state.current_run_identity
-        if identity is not None:
+        session_id = self._session.session_id
+        if identity is not None and session_id is not None:
             try:
                 from chrys.service.aixcoding.telemetry.notice import TurnTelemetryNotice, dispatch_telemetry_notice
 
                 dispatch_telemetry_notice(
                     TurnTelemetryNotice(
-                        session_id=self._session.session_id,
+                        session_id=session_id,
                         session_dir=self._session.session_dir,
                         logical_turn_id=identity.logical_turn_id,
                         pass_id=identity.pass_id,

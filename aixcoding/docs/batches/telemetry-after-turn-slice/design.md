@@ -80,28 +80,21 @@ reporter×3（同 session 内 LLM→tool→ai-code 有序）
 
 ## 上游改动清单（R2）
 
-> 原第 2 节「上游 R2 接缝（7 文件，函数级）」；标题按 R2 门禁（check_r2_diff）标准命名，2.1/2.2 小节编号保留。
-
-### 2.1 N3 四文件（依据探索 N3 §14.4，逐项落实）
+> 原第 2 节「上游 R2 接缝（7 文件，函数级）」；标题按 R2 门禁（check_r2_diff）标准命名。原 2.1（N3 四文件，依据探索 N3 §14.4 逐项落实，R2-1~4）与原 2.2（产品端 local 默认端口统一 15678，单端口决策连带，责任人 2026-11-20 裁决纳入本批 R2，R2-5~7）两小表于 2026-11-24 合并为一张（责任人裁决）：门禁只解析本节的第一张表，第二张表的表头会被误当作数据行。
 
 | # | 文件 | 改动 | 量级 |
 |---|---|---|---:|
 | R2-1 | `src/chrys/orchestration/engine/run/turn_state.py` | `TurnRuntimeState` 增加 run-owned 不可变身份快照（`logical_turn_id/pass_id/turn_number/is_retry`）+ `pre_run` 前清空 + `reset_after_session_shutdown()` 同步清理；不含 telemetry 业务字段 | 15–25 行 |
 | R2-2 | `src/chrys/orchestration/engine/run/runner.py` | `pre_run()` 开始清旧快照；`_record_trajectory_turn_started()` 在 ID 确定后、`await recorder.turn_started()` 前一次性写入快照 | 10–18 行 |
 | R2-3 | `src/chrys/orchestration/engine/run/finalizer.py` | `_save_and_drain_hooks()` 的 save/checkpoint 后、外部 hooks 前：构造 `TurnTelemetryNotice`（含局部 `saved`；turn 终态 `status` 字段已于 2026-11-23 二次裁决移除、留待批次2，见 self-review.md）并 lazy import 调用定制 dispatcher；不改外部 hook 语义 | 18–30 行 |
-| R2-4 | `src/chrys/orchestration/engine/session_lifecycle.py` | `_teardown()` 与 `_delete_session_reporting()` 集中调用定制 per-session 有界 flush+close（delete 在 trajectory close/detach/物理删除前；删除失败后 worker 可重建；close 幂等） | 12–24 行 |
+| R2-4 | `src/chrys/orchestration/engine/session_lifecycle.py` | `_teardown()` 与 `_delete_session_reporting()` 集中调用定制 per-session 有界 flush+close（delete 在 trajectory close/detach/物理删除前；删除失败后 worker 可重建；close 幂等） | 12–26 行 |
+| R2-5 | `src/chrys/kernel/aixcoding/auth/environments.py` | `_BASE_PATHS[LOCAL]` 两个 origin `localhost:7777` → `localhost:15678`（docstring 端口表同步） | — |
+| R2-6 | `src/chrys/service/aixcoding/update/client.py` | `_TIER_BASES["local"]` `127.0.0.1:7778` → `127.0.0.1:15678`（注释同步；dev/prod 不动） | — |
+| R2-7 | `src/chrys/service/aixcoding/models/catalog.py` | `_CATALOG_BASES["local"]` `127.0.0.1:7777` → `127.0.0.1:15678`（dev/prod 不动） | — |
 
 不修改：`turn_hooks.py`、EventBus、ACP `server.py/session_manager.py`、TUI app、headless entry（N3 §14.4 已排除）。`app/acp/server.py` 是批次2（N7）接缝，不入本批。
 
-### 2.2 产品端 local 默认端口统一 15678（单端口决策连带，责任人 2026-11-20 裁决纳入本批 R2）
-
-| # | 文件 | 改动 |
-|---|---|---|
-| R2-5 | `src/chrys/kernel/aixcoding/auth/environments.py` | `_BASE_PATHS[LOCAL]` 两个 origin `localhost:7777` → `localhost:15678`（docstring 端口表同步） |
-| R2-6 | `src/chrys/service/aixcoding/update/client.py` | `_TIER_BASES["local"]` `127.0.0.1:7778` → `127.0.0.1:15678`（注释同步；dev/prod 不动） |
-| R2-7 | `src/chrys/service/aixcoding/models/catalog.py` | `_CATALOG_BASES["local"]` `127.0.0.1:7777` → `127.0.0.1:15678`（dev/prod 不动） |
-
-telemetry 产品端指向为**新增配置**（见 §3.4），不属改默认值。`app/cli/serve.py:41` 的 `_DEFAULT_PORT=7777` 是独立产品 serve 命令端口，与 mock 无关，**不在本批范围**。
+R2-5~7 均为 local 默认值替换，原设计未单列量级。telemetry 产品端指向为**新增配置**（见 §3.4），不属改默认值。`app/cli/serve.py:41` 的 `_DEFAULT_PORT=7777` 是独立产品 serve 命令端口，与 mock 无关，**不在本批范围**。
 
 ## 3. 定制模块设计（新增代码，落位 ADR-0011 产品层）
 
@@ -167,7 +160,7 @@ V1/V2 通过是生产实现继续的前提（requirements §5.5）；V3 结论�
 
 ## 5. D1：本批定制文件清单（R2 呈报，逐项裁决）
 
-**上游修改（R2，7 文件）**：§2.1 表 R2-1~4 + §2.2 表 R2-5~7。
+**上游修改（R2，7 文件）**：§2 表 R2-1~4（原 2.1，N3 四文件）+ R2-5~7（原 2.2，local 默认端口统一）。
 **产品层新增（ADR-0011 落位，`src/chrys/{tier}/aixcoding/telemetry/`）**：notice/dispatcher（orchestration tier）、owner/reader/analyzer/reporters/filtering/dto/client（service tier；最终 tier 划分随 D1 复核 marker 登记）。
 **开发资产新增/修改**：`aixcoding/mock/telemetry/`（新子包）、`aixcoding/mock/__main__.py`（单端口改造）+ 各子包路由导出（auth/update/model_catalog server.py 小改）、`aixcoding/tests/mock/test_telemetry_server.py`、`aixcoding/tests/telemetry/` V1–V3 与切片测试、本批六件套文档。
 **不含**：批次2 ACP 接缝、批次3 parity、真实后台、上游提案。
@@ -183,7 +176,7 @@ V1/V2 通过是生产实现继续的前提（requirements §5.5）；V3 结论�
 | telemetry-after-turn-slice:after-turn-notice | src/chrys/orchestration/engine/run/finalizer.py | AIxCoding telemetry: after-turn notice | 1 | `_save_and_drain_hooks()` save/checkpoint 后、外部 hooks 前（lazy import，无构造器注入扩散） | 低-中（上游重构保存顺序需跟；异常已隔离） | 同上 |
 | telemetry-after-turn-slice:session-flush | src/chrys/orchestration/engine/session_lifecycle.py | AIxCoding telemetry: bounded per-session flush + close | 2 | `_teardown()`（usage settle 后）与 `_delete_session_reporting()`（trajectory close/detach 前）（孪生） | 低（独立于 hooks；flush 有界 5s 不阻塞进程） | 同上 |
 
-> §2.2 三项（R2-5/6/7）实施核正：三文件均位于 `src/chrys/{tier}/aixcoding/` 定制层（ADR-0011），属 custom 侧文件——**改动经 R2 批准生效，但免 marker、不入登记表**（gen_customizations 只对 upstream 侧 marker 对账；首轮误登记为 orphan 已修正）。
+> 原 §2.2 三项（R2-5/6/7，现同在 §2 表）实施核正：三文件均位于 `src/chrys/{tier}/aixcoding/` 定制层（ADR-0011），属 custom 侧文件——**改动经 R2 批准生效，但免 marker、不入登记表**（gen_customizations 只对 upstream 侧 marker 对账；首轮误登记为 orphan 已修正）。
 
 ## 6. ADR 判定
 
