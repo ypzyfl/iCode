@@ -19,7 +19,7 @@ WORKFLOW = Path(__file__).resolve().parents[3] / ".github/workflows/aixcoding-ot
 
 
 @pytest.mark.parametrize("platform", ["linux", "macos", "windows"])
-@pytest.mark.parametrize("checksum_mode", ["text", "binary"])
+@pytest.mark.parametrize("checksum_mode", ["native", "binary"])
 def test_resource_package_preserves_binary_and_build_facts(tmp_path, platform, checksum_mode):
     data = yaml.load(WORKFLOW.read_text(), Loader=yaml.BaseLoader)
     steps = data["jobs"]["build-binaries"]["steps"]
@@ -88,7 +88,8 @@ def test_resource_package_preserves_binary_and_build_facts(tmp_path, platform, c
     shutil.copytree(tmp_path / "telemetry-wheel", tmp_path / "artifacts/telemetry-wheel")
     collector = data["jobs"]["collect-telemetry-assets"]["steps"][1]["run"]
     # Exercise the binary marker emitted by sha256sum on Windows, also on Unix CI.
-    collector = collector.replace("sha256sum *", f"sha256sum --{checksum_mode} *")
+    if checksum_mode == "binary":
+        collector = collector.replace("sha256sum *", "sha256sum --binary *")
     bash = "bash"
     if os.name == "nt":
         git = shutil.which("git")

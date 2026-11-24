@@ -15,4 +15,4 @@
 - 本次仍使用固定源码 SHA 构建伴随包。本仓 Release 契约落地后再接入版本化下载；六平台运行与真实业务验收以 Actions 实际执行结果为准。
 - 本地验证（Python 3.14.8，复用现有宿主测试依赖）：资源包回归 3 passed；Smart Test 选择的架构检查 200 passed（沙箱阻止进程优先级调整的两项在沙箱外重跑通过）；Ruff、22 个 shell 步骤语法、嵌入 Python、文档闭环与定制登记检查通过。尚未运行六平台真实编译及制品 ACP smoke。
 
-- 2026-11-24 Windows CI 修正：测试显式选择 Git Bash；摘要解析同时识别 sha256sum 的 text 空格标记与 binary 星号标记。三种资源包布局分别执行两种输出模式，在 Unix 本地先复现 binary 模式三项失败，修正后六项通过；保留每个文件的内容摘要校验。
+- 2026-11-24 Windows CI 修正：测试显式选择 Git Bash；摘要解析同时识别 sha256sum 的 text 空格标记与 binary 星号标记。三种资源包布局分别执行原生默认模式与显式 binary 模式，避免 Windows text 模式转换归档字节。在 Unix 本地先复现 binary 模式三项失败，修正后六项通过；保留每个文件的内容摘要校验。
