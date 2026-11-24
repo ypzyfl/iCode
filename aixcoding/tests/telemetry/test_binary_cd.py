@@ -19,7 +19,8 @@ WORKFLOW = Path(__file__).resolve().parents[3] / ".github/workflows/aixcoding-ot
 
 
 @pytest.mark.parametrize("platform", ["linux", "macos", "windows"])
-def test_resource_package_preserves_binary_and_build_facts(tmp_path, platform):
+@pytest.mark.parametrize("checksum_mode", ["text", "binary"])
+def test_resource_package_preserves_binary_and_build_facts(tmp_path, platform, checksum_mode):
     data = yaml.load(WORKFLOW.read_text(), Loader=yaml.BaseLoader)
     steps = data["jobs"]["build-binaries"]["steps"]
     package = next((step for step in steps if step.get("id") == "resource-package"), None)
@@ -86,6 +87,8 @@ def test_resource_package_preserves_binary_and_build_facts(tmp_path, platform):
         asset.chmod(0o644)
     shutil.copytree(tmp_path / "telemetry-wheel", tmp_path / "artifacts/telemetry-wheel")
     collector = data["jobs"]["collect-telemetry-assets"]["steps"][1]["run"]
+    # Exercise the binary marker emitted by sha256sum on Windows, also on Unix CI.
+    collector = collector.replace("sha256sum *", f"sha256sum --{checksum_mode} *")
     bash = "bash"
     if os.name == "nt":
         git = shutil.which("git")
@@ -100,5 +103,7 @@ def test_resource_package_preserves_binary_and_build_facts(tmp_path, platform):
     sums = (delivered / "SHA256SUMS.txt").read_text().splitlines()
     assert sums
     for line in sums:
-        checksum, filename = line.split("  ", 1)
+        checksum, marked_name = line.split(" ", 1)
+        assert marked_name[:1] in {" ", "*"}, repr(line)
+        filename = marked_name[1:]
         assert hashlib.sha256((delivered / filename).read_bytes()).hexdigest() == checksum
