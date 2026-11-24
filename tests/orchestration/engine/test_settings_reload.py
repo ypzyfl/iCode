@@ -771,11 +771,7 @@ async def test_manual_reload_next_provider_request(
         assert b"probe" in payloads[1]
         assert b"manual-reload-server-instructions" in payloads[1]
         if style == "chat_completions":
-            # AIxCoding llm-queue: reload equivalence excludes the per-request correlation id
-            request_ids = [payload.pop("request_id") for payload in (control, refreshed)]
-            assert all(isinstance(request_id, str) and len(request_id) == 32 for request_id in request_ids)
-            assert request_ids[0] != request_ids[1]
-            assert control == refreshed
+            assert payloads[0] == payloads[1]
         else:
             for payload in (control, refreshed):
                 payload["wire_system"] = [

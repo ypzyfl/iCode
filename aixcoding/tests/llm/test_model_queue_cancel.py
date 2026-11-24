@@ -3,9 +3,11 @@
 """Behavior anchors for leaving the gateway queue on interrupt (model-queue-client).
 
 The stream cases drive the production client over ``httpx.MockTransport`` so the
-SDK's own SSE decoding runs for real. The cancel call is observed through a
-second transport injected into the tracker, so the test asserts on the request
-the customization actually builds (URL, body, token header).
+SDK's own SSE decoding runs for real, through the production profile HTTP client,
+which stamps the ``Chrys-Request-Attempt-Id`` header the queue is keyed by. The
+cancel call is observed through a second transport injected into the tracker, so
+the test asserts on the request the customization actually builds (URL, body,
+token header).
 """
 
 from __future__ import annotations
@@ -18,6 +20,8 @@ from typing import Any
 
 import httpx
 import pytest
+
+from chrys.foundation.util.chrys_headers import REQUEST_ATTEMPT_ID_HEADER
 
 QUEUE_STATUS = 'event:queue_status\ndata:{"position":%d,"queueSize":%d}'
 CHUNK = (
@@ -33,20 +37,27 @@ def _sse(*frames: str) -> bytes:
 
 async def _client(body: bytes, requests: list[httpx.Request] | None = None) -> Any:
     from chrys.service.llm.chat_completions.client import ChatCompletionsClient
-    from chrys.service.llm.clients import _build_openai_sdk_client
+    from chrys.service.llm.clients import _build_openai_sdk_client, _build_profile_http_client
+    from chrys.service.profiles.models.schema import ModelProfile
 
     async def handler(request: httpx.Request) -> httpx.Response:
         if requests is not None:
             requests.append(request)
         return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=body)
 
+    # The production HTTP client stamps ``Chrys-Request-Attempt-Id`` on every attempt.
+    http = _build_profile_http_client(
+        ModelProfile(id="p", name="p", provider="openai", model_id="m", api_key="test-key"),
+        httpx.Timeout(5),
+        transport=httpx.MockTransport(handler),
+    )
     sdk = _build_openai_sdk_client(
         api_key="test-key",
         base_url="http://llm.test/v1",
         timeout=5.0,
         max_retries=0,
         default_headers=None,
-        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+        http_client=http,
     )
     return ChatCompletionsClient(model="m", sdk_client=sdk)
 
@@ -70,7 +81,7 @@ def _with_transport(transport: httpx.AsyncBaseTransport) -> Any:
 
     real = package.track_queue_request
 
-    def tracked(request: dict[str, Any], *, model: str, base_url: str, api_key: str) -> Any:
+    def tracked(request: httpx.Request, *, model: str, base_url: str, api_key: str) -> Any:
         return real(request, model=model, base_url=base_url, api_key=api_key, transport=transport)
 
     return tracked
@@ -110,9 +121,10 @@ async def test_interrupt_while_queued_sends_cancel(monkeypatch: pytest.MonkeyPat
     assert cancel.method == "POST"
     assert cancel.url.path == "/api/v3/chat/completions/cancel"
     assert cancel.headers["token"] == "test-key"
-    sent = json.loads(main_requests[0].content)
-    assert json.loads(cancel.content) == {"model": "m", "request_id": sent["request_id"]}
-    assert len(sent["request_id"]) == 32
+    attempt_id = main_requests[0].headers[REQUEST_ATTEMPT_ID_HEADER]
+    assert len(attempt_id) == 32
+    assert json.loads(cancel.content) == {"model": "m", "request_id": attempt_id}
+    assert "request_id" not in json.loads(main_requests[0].content)
 
 
 async def test_interrupt_after_release_sends_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -157,8 +169,8 @@ async def test_interrupt_without_queue_sends_nothing(monkeypatch: pytest.MonkeyP
     assert cancels == []
 
 
-async def test_completed_stream_carries_a_request_id() -> None:
-    """Every streamed request asks the gateway to keep its ``request_id``."""
+async def test_completed_stream_carries_the_attempt_header_only() -> None:
+    """The gateway keys the queue on the header; the body carries no request_id."""
     main_requests: list[httpx.Request] = []
     client = await _client(_sse(CHUNK % "hi", "data: [DONE]"), main_requests)
     try:
@@ -166,9 +178,9 @@ async def test_completed_stream_carries_a_request_id() -> None:
     finally:
         await client.aclose()
 
-    sent = json.loads(main_requests[0].content)
-    assert isinstance(sent["request_id"], str)
-    assert sent["request_id"].strip()
+    request = main_requests[0]
+    assert len(request.headers[REQUEST_ATTEMPT_ID_HEADER]) == 32
+    assert "request_id" not in json.loads(request.content)
 
 
 @pytest.mark.parametrize(
@@ -190,24 +202,32 @@ def test_cancel_endpoint_derivation(base_url: str, expected: str | None) -> None
     assert cancel_endpoint(base_url) == expected
 
 
-def test_profile_request_id_is_reused() -> None:
+def test_tracker_reads_the_attempt_header() -> None:
     from chrys.service.aixcoding.llm_queue import track_queue_request
 
-    request: dict[str, Any] = {"extra_body": {"request_id": "given-id"}}
+    request = httpx.Request("POST", "http://h/v1/chat/completions", headers={REQUEST_ATTEMPT_ID_HEADER: "a" * 32})
     tracker = track_queue_request(request, model="m", base_url="http://h/v1", api_key="k")
 
     assert tracker is not None
-    assert tracker.request_id == "given-id"
-    assert request["extra_body"]["request_id"] == "given-id"
+    assert tracker.request_id == "a" * 32
 
 
-def test_underivable_endpoint_keeps_request_id_without_tracker() -> None:
+def test_underivable_endpoint_returns_no_tracker() -> None:
     from chrys.service.aixcoding.llm_queue import track_queue_request
 
-    request: dict[str, Any] = {}
+    request = httpx.Request("POST", "http://h/v1/chat/completions", headers={REQUEST_ATTEMPT_ID_HEADER: "a" * 32})
     assert track_queue_request(request, model="m", base_url="ftp://h", api_key="k") is None
-    request_id = request["extra_body"]["request_id"]
-    assert isinstance(request_id, str) and len(request_id) == 32
+
+
+def test_missing_attempt_header_returns_no_tracker(caplog: pytest.LogCaptureFixture) -> None:
+    """Without the upstream tracking hook there is no id to cancel with: say so, keep streaming."""
+    from chrys.service.aixcoding.llm_queue import track_queue_request
+
+    caplog.set_level(logging.WARNING, logger="chrys.service.aixcoding.llm_queue.queue_cancel")
+    request = httpx.Request("POST", "http://h/v1/chat/completions")
+
+    assert track_queue_request(request, model="m", base_url="http://h/v1", api_key="k") is None
+    assert REQUEST_ATTEMPT_ID_HEADER in caplog.text
 
 
 @pytest.mark.parametrize("status", [204, 404, 409, 500])
@@ -343,7 +363,8 @@ def test_armed_tracker_is_reported_in_the_detail_channel(
     """The request id the gateway will know is written before the stream can queue."""
     from chrys.service.aixcoding.llm_queue import track_queue_request
 
-    tracker = track_queue_request({}, model="m", base_url="http://h/v1", api_key="k")
+    request = httpx.Request("POST", "http://h/v1/chat/completions", headers={REQUEST_ATTEMPT_ID_HEADER: "b" * 32})
+    tracker = track_queue_request(request, model="m", base_url="http://h/v1", api_key="k")
 
     assert tracker is not None
     messages = [record.getMessage() for record in detail_records]
@@ -362,7 +383,8 @@ async def test_cancelled_task_while_queued_sends_cancel(monkeypatch: pytest.Monk
     """The real interrupt path: the consuming task is cancelled, not the stream broken by bad data."""
     from chrys.kernel import Message
     from chrys.service.llm.chat_completions.client import ChatCompletionsClient
-    from chrys.service.llm.clients import _build_openai_sdk_client
+    from chrys.service.llm.clients import _build_openai_sdk_client, _build_profile_http_client
+    from chrys.service.profiles.models.schema import ModelProfile
 
     cancels: list[httpx.Request] = []
 
@@ -378,13 +400,18 @@ async def test_cancelled_task_while_queued_sends_cancel(monkeypatch: pytest.Monk
     async def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, headers={"content-type": "text/event-stream"}, stream=_HeldOpenStream())
 
+    http = _build_profile_http_client(
+        ModelProfile(id="p", name="p", provider="openai", model_id="m", api_key="test-key"),
+        httpx.Timeout(5),
+        transport=httpx.MockTransport(handler),
+    )
     sdk = _build_openai_sdk_client(
         api_key="test-key",
         base_url="http://llm.test/v1",
         timeout=5.0,
         max_retries=0,
         default_headers=None,
-        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+        http_client=http,
     )
     client = ChatCompletionsClient(model="m", sdk_client=sdk)
 
@@ -425,28 +452,6 @@ async def test_observing_forwards_every_status() -> None:
     assert seen == [2, 0]
 
 
-def test_non_mapping_extra_body_leaves_the_request_alone() -> None:
-    from chrys.service.aixcoding.llm_queue import track_queue_request
-
-    request: dict[str, Any] = {"extra_body": "nope"}
-    assert track_queue_request(request, model="m", base_url="http://h/v1", api_key="k") is None
-    assert request["extra_body"] == "nope"
-
-
-def test_generated_request_id_does_not_touch_the_caller_extra_body() -> None:
-    """``build_request`` shallow-copies the options, so writing through would poison them."""
-    from chrys.service.aixcoding.llm_queue import track_queue_request
-
-    caller_extra: dict[str, Any] = {"temperature": 0.2}
-    request: dict[str, Any] = {"extra_body": caller_extra}
-    tracker = track_queue_request(request, model="m", base_url="http://h/v1", api_key="k")
-
-    assert tracker is not None
-    assert request["extra_body"] is not caller_extra
-    assert request["extra_body"]["request_id"] == tracker.request_id
-    assert caller_extra == {"temperature": 0.2}
-
-
 async def test_broken_customization_leaves_the_request_untracked(monkeypatch: pytest.MonkeyPatch) -> None:
     """The customization is optional: without it the request goes out exactly as before v1.1."""
     main_requests: list[httpx.Request] = []
@@ -466,7 +471,9 @@ async def test_broken_customization_leaves_the_request_untracked(monkeypatch: py
     finally:
         await client.aclose()
 
-    assert "request_id" not in json.dumps(json.loads(main_requests[0].content))
+    assert "request_id" not in json.loads(main_requests[0].content)
+    # The attempt header is upstream's, so it is sent even with the customization unavailable.
+    assert len(main_requests[0].headers[REQUEST_ATTEMPT_ID_HEADER]) == 32
     assert cancels == []
 
 
@@ -480,12 +487,15 @@ CHAT_COMPLETION = {
 }
 
 
-async def test_non_streaming_request_carries_id_without_tracker(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Only streaming requests are tracked; blocking requests still carry a correlation request_id."""
+async def test_non_streaming_request_carries_the_header_without_a_tracker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only streaming arms a tracker; a blocking request still carries the header."""
     from chrys.kernel import Message
     from chrys.service.aixcoding.llm_queue import track_queue_request as real
     from chrys.service.llm.chat_completions.client import ChatCompletionsClient
-    from chrys.service.llm.clients import _build_openai_sdk_client
+    from chrys.service.llm.clients import _build_openai_sdk_client, _build_profile_http_client
+    from chrys.service.profiles.models.schema import ModelProfile
 
     armed: list[int] = []
 
@@ -503,13 +513,18 @@ async def test_non_streaming_request_carries_id_without_tracker(monkeypatch: pyt
             200, headers={"content-type": "application/json"}, content=json.dumps(CHAT_COMPLETION).encode()
         )
 
+    http = _build_profile_http_client(
+        ModelProfile(id="p", name="p", provider="openai", model_id="m", api_key="test-key"),
+        httpx.Timeout(5),
+        transport=httpx.MockTransport(handler),
+    )
     sdk = _build_openai_sdk_client(
         api_key="test-key",
         base_url="http://llm.test/v1",
         timeout=5.0,
         max_retries=0,
         default_headers=None,
-        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+        http_client=http,
     )
     client = ChatCompletionsClient(model="m", sdk_client=sdk)
     try:
@@ -518,6 +533,6 @@ async def test_non_streaming_request_carries_id_without_tracker(monkeypatch: pyt
         await client.aclose()
 
     assert armed == []
-    body = json.loads(main_requests[0].content)
-    request_id = body["request_id"]
-    assert isinstance(request_id, str) and len(request_id) == 32
+    request = main_requests[0]
+    assert len(request.headers[REQUEST_ATTEMPT_ID_HEADER]) == 32
+    assert "request_id" not in json.loads(request.content)

@@ -208,15 +208,6 @@ class ChatCompletionsClient(WireClient):
         return self._complete(request, options)
 
     async def _complete(self, request: dict[str, Any], options: Mapping[str, Any]) -> ChatResponse:
-        # AIxCoding llm-queue: a blocking completion carries a request_id too, so the
-        # gateway can correlate it. No queue frames flow on this path, so no tracker
-        # is armed and an abort cannot leave the queue.
-        try:
-            from chrys.service.aixcoding.llm_queue import attach_queue_request_id
-
-            attach_queue_request_id(request)
-        except Exception:
-            logger.debug("aixcoding llm-queue 非流式请求附加 request_id 失败", exc_info=True)
         try:
             # The raw wrapper (it adds ``X-Stainless-Raw-Response: true``)
             # keeps the status, headers and body the diagnostics quote.
@@ -241,32 +232,34 @@ class ChatCompletionsClient(WireClient):
         request = self._build_request(messages, options)
         request["stream_options"] = {"include_usage": True}
         requires_finish_reason = options.get(STREAM_REQUIRES_FINISH_REASON_OPTION) is True
-        # AIxCoding llm-queue: cancel queued request on abort
-        # Import both together: a half-available customization could otherwise send a
-        # request_id that no guard ever observes, leaving the request queued after abort.
+        # Queued-request cancellation lives in src/chrys/service/aixcoding/llm_queue:
+        # the tracker needs the id of the attempt that answers, so it is built from
+        # the response inside ``updates``, not from this request body.
         guard_queue_frames: Any = None
-        queue_request: Any = None
+        track_queue_request: Any = None
         try:
             from chrys.service.aixcoding.llm_queue import guard_queue_frames, track_queue_request
         except Exception:
             logger.warning("aixcoding llm-queue 网关排队帧将导致流失败", exc_info=True)
-        else:
-            try:
-                queue_request = track_queue_request(
-                    request,
-                    model=self.model,
-                    base_url=str(self.sdk_client.base_url),
-                    api_key=self.sdk_client.api_key,
-                )
-            except Exception:
-                logger.debug("aixcoding llm-queue 取消排队不可用", exc_info=True)
 
         async def updates() -> AsyncIterable[ChatResponseUpdate]:
             state = StreamState(self.VARIANT, origin=self.reasoning_origin())
             sdk_stream: Any = None
+            queue_request: Any = None
             try:
                 # The same raw wrapper as the blocking path, for the same reason.
                 raw: Any = await self.sdk_client.chat.completions.with_raw_response.create(stream=True, **request)
+                # AIxCoding llm-queue: cancel queued request on abort
+                if track_queue_request is not None:
+                    try:
+                        queue_request = track_queue_request(
+                            raw.http_response.request,
+                            model=self.model,
+                            base_url=str(self.sdk_client.base_url),
+                            api_key=self.sdk_client.api_key,
+                        )
+                    except Exception:
+                        logger.debug("aixcoding llm-queue 取消排队不可用", exc_info=True)
                 replay = await validate_stream_response(raw)
                 sdk_stream = raw.parse()
                 chunks = aiter(sdk_stream)

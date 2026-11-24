@@ -7,7 +7,7 @@
 
 - 责任人：李海潮
 - 状态：已确认
-- 确认日期：2026-11-19
+- 确认日期：2026-11-24
 - 确认意见：尽量不改上游，若必须要改，要少而集中的改（可选；审阅中形成的判断、附加条件或保留）
 
 ## 方案概述
@@ -85,9 +85,7 @@ R2 报批说明：
 | id | 落点 | marker 锚 | 预期计数 | anchor | risk | removal_condition |
 |---|---|---|---|---|---|---|
 | model-queue-client:queue-frame-guard | src/chrys/service/llm/chat_completions/client.py | AIxCoding llm-queue: guard gateway queue frames | 1 | `AsyncOpenAI.chat.completions` chunk 迭代（`StreamState.updates_for` 校验前） | 低（10 行接线，异常全吞错，删除即回滚） | 〔上游等价〕SDK 原生忽略未知具名事件且网关改以 HTTP 状态码表达排队拒绝，或网关不再对客户端下发 `queue_status` |
-| model-queue-client:queue-cancel | src/chrys/service/llm/chat_completions/client.py | AIxCoding llm-queue: cancel queued request on abort | 3 | `_open_stream`（tracker 构造 / `on_status` 包装 / `finally` 取消） | 中（放行空窗误判只多一次 `409` 旁路请求，契约内） | 〔上游等价〕上游提供 wire 层请求生命周期钩子（abort/close 回调） |
-| model-queue-client:queue-request-id | src/chrys/service/llm/chat_completions/client.py | AIxCoding llm-queue: a blocking completion carries a request_id too | 1 | `_complete`（非流式请求发送前 attach） | 低（仅附加网关契约字段并记录日志，异常维持原有降级） | 〔上游等价〕上游提供所有协议统一的请求 ID 注入钩子 |
-| model-queue-client:queue-request-id-reload-test | tests/orchestration/engine/test_settings_reload.py | AIxCoding llm-queue: reload equivalence excludes the per-request correlation id | 1 | `test_manual_reload_next_provider_request`（比较前移除并校验 id） | 低（仅测试归一化，仍逐字段比较其余请求体） | 〔上游等价〕上游原生生成请求 ID 并同步调整该测试 |
+| model-queue-client:queue-cancel | src/chrys/service/llm/chat_completions/client.py | AIxCoding llm-queue: cancel queued request on abort | 3 | `_open_stream`（tracker 构造（读 `raw.http_response.request` 的尝试头）/ `on_status` 包装 / `finally` 取消） | 中（放行空窗误判只多一次 `409` 旁路请求，契约内） | 〔上游等价〕上游提供 wire 层请求生命周期钩子（abort/close 回调） |
 
 ## 风险与最坏情况
 
@@ -250,3 +248,74 @@ R2 报批说明：
 新增 `aixcoding/tests/llm/test_llm_queue_request_id.py`，并同步 `aixcoding/tests/llm/test_model_queue_cancel.py` 两处旧行为断言。
 登记行 `model-queue-client:queue-request-id`、`model-queue-client:queue-request-id-reload-test` 已并入主表。
 本正文增量按 R10 仍需责任人本人重签头部，AI 未代填。
+
+---
+
+## 变更单 v1.3（2026-11-24，责任人裁决）：队列 ID 改用上游请求头 Chrys-Request-Attempt-Id
+
+> 决策来源：Owen 对话裁决（2026-11-24）。动因：领导要求少改上游、降低追版本成本；v1.2 为了往请求体塞 ID
+> 改了上游 `_complete` 与上游测试。责任人接受"每个 HTTP 尝试一个新 ID"的粒度（SDK 重试/重定向各算一次，
+> 对模型而言就是新请求，不必复用）。
+> 前置条件：内网网关兼容读取该请求头（后端开发，Owen 协调），且**网关先于客户端上线**。
+
+### 方案
+
+队列元素 ID 不再由本定制写入请求体，改用上游 wire 层每个 HTTP 尝试都会加的
+`Chrys-Request-Attempt-Id` 请求头（`foundation/util/chrys_headers.py:7`，
+`service/llm/request_tracking.py::build_request_tracking_hooks`）。
+
+- **流式**：`_open_stream` 在 `raw` 返回后把 `raw.http_response.request` 交给 `track_queue_request`，
+  由定制包读该请求头得到 ID 再武装 tracker（`httpx_response.request` 是**最终**尝试，SDK 重试/重定向已结束）。
+  取消请求体仍为 `{model, request_id}`，值填该次尝试的头值。
+- **非流式**：不再附加任何字段（v1.2 的 `_complete` 接线整体删除）；网关按同一请求头关联。
+- **profile 固定 `request_id` 的能力取消**（v1.1 已知限制 C3 随之消失）：`chrys-` 是保留前缀，
+  profile 无法覆盖；如后续需要，客户端需镜像网关"请求体优先"的优先级（约 4 行）。
+- 请求头缺失（例如绕过 `_build_profile_http_client` 的裸客户端）时 tracker 不武装、记 WARNING，
+  流不受影响；`guard_queue_frames` 照旧吸收排队帧。
+
+### 对网关的契约要求（后端开发）
+
+1. 取值顺序：请求体 `request_id` / `requestId` 优先，其次请求头 `Chrys-Request-Attempt-Id`，都没有才随机生成。
+2. 保持请求体优先是为了已分发的 v1.2 客户端：它同时带两个 ID（值不同），cancel 发的是请求体那个。
+3. cancel 接口不变：`POST /api/v3/chat/completions/cancel`，body `{model, request_id}`，`token` 头。
+4. 上线顺序：网关先上、客户端后发；否则新客户端（不写请求体）在旧网关下 cancel 恒 404，
+   而客户端把它当契约内正常 no-op 只记 info，中断后的请求会一直占着并发槽位。
+
+### 上游改动清单（R2，相对 v1.2 的增量）
+
+| 文件 | 改什么 | 实测 numstat | 标记注释位置 |
+|---|---|---|---|
+| `src/chrys/service/llm/chat_completions/client.py` | `_complete` 删除非流式 attach（−9）；`_open_stream` 的 tracker 构造从发送前移到 `raw` 之后，改读响应请求的尝试头 | `+16/−23`（净 −7；文件相对 base 变为 +40/−5） | `# AIxCoding llm-queue: cancel queued request on abort`（计数仍 3） |
+| `tests/orchestration/engine/test_settings_reload.py` | 回退 v1.2 的请求体归一化，恢复上游 `assert payloads[0] == payloads[1]` | `+1/−5`（相对 base 归零） | 无（恢复上游原样） |
+
+非上游改动：`queue_cancel.py` 改以 `httpx.Request` 的尝试头为 ID 来源、删除 `attach_queue_request_id`
+（`+24/−54`）；`llm_queue/__init__.py`（`0/−2`）；`aixcoding/tests/llm/test_llm_queue_request_id.py` 由
+`test_llm_queue_attempt_header.py` 取代；`test_model_queue_cancel.py` 改用生产 profile HTTP 客户端
+（其 `scripted_openai` 类夹具不挂 tracking hooks）；`mock_server/model_concurrency_verify/mock_gateway.py`
+（本地演练脚本，未跟踪）按"请求体优先、请求头兜底"取值。
+
+### 定制点登记（已并入主表）
+
+- 撤销 `model-queue-client:queue-request-id`、`model-queue-client:queue-request-id-reload-test` 两行（marker 随之删除）。
+- `model-queue-client:queue-cancel` 预期计数仍为 3；anchor 描述更新为"tracker 构造（读 `raw.http_response.request` 的尝试头）/ `on_status` 包装 / `finally` 取消"。
+
+### 对外部行为的假设
+
+1. `raw.http_response.request.headers` 在流式与非流式两条路径都可读，且是最终尝试——2026-11-24 以真实
+   `create_client` 工厂实测 6 个场景（非流式/流式 SDK 重试、307 重定向、网关排队帧、Anthropic、并发）成立。
+2. 该头由上游 request hook 在发送前写入，不依赖本定制包是否可用；定制包不可用时流仍正常，只是无 tracker。
+3. `_build_profile_http_client` 是唯一挂该 hook 的 LLM 出口（`service/llm/` 之外无 SDK 构造），故产品路径必带该头。
+
+### 验证（2026-11-24，本地）
+
+- 定制测试：`test_model_queue_cancel.py`、`test_llm_queue_attempt_header.py`、`test_model_queue_progress.py` 共 52 passed。
+- 上游：`test_request_tracking.py`、`test_route_extension_wire.py`、`test_settings_reload.py` 共 50 passed。
+- `tests/architecture/test_trajectory_wait_inventory.py` 57 passed（wait 清单无需刷新）；`ruff format/check`、`ty check --python-platform win32`、`check_docs.py`、`gen_customizations.py --strict` 全绿。
+
+### 风险与最坏情况
+
+- 网关未升级 / 未透传该头：新客户端 cancel 恒 404（按正常 no-op 记 info），中断后请求占槽位。
+  缓解：网关先上线；联调第一项验证该头到达（网关入口记录收到的请求头）。
+- 上游改名/移除该头：`test_llm_queue_attempt_header.py` 的 wire 级断言会红，合并上游时即发现。
+- profile 若仍固定 `request_id`：网关按请求体优先取值，客户端 cancel（头值）404；该能力已不再支持，文档已标注。
+- 回滚：恢复 v1.2 的 `_complete` 与 `track_queue_request(request, ...)` 签名即可（本变更单整体可逆）。
