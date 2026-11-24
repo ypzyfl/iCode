@@ -269,16 +269,21 @@ R2 报批说明：
   取消请求体仍为 `{model, request_id}`，值填该次尝试的头值。
 - **非流式**：不再附加任何字段（v1.2 的 `_complete` 接线整体删除）；网关按同一请求头关联。
 - **profile 固定 `request_id` 的能力取消**（v1.1 已知限制 C3 随之消失）：`chrys-` 是保留前缀，
-  profile 无法覆盖；如后续需要，客户端需镜像网关"请求体优先"的优先级（约 4 行）。
+  profile 无法覆盖，且网关现在优先取请求头、请求体字段会被忽略；如后续需要该能力，只能等上游
+  提供可固定的请求 ID 钩子。
 - 请求头缺失（例如绕过 `_build_profile_http_client` 的裸客户端）时 tracker 不武装、记 WARNING，
   流不受影响；`guard_queue_frames` 照旧吸收排队帧。
 
 ### 对网关的契约要求（后端开发）
 
-1. 取值顺序：请求体 `request_id` / `requestId` 优先，其次请求头 `Chrys-Request-Attempt-Id`，都没有才随机生成。
-2. 保持请求体优先是为了已分发的 v1.2 客户端：它同时带两个 ID（值不同），cancel 发的是请求体那个。
-3. cancel 接口不变：`POST /api/v3/chat/completions/cancel`，body `{model, request_id}`，`token` 头。
-4. 上线顺序：网关先上、客户端后发；否则新客户端（不写请求体）在旧网关下 cancel 恒 404，
+1. 取值顺序：请求头 `Chrys-Request-Attempt-Id` 优先，其次请求体 `request_id` / `requestId`，都没有才随机生成。
+2. 请求体回落只服务于无头的调用方（curl 演练、其他前端）；内网未分发过带请求体 ID 的 v1.2 包
+   （2026-11-24 责任人确认），因此不存在"旧客户端 cancel 用请求体 ID"的兼容负担。
+3. 过渡期防呆（建议后端）：同一请求两者同时存在且不一致时记 WARNING 并带上两个值，用于发现遗留旧客户端；
+   若将来确实出现旧客户端，网关可临时改回"请求体优先"，客户端无需发版。
+4. cancel 接口不变：`POST /api/v3/chat/completions/cancel`，body `{model, request_id}`，`token` 头；
+   其中 `request_id` 填队列元素键（本客户端即该次尝试的请求头值）。
+5. 上线顺序：网关先上、客户端后发；否则新客户端（不写请求体）在旧网关下 cancel 恒 404，
    而客户端把它当契约内正常 no-op 只记 info，中断后的请求会一直占着并发槽位。
 
 ### 上游改动清单（R2，相对 v1.2 的增量）
@@ -292,7 +297,7 @@ R2 报批说明：
 （`+24/−54`）；`llm_queue/__init__.py`（`0/−2`）；`aixcoding/tests/llm/test_llm_queue_request_id.py` 由
 `test_llm_queue_attempt_header.py` 取代；`test_model_queue_cancel.py` 改用生产 profile HTTP 客户端
 （其 `scripted_openai` 类夹具不挂 tracking hooks）；`mock_server/model_concurrency_verify/mock_gateway.py`
-（本地演练脚本，未跟踪）按"请求体优先、请求头兜底"取值。
+（本地演练脚本，未跟踪）按"请求头优先、请求体兜底"取值。
 
 ### 定制点登记（已并入主表）
 
@@ -317,5 +322,6 @@ R2 报批说明：
 - 网关未升级 / 未透传该头：新客户端 cancel 恒 404（按正常 no-op 记 info），中断后请求占槽位。
   缓解：网关先上线；联调第一项验证该头到达（网关入口记录收到的请求头）。
 - 上游改名/移除该头：`test_llm_queue_attempt_header.py` 的 wire 级断言会红，合并上游时即发现。
-- profile 若仍固定 `request_id`：网关按请求体优先取值，客户端 cancel（头值）404；该能力已不再支持，文档已标注。
+- profile 若仍残留 `request_id`：网关优先取请求头，该字段被忽略，客户端 cancel（头值）与队列元素一致；
+  "profile 固定队列 ID"能力已不再支持，文档已标注。
 - 回滚：恢复 v1.2 的 `_complete` 与 `track_queue_request(request, ...)` 签名即可（本变更单整体可逆）。
