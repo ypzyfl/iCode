@@ -23,7 +23,7 @@ on:
         description: 'Immutable telemetry adapter commit (40-character SHA)'
         type: string
         required: true
-        default: '2ce65cb797f79ee9a9418fe7590c0f3059b8b572'
+        default: 'ebe9895ff8573d9ef74b8923ef511cbbf33e60e7'
 
 concurrency:
   group: otel-business-telemetry-cd-${{ inputs.ref || github.ref }}-${{ github.workflow }}
@@ -518,19 +518,89 @@ jobs:
           "$binary" serve --help > /dev/null
           "$binary" acp --help > /dev/null
 
+      - name: Package resource on the native runner and extract for verification
+        id: resource-package
+        shell: bash
+        env:
+          BINARY_NAME: ${{ steps.name.outputs.binary }}
+          ARTIFACT_NAME: ${{ steps.name.outputs.artifact }}
+          BUILD_PLATFORM: ${{ matrix.platform }}
+          BUILD_TARGET: ${{ matrix.target }}
+          HOST_COMMIT: ${{ needs.resolve-source.outputs.sha }}
+        run: |
+          version=$(cat repo/.python-version)
+          uv run --no-project --python "$version" python - <<'PYCODE'
+          import hashlib, json, os, tarfile, zipfile
+          from pathlib import Path
+          binary = Path(os.environ['BINARY_NAME'])
+          artifact = os.environ['ARTIFACT_NAME']
+          assets = Path('release-assets')
+          assets.mkdir(exist_ok=False)
+          unpack = Path('package-smoke')
+          unpack.mkdir(exist_ok=False)
+          if os.environ['BUILD_PLATFORM'] == 'windows':
+              resource = assets / (artifact + '.zip')
+              with zipfile.ZipFile(resource, 'w', zipfile.ZIP_DEFLATED) as bundle:
+                  bundle.write(binary, arcname=binary.name)
+              with zipfile.ZipFile(resource) as bundle:
+                  bundle.extractall(unpack)
+          else:
+              binary.chmod(0o755)
+              resource = assets / (artifact + '.tar.gz')
+              with tarfile.open(resource, 'w:gz') as bundle:
+                  bundle.add(binary, arcname=binary.name)
+              with tarfile.open(resource) as bundle:
+                  bundle.extractall(unpack, filter='data')
+              if not os.access(unpack / binary.name, os.X_OK):
+                  raise SystemExit('Packaged binary is not executable')
+          def digest(path):
+              return hashlib.sha256(path.read_bytes()).hexdigest()
+          if digest(unpack / binary.name) != digest(binary):
+              raise SystemExit('Packaged binary content differs')
+          facts = json.loads(Path('chrys-telemetry-offline-dist.tar.gz.json').read_text(encoding='utf-8'))
+          provenance = json.loads(Path('telemetry-wheel/provenance.json').read_text(encoding='utf-8'))
+          manifest = {
+              **facts,
+              'host_commit': os.environ['HOST_COMMIT'],
+              'target': os.environ['BUILD_TARGET'],
+              'adapter': provenance,
+              'resource': resource.name,
+              'resource_sha256': digest(resource),
+              'binary_sha256': digest(binary),
+              'workflow_commit': os.environ.get('GITHUB_SHA'),
+              'workflow_run': os.environ.get('GITHUB_RUN_ID'),
+          }
+          (assets / (artifact + '-build-manifest.json')).write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write('binary=' + (unpack / binary.name).resolve().as_posix() + '\n')
+          PYCODE
+
       - name: Verify embedded business capture without developer imports
         shell: bash
         run: |
           version=$(cat repo/.python-version)
           host_version=$(uv run --no-project --python "$version" python -c 'import json; print(json.load(open("chrys-telemetry-offline-dist.tar.gz.json"))["host_version"])')
           uv run --no-project --python "$version" python telemetry-wheel/smoke_embedded_binary.py \
-            --binary "${{ steps.name.outputs.binary }}" --work-dir "$RUNNER_TEMP/telemetry-smoke" \
-            --expected-version "$host_version" --summary telemetry-smoke-summary.json
+            --binary "${{ steps.resource-package.outputs.binary }}" --work-dir "$RUNNER_TEMP/telemetry-smoke" \
+            --expected-version "$host_version" --summary "release-assets/${{ steps.name.outputs.artifact }}-smoke-summary.json"
 
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - name: Upload verified resource and evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ steps.name.outputs.artifact }}
-          path: ${{ steps.name.outputs.binary }}
+          path: release-assets/
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Preserve available validation evidence on failure
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: telemetry-diagnostics-${{ matrix.target }}
+          path: |
+            chrys-telemetry-offline-dist.tar.gz.json
+            release-assets/*.json
+          if-no-files-found: warn
 
 
   # Build-only delivery: publishing remains an explicit later decision.
@@ -542,17 +612,12 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: artifacts
-      - name: Package binaries using the existing CD resource layout
+      - name: Collect already verified resource packages and evidence
         run: |
           mkdir release
           for dir in artifacts/aixcoding-cli-*/; do
             [ -d "$dir" ] || continue
-            artifact=$(basename "$dir")
-            if [ -f "$dir/aixcoding-cli.exe" ]; then
-              (cd "$dir" && zip -q "$OLDPWD/release/${artifact}.zip" "aixcoding-cli.exe")
-            elif [ -f "$dir/aixcoding-cli" ]; then
-              tar -czf "release/${artifact}.tar.gz" -C "$dir" "aixcoding-cli"
-            fi
+            cp "$dir"/* release/
           done
           cp artifacts/telemetry-wheel/provenance.json release/telemetry-provenance.json
           cd release && sha256sum * > SHA256SUMS.txt
