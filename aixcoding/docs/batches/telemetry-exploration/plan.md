@@ -4,37 +4,35 @@
 
 ## 当前环节与下一步（新对话先看本节）
 
-### 当前所在环节：批次1实施准备
+### 当前所在环节：批次1 已实施并合回长期根分支；0.37.0 升级影响评估已落盘
 
-截至 2026-11-19，以下工作已经完成：
+截至 2026-11-24，探索批次与批次1 均已落地：
 
-1. 方向性调查、判别实验、风险与后台契约整理；
-2. 另一 AI 的独立评审和复审，五项分歧及残留建议均已收敛；
-3. 责任人确认三个实施批次、mock 归属批次1、独立 telemetry 集成分支及实验测试保留策略（组织方案后修订为长期根分支模式）；
-4. 探索文档门禁和实验证据记录；
-5. 最终交付复查（2026-11-17）：四个实验测试 30 passed、全目录 ruff format（454 files）、gen_customizations --strict（0 warnings）、check_docs、git diff --check 全部 exit 0，证据见 verification.md 末节；
-6. OpenAI Codex 技术评审 F1–F6 已按修订口径裁决并完成文档处置；V1–V3 判别实验未执行，相关发现未验证关闭。
+1. 探索六件套、research、experiments 与四个测试态实验（2026-11-19，探索 commit `7f3fe332`）；
+2. 长期分支 CI 触发调整（commit `a9e79024`）；
+3. 批次1 `telemetry-after-turn-slice` 已实施并经 **PR #144 合回长期根分支**（origin `136b692b`）：after_turn→reader→analyzer→reporter→单端口 mock 垂直切片、V1–V3、四文件上游接缝（turn_state/runner/finalizer/session_lifecycle）与 local 端口统一均完成，细节见 `telemetry-after-turn-slice/plan.md` 与 `verification.md`；
+4. 上游 v0.37.0（`08175eaa`）working-directory 支持影响评估已落盘（`research/upstream-v0.37.0-impact.md`）：结论为不构成方向性变化，跟进项为升级后复验。
 
-**探索 commit 已落长期分支 `feat/telemetry-exploration`（`7f3fe332`，2026-11-19）并推送 origin；按 2026-11-19 责任人裁决不创建探索独立 PR，该分支为长期根分支。**尚未修改 CI workflow、未编写任何生产 telemetry 实现，也未开始批次1的实施 design/R2。新对话必须以实际 `git status`、签认头部与文末实施策略为准。
+新对话必须以实际 `git status`、签认头部与文末实施策略为准。
 
-### 唯一下一步：批次1实施 design/R2 与长期分支 CI 触发准备
+### 唯一下一步：0.37.0 升级复验，随后批次2 开工
 
-> 2026-11-19 状态：探索 commit `7f3fe332` 已落长期根分支 `feat/telemetry-exploration` 并推送 origin，探索批次签认和最终双 AI 自审均已完成；**不创建探索独立 PR**。OpenAI Codex 技术评审的 F1–F6 已由责任人按修订口径全部裁决：F1 记录级一致性、F2 pass 级执行归属、F3 当前轮压缩最小实验前置，F4 仅阻塞最终替代交付，F5 补统一完整性矩阵，F6 过期指令已清理。F1–F5 不因裁决而视为验证关闭。
+> 批次1 已验收并合回（PR #144）。当前不推进批次2 的开发；先按 `research/upstream-v0.37.0-impact.md` §5 完成 0.37.0 升级后的复验，再确认批次2 在 0.37.0 基线上开工的接缝。
 
-新对话不要重做探索、重复签认或直接进入生产开发，应按以下顺序执行：
+新对话按以下顺序推进：
 
-1. 按下方实施顺序准备长期分支 PR 双 CI，以及批次1 `requirements/design/test-plan`、mock design/DIRECTORY 修订和本批 D1 裁决；实施 design 必须列入 V1 延迟读取、V2 同 logical 两 pass、V3 当前轮真实压缩及 F5 支持/降级矩阵；
-2. 批次1和 mock design/R2 经责任人签认后，才开发 after_turn→reader→reporter→单端口 mock 垂直切片；V1–V3 未通过不得扩大 reporter/ACP 开发，必要补采、快照或锁及其成本须重新呈报；
-3. 各工作块完成验收后 PR 合回长期根分支；全部完成或确认失败才决定整体并入主干或废弃。
+1. 完成 0.37.0 升级（走 UPGRADE-RUNBOOK 与独立升级批次），随后复跑批次1 全部 telemetry 测试与 V1–V3 判别结论；
+2. 批次2 `telemetry-acp-desktop` 在 0.37.0 基线上编写 requirements/design/R2（上游已改 `app/acp/server.py`、`session_manager.py`、`history.py`，接缝行号需重定位）；
+3. 批次3 `telemetry-parity-hardening`：M1-T、全字段 parity、保留/删除/差异清单。
 
-当前裁决只处置评审发现和文档，**不授权修改产品代码、实施 mock/reporter、修改 workflow 或执行 Git 写操作**。
+当前裁决只处置探索结论与升级影响评估，不授权修改产品代码、执行 Git 写操作。
 
 ### 探索交付后的实施顺序
 
 | 顺序 | 下一环节 | 开始前提 |
 |---|---|---|
-| 1 | 调整两个 workflow 把 `feat/telemetry-exploration` 加入 PR 触发（改动本身可直推长期分支），实证工作块 PR 双 CI | 长期分支已建立（已完成）；责任人逐条授权 Git/文件改动 |
-| 2 | 批次1 `telemetry-after-turn-slice`：基于长期分支建工作块分支，编写 requirements/design/R2，同时修订 mock design/DIRECTORY 并呈报本批 D1；签认后开发 after_turn→reader→reporter→单端口 mock 垂直切片，做好后 PR 合回长期分支 | CI 触发可用；批次1及 mock design/R2 已签认，本批 D1 已裁决 |
+| 1 | （已完成）调整两个 workflow 把 `feat/telemetry-exploration` 加入 PR 触发（改动本身可直推长期分支），实证工作块 PR 双 CI | 长期分支已建立（已完成）；责任人逐条授权 Git/文件改动 |
+| 2 | （已完成，PR #144）批次1 `telemetry-after-turn-slice`：基于长期分支建工作块分支，编写 requirements/design/R2，同时修订 mock design/DIRECTORY 并呈报本批 D1；签认后开发 after_turn→reader→reporter→单端口 mock 垂直切片，做好后 PR 合回长期分支 | CI 触发可用；批次1及 mock design/R2 已签认，本批 D1 已裁决 |
 | 3 | 批次2 `telemetry-acp-desktop`：ACP 输入、1001/desktop、最终响应与真实桌面闭环 | 批次1已验收并回合长期分支；批次2 design/R2 已签认 |
 | 4 | 批次3 `telemetry-parity-hardening`：M1-T、全字段 parity、保留场景和长会话/异常治理 | 批次2已验收；批次3 design/R2 已签认 |
 | 5 | 长期分支整体回归、文档签认、真实后台/数据治理内网门禁，最终整体 PR 并入主干；若 session 分析路线最终不可行则整体废弃、不并入 | 三个批次全部完成，无未处置重大问题；若主干直接发布，真实后台冒烟必须通过 |
@@ -128,6 +126,8 @@
 - [x] 主要开放问题已经独立评审/复审收敛；责任人已确认三批次、mock 归属、独立集成分支和 CI 前置条件，详见文末实施策略（2026-11-17）
 - [x] 探索交付前完成双 AI 自审、verification 证据闭环和 self-review 签认（2026-11-17：选项 A 裁定+周彬签认；closure 门禁通过，见 verification.md 末节）
 - [ ] 批次1各 reporter 出站边界实现模型来源过滤：仅上报 catalog 下发模型（`synced_from_server` 探针）的调用，自定义/不可判定 fail-closed 跳过并留 detail 日志；同名 stem、无文件 profile、探针缓存三个实现细节随批次1 design 裁决（2026-11-18 需求登记，分析见 research/model-source-filtering.md）
+- [x] 批次1 `telemetry-after-turn-slice` 实施完成并经 PR #144 合回长期根分支（2026-11-24 核实 origin `136b692b`；细节见 `telemetry-after-turn-slice/` 目录）
+- [ ] 0.37.0 升级影响评估已落盘（`research/upstream-v0.37.0-impact.md`，2026-11-24）；跟进：升级后复跑批次1 V1–V3 与 telemetry 测试、批次2 在 0.37.0 基线上开工、批次3 公共字段取 live workspace 不取进程 cwd
 
 ## 实施批次与分支策略（2026-11-17 确认，2026-11-19 责任人裁决修订为长期根分支模式）
 
