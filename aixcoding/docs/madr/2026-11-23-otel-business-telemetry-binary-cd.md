@@ -16,3 +16,9 @@
 - 本地验证（Python 3.14.8，复用现有宿主测试依赖）：资源包回归 3 passed；Smart Test 选择的架构检查 200 passed（沙箱阻止进程优先级调整的两项在沙箱外重跑通过）；Ruff、22 个 shell 步骤语法、嵌入 Python、文档闭环与定制登记检查通过。尚未运行六平台真实编译及制品 ACP smoke。
 
 - 2026-11-24 Windows CI 修正：测试显式选择 Git Bash；摘要解析同时识别 sha256sum 的 text 空格标记与 binary 星号标记。三种资源包布局分别执行原生默认模式与显式 binary 模式，避免 Windows text 模式转换归档字节。在 Unix 本地先复现 binary 模式三项失败，修正后六项通过；保留每个文件的内容摘要校验。
+
+## 2026-11-24 消费伴随包 Release
+
+- 伴随包已发布 `v0.1.0a4`，来源提交 `09a392a7c790339186536d760cd627bc0c42edb4`，manifest SHA256 为 `8cd05caedd54506e64ffbde17d3aeb8fe967cbf1605f46a88f68b51c0a08a92d`。该版本的固定宿主环境安装验证与 59 项单测通过。
+- CD 改为消费 `adapter_release` 与 `adapter_manifest_sha256`，先核验固定 manifest，再下载 wheel、工具及验证报告，逐项检查摘要和工具归档布局，保留同一 manifest 作为最终制品的适配器来源记录。
+- 私有 Release 下载仍通过上游专用只读 secret，原生编译、六平台矩阵和最终资源包验收继续由 iCode 执行。
