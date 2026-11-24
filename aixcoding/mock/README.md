@@ -6,17 +6,16 @@
 
 ## 注册表与端口
 
-| 子包 | 模拟目标 | 默认端口 | 产品端指向（默认） |
-|---|---|---|---|
-| `auth/` | 设备码登录认证服务 | 7777 | `AIXCODING_ENVIRONMENT=local`（零配置） |
-| `model_catalog/` | 服务端下发模型目录（**默认同端口内嵌 auth 路由** + LLM chat `/v1`） | 7777 | 同上（一站式）；目录基址可经 `aixcoding.toml` 的 `[model_catalog].base_url` 覆盖 |
-| `update/` | TUI 版本更新检测（`--port` 可覆盖） | 7778 | 当前产品端未接入；仅用于契约测试，待 update 批次接线 |
-| `telemetry/` | 遥测接收后端（**殿后**，随 telemetry 迁入） | 4321（占位） | config.py LOCAL 档默认 |
+> **2026-11-20 单端口决策**（`docs/batches/mock/design.md` 决策记录，随 telemetry-after-turn-slice 批次1 落地）：launcher 默认起**单端口组合** `:15678`——一个 server 挂载全部子服务路由；旧多端口组合退役。15678 位于 15001-49151 安全区（本机实测 Windows 动态端口范围 1024-15000，7777/7778 均在内且 7778 曾被占；同时避开标准临时区 49152+）。产品端 local 默认随批次1 R2 统一指向 15678。
 
-**合用端口说明**：catalog 与 auth 合用 :7777 并非技术上必须（auth 有
-`AIXCODING_AUTH_SERVER_URL` 覆盖、catalog 有独立 base 配置），而是 LOCAL 档零配置联调的
-刻意选择——单 server + 单 env 覆盖登录、目录、LLM chat。`--no-auth` + 独立 auth mock
-的拆用形态保留。
+| 子包 | 模拟目标 | 组合端口 | 独立形态默认端口（调试/契约测试） |
+|---|---|---|---|
+| `auth/` | 设备码登录认证服务 | 15678（catalog 内嵌路由） | 7777（`--only auth` / 直跑） |
+| `model_catalog/` | 服务端下发模型目录（**默认内嵌 auth 路由** + LLM chat `/v1`） | 15678 | 7777 |
+| `update/` | 版本更新检测（`/api/v2/releases/check`） | 15678（`/api/v2/` 前缀） | 7778 |
+| `telemetry/` | 遥测接收后端（mock 1B：三 save 端点 + `_test/join` + 原模型 attempt 捕获） | 15678（`/csas/telemetry/` 前缀） | 15678 |
+
+**合用端口说明**：组合形态是默认（单 server + 单端口覆盖登录、目录、LLM chat、更新检测）；auth 独立形态保留（纯登录调试/契约测试，与 model_catalog 因共享 auth 路由空间互斥）。`--no-auth` 拆用形态经 catalog 独立 CLI 保留。
 
 **LOCAL 默认不自动同步模型目录**（`[model_catalog] auto_sync`，批次 catalog-auto-sync）：
 LOCAL 档模型文件默认由开发者自管（手放 yaml 指向真实端点）；要演练目录同步链路，在
@@ -25,10 +24,11 @@ LOCAL 档模型文件默认由开发者自管（手放 yaml 指向真实端点�
 ## 组合启动器（一键联调）
 
 ```bash
-uv run python -m aixcoding.mock            # 默认：model_catalog(:7777 含 auth) + update(:7778)
-uv run python -m aixcoding.mock --list     # 列出可用 mock 与端口
+uv run python -m aixcoding.mock            # 默认：单端口组合 :15678（model_catalog 含 auth + update）
+uv run python -m aixcoding.mock --list     # 列出子服务、端口与路由前缀
 uv run python -m aixcoding.mock --only auth           # 纯登录场景（独立 auth，:7777）
-uv run python -m aixcoding.mock --only model_catalog  # 只要目录+登录
+uv run python -m aixcoding.mock --only model_catalog  # 只要目录+登录（组合，:15678）
+uv run python -m aixcoding.mock --port 16000          # 组合端口覆盖（逃生门）
 ```
 
 单服务调试（双形态）：
@@ -44,13 +44,13 @@ uv run python -m aixcoding.mock.auth.server            # 模块形态（注意�
 报错（服务名 + 端口），人工处理：
 
 ```console
-netstat -ano | findstr :7777        # 查占用 PID（Windows）
+netstat -ano | findstr :15678       # 查占用 PID（Windows）
 tasklist /fi "PID eq <pid>"         # 看进程名，杀掉残留 mock 后重试
 ```
 
-逃生门（人工作出端口时）：auth 使用 mock 侧 `--port` + 产品端 `AIXCODING_AUTH_SERVER_URL`；
-模型目录使用 mock 侧 `--port` + `aixcoding.toml` 的 `[model_catalog].base_url`。update 当前无产品端
-消费方，仅通过契约测试或独立接口请求验证。
+逃生门（人工作出端口时）：组合使用 mock 侧 `--port` + 产品端相应 base 配置覆盖（auth
+`AIXCODING_AUTH_SERVER_URL`、目录 `aixcoding.toml` 的 `[model_catalog].base_url`、update/
+telemetry 随批次1 R2 的 local 默认）；独立形态 CLI 各自 `--port`。
 
 ## 目录结构
 
@@ -102,9 +102,9 @@ aixcoding/mock/
    - `README.md`：端点表、故障模式、CLI 用法；
 3. **契约测试**：`aixcoding/tests/mock/test_<name>_server.py`，`create_server(port=0)`
    进程内起停、直连避代理；锚定 wire 复刻（信封、状态码语义、故障模式逐条对应）；
-4. **登记**：本 README 注册表加行（端口选未占用值）+ launcher `_SERVICES` 表加条目
-   （`aixcoding/mock/__main__.py`）+ 如与既有服务同端口互斥需在 `_resolve_selection`
-   加检查；
+4. **登记**：本 README 注册表加行 + launcher `_REGISTRY` 表加条目并在 `combined.py`
+   组合层挂载路由（`aixcoding/mock/__main__.py`）；如与既有服务共享路由空间需在
+   `_resolve_selection` 加互斥检查；
 5. **过门禁**：`pytest aixcoding/tests` 绿 + ruff check/format `aixcoding/` +
    `python aixcoding/tools/check_import_boundaries.py`。
 

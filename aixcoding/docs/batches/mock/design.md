@@ -203,6 +203,15 @@ CLI 双形态均支持（直跑为主示例，`python -m aixcoding.mock.<name>` 
 **已知脆弱点**：hack 索引依赖脚本目录深度（迁移/再挪动时须重核），已由注释锚定意图；
 归类模块内实现选择，不升 ADR。
 
+### 决策记录：单端口组合与统一端口 15678（2026-11-20 telemetry-after-turn-slice 批次修订）
+
+> 责任人裁决（2026-11-20，依据 telemetry-exploration 批次 N10 结论与批次1 requirements §5 开工前提）：本节修订上方"对比一"的多端口结论——**mock 目标形态改为单端口组合**：默认一条命令一个端口（**15678**）挂载全部子服务路由（auth/catalog/update/telemetry），不长期维护单/多端口两套组合；各子包独立 factory/单服务 CLI 保留，仅用于底层测试与调试。原决策（对比一与端口约定表）作为历史记录保留不删改。
+
+- **统一端口 15678 的依据**：本机实测 Windows 动态端口范围为 1024–15000（`netsh int ipv4 show dynamicport tcp`，2026-11-20），7777/7778/4321 在本机均落入系统随机占用区（7778 曾真实被占，即 auth-isolation-mock-ports 批次 R-04 动态端口方案的动机；Windows 默认动态区为 49152+，默认配置机器上 7777 等不在随机区，但 15678 同时兼容两种配置）；15678 位于 15001–49151 安全区——避开本机动态区与标准临时区（49152+），且为冷门值无已知常用服务冲突。
+- **产品端配置随批次1 R2（责任人已裁决，三项改默认 + 一项新增）**：auth LOCAL 默认（`kernel/aixcoding/auth/environments.py`，7777→15678）、update 默认 base（`service/aixcoding/update/client.py` `_TIER_BASES["local"]`，7778→15678）、catalog base（`service/aixcoding/models/catalog.py` `_CATALOG_BASES["local"]`，7777→15678）为默认值修改；telemetry 产品端指向为**新增** local 配置（默认 15678）；原 :4321 占位废弃。逃生门 env 均不变。
+- **不变项**：fail-fast 端口占用处理与 `--port` 逃生门（见下节）；子包结构、无前缀命名、契约测试强约束（DIRECTORY §6）；stdlib-only、loopback-only。
+- **实施细节留批次1 design 呈报**：路由挂载方式（各子包 handler 组装为单 server）、launcher 参数形态（`--all`/`--only`/`--list` 语义随单端口调整）、契约测试组织。
+
 ### 端口占用处理（fail-fast，不静默换端口）
 
 固定端口是联调可预期的前提（产品端 LOCAL 档默认对齐）；静默换端口会让产品流量打不到
@@ -268,3 +277,4 @@ checklist，不再笼统"全否"）：
 变更记录：
 
 - 2026-10-26：auth 更名联动——`CHRYS_AUTH_ENVIRONMENT`/`CHRYS_AUTH_SERVER_URL` 配方串与端口表（5 处）同步为新名 `AIXCODING_AUTH_*`（机械联动、设计语义零变化；依据 ADR-0009 与 `aixcoding/docs/batches/auth/design.md` 联动面清单；:121/:130/:151-152 历史与决策记录按约定不回改）。
+- 2026-11-20：单端口组合修订——telemetry-after-turn-slice 批次1 开工前按流程修订"多端口组合启动器"决定为单端口组合（统一端口 15678），产品端配置四项随批次1 R2 批；依据与细节见"决策记录：单端口组合与统一端口 15678"节；历史决策不删改。

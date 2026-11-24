@@ -804,6 +804,20 @@ class SessionLifecycle:
         # await, producing "Task was destroyed but it is pending" warnings on
         # process exit.
         await self._usage_publisher.settle()
+        # AIxCoding telemetry: bounded per-session flush + close (src/chrys/service/aixcoding/telemetry)
+        # Drain already-enqueued telemetry work for this session (no trailing-
+        # save final analysis by design), then close its worker. Independent of
+        # the hook manager on purpose (N3 §12.3/§14.3: hooks may be absent).
+        from chrys.service.aixcoding.telemetry.owner import get_telemetry_owner
+
+        try:
+            session_id = self._session.session_id
+            if session_id is not None:
+                telemetry_owner = get_telemetry_owner()
+                await telemetry_owner.flush_session(session_id, timeout=5.0)
+                telemetry_owner.close_session(session_id)
+        except Exception:
+            logger.debug("telemetry session flush contained an error", exc_info=True)
         # Fire ``session_end`` hooks BEFORE we tear down anything — they
         # may want a live session to inspect.  Then drain any in-flight
         # async hooks within the configured shutdown grace.  Detached
@@ -2064,6 +2078,18 @@ class SessionLifecycle:
             # and NOT re-arming would instead drop the real ``session_end`` of a
             # session that keeps going, which loses more than a repeat costs.
             await self.fire_session_end_hooks()
+            # AIxCoding telemetry: bounded per-session flush + close (src/chrys/service/aixcoding/telemetry)
+            # Runs before trajectory close/detach/physical delete; a failed
+            # delete that re-arms the session lets a later dispatch recreate
+            # the worker (close is idempotent, N3 §14.3).
+            from chrys.service.aixcoding.telemetry.owner import get_telemetry_owner
+
+            try:
+                delete_telemetry_owner = get_telemetry_owner()
+                await delete_telemetry_owner.flush_session(session_id, timeout=5.0)
+                delete_telemetry_owner.close_session(session_id)
+            except Exception:
+                logger.debug("telemetry delete flush contained an error", exc_info=True)
             # Their logs are in the directory, and their ends belong in the trajectory.
             # The registry stays open for a session a failed delete keeps; the
             # shutdown after a delete closes it.

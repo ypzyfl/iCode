@@ -68,11 +68,12 @@ _BODY_LOG_LIMIT = 2000
 #: the same way the model catalog keys its ``_CATALOG_BASES`` — dev and prod
 #: are auth's own hosts (``kernel/aixcoding/auth/environments.py``) under
 #: the ``/csas`` prefix.  Like ``catalog.py``, ``local`` is the loopback mock
-#: served straight off the origin with no prefix (``aixcoding/mock/update/``,
-#: port 7778 — not auth's 7777): the deployment prefix belongs to the real
-#: hosts, not to the frozen ``api/v2/releases/check`` path.
+#: served straight off the origin with no prefix (``aixcoding/mock/`` on the
+#: single-port combo, route prefix ``/api/v2/``): the deployment prefix
+#: belongs to the real hosts, not to the frozen ``api/v2/releases/check`` path.
+# Local default unified to the single-port mock combo (telemetry-after-turn-slice R2-6).
 _TIER_BASES: dict[str, str] = {
-    "local": "http://127.0.0.1:7778",
+    "local": "http://127.0.0.1:15678",
     "dev": "http://81.89.182.150/csas",
     "prod": "http://82.187.34.98/csas",
 }

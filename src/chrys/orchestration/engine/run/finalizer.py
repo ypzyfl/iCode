@@ -381,6 +381,30 @@ class TurnFinalizer:
         if saved:
             self._turn_state.lease.record_current_run_final_save()
         await self._record_trajectory_after_save()
+        # AIxCoding telemetry: after-turn notice (src/chrys/service/aixcoding/telemetry)
+        # Immutable notice after save/checkpoint, before external hooks; identity
+        # comes from the run-owned snapshot (R2-1/2), saved is this call's local
+        # truth. Missing snapshot or session id ⇒ skip (explicit degradation, no
+        # latest-known fallback).
+        identity = self._turn_state.current_run_identity
+        session_id = self._session.session_id
+        if identity is not None and session_id is not None:
+            try:
+                from chrys.service.aixcoding.telemetry.notice import TurnTelemetryNotice, dispatch_telemetry_notice
+
+                dispatch_telemetry_notice(
+                    TurnTelemetryNotice(
+                        session_id=session_id,
+                        session_dir=self._session.session_dir,
+                        logical_turn_id=identity.logical_turn_id,
+                        pass_id=identity.pass_id,
+                        turn_number=identity.turn_number,
+                        is_retry=identity.is_retry,
+                        saved=saved,
+                    )
+                )
+            except Exception:
+                logger.debug("telemetry notice dispatch contained an error", exc_info=True)
         with trajectory_scope(self._trajectory_recorder.finished_turn_context()):
             await self._hooks.fire_after_turn(failed=failed)
         if self._session.hook_manager is not None:

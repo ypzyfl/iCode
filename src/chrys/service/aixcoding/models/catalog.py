@@ -131,8 +131,9 @@ CATALOG_PATH = "/llm/api/v1/continue-config/dispatch"
 #: address the mock is not listening on. An unset or unknown tier resolves to
 #: PROD the way ``resolve_environment`` does — an unrecognised value must not
 #: silently leave the user with no catalog at all.
+# Local default unified to the single-port mock combo (telemetry-after-turn-slice R2-7).
 _CATALOG_BASES: dict[str, str] = {
-    "local": "http://127.0.0.1:7777",
+    "local": "http://127.0.0.1:15678",
     "dev": "http://81.89.182.150/csas",
     "prod": "http://82.187.34.98/csas",
 }

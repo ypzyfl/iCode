@@ -52,14 +52,14 @@ def test_configure_environment_injects_production_default() -> None:
 def test_resolve_endpoints_preserves_injected_environment() -> None:
     configure_environment("local")
     auth_url, data_url = resolve_endpoints()
-    assert auth_url == "http://localhost:7777/api/v1"
-    assert data_url == "http://localhost:7777/api/v1"
+    assert auth_url == "http://localhost:15678/api/v1"
+    assert data_url == "http://localhost:15678/api/v1"
 
 
 def test_local_tier_points_at_mock_port() -> None:
     auth_url, data_url = resolve_endpoints(Environment.LOCAL, {})
-    assert auth_url == "http://localhost:7777/api/v1"
-    assert data_url == "http://localhost:7777/api/v1"
+    assert auth_url == "http://localhost:15678/api/v1"
+    assert data_url == "http://localhost:15678/api/v1"
 
 
 def test_prod_tier_uses_csas_and_aicoding_prefixes() -> None:
@@ -94,4 +94,4 @@ def test_invalid_server_url_is_ignored(bad: str) -> None:
 
 def test_endpoints_follow_environment_variable_when_tier_not_passed() -> None:
     auth_url, _ = resolve_endpoints(environ={ENVIRONMENT_VARIABLE: "local"})
-    assert auth_url == "http://localhost:7777/api/v1"
+    assert auth_url == "http://localhost:15678/api/v1"
