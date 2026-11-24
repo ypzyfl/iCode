@@ -16,6 +16,7 @@ import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator
+from types import SimpleNamespace
 from typing import Any
 
 import httpx
@@ -29,6 +30,11 @@ CHUNK = (
     '"choices":[{"index":0,"delta":{"content":"%s"},"finish_reason":null}]}'
 )
 CANCEL_URL = "http://h/api/v3/chat/completions/cancel"
+
+
+def _sdk(base_url: str = "http://h/v1", api_key: str = "k") -> Any:
+    """A stand-in for the OpenAI SDK client the tracker reads base_url/api_key from."""
+    return SimpleNamespace(base_url=base_url, api_key=api_key)
 
 
 def _sse(*frames: str) -> bytes:
@@ -81,8 +87,8 @@ def _with_transport(transport: httpx.AsyncBaseTransport) -> Any:
 
     real = package.track_queue_request
 
-    def tracked(request: httpx.Request, *, model: str, base_url: str, api_key: str) -> Any:
-        return real(request, model=model, base_url=base_url, api_key=api_key, transport=transport)
+    def tracked(request: httpx.Request, *, model: str, sdk: Any) -> Any:
+        return real(request, model=model, sdk=sdk, transport=transport)
 
     return tracked
 
@@ -206,7 +212,7 @@ def test_tracker_reads_the_attempt_header() -> None:
     from chrys.service.aixcoding.llm_queue import track_queue_request
 
     request = httpx.Request("POST", "http://h/v1/chat/completions", headers={REQUEST_ATTEMPT_ID_HEADER: "a" * 32})
-    tracker = track_queue_request(request, model="m", base_url="http://h/v1", api_key="k")
+    tracker = track_queue_request(request, model="m", sdk=_sdk())
 
     assert tracker is not None
     assert tracker.request_id == "a" * 32
@@ -216,7 +222,7 @@ def test_underivable_endpoint_returns_no_tracker() -> None:
     from chrys.service.aixcoding.llm_queue import track_queue_request
 
     request = httpx.Request("POST", "http://h/v1/chat/completions", headers={REQUEST_ATTEMPT_ID_HEADER: "a" * 32})
-    assert track_queue_request(request, model="m", base_url="ftp://h", api_key="k") is None
+    assert track_queue_request(request, model="m", sdk=_sdk(base_url="ftp://h")) is None
 
 
 def test_missing_attempt_header_returns_no_tracker(caplog: pytest.LogCaptureFixture) -> None:
@@ -226,7 +232,7 @@ def test_missing_attempt_header_returns_no_tracker(caplog: pytest.LogCaptureFixt
     caplog.set_level(logging.WARNING, logger="chrys.service.aixcoding.llm_queue.queue_cancel")
     request = httpx.Request("POST", "http://h/v1/chat/completions")
 
-    assert track_queue_request(request, model="m", base_url="http://h/v1", api_key="k") is None
+    assert track_queue_request(request, model="m", sdk=_sdk()) is None
     assert REQUEST_ATTEMPT_ID_HEADER in caplog.text
 
 
@@ -364,7 +370,7 @@ def test_armed_tracker_is_reported_in_the_detail_channel(
     from chrys.service.aixcoding.llm_queue import track_queue_request
 
     request = httpx.Request("POST", "http://h/v1/chat/completions", headers={REQUEST_ATTEMPT_ID_HEADER: "b" * 32})
-    tracker = track_queue_request(request, model="m", base_url="http://h/v1", api_key="k")
+    tracker = track_queue_request(request, model="m", sdk=_sdk())
 
     assert tracker is not None
     messages = [record.getMessage() for record in detail_records]

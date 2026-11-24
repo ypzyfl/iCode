@@ -11,7 +11,9 @@ Design: ``aixcoding/docs/batches/model-queue-client/design.md``.
 from chrys.service.aixcoding.llm_queue.queue_cancel import (
     QueueRequestTracker,
     cancel_endpoint,
+    close_stream_and_cancel,
     track_queue_request,
+    wire_queue_callback,
 )
 from chrys.service.aixcoding.llm_queue.queue_frames import (
     RELEASED_POSITION,
@@ -28,8 +30,10 @@ __all__ = [
     "QueueRequestTracker",
     "QueueStatus",
     "cancel_endpoint",
+    "close_stream_and_cancel",
     "guard_queue_frames",
     "queue_position",
     "terminal_queue_rejection",
     "track_queue_request",
+    "wire_queue_callback",
 ]

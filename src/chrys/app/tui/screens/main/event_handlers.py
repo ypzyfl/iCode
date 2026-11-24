@@ -79,8 +79,6 @@ from chrys.foundation.events.types import (
     CompactionStarted,
     ContextCompressed,
     Error,
-    # AIxCoding queue-progress: TUI handler
-    GatewayQueueStatus,
     HookConfirmationRequest,
     HookConfirmationWithdrawn,
     HookExecutionsChanged,
@@ -129,6 +127,9 @@ from chrys.foundation.models.ask_user import AskUserAnswer
 from chrys.foundation.models.hook_confirmations import HookConfirmationAnswer
 from chrys.foundation.text.draft_references import DraftReferences, image_labels_to_paths
 from chrys.foundation.tool_result_metadata import canonical_tool_result_status
+
+# AIxCoding queue-progress: TUI handler (the event class lives in the customization package)
+from chrys.kernel.aixcoding.queue_progress import GatewayQueueStatus
 from chrys.orchestration.engine.run.attachments import replace_image_mentions_with_paths
 from chrys.service.approval.policy import ApprovalMode
 from chrys.service.mutations.types import FileHashDiff

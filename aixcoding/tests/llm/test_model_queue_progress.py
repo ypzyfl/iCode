@@ -76,7 +76,7 @@ def test_queue_note_does_not_show_the_queue_size() -> None:
 
 def test_queue_status_event_passes_the_headless_boundary() -> None:
     """CLI and ACP read headless events through the type tuple; this event must pass."""
-    from chrys.foundation.events.types import GatewayQueueStatus
+    from chrys.kernel.aixcoding.queue_progress import GatewayQueueStatus
     from chrys.orchestration.session_host import allows_headless_event
 
     event = GatewayQueueStatus(session_id="s1", position=2, queue_size=5)
@@ -175,7 +175,7 @@ class _RecordingWriter:
 def test_cli_writes_one_line_per_position_change() -> None:
     """The gateway's position heartbeat repeats a position; the CLI must not repeat its line."""
     from chrys.app.cli.progress import TurnProgress
-    from chrys.foundation.events.types import GatewayQueueStatus
+    from chrys.kernel.aixcoding.queue_progress import GatewayQueueStatus
 
     writer = _RecordingWriter()
     progress = TurnProgress(writer, render=lambda reference: "", context=lambda: None)  # type: ignore[arg-type]
@@ -190,7 +190,7 @@ def test_cli_writes_one_line_per_position_change() -> None:
 def test_cli_release_clears_the_dedupe() -> None:
     """After the queue releases, the same position must print again in a later wait."""
     from chrys.app.cli.progress import TurnProgress
-    from chrys.foundation.events.types import GatewayQueueStatus
+    from chrys.kernel.aixcoding.queue_progress import GatewayQueueStatus
 
     writer = _RecordingWriter()
     progress = TurnProgress(writer, render=lambda reference: "", context=lambda: None)  # type: ignore[arg-type]
@@ -205,7 +205,8 @@ def test_cli_release_clears_the_dedupe() -> None:
 def test_cli_turn_started_clears_the_dedupe() -> None:
     """A new turn must print the same position again, not inherit the previous turn's dedupe."""
     from chrys.app.cli.progress import TurnProgress
-    from chrys.foundation.events.types import GatewayQueueStatus, TurnStarted
+    from chrys.foundation.events.types import TurnStarted
+    from chrys.kernel.aixcoding.queue_progress import GatewayQueueStatus
 
     writer = _RecordingWriter()
     progress = TurnProgress(writer, render=lambda reference: "", context=lambda: None)  # type: ignore[arg-type]
@@ -220,7 +221,7 @@ def test_cli_turn_started_clears_the_dedupe() -> None:
 async def test_acp_queue_status_is_deduped_per_session() -> None:
     """The same position is sent once per session, and a release lets it be sent again."""
     from chrys.app.acp.server import ChrysAcpServer
-    from chrys.foundation.events.types import GatewayQueueStatus
+    from chrys.kernel.aixcoding.queue_progress import GatewayQueueStatus
 
     class _Client:
         def __init__(self) -> None:
@@ -244,6 +245,39 @@ async def test_acp_queue_status_is_deduped_per_session() -> None:
         ("chrys/queue_status", {"sessionId": "s2", "position": 2, "queueSize": 5}),
         ("chrys/queue_status", {"sessionId": "s1", "released": True}),
         ("chrys/queue_status", {"sessionId": "s1", "position": 2, "queueSize": 5}),
+    ]
+
+
+async def test_acp_turn_started_resets_the_dedupe() -> None:
+    """A new turn must notify the same position again, not inherit the previous turn's dedupe.
+
+    A queued turn interrupted without a release leaves no reset behind otherwise:
+    the next turn's first notification would be swallowed until the position changes.
+    """
+    from chrys.app.acp.server import ChrysAcpServer
+    from chrys.foundation.events.types import TurnStarted
+    from chrys.kernel.aixcoding.queue_progress import GatewayQueueStatus
+
+    class _Client:
+        def __init__(self) -> None:
+            self.sent: list[tuple[str, dict[str, Any]]] = []
+
+        async def ext_notification(self, method: str, params: dict[str, Any]) -> None:
+            self.sent.append((method, params))
+
+    client = _Client()
+    server = ChrysAcpServer(manager=object(), initial_vision=False)  # type: ignore[arg-type]
+    server.on_connect(client)  # type: ignore[arg-type]
+
+    await server._handle_turn_event("fallback", GatewayQueueStatus(session_id="s1", position=2, queue_size=5), None)  # type: ignore[arg-type]
+    # The queued turn is interrupted: no release ever arrives, then a new turn starts.
+    await server._handle_turn_event("fallback", TurnStarted(session_id="s1", turn_id="t2"), None)  # type: ignore[arg-type]
+    await server._handle_turn_event("fallback", GatewayQueueStatus(session_id="s1", position=2, queue_size=5), None)  # type: ignore[arg-type]
+
+    queue_sends = [params for method, params in client.sent if method == "chrys/queue_status"]
+    assert queue_sends == [
+        {"sessionId": "s1", "position": 2, "queueSize": 5},
+        {"sessionId": "s1", "position": 2, "queueSize": 5},
     ]
 
 

@@ -29,8 +29,6 @@ from chrys.foundation.events.types import (
     ContextCompressed,
     Error,
     Event,
-    # AIxCoding queue-progress: headless event type
-    GatewayQueueStatus,
     InvocationAborted,
     InvocationAnswerWithdrawn,
     InvocationCascadeAborted,
@@ -89,6 +87,9 @@ from chrys.foundation.models.workspace import Workspace
 from chrys.foundation.platform import get_platform
 from chrys.foundation.trajectory.ids import new_analytics_id
 from chrys.foundation.util.session_ids import SESSION_SHORT_ID_LEN, session_short_id
+
+# AIxCoding queue-progress: headless event type (the event class lives in the customization package)
+from chrys.kernel.aixcoding.queue_progress import GatewayQueueStatus
 from chrys.orchestration.engine.assembly import assemble_agent_engine
 from chrys.orchestration.engine.engine import AgentEngine
 from chrys.orchestration.workflows.catalog import WorkflowCatalog

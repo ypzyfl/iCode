@@ -322,3 +322,28 @@ check OK — 134 row(s) / 199 marker(s)
 ```
 
 **待重签**：`model-queue-client/design.md` 的 C2 行数与 C3 约束属正文 R2 变更，AI 未改头部。
+
+---
+
+## 2026-11-24 v1.4 归位压缩实施验证
+
+```text
+uv run pytest aixcoding/tests/llm -m "not integration and not gc_calibration" -q
+71 passed（含取消链路 29 条经生产 profile 客户端锚定，签名改 sdk 后全绿）
+
+uv run pytest tests/service/llm 之外的取消相关上游面：
+    aixcoding/tests/llm + tests/app/acp/test_server_capabilities.py 合跑 74 passed
+
+wait 清单：uv run python -m tests.support.trajectory_wait_inventory
+    6 条重开（close_stream_and_cancel×2 新增、updates×5/6 因 finally 结构变化重锚），
+    全部默认 unresolved；tests/architecture/test_trajectory_wait_inventory.py 全绿
+
+净表 numstat（merge-base → 工作区，实测）：client.py 相对 base +30/−1
+（v1.4 表已回填；finally 降级分支说明见 v1.4 偏差节）
+
+ruff check（EDITS 面，6 处自动修复后 0 剩余）/ ruff format --check：通过
+ty check --error-on-warning 三平台：All checks passed!
+gen_customizations.py --strict：check OK
+```
+
+**待重签**：v1.4 实测净行数（+30/−1，高于预估的降级分支说明）属正文回填，AI 未改头部。

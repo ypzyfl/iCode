@@ -22,7 +22,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
-from typing import Final
+from typing import Any, Final
 
 import httpx
 
@@ -215,23 +215,28 @@ def track_queue_request(
     request: httpx.Request,
     *,
     model: str,
-    base_url: str,
-    api_key: str,
+    sdk: Any,
     transport: httpx.AsyncBaseTransport | None = None,
 ) -> QueueRequestTracker | None:
     """Tie the queue entry of *request* to the id the gateway saw, when a cancel can be sent.
 
     *request* is the attempt whose response arrived (``raw.http_response.request``),
-    so its ``Chrys-Request-Attempt-Id`` is the id the gateway queued. ``None``
-    means no tracker is armed: no model, no such header on the attempt (a client
-    built without the upstream tracking hooks), or a cancel endpoint that cannot
-    be derived from *base_url*. The stream works either way; only the
-    leave-the-queue call is lost. ``transport`` exists so tests can observe the
-    cancel call; production passes none.
+    so its ``Chrys-Request-Attempt-Id`` is the id the gateway queued — the
+    tracker is built from the response, not from the request body, because the
+    gateway keys the queue entry by that same per-attempt header. *sdk* is the
+    OpenAI SDK client the attempt ran on: the cancel URL derives from its
+    ``base_url`` and the ``token`` header from its ``api_key``. ``None`` means
+    no tracker is armed: no model, no such header on the attempt (a client
+    built without the upstream tracking hooks), or a cancel endpoint that
+    cannot be derived. The stream works either way; only the leave-the-queue
+    call is lost. ``transport`` exists so tests can observe the cancel call;
+    production passes none.
     """
     if not model:
         _detail_logger.debug("网关排队取消未启用：请求没有 model")
         return None
+    base_url = str(sdk.base_url)
+    api_key = str(sdk.api_key or "")
     request_id = request.headers.get(REQUEST_ATTEMPT_ID_HEADER)
     if not request_id:
         message = "网关排队取消不可用：本次尝试没有 %s 请求头，中断后请求会留在队列中"
@@ -259,6 +264,40 @@ def track_queue_request(
         api_key=str(api_key or ""),
         transport=transport,
     )
+
+
+def wire_queue_callback(
+    observer: Any, queue_request: QueueRequestTracker | None
+) -> Callable[[QueueStatus], Awaitable[None]] | None:
+    """The guard's status callback: the frontend's observer callback wrapped by the tracker.
+
+    *observer* is the wire ``WireCallObserver`` (or ``None``) whose
+    ``on_queue_status`` property carries the frontend callback; *queue_request*
+    wraps it so the tracker also sees the queue phase. ``None`` when there is
+    nothing to report to.
+    """
+    on_status = observer.on_queue_status if observer is not None else None
+    if queue_request is not None:
+        on_status = queue_request.observing(on_status)
+    return on_status
+
+
+async def close_stream_and_cancel(sdk_stream: Any, queue_request: QueueRequestTracker | None) -> None:
+    """Close the SDK stream, then leave the queue if the request is still waiting.
+
+    Mirrors the upstream close path: a close failure is swallowed. The cancel
+    runs even when the close raised or the task is being cancelled, so an
+    interrupted queued request always leaves the queue.
+    """
+    try:
+        if sdk_stream is not None:
+            try:
+                await sdk_stream.close()
+            except Exception:
+                logger.debug("Failed to close OpenAI chat-completion stream", exc_info=True)
+    finally:
+        if queue_request is not None:
+            await queue_request.cancel_on_close()
 
 
 def _preview(value: object, limit: int = 500) -> str:

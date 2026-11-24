@@ -9,12 +9,12 @@
 实现评审的 2 个 blocker（放行后文案不释放、ACP 去重跨会话串号）已修；
 2026-11-20 补 5 条前端轮次边界锚定（CLI TurnStarted / ACP 跨会话去重 / TUI handler→presenter / presenter→view / view adapter→WaitingRow）。
 
+**2026-11-24 归位改造（design v1.3，已签认后实施）**：事件类移出 types.py、construction 工厂化、ACP 判重入包（claim/confirm）、CLI 体入包；净表实测 **16 文件 +198/−9**（上游 src 14 文件 +162/−7），并修复 PR #151 评审缺陷 1（ACP TurnStarted 重置）。验证见 verification.md 同日节。
+
 ## 下一步（接续入口）
 
-1. 责任人重签 `design.md`（R2 表新增 manifest 行并回填实测行数，2026-11-20）
-2. 责任人签认 `self-review.md`（若 R2 回填需要）
-3. 真实网关联调：TUI 等待行文案、CLI 去重行、ACP `chrys/queue_status` / `released`
-4. 可选：完整 Smart Test（已用宽目录集替代覆盖）
+1. 责任人确认 v1.3 实施回填（净表实测数字、acp-notification 计数 4→5；登记/数字勘误按 R10 惯例随下次签认确认）
+2. 真实网关联调：TUI 等待行文案、CLI 去重行、ACP `chrys/queue_status` / `released`
 
 前置批次 `../model-queue-client/` 已完成并提交（design/ADR/self-review 均已签认），本批次依赖其 `src/chrys/service/aixcoding/llm_queue/queue_frames.py` 与 `chat_completions/client.py` 的接线；续接时先读该批次的 plan.md 与 verification.md。
 
@@ -30,6 +30,7 @@
 - [x] 本地提交（`43b005a5`）
 - [x] 2026-11-20 补前端轮次边界锚定（C0）
 - [x] 2026-11-20 回填 R2 实测行数 + manifest 行（C1/C7，待重签）
+- [x] 2026-11-24 归位改造（design v1.3）：A 事件类出 types.py / B construction 工厂化 / C ACP 判重入包+TurnStarted 重置 / D CLI 体入包；`queue_notify.py`、`cli/queue_line.py` 落位；实测回填净表
 
 ## 挂起与备忘
 

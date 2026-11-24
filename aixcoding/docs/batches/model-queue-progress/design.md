@@ -80,6 +80,8 @@ R1 自查（必答）：
 合计 **17 文件**；首版预估约 123 行，实测（numstat）约 **+191/−7**：
 15 个专属文件 +179/−4、`client.py` 内 progress 部分 +2/−1、manifest progress 增量约 +10/−2。
 
+> 上表为 v1.0/v1.2 首版快照；现行口径以 v1.3 归位改造变更单为准（含相对 base 的净表与"不移清单"）。
+
 **2026-11-20 回填（评审 C1/C7）**：上表新增 manifest 行并回填实测 numstat；
 正文变更按 R10 需责任人重签，AI 未改头部签认行。
 
@@ -104,19 +106,17 @@ R1 自查（逐行归属）：上游每处均为"挂点 + 一行调用/一个字
 |---|---|---|---|---|---|---|
 | model-queue-progress:observer-callback | src/chrys/service/llm/observer.py | AIxCoding queue-progress: observer callback | 1 | `WireCallObserver.__init__` | 低 | 〔上游等价〕上游提供通用 wire 层回调注册机制 |
 | model-queue-progress:factory-passthrough | src/chrys/service/llm/clients.py | AIxCoding queue-progress: client factory passthrough | 4 | `create_client` / `_assemble_stack` | 低 | 随 observer-callback |
-| model-queue-progress:client-passthrough | src/chrys/service/llm/chat_completions/client.py | AIxCoding queue-progress: pass queue callback | 1 | `_open_stream` | 低 | 随 observer-callback |
 | model-queue-progress:build-passthrough | src/chrys/orchestration/engine/build/builder.py | AIxCoding queue-progress: build passthrough | 2 | `build_agent` | 低 | 随 observer-callback |
-| model-queue-progress:publish | src/chrys/orchestration/engine/build/construction.py | AIxCoding queue-progress: publish queue status | 3 | `bus.publish` | 中（内联 await 订阅者） | 〔上游等价〕事件总线原生支持 wire 层进度事件 |
-| model-queue-progress:headless-event-type | src/chrys/orchestration/session_host.py | AIxCoding queue-progress: headless event type | 2 | `_HEADLESS_RUN_EVENT_TYPES` / `allows_headless_event` | 高（漏加即两前端静默失效） | 〔上游等价〕headless 白名单改为按事件基类放行 |
-| model-queue-progress:event-type | src/chrys/foundation/events/types.py | AIxCoding queue-progress: event type | 1 | `Event` | 低 | 〔上游等价〕上游提供排队/背压类事件 |
+| model-queue-progress:publish | src/chrys/orchestration/engine/build/construction.py | AIxCoding queue-progress: publish queue status | 2 | `make_queue_status_publisher` 工厂调用（`bus.publish` 内联 await 移入定制包，v1.3） | 中（内联 await 订阅者） | 〔上游等价〕事件总线原生支持 wire 层进度事件 |
+| model-queue-progress:headless-event-type | src/chrys/orchestration/session_host.py | AIxCoding queue-progress: headless event type | 2 | `_HEADLESS_RUN_EVENT_TYPES` / `allows_headless_event`（事件类现居 `kernel/aixcoding/queue_progress.py`，v1.3） | 高（漏加即两前端静默失效） | 〔上游等价〕headless 白名单改为按事件基类放行 |
 | model-queue-progress:tui-subscription | src/chrys/app/tui/screens/main/subscriptions.py | AIxCoding queue-progress: TUI subscription | 2 | `_sub` | 低 | 随 event-type |
 | model-queue-progress:tui-handler | src/chrys/app/tui/screens/main/event_handlers.py | AIxCoding queue-progress: TUI handler | 3 | `MainScreen` handler 表 + 轮次开始 | 低 | 随 event-type |
 | model-queue-progress:tui-render | src/chrys/app/tui/screens/main/view_adapter.py | AIxCoding queue-progress: TUI render | 1 | `show_status` 邻域 | 低 | 随 event-type |
 | model-queue-progress:ports-protocol | src/chrys/app/tui/screens/main/ports.py | AIxCoding queue-progress: ports protocol | 1 | `MainScreenPresentationView` | 低 | 随 tui-render |
 | model-queue-progress:presenter-facade | src/chrys/app/tui/screens/main/main_screen_presenter.py | AIxCoding queue-progress: presenter facade | 1 | `MainScreenPresenter` | 低 | 随 tui-render |
 | model-queue-progress:waiting-row | src/chrys/app/tui/widgets/chat/waiting_row.py | AIxCoding queue-progress: waiting row note | 1 | `WaitingRow.render` | 中（高度/换行/跨轮残留） | 〔上游等价〕WaitingRow 自带文案能力 |
-| model-queue-progress:cli-line | src/chrys/app/cli/progress.py | AIxCoding queue-progress: CLI line | 6 | `TurnProgress.handle`（含 `TurnStarted` 重置） | 中（锚点错即静默） | 〔上游等价〕CLI 提供实时状态行机制 |
-| model-queue-progress:acp-notification | src/chrys/app/acp/server.py | AIxCoding queue-progress: ACP notification | 4 | `ext_notification` 白名单 | 低 | 〔协议变更〕ACP 协议原生提供排队/背压通知 |
+| model-queue-progress:cli-line | src/chrys/app/cli/progress.py | AIxCoding queue-progress: CLI line | 6 | `TurnProgress.handle`（含 `TurnStarted` 重置；去重与写行逻辑居 `app/aixcoding/cli/queue_line.py::QueueLineNote`，v1.3） | 中（锚点错即静默） | 〔上游等价〕CLI 提供实时状态行机制 |
+| model-queue-progress:acp-notification | src/chrys/app/acp/server.py | AIxCoding queue-progress: ACP notification | 5 | `ext_notification` 白名单 + `_handle_chrys_extension_event`（`TurnStarted` 重置，v1.3；去重与载荷居 `app/aixcoding/acp/queue_notify.py`；计数 5 = import×2/白名单/分支/重置） | 低 | 〔协议变更〕ACP 协议原生提供排队/背压通知 |
 | model-queue-progress:test-double | tests/app/tui/screens/test_prompt_shortcut_send.py | AIxCoding queue-progress: test double accepts the callback | 1 | `Builds.create_client` | 低 | 随 factory-passthrough |
 
 ## 风险与最坏情况
@@ -168,3 +168,79 @@ R1 自查（逐行归属）：上游每处均为"挂点 + 一行调用/一个字
 
 **2026-11-24 修订记录（签认后同日）**：队首文案最终定为「已排到队首，当前为队列第一位」；
 提交 `737a4a00`。
+
+---
+
+## 变更单 v1.3（2026-11-24，责任人裁决）：事件通道与三端渲染归位改造
+
+> 决策来源：Owen 对话裁决（2026-11-24）：走完整管线，把"利大于弊"的上游改动全部移入定制包，移 Regulation 不动的逐项说明原因；责任人重签本 design 后实施。动因：PR #151 独立评审与签认意见"尽量不改上游"。
+
+### 改动
+
+**A. 事件类移出 `foundation/events/types.py`（撤销 1 个上游文件）**
+
+`GatewayQueueStatus` 移入 `kernel/aixcoding/queue_progress.py`（该模块原承载三端共享文案，现兼载事件类与发布工厂；新增 `dataclasses` 与 `foundation.events.types.Event` 依赖——kernel 档合法，docstring 的"零依赖"表述同步改写）。`types.py` 整体撤销、恢复上游原样。6 处 import 源切换：session_host、construction、subscriptions、event_handlers、cli/progress、acp/server，及 aixcoding/tests 4 处。
+
+- 守卫核验：`tests/architecture/test_event_declaration_guard.py:460-473` 的运行时闭包检查仅对 `__module__` 为 types.py 的 `Event` 子类报错，定制包内子类合法。
+- 原结论"事件类型必须落在 foundation"不成立处：kernel/aixcoding 对三方前端与 orchestration 同样可达，且不属上游修改，无需 R2。
+- 行为锚定：`test_queue_status_event_passes_the_headless_boundary`（真实调用 `allows_headless_event`）继续有效。
+- 风险：session_host / construction 对 kernel/aixcoding 形成顶层 import（结构性接线、失败显式呈现；wheel 同包发布，仅损坏安装可触发）；anchor = `foundation.events.types.Event`（上游加字段经 dataclass 继承自动获得）。
+
+**B. construction.py 闭包工厂化（+15/−1 → 约 +4/−0）**
+
+10 行 publish 闭包移入 `make_queue_status_publisher(bus, session_id)`（kernel/aixcoding/queue_progress.py）；上游留导入一行 + `on_queue_status=make_queue_status_publisher(bus, session.session_id)` 一参。原否决理由"为 14 行引入一层抽象性价比不划算"，按签认意见"尽量不改上游"重估后翻案：净省 11 行、construction 退出升级热点。
+
+**C. ACP 判重入包（+28 → 实测 +18），顺带修复评审缺陷 1**
+
+去重状态（`WeakKeyDictionary` 按服务器实例隔离，测试间不串号）与载荷决策移入新定制模块 `app/aixcoding/acp/queue_notify.py`（非 R2）。上游留：import×2、白名单 2 行、isinstance hook 8 行（`queue_status_payload` 出载荷 → 字面量 `ext_notification` 一行发送 → `confirm_queue_status` 落地确认——钉子测试 `test_server_capabilities.py` 扫描 server.py 通知字面量，发送体不能整体离场）、`_handle_chrys_extension_event` 的 `TurnStarted` 分支加重置 1 行——**即 PR #151 评审问题 1 的修复**（中断后下一轮同名次首帧不再被残留去重值吞掉）。
+风险：服务器对象可弱引用（普通类成立；若上游引入无 weakref 的 `__slots__`，回退为上游保留 2 行状态初始化）。
+
+**D. CLI 渲染体入包（+24 → 约 +12）**
+
+名次去重与写行逻辑移入新定制模块 `app/aixcoding/cli/queue_line.py::QueueLineNote`（状态随 `TurnProgress` 实例生命周期）；上游留 import×3、状态初始化 1 行、`case GatewayQueueStatus` / `case TurnStarted` 两个挂点。
+
+### 上游改动清单（R2 净表——相对 base 的最终口径，2026-11-24 实施 numstat 实测）
+
+| 文件 | 现 PR | 归位后（实测） |
+|---|---|---|
+| `src/chrys/foundation/events/types.py` | +14 | 0（撤销） |
+| `src/chrys/orchestration/engine/build/construction.py` | +15/−1 | +6/−3 |
+| `src/chrys/orchestration/session_host.py` | +4 | +5/−0 |
+| `src/chrys/app/acp/server.py` | +28 | +18/−0 |
+| `src/chrys/app/cli/progress.py` | +24 | +15/−0 |
+| `src/chrys/app/tui/`（6 文件） | +67/−1 | +69/−1（事件类独立 import 行各 +1 行标记） |
+| `src/chrys/service/llm/chat_completions/client.py` | +40/−5 | +30/−1（见 model-queue-client design v1.4） |
+| `src/chrys/service/llm/clients.py`、`observer.py`、`build/builder.py` | +25/−2 | 不变（见不移清单） |
+| `tests/app/tui/screens/test_prompt_shortcut_send.py` | +2 | +2 |
+| `tests/architecture/trajectory_wait_manifest.json` | +29/−3 | +34/−2（生成产物刷新） |
+
+src/chrys 上游合计：15 文件 +217/−9 → **14 文件 +162/−7**；含 tests 总计：17 文件 +248/−12 → **16 文件 +198/−9**（净减 1 个上游文件、约 50 行增改）。
+
+实测与预估的偏差说明（2026-11-24 实施）：① ACP hook 采用 claim/confirm 结构（`queue_status_payload` 出载荷、上游保留字面量 `ext_notification` 一行发送、`confirm_queue_status` 落地后记录）——上游测试 `test_server_capabilities.py` 以 AST 扫描 server.py 的通知字面量并与白名单比对（1566 用例分片实测红→改后绿），发送体不能整体离场，"发送落地才记录"语义原样保留；② client.py `finally` 保留包缺失时的上游关流分支（降级不劣于 v1.3）；③ 事件类独立 import 行比 foundation 块内共享导入多 1 行标记（server.py 对账计数 5）。
+
+### 不移清单（逐项原因）
+
+| 文件 | 原因 |
+|---|---|
+| `observer.py` / `clients.py` / `builder.py` / `test_prompt_shortcut_send.py`（+25/−2） | 参数接线，是复用上游 `on_intermediate_text` 同构通道的最小形态；替代（全局注册表 / contextvar）即备选 B/D 的"漏包即静默不显示"失效模式，R1 明确反对 |
+| `session_host.py`（+4） | `allows_headless_event` 第一道门就是 `_HEADLESS_RUN_EVENT_TYPES` 元组（session_host.py:199-207 实核：不在元组直接 `return False`），白名单行省不掉 |
+| TUI 6 文件（+67/−1） | `waiting_row.py` 文案渲染必须改上游 widget 本体；`view_adapter`/`ports`/`presenter`（+32）是 MVP 分层税，消除需事件处理器绕过 presenter 直查 UI 树，属穿透分层，弊大于利 |
+| `trajectory_wait_manifest.json`（+29/−3） | 生成产物（`MARKER_EXEMPTIONS`）：包内存在 await 即必须有对应行，逻辑入包行数近似不变 |
+
+### 对上游隐式行为的假设（增量）
+
+8. 事件声明守卫只约束 types.py 内定义的类（`test_event_declaration_guard.py:460-473`）→ 失效表现：守卫扩展为全仓闭包检查 → 定制测试红，届时事件类须迁回 foundation 或另立上游 ADR。
+9. ACP 服务器对象可弱引用 → 失效表现：`WeakKeyDictionary` 报 TypeError → 回退为上游保留 2 行状态初始化。
+
+### 定制点登记（增量）
+
+- 删除 `event-type`（marker 随 types.py 撤销）与 `client-passthrough`（marker 并入 client 批 guard 锚）两行。
+- `publish` 计数 3→2、anchor 改为工厂调用；`headless-event-type` / `cli-line` anchor 已更新（计数不变，分别 2/6）。
+- `acp-notification` 计数 4→5（import×2〔定制模块 + 事件类〕/白名单/分支/`TurnStarted` 重置——实施实测，事件类 import 为独立语义点）。
+- 新定制模块（非 R2、无 marker、行为锚定测试随既有 `test_model_queue_progress.py` 走上游真实调用点）：`app/aixcoding/acp/queue_notify.py`、`app/aixcoding/cli/queue_line.py`；`kernel/aixcoding/queue_progress.py` 扩载事件类与工厂（anchor：`Event`、`bus.publish` 内联 await 语义）。
+- 中间态提示：design 先行删行、代码后行，`gen_customizations.py --strict` 在实施 commit 前为红（types.py marker 无登记），PR 头恢复绿——批次内预期。
+
+### 验证（实施时执行）
+
+定制测试全量（6 处 import 源更新后 52+ 用例）+ 上游 `test_event_declaration_guard`、`test_session_host`、ACP/CLI/TUI 相关分片 + ruff check/format + ty 三平台 + wait 清单刷新 + `gen_customizations.py --strict` + `check_docs.py`。
+

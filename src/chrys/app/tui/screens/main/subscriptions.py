@@ -27,8 +27,6 @@ from chrys.foundation.events.types import (
     Error,
     Event,
     ExecutionChanged,
-    # AIxCoding queue-progress: TUI subscription
-    GatewayQueueStatus,
     HookConfirmationRequest,
     HookConfirmationWithdrawn,
     HookExecutionsChanged,
@@ -78,6 +76,9 @@ from chrys.foundation.events.types import (
     Warning,
     WorkspaceUpdated,
 )
+
+# AIxCoding queue-progress: TUI subscription (the event class lives in the customization package)
+from chrys.kernel.aixcoding.queue_progress import GatewayQueueStatus
 
 if TYPE_CHECKING:
     from chrys.app.tui.screens.main.event_handlers import BackendEventHandler

@@ -229,3 +229,55 @@ check OK
 
 **未跑**：`tests/app/tui` / `tests/app/cli` / `tests/app/acp` 全量（本轮只加测试与文档，
 未改三个前端的运行时代码）；真实网关联调仍待内网执行。
+
+---
+
+## 2026-11-24 归位改造（design v1.3 实施验证）
+
+```text
+uv run pytest aixcoding/tests/llm -m "not integration and not gc_calibration" -q
+71 passed
+
+uv run pytest tests/architecture/test_event_declaration_guard.py tests/orchestration/test_session_host.py
+    tests/app/tui/screens/test_prompt_shortcut_send.py tests/app/acp tests/app/cli
+    （上游受影响分片，UTF-8 控制台）
+1 failed → tests/app/acp/test_server_capabilities.py 钉子测试（AST 扫描 server.py
+    通知字面量，发送体移包后失配）→ 改 claim/confirm 结构（字面量发送留上游）后：
+
+uv run pytest tests/app/acp/test_server_capabilities.py aixcoding/tests/llm -q
+74 passed
+
+uv run pytest tests/app/tui tests/orchestration/invoker tests/architecture
+    -q --tb=no -rf --junitxml（15333 tests）
+12 failed → 归因：invoker operation_close×6 / pause_persistence×2 / file_scanner×2
+    在 HEAD 代码同批同样失败（分支既有，git archive HEAD 取证）；chrys_test×2 单跑即绿
+    （并发抖动，非本次引入）
+
+uv run pytest aixcoding/tests -m "not integration and not gc_calibration" --junitxml
+950 tests, 23 failed —— 全部为 internal_installer test_install_ps1_*[pwsh]（本机无
+    pwsh 的已知环境噪音），其余 927 全绿
+
+uv run python -m tests.support.trajectory_wait_inventory
+2921 waits, 6 reopened（新：queue_progress publish、close_stream_and_cancel×2、
+    construction build_agent 重锚、client updates×5/6 重锚；全部默认 unresolved）
+
+uv run ruff check src/ tests/ …（EDITS 面）
+Found 6 errors (6 fixed, 0 remaining)；ruff format 后 15 文件已格式化
+
+uv run ty check --error-on-warning --python-platform linux|darwin|win32 src/chrys
+All checks passed!（×3；首轮 linux 报 1 处 session_id str|None，工厂注解对齐后清零）
+
+uv run python aixcoding/tools/gen_customizations.py --strict
+check OK — 132 registration row(s) / 197 marker(s)
+（中途红 3 项：finally marker 文本统一回 cancel 锚、acp-notification 计数 4→5，均系
+  登记勘误；PR #151 评审缺陷 1 的修复由新增用例
+  test_acp_turn_started_resets_the_dedupe 经生产入口锚定）
+
+uv run python aixcoding/tools/check_docs.py
+check_docs: OK
+
+净表 numstat（merge-base → 工作区，实测）：见 design.md v1.3 净表——
+上游 src/chrys 14 文件 +162/−7；含 tests 16 文件 +198/−9（原 17 文件 +248/−12）。
+```
+
+**未跑**：真实网关联调仍待内网执行；CI（双流水线）待 PR 更新后重跑。

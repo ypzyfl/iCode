@@ -8,15 +8,14 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from chrys.foundation.events.types import (
-    # AIxCoding queue-progress: publish queue status
-    GatewayQueueStatus,
-    UserInjectResult,
-)
+from chrys.foundation.events.types import UserInjectResult
 from chrys.foundation.models.session_surface import SessionSurface
 from chrys.foundation.models.workspace import Workspace
+
+# AIxCoding queue-progress: publish queue status (factory lives in the customization package)
+from chrys.kernel.aixcoding.queue_progress import make_queue_status_publisher
 from chrys.orchestration.engine.build.builder import AgentBuildResult
 from chrys.orchestration.engine.build.loaded import AgentManifest, CompletedBuild, LoadedAgent
 from chrys.orchestration.invoker.resources import rollback_resources
@@ -195,16 +194,6 @@ async def build_agent(
         if text:
             intermediate_texts[batch_counter.batch_id] = text
 
-    # AIxCoding queue-progress: publish queue status
-    async def _on_queue_status(status: Any) -> None:
-        await bus.publish(
-            GatewayQueueStatus(
-                session_id=session.session_id,
-                position=status.position,
-                queue_size=status.queue_size,
-            )
-        )
-
     injection = InjectionMiddleware()
     consumed_injections: list[ConsumedInjection] = []
 
@@ -324,7 +313,7 @@ async def build_agent(
             batch_counter=batch_counter,
             on_intermediate=_on_intermediate,
             # AIxCoding queue-progress: publish queue status
-            on_queue_status=_on_queue_status,
+            on_queue_status=make_queue_status_publisher(bus, session.session_id),
             on_usage=usage_publisher.publish_usage,
             on_sub_agent_usage=usage_publisher.accumulate_invocation_usage,
             on_side_call_usage=usage_publisher.accumulate_side_call_usage,

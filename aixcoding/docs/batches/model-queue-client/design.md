@@ -67,6 +67,8 @@ R1 自查（必答）：
 | `tests/orchestration/engine/test_settings_reload.py` | v1.2 重载等价比较前移除并校验两个不同的合法 `request_id`，其余请求体仍全字段相等 | +5/−1 | `# AIxCoding llm-queue: reload equivalence excludes the per-request correlation id` |
 | `tests/architecture/trajectory_wait_manifest.json` | 生成产物：新增 1 条 wait 节点 `chrys.service.aixcoding.llm_queue.queue_frames:guard_queue_frames:1`（`await anext(iterator)`，规则 `unresolved`），刷新命令 `uv run python -m tests.support.trajectory_wait_inventory` | +5 | 无（`MARKER_EXEMPTIONS` 生成产物，见 `aixcoding/tools/_common.py`） |
 
+> 上表为 v1.0 首版快照；现行口径以 v1.1–v1.4 变更单为准，相对 base 的净表见 v1.4。
+
 R2 报批说明：
 - 相比首稿已撤销 `foundation/errors/_legacy.py` 的 +5 行（改由 E' 转译覆盖）。
 - `client.py` 首稿预估 +6/−1 与实际 +10/−0 的差异：实施后自审补齐了 1 行 `logger.warning` 换行与 1 行注释，且未删任何原行（首稿把 `chunks = aiter(...)` 误算成被替换行）。行数以本表为准。
@@ -84,8 +86,8 @@ R2 报批说明：
 
 | id | 落点 | marker 锚 | 预期计数 | anchor | risk | removal_condition |
 |---|---|---|---|---|---|---|
-| model-queue-client:queue-frame-guard | src/chrys/service/llm/chat_completions/client.py | AIxCoding llm-queue: guard gateway queue frames | 1 | `AsyncOpenAI.chat.completions` chunk 迭代（`StreamState.updates_for` 校验前） | 低（10 行接线，异常全吞错，删除即回滚） | 〔上游等价〕SDK 原生忽略未知具名事件且网关改以 HTTP 状态码表达排队拒绝，或网关不再对客户端下发 `queue_status` |
-| model-queue-client:queue-cancel | src/chrys/service/llm/chat_completions/client.py | AIxCoding llm-queue: cancel queued request on abort | 3 | `_open_stream`（tracker 构造（读 `raw.http_response.request` 的尝试头）/ `on_status` 包装 / `finally` 取消） | 中（放行空窗误判只多一次 `409` 旁路请求，契约内） | 〔上游等价〕上游提供 wire 层请求生命周期钩子（abort/close 回调） |
+| model-queue-client:queue-frame-guard | src/chrys/service/llm/chat_completions/client.py | AIxCoding llm-queue: guard gateway queue frames | 2 | `AsyncOpenAI.chat.completions` chunk 迭代（`StreamState.updates_for` 校验前）；v1.4 起含定制包导入块与回调装配（`WireCallObserver.on_queue_status`） | 低（异常全吞错，删除即回滚） | 〔上游等价〕SDK 原生忽略未知具名事件且网关改以 HTTP 状态码表达排队拒绝，或网关不再对客户端下发 `queue_status` |
+| model-queue-client:queue-cancel | src/chrys/service/llm/chat_completions/client.py | AIxCoding llm-queue: cancel queued request on abort | 2 | `_open_stream`（tracker 构造（读 `raw.http_response.request` 的尝试头）/ `finally` 取消；on_status 包装已并入 guard 锚） | 中（放行空窗误判只多一次 `409` 旁路请求，契约内） | 〔上游等价〕上游提供 wire 层请求生命周期钩子（abort/close 回调）。注：2026-11-24 责任人确认网关无法感知客户端断连，"断连出队免取消"不成立，本点无上游等价替代 |
 
 ## 风险与最坏情况
 
@@ -328,3 +330,37 @@ R2 报批说明：
 
 **2026-11-24 修订记录（签认后同日）**：网关取值由"请求体优先"改为"请求头优先、请求体兜底"；
 依据是内网未分发过带请求体 ID 的 v1.2 包。提交 `fa133181`。
+
+---
+
+## 变更单 v1.4（2026-11-24，责任人裁决）：上游接线归位压缩
+
+> 决策来源：Owen 对话裁决（2026-11-24）。动因：PR #151 独立评审指认取消链路对上游 `finally` 的嵌套改写是升级最易冲突点，且签认意见明确"尽量不改上游"。同日裁决：**网关无法感知客户端断连**，评审设想的"断连出队、客户端免取消"不成立，取消链路（v1.1）永久保留于客户端。
+
+### 方案
+
+四处接线压缩，业务知识全部归位定制包，上游只见挂点：
+
+| # | 现状（v1.3 后） | 压缩后 | 知识去向 |
+|---|---|---|---|
+| 1 | 导入块前 3 行纯注释 | 1 行 marker | "tracker 须取应答尝试的 id"移入 `queue_cancel.py` docstring |
+| 2 | `track_queue_request(raw.http_response.request, model=…, base_url=…, api_key=…)` | `track_queue_request(raw.http_response.request, model=…, sdk=self.sdk_client)` | base_url 去尾斜杠推导、api_key 读取移入包内 |
+| 3 | guard 块内 observer 回调装配 7 行（含 progress 批 `pass queue callback` 挂点） | `on_status = wire_queue_callback(self._observer, queue_request)` 1 行 | observer 取值/None 防御/`observing` 包装移入包内；progress 批挂点并入本批 guard 锚 |
+| 4 | `finally` 嵌套 `try/finally` 改写（评审指认的升级最易冲突点） | `await close_stream_and_cancel(sdk_stream, queue_request)` 1 行 | 上游 finally 恢复原结构；"先关流、关流异常吞掉、取消必达（取消态跳过 await）"由包内 helper 等价承载 |
+
+### 上游改动清单（R2，相对 v1.3 的增量）
+
+| 文件 | 改什么 | 实测 numstat（2026-11-24 实施） | 标记注释位置 |
+|---|---|---|---|
+| `src/chrys/service/llm/chat_completions/client.py` | 上表 4 项压缩；`finally` 保留包缺失时的上游关流降级分支 | **+40/−5 → +30/−1**（相对 base） | `guard gateway queue frames`（导入块 + guard 调用，预期计数 2）、`cancel queued request on abort`（tracker 构造 + finally，预期计数 2） |
+
+实测与预估（+20/−5）的偏差：`finally` 为满足 R9 降级优先（定制包缺失时行为不得劣于 v1.3）保留了上游原样关流的 `elif` 分支——被替换的嵌套 `try/finally` 改写消除、升级最易冲突点不复存在，但净行数高于预估。
+
+定制包改动（非 R2）：`queue_cancel.py` 吸收 `sdk` 参数、新增 `wire_queue_callback` / `close_stream_and_cancel`；`llm_queue/__init__.py` 导出同步。
+测试：`test_model_queue_cancel.py`、`test_llm_queue_attempt_header.py` 按新签名适配（仍经生产 profile 客户端与真实调用点锚定）；wait 清单刷新。
+
+### 假设与登记（增量）
+
+- 行为假设沿用 v1.1/v1.3，不新增外部假设；`close_stream_and_cancel` 的取消态语义由现有取消态用例锚定。
+- 登记表已同步：`queue-frame-guard` 计数 1→2（导入块 + guard 调用）、`queue-cancel` 计数 3→2（on_status 包装并入 guard 锚，并登记"网关无法感知断连、无上游等价替代"）。
+- 中间态提示：design 先行删除 `model-queue-progress:client-passthrough` 登记行、代码后行，`gen_customizations.py --strict` 在实施 commit 前为红，PR 头（实施后）恢复绿——属批次内预期中间态。

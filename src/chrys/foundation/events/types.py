@@ -73,20 +73,6 @@ class Event:
     session_id: str | None = None
 
 
-# AIxCoding queue-progress: event type
-@dataclass
-class GatewayQueueStatus(Event):
-    """The gateway queued the request; ``position`` counts the requests ahead of it.
-
-    Session-scoped by design: a queued request has no invocation identity when
-    the client that will send it is built, so this carries the envelope's
-    session id rather than an :class:`InvocationOrigin`.
-    """
-
-    position: int = 0
-    queue_size: int = 0
-
-
 @dataclass(kw_only=True)
 class ExecutionChanged(Event):
     """The execution owner changed, including admission and final lease release."""

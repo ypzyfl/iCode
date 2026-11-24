@@ -232,13 +232,17 @@ class ChatCompletionsClient(WireClient):
         request = self._build_request(messages, options)
         request["stream_options"] = {"include_usage": True}
         requires_finish_reason = options.get(STREAM_REQUIRES_FINISH_REASON_OPTION) is True
-        # Queued-request cancellation lives in src/chrys/service/aixcoding/llm_queue:
-        # the tracker needs the id of the attempt that answers, so it is built from
-        # the response inside ``updates``, not from this request body.
+        # AIxCoding llm-queue: guard gateway queue frames (src/chrys/service/aixcoding/llm_queue)
         guard_queue_frames: Any = None
         track_queue_request: Any = None
+        close_stream_and_cancel: Any = None
         try:
-            from chrys.service.aixcoding.llm_queue import guard_queue_frames, track_queue_request
+            from chrys.service.aixcoding.llm_queue import (
+                close_stream_and_cancel,
+                guard_queue_frames,
+                track_queue_request,
+                wire_queue_callback,
+            )
         except Exception:
             logger.warning("aixcoding llm-queue 网关排队帧将导致流失败", exc_info=True)
 
@@ -253,10 +257,7 @@ class ChatCompletionsClient(WireClient):
                 if track_queue_request is not None:
                     try:
                         queue_request = track_queue_request(
-                            raw.http_response.request,
-                            model=self.model,
-                            base_url=str(self.sdk_client.base_url),
-                            api_key=self.sdk_client.api_key,
+                            raw.http_response.request, model=self.model, sdk=self.sdk_client
                         )
                     except Exception:
                         logger.debug("aixcoding llm-queue 取消排队不可用", exc_info=True)
@@ -265,12 +266,7 @@ class ChatCompletionsClient(WireClient):
                 chunks = aiter(sdk_stream)
                 # AIxCoding llm-queue: guard gateway queue frames (src/chrys/service/aixcoding/llm_queue)
                 if guard_queue_frames is not None:
-                    # AIxCoding queue-progress: pass queue callback
-                    observer = self._observer
-                    on_status = observer.on_queue_status if observer is not None else None
-                    # AIxCoding llm-queue: cancel queued request on abort
-                    if queue_request is not None:
-                        on_status = queue_request.observing(on_status)
+                    on_status = wire_queue_callback(self._observer, queue_request)
                     chunks = guard_queue_frames(chunks, on_status=on_status)
                 received = False
                 async for chunk in chunks:
@@ -308,16 +304,14 @@ class ChatCompletionsClient(WireClient):
                     raise
                 raise _service_error(ex) from ex
             finally:
-                try:
-                    if sdk_stream is not None:
-                        try:
-                            await sdk_stream.close()
-                        except Exception:
-                            logger.debug("Failed to close OpenAI chat-completion stream", exc_info=True)
-                finally:
-                    # AIxCoding llm-queue: cancel queued request on abort
-                    if queue_request is not None:
-                        await queue_request.cancel_on_close()
+                # AIxCoding llm-queue: cancel queued request on abort
+                if close_stream_and_cancel is not None:
+                    await close_stream_and_cancel(sdk_stream, queue_request)
+                elif sdk_stream is not None:
+                    try:
+                        await sdk_stream.close()
+                    except Exception:
+                        logger.debug("Failed to close OpenAI chat-completion stream", exc_info=True)
 
         return self._build_response_stream(updates(), response_format=options.get("response_format"))
 

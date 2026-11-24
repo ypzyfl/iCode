@@ -44,6 +44,16 @@
 - [x] verification.md 追加验证节（含 ACP 真实中断实测 + Smart Test 环境性失败的诚实记录）
 - [x] self-review 追加一轮（2 轮独立子代理评审 + 3 项破坏实验）
 
+## 变更单 v1.4：上游接线归位压缩（2026-11-24）
+
+> design v1.4 已签认后实施；网关无法感知客户端断连（2026-11-24 责任人裁决），取消链路永久保留。
+
+- [x] client.py 四处接线压缩（导入注释收敛 / tracker 收 sdk / `wire_queue_callback` / `close_stream_and_cancel` 撤销 finally 嵌套改写，保留降级关流分支）
+- [x] `queue_cancel.py`：sdk 参数、两个新 helper；`__init__.py` 导出
+- [x] `test_model_queue_cancel.py` 改用 sdk 替身；wait 清单刷新（6 条重开均为默认 `unresolved`）
+- [x] 实测回填：client.py 相对 base **+30/−1**（v1.4 表）；gen_customizations --strict / ruff / ty 三平台全绿
+- [ ] 责任人确认 v1.4 实施回填（净行数高于预估的降级分支说明）
+
 ### 阻塞与待确认
 
 - design 重签完成前不进入实现（R10）。

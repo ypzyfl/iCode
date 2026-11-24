@@ -34,6 +34,9 @@ from chrys.app.acp.history import replay_session_history, session_history_payloa
 from chrys.app.acp.hook_confirmations import AcpSessionHookConfirmations
 from chrys.app.acp.json_values import JsonValue, to_json_object
 from chrys.app.acp.session_manager import AcpSessionError, AcpSessionManager, ManagedSession, jsonable_dataclass
+
+# AIxCoding queue-progress: ACP notification (the dedupe lives in the customization package)
+from chrys.app.aixcoding.acp.queue_notify import confirm_queue_status, queue_status_payload, reset_queue_session
 from chrys.foundation.branding import APP_DISPLAY_NAME
 from chrys.foundation.config.settings import DEFAULT_APPROVAL_TIMEOUT_SECONDS
 from chrys.foundation.events.types import (
@@ -54,8 +57,6 @@ from chrys.foundation.events.types import (
     ContextCompressed,
     Error,
     Event,
-    # AIxCoding queue-progress: ACP notification
-    GatewayQueueStatus,
     InvocationAborted,
     InvocationAnswerWithdrawn,
     InvocationCascadeAborted,
@@ -88,6 +89,9 @@ from chrys.foundation.events.types import (
 )
 from chrys.foundation.models.ask_user import AskUserQuestion, validate_request_input_response
 from chrys.foundation.text.encoding import EncodingDetector, decode_bytes
+
+# AIxCoding queue-progress: ACP notification (the event class lives in the customization package)
+from chrys.kernel.aixcoding.queue_progress import GatewayQueueStatus
 from chrys.orchestration.session_host import Cancelled, EndTurn, Errored, Refused, TurnOutcome
 from chrys.service.mutations.types import FileMutationTextSnapshot
 
@@ -336,8 +340,6 @@ class ChrysAcpServer:
         self._initial_vision = initial_vision
         self._permission_timeout_seconds = permission_timeout_seconds
         self._client: Client | None = None
-        # AIxCoding queue-progress: ACP notification
-        self._last_queue_position: dict[str, int] = {}
         self._pending_input_cancels: dict[tuple[str, str], asyncio.Future[None]] = {}
         self._pending_permission_cancels: dict[tuple[str, str], asyncio.Future[None]] = {}
         self._pending_permission_tasks: dict[tuple[str, str], asyncio.Task[acp_schema.RequestPermissionResponse]] = {}
@@ -1261,6 +1263,8 @@ class ChrysAcpServer:
         standard update the event may also project.
         """
         if isinstance(event, TurnStarted):
+            # AIxCoding queue-progress: ACP notification (new turn: the queue dedupe restarts)
+            reset_queue_session(self, _event_session_id(event, session_id))
             await self._client_or_error().ext_notification(
                 "chrys/turn_started",
                 {
@@ -1287,27 +1291,13 @@ class ChrysAcpServer:
                     },
                 )
             return True
-        # AIxCoding queue-progress: ACP notification
+        # AIxCoding queue-progress: ACP notification (dedupe in src/chrys/app/aixcoding/acp/queue_notify)
         if isinstance(event, GatewayQueueStatus):
-            event_session = _event_session_id(event, session_id)
-            if event.position < 0:
-                # The queue let the request through: tell the client once, per session.
-                self._last_queue_position.pop(event_session, None)
-                await self._client_or_error().ext_notification(
-                    "chrys/queue_status",
-                    {"sessionId": event_session, "released": True},
-                )
-            elif self._last_queue_position.get(event_session) != event.position:
-                await self._client_or_error().ext_notification(
-                    "chrys/queue_status",
-                    {
-                        "sessionId": event_session,
-                        "position": event.position,
-                        "queueSize": event.queue_size,
-                    },
-                )
-                # Recorded only after the notification landed: a failed send must retry.
-                self._last_queue_position[event_session] = event.position
+            session_key = _event_session_id(event, session_id)
+            payload = queue_status_payload(self, session_key, event.position, event.queue_size)
+            if payload is not None:
+                await self._client_or_error().ext_notification("chrys/queue_status", payload)
+                confirm_queue_status(self, session_key, event.position)
             return True
         if isinstance(event, InvocationRetryAttempt) and event.origin.kind == "turn":
             await self._client_or_error().ext_notification(

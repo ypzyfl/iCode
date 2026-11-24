@@ -1,18 +1,25 @@
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 
-"""Status copy for a gateway queue position, shared by every frontend.
+"""Status copy and event plumbing for a gateway queue position, shared by every frontend.
 
 Customization-facing prose stays a plain Chinese constant rather than an i18n
 catalog entry (ADR-0010). The TUI and the CLI render it; the ACP path forwards
-only the raw position, so a client draws its own text. It depends on nothing,
-so it sits in the kernel tier (ADR-0011). Punctuation stays half-width except
-the queued copy's commas, which are the wording the owner asked for and carry
-a line-level ``noqa: RUF001``.
+only the raw position, so a client draws its own text. The session-scoped
+``GatewayQueueStatus`` event and its bus publisher live here too: the event
+subclasses the foundation ``Event`` (a legal kernel-tier dependency), and the
+event declaration guard only constrains classes defined in
+``foundation/events/types.py``.
 
 Design: ``aixcoding/docs/batches/model-queue-progress/design.md``.
 """
 
 from __future__ import annotations
+
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from typing import Any
+
+from chrys.foundation.events.types import Event
 
 
 def queue_note(position: int, queue_size: int = 0) -> str:
@@ -36,3 +43,36 @@ def queue_note(position: int, queue_size: int = 0) -> str:
         return "已排到队首，当前为队列第一位"  # noqa: RUF001
     # The full-width comma is the wording the owner asked for; the exemption stays line-level.
     return f"当前模型请求量大，请求排队约 {position} 人"  # noqa: RUF001
+
+
+@dataclass
+class GatewayQueueStatus(Event):
+    """The gateway queued the request; ``position`` counts the requests ahead of it.
+
+    Session-scoped by design: a queued request has no invocation identity when
+    the client that will send it is built, so this carries the envelope's
+    session id rather than an :class:`chrys.foundation.events.types.InvocationOrigin`.
+    """
+
+    position: int = 0
+    queue_size: int = 0
+
+
+def make_queue_status_publisher(bus: Any, session_id: str | None) -> Callable[[Any], Awaitable[None]]:
+    """Build the wire callback that republishes queue positions on the session's event bus.
+
+    *status* is the queue package's ``QueueStatus``; reading its fields keeps
+    this module decoupled from the service tier. ``bus`` is duck-typed on
+    ``publish`` only, so the factory stays importable from the lowest tier.
+    """
+
+    async def publish(status: Any) -> None:
+        await bus.publish(
+            GatewayQueueStatus(
+                session_id=session_id,
+                position=status.position,
+                queue_size=status.queue_size,
+            )
+        )
+
+    return publish
