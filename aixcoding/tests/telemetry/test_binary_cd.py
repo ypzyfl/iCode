@@ -86,9 +86,13 @@ def test_resource_package_preserves_binary_and_build_facts(tmp_path, platform):
         asset.chmod(0o644)
     shutil.copytree(tmp_path / "telemetry-wheel", tmp_path / "artifacts/telemetry-wheel")
     collector = data["jobs"]["collect-telemetry-assets"]["steps"][1]["run"]
-    collected = subprocess.run(
-        ["bash", "-e", "-c", collector], cwd=tmp_path, capture_output=True, text=True, check=False
-    )
+    bash = "bash"
+    if os.name == "nt":
+        git = shutil.which("git")
+        assert git is not None, "Git for Windows is required by the workflow collector"
+        bash = str(Path(git).resolve().parents[1] / "bin/bash.exe")
+        assert Path(bash).is_file(), "Use Git Bash explicitly, avoiding the Windows WSL launcher"
+    collected = subprocess.run([bash, "-e", "-c", collector], cwd=tmp_path, capture_output=True, text=True, check=False)
     assert collected.returncode == 0, collected.stderr
     delivered = tmp_path / "release"
     assert (delivered / archive.name).read_bytes() == archive.read_bytes()
