@@ -61,7 +61,7 @@ def test_queue_note_branches() -> None:
     from chrys.kernel.aixcoding.queue_progress import queue_note
 
     assert queue_note(-1) == ""
-    assert queue_note(0) == "正在获取模型资源"
+    assert queue_note(0) == "已排到队首，当前为队列第一位"
     for position in (1, 2, 4, 9):
         assert queue_note(position) == f"当前模型请求量大，请求排队约 {position} 人"
 

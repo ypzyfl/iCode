@@ -7,7 +7,7 @@
 
 - 责任人：李海潮
 - 状态：已确认
-- 确认日期：2026-11-19
+- 确认日期：2026-11-24
 - 确认意见：尽量不改上游，若必须要改，要少而集中的改（可选；审阅中形成的判断、附加条件或保留）
 
 ## 方案概述
@@ -137,3 +137,31 @@ R1 自查（逐行归属）：上游每处均为"挂点 + 一行调用/一个字
 - ④ 依赖上游非公开接口或行为（observer 回调固定、bus 内联 await、headless 白名单、WaitingRow 行高、ACP 白名单）：**是**
 
 → 出 ADR：`standards/adr/model-queue-progress--observer-callback-channel.md`。
+
+---
+
+## 变更单 v1.2（2026-11-24，责任人裁决）：队首文案不再声称已获取模型资源
+
+现象：`position=0` 时显示「正在获取模型资源」，随后仍可能收到 `queue_rejected(QUEUE_TIMEOUT)`。
+
+事实：`position=0` 是"下一个就轮到你"（网关文档 §3.2），不是已拿到并发槽位；占用槽位的请求若一直不结束，
+`max_wait_time` 到期仍会超时（§4/§5）。客户端能拿到的唯一放行信号仍是首个数据帧（`RELEASED_POSITION`），
+文案不得暗示已获得模型资源。
+
+改动（仅文案，无逻辑变更）：
+
+| 文件 | 改什么 | 实测 numstat |
+|---|---|---|
+| `src/chrys/kernel/aixcoding/queue_progress.py` | `position == 0` 文案「正在获取模型资源」→「已排到队首，当前为队列第一位」；docstring 说明 position 0 不持有槽位 | `+9/−5`（相对本批 base） |
+| `aixcoding/tests/llm/test_model_queue_progress.py` | `queue_note(0)` 断言同步 | 1 行 |
+
+`>0` 文案、`RELEASED_POSITION` 语义、`QUEUE_TIMEOUT` 终态不重试均不变（网关 §3.3 明确重试会重新排队、放大雪崩）。
+本批仍只接主 turn，子代理/workflow 不注入回调的边界不变。
+
+已知边界：队首超时是服务端排队语义，客户端不改变其判定；若服务端希望"队首不再超时"，需服务端调整
+`max_wait_time` 语义或不再对队首下发 `position:0`。
+
+文档同步：本批 `requirements.md`（验收文案）、`aixcoding/docs/model_concurrency_queue/{requirements,test-cases,intranet-verification}.md`
+的 position 0 文案；`verification.md` 为 2026-11-19/20 的历史取证记录，保留原样不改。
+
+本正文增量按 R10 需责任人重签头部，AI 未代填。

@@ -19,7 +19,8 @@
 
 ## 验收标准
 
-- [ ] 网关下发 `queue_status` 时，TUI 等待行显示 position 与 queueSize（后者以「共 M 个」呈现），position 为 0 时文案为"正在获取模型资源"；`queueSize` 缺失或为 0 时省略总数。
+- [ ] 网关下发 `queue_status` 时，TUI 等待行显示 position（`queueSize` 不进文案），position 为 0 时文案为
+      "已排到队首，当前为队列第一位"（2026-11-24 变更：position 0 不等于已获得模型资源，仍可能排队超时）。
 - [ ] 无排队时等待行行为与改造前完全一致（不显示任何新增文案）。
 - [ ] CLI 在名次未变化时不重复输出；放行后不输出残留。
 - [ ] ACP 客户端收到 `chrys/queue_status`（字段含 position/queueSize/sessionId）。
@@ -30,3 +31,5 @@
 
 - ~~网关 `queueSize` 是否要在 UI 展示~~ 已决（2026-11-19 初版：展示；同日文案调整后：**不再进文案**）。现行文案为
   「当前模型请求量大，请求排队约 N 人」；`queueSize` 仍随事件与 ACP 载荷传递，只是不渲染。
+- 2026-11-24：队首文案改为「已排到队首，当前为队列第一位」（原「正在获取模型资源」承诺过头——
+  `position=0` 仍可能 `QUEUE_TIMEOUT`）；见 `design.md` 变更单 v1.2。
