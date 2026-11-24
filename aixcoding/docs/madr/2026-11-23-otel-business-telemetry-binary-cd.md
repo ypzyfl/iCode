@@ -30,3 +30,10 @@
 - 正式发布工作流 https://github.com/MEDADA/aixcoding-telemetry-adapter/actions/runs/45378593083 成功；Windows x64、ARM64 原生目录 API 检查通过，固定宿主环境安装 wheel 后 61 项单测成功（Linux 跳过 1 项 Windows API 检查）。已下载全部正式资产，使用伴随包校验器和本仓输入校验器核验摘要、来源、报告及工具布局。
 - 本次仅更新输入组合；完整平台资源包与业务/ACP smoke 以新 CD 运行结果为准。历史 a4 不覆盖，回滚必须恢复整套已验收组合。
 
+## 2026-11-24 Windows capture 原生权限修复 a6
+
+- 正式输入更新为 `v0.1.0a6`，来源 `5bad49e6387b2587bcc3f5a61446d5881f4992d7`，manifest SHA256 `85f70b89837e88a42f8c0394368107c623f2b64ae9ddda993f44c95abed73f5a`。[发布工作流](https://github.com/MEDADA/aixcoding-telemetry-adapter/actions/runs/45389339554) 全部成功；五项正式资产经下载及两侧校验器核验。
+- a5 已通过实际 Windows 冷/热启动和管理命令，随后 ACP capture 缺失；原生回归在 x64、ARM64 复现 `os.O_NONBLOCK` 不存在。a6 Windows capture 改用宿主既有 `secure_open_owner_only_append`，验证真实 owner-only DACL、普通文件及无重解析点，保留二进制追加语义；POSIX 路径不变。未修改宿主源码或增加运行时依赖。
+- Windows x64、ARM64 各 9 项目录/协议测试及 2 项 capture/ACL 回归通过；固定宿主安装 a6 wheel 后 63 项单测成功（Linux 跳过 3 项 Windows 检查）。独立审查未发现问题。
+- 上一轮 CD 45379196497 的宿主完整 CI 在定向重跑两项 TUI 时序失败后成功，Linux x64、ARM64 和 macOS x64 实际制品通过；Windows x64 的 a5 capture 未通过，未记为完整平台验收。其余旧版本构建已停止，以新一轮完整 CD 结果为准。
+

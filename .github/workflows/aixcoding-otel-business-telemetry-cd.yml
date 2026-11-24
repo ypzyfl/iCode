@@ -23,12 +23,12 @@ on:
         description: 'Versioned telemetry adapter release'
         type: string
         required: true
-        default: 'v0.1.0a5'
+        default: 'v0.1.0a6'
       adapter_manifest_sha256:
         description: 'Reviewed SHA256 of release-manifest.json'
         type: string
         required: true
-        default: '7fb24304c7d873fac1de712b208a7743a9121d3e11307caaa95b66f771a05633'
+        default: '85f70b89837e88a42f8c0394368107c623f2b64ae9ddda993f44c95abed73f5a'
 
 concurrency:
   group: otel-business-telemetry-cd-${{ inputs.ref || github.ref }}-${{ github.workflow }}
