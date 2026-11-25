@@ -25,6 +25,9 @@
 | CLI 锚点正确（防静默） | 事件经 `TurnProgress.handle` 输出一行；断言 `InvocationActivity.handle` 未被调用（它收 `InvocationEvent`） | 单元 |
 | WaitingRow 跨轮不残留 | 上一轮设置文案 → 轮次开始清空 → `render()` 不含旧文案 | 单元 |
 | ACP 心跳去重 | 连续两帧相同 position 只发一次 `chrys/queue_status` | 单元 |
+| requestId 透传（v1.4） | tracker 转发的排队与放行状态都带 `request_id`；无 tracker 时为 `None`；发布工厂带到事件；端到端（生产 profile HTTP 客户端 + MockTransport）收到的 id 等于网关侧 `Chrys-Request-Attempt-Id` | 单元 + 端到端 |
+| ACP 载荷四字段（v1.4） | 排队 `{sessionId, requestId, position, queueSize}`、放行 `{sessionId, requestId, released: true}`、未知 id 时无 `requestId` 键 | 单元 |
+| D2 去重键（v1.4） | 同 session 同 position、不同 requestId 各发一次（重试新请求不被吞） | 单元 |
 | 子代理/workflow 不展示（边界） | 子代理构建路径不注入回调 → 无事件发出；与改造前一致 | 单元 |
 
 ## 异常与降级路径

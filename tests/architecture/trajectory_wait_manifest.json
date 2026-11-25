@@ -421,7 +421,7 @@
     },
     "chrys.kernel.aixcoding.queue_progress": {
       "make_queue_status_publisher.publish": [
-        ["awaitable", "await bus.publish(GatewayQueueStatus(session_id=session_id, position=status.position, queue_size=status.queue_size))", "unresolved"]
+        ["awaitable", "await bus.publish(GatewayQueueStatus(session_id=session_id, position=status.position, queue_size=status.queue_size, request_id=status.request_id))", "unresolved"]
       ]
     },
     "chrys.kernel.client": {
@@ -4067,7 +4067,7 @@
         ["shield", "await asyncio.shield(task)", "unresolved"]
       ],
       "QueueRequestTracker.observing.observe": [
-        ["awaitable", "await on_status(status)", "unresolved"]
+        ["awaitable", "await on_status(replace(status, request_id=self._request_id))", "unresolved"]
       ],
       "close_stream_and_cancel": [
         ["awaitable", "await sdk_stream.close()", "unresolved"],

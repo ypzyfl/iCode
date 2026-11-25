@@ -281,3 +281,48 @@ check_docs: OK
 ```
 
 **未跑**：真实网关联调仍待内网执行；CI（双流水线）待 PR 更新后重跑。
+
+---
+
+## 2026-11-25：design v1.4（ACP 载荷加 requestId）实施验证
+
+裁决：D1 带（放行通知携带 requestId）/ D2 加（去重键 (requestId, position)）/ D3 补（frontend-api.md 契约 + 中文文档）。签认后实施。
+
+```text
+uv run pytest aixcoding/tests/llm/ -n0 -q
+77 passed（test_model_queue_progress.py 新增 6 用例：tracker 回填排队+放行 / 无 tracker 保持
+    None / 发布工厂带 id / ACP 载荷四字段+缺席省略 / D2 新请求同名次不去重 / 端到端
+    —— 生产 profile HTTP 客户端 + MockTransport，收到的 request_id == 网关侧
+    Chrys-Request-Attempt-Id，回复文本完好）
+实施中抓到并修复 1 个缺陷：confirm_queue_status 漏传 request_id 会使确认记录 (None, position)，
+    去重永判不等 → 心跳每帧重发；server.py 两行各多传 event.request_id 后测试转绿
+
+uv run pytest tests/architecture/test_trajectory_wait_inventory.py -n0 -q
+57 passed
+
+uv run pytest tests/app/acp -n0 -q -m "not integration and not gc_calibration"
+683 passed, 2 skipped, 1 deselected
+
+uv run python -m tests.support.trajectory_wait_inventory
+2921 waits, 2 reopened（queue_progress publish、queue_cancel observing.observe 两处 await 原文
+    变化；均保持默认 unresolved，无需重套规则）；manifest diff +2/−2
+
+uv run ruff check …（EDITS 面）/ ruff format --check …
+All checks passed!；2765 files already formatted
+
+uv run ty check --error-on-warning --python-platform linux|darwin|win32 src/chrys
+All checks passed!（×3）
+
+uv run python aixcoding/tools/gen_customizations.py --strict
+check OK — 133 registration row(s) / 198 marker(s)（新增登记行 model-queue-progress:frontend-api-doc，
+    frontend-api.md 的 HTML 注释 marker 被扫描计数，补行后绿）
+
+uv run python aixcoding/tools/check_docs.py
+check_docs: OK
+```
+
+v1.4 增量 numstat（相对 HEAD daa58337，实测）：`server.py` +2/−2、`frontend-api.md` +10/−1、
+`queue_notify.py` +34/−15、`queue_cancel.py` +8/−2、`queue_frames.py` +4/−0、`queue_progress.py` +5/−0、
+`test_model_queue_progress.py` +163/−0、manifest +2/−2。
+
+**未跑**：真实网关 + 桌面端联调（含桌面端同步改造后的 requestId 消费）；CI 待 PR。

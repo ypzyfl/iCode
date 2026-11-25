@@ -58,3 +58,4 @@
 
 - design 重签完成前不进入实现（R10）。
 - 联调前需用真实 profile 核对 `base_url` 形态能否推导出 cancel 地址（design 假设 3，最大外部依赖）。
+- 2026-11-25：progress 批 v1.4 复用本批 `QueueRequestTracker.request_id` 透传 ACP `requestId`（tracker 转发时回填 `QueueStatus.request_id`），本批代码无改动；见 `../model-queue-progress/design.md` 变更单 v1.4。

@@ -164,6 +164,115 @@ async def test_stream_with_callback_still_returns_the_answer() -> None:
     assert "".join(update.text or "" for update in updates) == "hi"
 
 
+async def test_tracker_names_every_forwarded_status() -> None:
+    """The tracker fills the request id on both the queued positions and the release."""
+    from chrys.service.aixcoding.llm_queue import RELEASED_POSITION, QueueRequestTracker, QueueStatus
+
+    seen: list[str | None] = []
+
+    async def on_status(status: Any) -> None:
+        seen.append(status.request_id)
+
+    tracker = QueueRequestTracker(request_id="rid-1", model="m", endpoint=None, api_key="k")
+    observe = tracker.observing(on_status)
+    await observe(QueueStatus(position=2, queue_size=5))
+    await observe(QueueStatus(position=RELEASED_POSITION, queue_size=0))
+
+    assert seen == ["rid-1", "rid-1"]
+
+
+async def test_untracked_statuses_stay_unnamed() -> None:
+    """Without a tracker the observer sees the statuses exactly as the guard built them."""
+    from chrys.service.aixcoding.llm_queue import QueueStatus, wire_queue_callback
+    from chrys.service.llm.observer import WireCallObserver
+
+    seen: list[str | None] = []
+
+    async def on_status(status: Any) -> None:
+        seen.append(status.request_id)
+
+    callback = wire_queue_callback(WireCallObserver(on_queue_status=on_status), None)
+    assert callback is not None
+    await callback(QueueStatus(position=2, queue_size=5))
+
+    assert seen == [None]
+
+
+async def test_publisher_carries_the_request_id() -> None:
+    """The bus event carries the request id the tracker filled."""
+    from chrys.kernel.aixcoding.queue_progress import GatewayQueueStatus, make_queue_status_publisher
+    from chrys.service.aixcoding.llm_queue import QueueStatus
+
+    class _Bus:
+        def __init__(self) -> None:
+            self.events: list[Any] = []
+
+        async def publish(self, event: Any) -> None:
+            self.events.append(event)
+
+    bus = _Bus()
+    await make_queue_status_publisher(bus, "s1")(QueueStatus(position=2, queue_size=5, request_id="rid-1"))
+
+    event = bus.events[0]
+    assert isinstance(event, GatewayQueueStatus)
+    assert (event.session_id, event.position, event.queue_size, event.request_id) == ("s1", 2, 5, "rid-1")
+
+
+async def test_observer_sees_the_attempt_header_id() -> None:
+    """End to end: the ids the observer receives are the attempt header the gateway saw."""
+    import re
+
+    import httpx
+
+    from chrys.foundation.util.chrys_headers import REQUEST_ATTEMPT_ID_HEADER
+    from chrys.kernel import Message
+    from chrys.service.llm.chat_completions.client import ChatCompletionsClient
+    from chrys.service.llm.clients import _build_openai_sdk_client, _build_profile_http_client
+    from chrys.service.llm.observer import WireCallObserver
+    from chrys.service.profiles.models.schema import ModelProfile
+
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            200,
+            headers={"content-type": "text/event-stream"},
+            content=_sse(QUEUE_STATUS % (2, 5), CHUNK % "hi", "data: [DONE]"),
+        )
+
+    http = _build_profile_http_client(
+        ModelProfile(id="p", name="p", provider="openai", model_id="m", api_key="test"),
+        httpx.Timeout(5),
+        transport=httpx.MockTransport(handler),
+    )
+    sdk = _build_openai_sdk_client(
+        api_key="test",
+        base_url="http://llm.test/v1",
+        timeout=5.0,
+        max_retries=0,
+        default_headers=None,
+        http_client=http,
+    )
+    seen: list[str | None] = []
+
+    async def on_status(status: Any) -> None:
+        seen.append(status.request_id)
+
+    client = ChatCompletionsClient(model="m", sdk_client=sdk, observer=WireCallObserver(on_queue_status=on_status))
+    try:
+        stream = client._open_stream(messages=[Message("user", ["hi"])], options={})
+        updates = [update async for update in stream]
+    finally:
+        await client.aclose()
+
+    attempt_id = requests[0].headers[REQUEST_ATTEMPT_ID_HEADER]
+    assert re.fullmatch(r"[0-9a-f]{32}", attempt_id)
+    # The queued position and the release both name the request that was queued.
+    assert seen == [attempt_id, attempt_id]
+    assert "".join(update.text or "" for update in updates) == "hi"
+
+
 class _RecordingWriter:
     def __init__(self) -> None:
         self.lines: list[tuple[Any, ...]] = []
@@ -278,6 +387,60 @@ async def test_acp_turn_started_resets_the_dedupe() -> None:
     assert queue_sends == [
         {"sessionId": "s1", "position": 2, "queueSize": 5},
         {"sessionId": "s1", "position": 2, "queueSize": 5},
+    ]
+
+
+async def test_acp_payload_carries_the_request_id() -> None:
+    """Both payloads name the queued request; an unknown id omits the key entirely."""
+    from chrys.app.acp.server import ChrysAcpServer
+    from chrys.kernel.aixcoding.queue_progress import GatewayQueueStatus
+
+    class _Client:
+        def __init__(self) -> None:
+            self.sent: list[tuple[str, dict[str, Any]]] = []
+
+        async def ext_notification(self, method: str, params: dict[str, Any]) -> None:
+            self.sent.append((method, params))
+
+    client = _Client()
+    server = ChrysAcpServer(manager=object(), initial_vision=False)  # type: ignore[arg-type]
+    server.on_connect(client)  # type: ignore[arg-type]
+
+    await server._handle_turn_event("fb", GatewayQueueStatus(session_id="s1", position=2, queue_size=5, request_id="rid-1"), None)  # type: ignore[arg-type]
+    await server._handle_turn_event("fb", GatewayQueueStatus(session_id="s1", position=-1, queue_size=0, request_id="rid-1"), None)  # type: ignore[arg-type]
+    await server._handle_turn_event("fb", GatewayQueueStatus(session_id="s1", position=1, queue_size=3), None)  # type: ignore[arg-type]
+
+    assert client.sent == [
+        ("chrys/queue_status", {"sessionId": "s1", "requestId": "rid-1", "position": 2, "queueSize": 5}),
+        ("chrys/queue_status", {"sessionId": "s1", "requestId": "rid-1", "released": True}),
+        ("chrys/queue_status", {"sessionId": "s1", "position": 1, "queueSize": 3}),
+    ]
+
+
+async def test_acp_new_request_same_position_is_not_deduped() -> None:
+    """A retried request landing on the same position is a fresh fact: its id is the live one."""
+    from chrys.app.acp.server import ChrysAcpServer
+    from chrys.kernel.aixcoding.queue_progress import GatewayQueueStatus
+
+    class _Client:
+        def __init__(self) -> None:
+            self.sent: list[tuple[str, dict[str, Any]]] = []
+
+        async def ext_notification(self, method: str, params: dict[str, Any]) -> None:
+            self.sent.append((method, params))
+
+    client = _Client()
+    server = ChrysAcpServer(manager=object(), initial_vision=False)  # type: ignore[arg-type]
+    server.on_connect(client)  # type: ignore[arg-type]
+
+    await server._handle_turn_event("fb", GatewayQueueStatus(session_id="s1", position=2, queue_size=5, request_id="rid-a"), None)  # type: ignore[arg-type]
+    await server._handle_turn_event("fb", GatewayQueueStatus(session_id="s1", position=2, queue_size=5, request_id="rid-a"), None)  # type: ignore[arg-type]
+    await server._handle_turn_event("fb", GatewayQueueStatus(session_id="s1", position=2, queue_size=5, request_id="rid-b"), None)  # type: ignore[arg-type]
+
+    queue_sends = [params for method, params in client.sent if method == "chrys/queue_status"]
+    assert queue_sends == [
+        {"sessionId": "s1", "requestId": "rid-a", "position": 2, "queueSize": 5},
+        {"sessionId": "s1", "requestId": "rid-b", "position": 2, "queueSize": 5},
     ]
 
 

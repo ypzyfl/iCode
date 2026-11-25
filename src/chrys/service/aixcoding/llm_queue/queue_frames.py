@@ -56,10 +56,14 @@ class QueueStatus:
     ``position == RELEASED_POSITION`` says the queue let this request through:
     the first data chunk arrived, so a frontend showing a queue note must drop
     it (the turn may still wait later, for reasons that are not the queue).
+    ``request_id`` names the request the gateway queued (the per-attempt
+    ``Chrys-Request-Attempt-Id``); the guard leaves it ``None`` and the tracker
+    fills it before the status reaches a frontend (design v1.4).
     """
 
     position: int
     queue_size: int
+    request_id: str | None = None
 
 
 RELEASED_POSITION: Final = -1

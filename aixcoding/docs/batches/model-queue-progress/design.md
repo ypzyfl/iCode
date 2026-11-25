@@ -7,7 +7,7 @@
 
 - 责任人：李海潮
 - 状态：已确认
-- 确认日期：2026-11-24
+- 确认日期：2026-11-25
 - 确认意见：尽量不改上游，若必须要改，要少而集中的改（可选；审阅中形成的判断、附加条件或保留）
 
 ## 方案概述
@@ -118,6 +118,7 @@ R1 自查（逐行归属）：上游每处均为"挂点 + 一行调用/一个字
 | model-queue-progress:cli-line | src/chrys/app/cli/progress.py | AIxCoding queue-progress: CLI line | 6 | `TurnProgress.handle`（含 `TurnStarted` 重置；去重与写行逻辑居 `app/aixcoding/cli/queue_line.py::QueueLineNote`，v1.3） | 中（锚点错即静默） | 〔上游等价〕CLI 提供实时状态行机制 |
 | model-queue-progress:acp-notification | src/chrys/app/acp/server.py | AIxCoding queue-progress: ACP notification | 5 | `ext_notification` 白名单 + `_handle_chrys_extension_event`（`TurnStarted` 重置，v1.3；去重与载荷居 `app/aixcoding/acp/queue_notify.py`；计数 5 = import×2/白名单/分支/重置） | 低 | 〔协议变更〕ACP 协议原生提供排队/背压通知 |
 | model-queue-progress:test-double | tests/app/tui/screens/test_prompt_shortcut_send.py | AIxCoding queue-progress: test double accepts the callback | 1 | `Builds.create_client` | 低 | 随 factory-passthrough |
+| model-queue-progress:frontend-api-doc | src/chrys/app/acp/doc/frontend-api.md | AIxCoding queue-progress: document chrys/queue_status | 1 | Extension notifications 分组列表与 Notes 的 `chrys/queue_status` 载荷契约（marker 为渲染不可见的 HTML 注释，v1.4 D3） | 低（纯文档） | 〔上游等价〕上游文档原生收录该通知契约 |
 
 ## 风险与最坏情况
 
@@ -243,4 +244,141 @@ src/chrys 上游合计：15 文件 +217/−9 → **14 文件 +162/−7**；含 t
 ### 验证（实施时执行）
 
 定制测试全量（6 处 import 源更新后 52+ 用例）+ 上游 `test_event_declaration_guard`、`test_session_host`、ACP/CLI/TUI 相关分片 + ruff check/format + ty 三平台 + wait 清单刷新 + `gen_customizations.py --strict` + `check_docs.py`。
+
+---
+
+## 变更单 v1.4（2026-11-25，责任人裁决）：ACP 排队通知携带 requestId
+
+> 决策来源：责任人对话裁决（2026-11-25）。桌面端将同步改造，按请求粒度消费排队状态；ACP 载荷由
+> `{sessionId, position, queueSize}` 变为 `{sessionId, requestId, position, queueSize}`。
+> 动因：排队的是"某个 HTTP 请求"而非会话——一个 turn 内多次模型调用、各类重试各是不同的请求；
+> 会话 id 只能回答"哪个会话在排队"，回答不了"哪个请求在排队"。
+> 本变更修改 R2 对象（`server.py` 既有挂点多传一个字段），按 R10 须责任人重签本文件头部后实施；AI 未改头部。
+> 现状说明（2026-11-24 实核）：现版桌面端已消费 `_chrys/queue_status` 并渲染排队横幅，本变更不是补透传，
+> 而是在已通的通道上加一个字段。
+
+### 裁决记录（2026-11-25 签认时一并裁定）
+
+| # | 事项 | 裁决 |
+|---|---|---|
+| D1 | 放行通知是否同样携带 `requestId` | **带**：`{sessionId, requestId, released: true}` |
+| D2 | ACP 去重键是否加入 `requestId` | **加**：按 (requestId, position) 去重——中断后新请求恰逢同名次也重发，线上 id 不过期 |
+| D3 | 是否在 `src/chrys/app/acp/doc/frontend-api.md` 补 `chrys/queue_status` 契约 | **补**（上游文档文件，入下方 R2 增量表）+ 落中文文档 |
+
+### 方案
+
+requestId 的来源与去向——逻辑全部在定制包内，上游只多传一个已在事件上的字段：
+
+```text
+raw.http_response.request.headers["Chrys-Request-Attempt-Id"]      ← 应答那次 HTTP 尝试的请求头（client 批 v1.3 既有）
+  └─ track_queue_request() → QueueRequestTracker.request_id
+       └─ observing().observe：转发前 replace(status, request_id=…)   ← QueueStatus 新增 request_id（默认 None）
+            └─ observer.on_queue_status → make_queue_status_publisher
+                 └─ GatewayQueueStatus(…, request_id=…)               ← 事件新增 request_id（默认 None）
+                      ├─ TUI / CLI：不读该字段，行为不变
+                      └─ ACP server.py 挂点：queue_status_payload(…, event.request_id)   ← 上游唯一改动（1 条语句）
+                           └─ queue_notify.queue_status_payload：载荷加 "requestId"；未知时省略该键
+```
+
+`QueueStatus.request_id` 带默认值，guard 两处构造点不动；只有武装了 tracker 的请求才会被命名。
+
+### 载荷契约（桌面端对接口径）
+
+线上方法名 `_chrys/queue_status`：iCode 代码写 `chrys/queue_status`，Python ACP SDK 发送时自动加 `_` 前缀
+（`acp/agent/connection.py:206`，`send_notification(f"_{method}", …)`）。本次不变。
+
+| 通知 | 载荷 | 时机 |
+|---|---|---|
+| 排队中 | `{"sessionId": "<ACP 会话 id>", "requestId": "<32 位小写 hex>", "position": <int ≥ 0>, "queueSize": <int>}` | 每个 (requestId, position) 首次出现；心跳重复同名次不重发 |
+| 放行 | `{"sessionId": "<ACP 会话 id>", "requestId": "<32 位小写 hex>", "released": true}`（D1 裁决：带） | 排队后首个数据帧到达时，一次 |
+
+字段语义：
+
+- `sessionId`：路由键，`session/new` 返回给客户端的会话 id；语义与取值不变。
+- `requestId`：应答该次请求的 HTTP 尝试所带的 `Chrys-Request-Attempt-Id` 请求头值 = 网关队列元素键 =
+  iCode 调 cancel 接口时 body 里的 `request_id`。每个 HTTP 尝试一个新值（SDK 重试/重定向、wire 重试、
+  整轮重试各算一个），一个 turn 内会出现多个。
+- `requestId` **可能缺席**：tracker 未武装时（应答尝试没有该请求头、或取消地址无法推导；产品路径不会出现）。
+  缺席时其余字段照常发送。
+- 键序按上表构造，但桌面端不应依赖 JSON 键序。
+- 兼容性：**新 iCode + 现版桌面端**——现版处理器只读已知键（`acp-agent-host.ts:2900-2919`），多出的
+  `requestId` 被忽略，横幅照常。**旧 iCode + 新桌面端**——载荷没有 `requestId`，故桌面端须按可选字段处理，
+  缺席时退回按 `sessionId` 展示。
+
+### 备选方案对比
+
+| 方案 | 说明 | 升级冲突面（文件数×行数×耦合度，R1） | 结论 |
+|---|---|---|---|
+| **E. tracker 转发时回填 + 挂点多传一个字段（本单）** | 显式数据流：id 随状态对象一路带到载荷 | 上游 1 条语句（既有 marker 内）+ 清单刷新 | ✓ 采纳 |
+| F. 发布工厂按会话登记"当前请求 id"，`queue_status_payload` 按 sessionId 查旁表 | 上游零改动 | 0（隐式耦合高） | ✗ R1「最小 ≠ 最隐」「直接依赖优于间接」：事件上明明有值却按会话反查，且依赖"每会话单请求在飞"的隐式前提——与本批备选 B 同类失效模式 |
+| G. guard 增加 `request_id` 形参，由 `client.py` 传入 | guard 在 `raw` 返回前构造，那时还没有 id，须调整上游接线顺序 | 上游 2–3 行且改动既有接线结构 | ✗ 接触面更大，无额外收益 |
+
+R1 自查（必答）：
+
+- 能否完全不改上游？不能。挂点 `queue_status_payload(self, session_key, event.position, event.queue_size)` 只向
+  定制包传两个标量，载荷构造器拿不到事件上的 `request_id`；零上游方案只有 F。
+- 业务逻辑是否已全部外置？是。id 来源、回填、载荷构造与省略规则都在定制包；上游只把事件上已有的字段传给定制包。
+- 接线点是否已最小化？是。一处、一条语句，落在既有 `acp-notification` 定制块内，不新增冲突面。
+- 归属（R1 细则二）：该语句是纯参数透传（挂点）。要挪进定制包只能改为整体传 `event`——须同时改函数签名与
+  本行，行数相同，而类型耦合从两个 int 变为事件类；无收益，不挪。
+
+### 上游改动清单（R2，相对 v1.3 净表的增量）
+
+| 文件 | 改什么 | 预估行数 | 标记注释位置 |
+|---|---|---|---|
+| `src/chrys/app/acp/server.py` | `_handle_turn_event` 的 `GatewayQueueStatus` 分支：`queue_status_payload(...)` 与 `confirm_queue_status(...)` 各末尾多传 `event.request_id`（同一 claim/confirm 结构的两半，确认不传则去重键永远判不等） | 2 条语句，同一物理行改写（113/99 列，不换行）；两行相对 base 本就是新增行，numstat 与 marker 计数均不变 | 既有 `AIxCoding queue-progress: ACP notification`（计数仍 5） |
+| `src/chrys/app/acp/doc/frontend-api.md` | D3：扩展通知分组列表加 `chrys/queue_status`；Notes 加一条载荷契约（requestId 可缺席、(requestId, position) 去重、turn_started 重置） | 实测 **+10/−1** | HTML 注释 `<!-- AIxCoding queue-progress: document chrys/queue_status (v1.4 D3) -->`（`#` 行在 .md 会渲染成标题，故用渲染不可见的 HTML 注释；marker 扫描可识别，登记行 `frontend-api-doc` 见定制点登记预告） |
+| `tests/architecture/trajectory_wait_manifest.json` | 生成产物刷新：`queue_progress.make_queue_status_publisher.publish`、`queue_cancel.QueueRequestTracker.observing.observe` 两处 await 原文变化；规则均保持默认 `unresolved` | 实测 **+2/−2**（2026-11-25 刷新，仅此两处重开） | 无（`MARKER_EXEMPTIONS`）；命令 `uv run python -m tests.support.trajectory_wait_inventory` |
+
+定制包改动（非 R2，无新增 marker，登记表不变）：
+
+| 文件 | 改什么 |
+|---|---|
+| `src/chrys/service/aixcoding/llm_queue/queue_frames.py` | `QueueStatus` 新增 `request_id: str \| None = None` |
+| `src/chrys/service/aixcoding/llm_queue/queue_cancel.py` | `observing().observe` 转发 `replace(status, request_id=self._request_id)`；docstring 补一句说明 |
+| `src/chrys/kernel/aixcoding/queue_progress.py` | `GatewayQueueStatus` 新增 `request_id`；发布工厂传 `request_id=status.request_id` |
+| `src/chrys/app/aixcoding/acp/queue_notify.py` | `queue_status_payload` 加 `request_id=None` 形参，两种载荷加 `requestId`（空则省略该键）；去重键改为 (requestId, position)（D2 裁决「加」） |
+| `aixcoding/tests/llm/test_model_queue_progress.py` | 新增用例（见验证计划） |
+
+### 对上游隐式行为的假设（增量）
+
+10. tracker 的 `request_id` 就是网关收到的队列元素键（client 批 v1.3 假设 1：`raw.http_response.request` 是最终尝试）
+    → 依赖方式：直接复用 `QueueRequestTracker.request_id`，不另读一次 → 失效表现：`requestId` 与网关日志对不上；
+    cancel 同源同失，`test_llm_queue_attempt_header.py` 先红。
+11. （D2 裁决「加」后不再承载）原假设"每个会话同一时刻只有一个带 UI 回调的请求在飞"曾支撑按会话去重；
+    去重键已含 requestId，同名次新请求会重发，本条保留仅作记录。
+12. 未改造的桌面端处理器只读已知键、忽略未知键 → 依赖方式：只增键，不删不改既有键
+    → 失效表现：桌面端新增严格 schema 拒绝未知键 → 须两端同步上线。
+
+### 风险与最坏情况
+
+- **同名次新请求被去重**：已由 D2 裁决「加」消除——去重键为 (requestId, position)，重试请求即便同名次也重发，
+  线上 id 不过期；代价是 `queue_notify.py` 的去重值由 int 变 tuple（仅包内）。
+- **桌面端把 `requestId` 当必填**：旧引擎或 tracker 未武装时横幅消失。缓解：契约标明可选；联调覆盖"无 requestId 仍展示"。
+- **回滚**：撤销上表 4 个定制文件与测试改动、`server.py` 1 条语句、清单刷新，即回到 v1.3；无持久化、无数据迁移。
+
+### ADR 判定（增量）
+
+四问均否，不出 ADR：① 否决 F/G 属照 R1 规范排除，不是同等份量的设计取舍；② 字段只增不删，现版桌面端不受影响，
+撤销代价低；③ 不约束后续工作模式；④ 未新增对上游非公开接口的依赖（tracker 读请求头是 client 批 v1.3 既有假设）。
+本变更属既有 `model-queue-progress--observer-callback-channel` 决策 4 的载荷演进，通道与机制不变，ADR 正文不动。
+
+### 验证计划（实施后执行，结果回填 verification.md）
+
+- `aixcoding/tests/llm/test_model_queue_progress.py` 新增用例：
+  - tracker 转发的每个状态（position 与放行）都带 `request_id`；未武装（`wire_queue_callback(observer, None)`）时为 `None`；
+  - 发布工厂把 `request_id` 带到 `GatewayQueueStatus`；
+  - ACP 载荷：排队 `{sessionId, requestId, position, queueSize}`、放行 `{sessionId, requestId, released: true}`、
+    未知时没有 `requestId` 键；既有去重与轮次重置用例不改且仍绿；
+  - 端到端锚定：生产 profile HTTP 客户端 + MockTransport（排队帧 → 数据帧），`WireCallObserver.on_queue_status`
+    收到的 `request_id` 等于网关侧记录到的 `Chrys-Request-Attempt-Id`。
+- 回归：`test_model_queue_cancel.py`、`test_llm_queue_attempt_header.py`、上游 `tests/app/acp`、
+  `tests/architecture/test_trajectory_wait_inventory.py`。
+- 门禁：ruff check/format、ty（三平台）、`check_docs.py`、`gen_customizations.py --strict`。
+
+### 文档同步（随实施）
+
+- 本批 `requirements.md`、`test-plan.md`、`plan.md`、`verification.md`；client 批 `plan.md` 备忘加一行互指。
+- `aixcoding/docs/model_concurrency_queue/{requirements,test-cases,intranet-verification}.md` 的 ACP 载荷口径。
+- 新增《模型排队桌面端透传说明.md》（同目录，中文名）：链路、载荷契约、桌面端展示口径、联调步骤、排障检查单。
 

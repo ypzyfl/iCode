@@ -1294,10 +1294,10 @@ class ChrysAcpServer:
         # AIxCoding queue-progress: ACP notification (dedupe in src/chrys/app/aixcoding/acp/queue_notify)
         if isinstance(event, GatewayQueueStatus):
             session_key = _event_session_id(event, session_id)
-            payload = queue_status_payload(self, session_key, event.position, event.queue_size)
+            payload = queue_status_payload(self, session_key, event.position, event.queue_size, event.request_id)
             if payload is not None:
                 await self._client_or_error().ext_notification("chrys/queue_status", payload)
-                confirm_queue_status(self, session_key, event.position)
+                confirm_queue_status(self, session_key, event.position, event.request_id)
             return True
         if isinstance(event, InvocationRetryAttempt) and event.origin.kind == "turn":
             await self._client_or_error().ext_notification(

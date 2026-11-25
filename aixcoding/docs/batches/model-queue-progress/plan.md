@@ -11,10 +11,17 @@
 
 **2026-11-24 归位改造（design v1.3，已签认后实施）**：事件类移出 types.py、construction 工厂化、ACP 判重入包（claim/confirm）、CLI 体入包；净表实测 **16 文件 +198/−9**（上游 src 14 文件 +162/−7），并修复 PR #151 评审缺陷 1（ACP TurnStarted 重置）。验证见 verification.md 同日节。
 
+**2026-11-25 变更单 v1.4 已签认并实施完成**：ACP 载荷加 `requestId`（D1 带 / D2 加 / D3 补，签认日 2026-11-25）。
+id 取 `QueueRequestTracker.request_id`（应答尝试的 `Chrys-Request-Attempt-Id`），tracker 转发时回填
+`QueueStatus.request_id` → 事件 → ACP 挂点；去重键 (requestId, position)；`frontend-api.md` 补契约（登记行
+`frontend-api-doc`）；新增《模型排队桌面端透传说明.md》。验证：定制 77 + wait 57 + 上游 ACP 683 passed、
+ruff/ty 三平台/check_docs/gen_customizations --strict 全绿；实施中修复 confirm 漏传 request_id 的去重失效缺陷。
+详见 verification.md 同日节。
+
 ## 下一步（接续入口）
 
-1. 责任人确认 v1.3 实施回填（净表实测数字、acp-notification 计数 4→5；登记/数字勘误按 R10 惯例随下次签认确认）
-2. 真实网关联调：TUI 等待行文案、CLI 去重行、ACP `chrys/queue_status` / `released`
+1. 真实网关 + 桌面端联调：桌面端同步改造后按 `requestId` 消费；联调须将桌面 `icode.binaries` 指向含本功能的构建
+2. 双 AI 自审（self-review 追加一轮）与 PR 组装（§7 交付报告）
 
 前置批次 `../model-queue-client/` 已完成并提交（design/ADR/self-review 均已签认），本批次依赖其 `src/chrys/service/aixcoding/llm_queue/queue_frames.py` 与 `chat_completions/client.py` 的接线；续接时先读该批次的 plan.md 与 verification.md。
 
@@ -31,6 +38,7 @@
 - [x] 2026-11-20 补前端轮次边界锚定（C0）
 - [x] 2026-11-20 回填 R2 实测行数 + manifest 行（C1/C7，待重签）
 - [x] 2026-11-24 归位改造（design v1.3）：A 事件类出 types.py / B construction 工厂化 / C ACP 判重入包+TurnStarted 重置 / D CLI 体入包；`queue_notify.py`、`cli/queue_line.py` 落位；实测回填净表
+- [x] 2026-11-25 v1.4（requestId 透传）：签认（D1带/D2加/D3补）→ 实施 → 验证（77+57+683 passed）→ 文档同步；待联调与双 AI 自审
 
 ## 挂起与备忘
 

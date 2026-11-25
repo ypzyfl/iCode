@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
+from dataclasses import replace
 from typing import Any, Final
 
 import httpx
@@ -95,7 +96,12 @@ class QueueRequestTracker:
     def observing(
         self, on_status: Callable[[QueueStatus], Awaitable[None]] | None
     ) -> Callable[[QueueStatus], Awaitable[None]]:
-        """The status callback for the guard: track the queue phase, then forward to the frontend."""
+        """The status callback for the guard: track the queue phase, then forward to the frontend.
+
+        Every forwarded status is named with this tracker's request id (design
+        v1.4), so a frontend can attribute the wait to the request the gateway
+        actually queued.
+        """
 
         async def observe(status: QueueStatus) -> None:
             if status.position == RELEASED_POSITION:
@@ -110,7 +116,7 @@ class QueueRequestTracker:
                     self._request_id,
                 )
             if on_status is not None:
-                await on_status(status)
+                await on_status(replace(status, request_id=self._request_id))
 
         return observe
 

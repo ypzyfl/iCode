@@ -52,10 +52,14 @@ class GatewayQueueStatus(Event):
     Session-scoped by design: a queued request has no invocation identity when
     the client that will send it is built, so this carries the envelope's
     session id rather than an :class:`chrys.foundation.events.types.InvocationOrigin`.
+    ``request_id`` names the queued request (the per-attempt
+    ``Chrys-Request-Attempt-Id``, filled by the tracker); ``None`` when no
+    tracker armed the request (design v1.4).
     """
 
     position: int = 0
     queue_size: int = 0
+    request_id: str | None = None
 
 
 def make_queue_status_publisher(bus: Any, session_id: str | None) -> Callable[[Any], Awaitable[None]]:
@@ -72,6 +76,7 @@ def make_queue_status_publisher(bus: Any, session_id: str | None) -> Callable[[A
                 session_id=session_id,
                 position=status.position,
                 queue_size=status.queue_size,
+                request_id=status.request_id,
             )
         )
 

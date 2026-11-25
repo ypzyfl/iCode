@@ -23,7 +23,8 @@
       "已排到队首，当前为队列第一位"（2026-11-24 变更：position 0 不等于已获得模型资源，仍可能排队超时）。
 - [ ] 无排队时等待行行为与改造前完全一致（不显示任何新增文案）。
 - [ ] CLI 在名次未变化时不重复输出；放行后不输出残留。
-- [ ] ACP 客户端收到 `chrys/queue_status`（字段含 position/queueSize/sessionId）。
+- [ ] ACP 客户端收到 `chrys/queue_status`（字段含 sessionId/requestId/position/queueSize；2026-11-25 v1.4 加 `requestId`，
+      D1 放行通知也带、D2 去重键为 (requestId, position)、缺席时省略该键）。
 - [ ] 排队帧到事件的转换失败（订阅方异常）不会中断 LLM 流。
 - [ ] 三个前端在未订阅/未接线时互不影响。
 
