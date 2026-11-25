@@ -41,7 +41,12 @@ def _sse(*frames: str) -> bytes:
     return "".join(f"{frame}\n\n" for frame in frames).encode()
 
 
-async def _client(body: bytes, requests: list[httpx.Request] | None = None) -> Any:
+async def _client(
+    body: bytes,
+    requests: list[httpx.Request] | None = None,
+    *,
+    default_headers: dict[str, str] | None = None,
+) -> Any:
     from chrys.service.llm.chat_completions.client import ChatCompletionsClient
     from chrys.service.llm.clients import _build_openai_sdk_client, _build_profile_http_client
     from chrys.service.profiles.models.schema import ModelProfile
@@ -62,7 +67,7 @@ async def _client(body: bytes, requests: list[httpx.Request] | None = None) -> A
         base_url="http://llm.test/v1",
         timeout=5.0,
         max_retries=0,
-        default_headers=None,
+        default_headers=default_headers,
         http_client=http,
     )
     return ChatCompletionsClient(model="m", sdk_client=sdk)
@@ -93,12 +98,10 @@ def _with_transport(transport: httpx.AsyncBaseTransport) -> Any:
     return tracked
 
 
-async def _queued_tracker(transport: httpx.AsyncBaseTransport, *, api_key: str = "k") -> Any:
+async def _queued_tracker(transport: httpx.AsyncBaseTransport, *, token: str = "k") -> Any:
     from chrys.service.aixcoding.llm_queue import QueueRequestTracker, QueueStatus
 
-    tracker = QueueRequestTracker(
-        request_id="rid", model="m", endpoint=CANCEL_URL, api_key=api_key, transport=transport
-    )
+    tracker = QueueRequestTracker(request_id="rid", model="m", endpoint=CANCEL_URL, token=token, transport=transport)
     await tracker.observing(None)(QueueStatus(position=1, queue_size=2))
     return tracker
 
@@ -131,6 +134,32 @@ async def test_interrupt_while_queued_sends_cancel(monkeypatch: pytest.MonkeyPat
     assert len(attempt_id) == 32
     assert json.loads(cancel.content) == {"model": "m", "request_id": attempt_id}
     assert "request_id" not in json.loads(main_requests[0].content)
+
+
+async def test_interrupt_while_queued_cancels_with_the_login_token_header(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """v1.5 intranet incident: a pure-login request (token header on the wire) still cancels."""
+    cancels: list[httpx.Request] = []
+
+    async def cancel_handler(request: httpx.Request) -> httpx.Response:
+        cancels.append(request)
+        return httpx.Response(204)
+
+    monkeypatch.setattr(
+        "chrys.service.aixcoding.llm_queue.track_queue_request",
+        _with_transport(httpx.MockTransport(cancel_handler)),
+    )
+    # The wire layer's login ``token`` header, as a pure-login profile's requests carry it.
+    client = await _client(_sse(QUEUE_STATUS % (2, 5), "data: {oops"), default_headers={"token": "login-token"})
+    try:
+        assert await _drain(client) is not None
+    finally:
+        await client.aclose()
+
+    assert len(cancels) == 1
+    # The header wins over the SDK api_key ("test-key"): what queued it is what cancels it.
+    assert cancels[0].headers["token"] == "login-token"
 
 
 async def test_interrupt_after_release_sends_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -218,6 +247,50 @@ def test_tracker_reads_the_attempt_header() -> None:
     assert tracker.request_id == "a" * 32
 
 
+async def test_tracker_prefers_the_requests_own_token_header() -> None:
+    """Pure-login deployments: the login ``token`` header the gateway authenticated cancels the request."""
+    cancels: list[httpx.Request] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        cancels.append(request)
+        return httpx.Response(204)
+
+    from chrys.service.aixcoding.llm_queue import QueueStatus, track_queue_request
+
+    request = httpx.Request(
+        "POST",
+        "http://h/v1/chat/completions",
+        headers={REQUEST_ATTEMPT_ID_HEADER: "a" * 32, "token": "login-token"},
+    )
+    tracker = track_queue_request(request, model="m", sdk=_sdk(api_key=""), transport=httpx.MockTransport(handler))
+    assert tracker is not None
+    await tracker.observing(None)(QueueStatus(position=0, queue_size=1))
+    await tracker.cancel_on_close()
+
+    assert [cancel.headers["token"] for cancel in cancels] == ["login-token"]
+
+
+async def test_tracker_falls_back_to_the_sdk_api_key() -> None:
+    """Without a ``token`` header (no login) the profile api_key cancels, as before v1.5."""
+    cancels: list[httpx.Request] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        cancels.append(request)
+        return httpx.Response(204)
+
+    from chrys.service.aixcoding.llm_queue import QueueStatus, track_queue_request
+
+    request = httpx.Request("POST", "http://h/v1/chat/completions", headers={REQUEST_ATTEMPT_ID_HEADER: "a" * 32})
+    tracker = track_queue_request(
+        request, model="m", sdk=_sdk(api_key="profile-key"), transport=httpx.MockTransport(handler)
+    )
+    assert tracker is not None
+    await tracker.observing(None)(QueueStatus(position=0, queue_size=1))
+    await tracker.cancel_on_close()
+
+    assert [cancel.headers["token"] for cancel in cancels] == ["profile-key"]
+
+
 def test_underivable_endpoint_returns_no_tracker() -> None:
     from chrys.service.aixcoding.llm_queue import track_queue_request
 
@@ -279,8 +352,8 @@ async def test_cancel_timeout_is_swallowed(monkeypatch: pytest.MonkeyPatch) -> N
     assert len(calls) == 1
 
 
-@pytest.mark.parametrize("api_key", ["", None])
-async def test_missing_api_key_sends_nothing(api_key: Any) -> None:
+@pytest.mark.parametrize("token", ["", None])
+async def test_missing_token_sends_nothing(token: Any) -> None:
     cancels: list[httpx.Request] = []
 
     async def handler(request: httpx.Request) -> httpx.Response:
@@ -293,7 +366,7 @@ async def test_missing_api_key_sends_nothing(api_key: Any) -> None:
         request_id="rid",
         model="m",
         endpoint=CANCEL_URL,
-        api_key=api_key,
+        token=token,
         transport=httpx.MockTransport(handler),
     )
     await tracker.observing(None)(QueueStatus(position=0, queue_size=1))
@@ -324,14 +397,14 @@ async def test_cancel_attempt_and_success_are_logged(caplog: pytest.LogCaptureFi
     assert "已离开网关队列" in caplog.text
 
 
-async def test_missing_api_key_while_queued_is_reported(caplog: pytest.LogCaptureFixture) -> None:
-    """A keyless gateway deployment silently loses the cancel: the log must say so."""
+async def test_missing_token_while_queued_is_reported(caplog: pytest.LogCaptureFixture) -> None:
+    """A credential-less deployment silently loses the cancel: the log must say so."""
     caplog.set_level(logging.WARNING, logger="chrys.service.aixcoding.llm_queue.queue_cancel")
 
-    tracker = await _queued_tracker(httpx.MockTransport(lambda request: httpx.Response(204)), api_key="")
+    tracker = await _queued_tracker(httpx.MockTransport(lambda request: httpx.Response(204)), token="")
     await tracker.cancel_on_close()
 
-    assert "没有 api_key" in caplog.text
+    assert "没有可用 token" in caplog.text
     assert "留在队列中" in caplog.text
     assert "request_id=rid" in caplog.text
 
@@ -450,7 +523,7 @@ async def test_observing_forwards_every_status() -> None:
     async def on_status(status: QueueStatus) -> None:
         seen.append(status.position)
 
-    tracker = QueueRequestTracker(request_id="rid", model="m", endpoint=CANCEL_URL, api_key="k")
+    tracker = QueueRequestTracker(request_id="rid", model="m", endpoint=CANCEL_URL, token="k")
     observe = tracker.observing(on_status)
     await observe(QueueStatus(position=2, queue_size=3))
     await observe(QueueStatus(position=0, queue_size=1))

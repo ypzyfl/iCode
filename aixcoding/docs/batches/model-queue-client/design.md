@@ -7,7 +7,7 @@
 
 - 责任人：李海潮
 - 状态：已确认
-- 确认日期：2026-11-24
+- 确认日期：2026-11-25
 - 确认意见：尽量不改上游，若必须要改，要少而集中的改（可选；审阅中形成的判断、附加条件或保留）
 
 ## 方案概述
@@ -364,3 +364,56 @@ R2 报批说明：
 - 行为假设沿用 v1.1/v1.3，不新增外部假设；`close_stream_and_cancel` 的取消态语义由现有取消态用例锚定。
 - 登记表已同步：`queue-frame-guard` 计数 1→2（导入块 + guard 调用）、`queue-cancel` 计数 3→2（on_status 包装并入 guard 锚，并登记"网关无法感知断连、无上游等价替代"）。
 - 中间态提示：design 先行删除 `model-queue-progress:client-passthrough` 登记行、代码后行，`gen_customizations.py --strict` 在实施 commit 前为红，PR 头（实施后）恢复绿——属批次内预期中间态。
+---
+
+## 变更单 v1.5（2026-11-25，责任人裁决）：cancel 凭据与主请求同源
+
+> 决策来源：责任人会话裁决（2026-11-25，"帮我修复"）。动因：内网纯登录态环境实测中断时输出
+> `网关排队取消跳过：没有 api_key，请求将留在队列中`（request_id=f59688fa…，2026-11-25 14:53），
+> cancel 未发出、请求滞留网关队列。根因即 v1.1 假设 4 在纯登录态不成立——主请求的 `token` 头由
+> wire 层登录态注入（`wire_client.py::_stamp_request_headers` → `login_token_header_value()`），
+> profile 无 `api_key`，cancel 取 `sdk.api_key` 得空串。即内网手册 §5.5 预记的已知风险落地，
+> development.md §7-1 预记的待修项（其设想为 `login_token_header_value() or api_key`，本变更
+> 改取原请求头，理由见下）。
+
+### 方案
+
+cancel 凭据解析改为**两源、原请求优先**：
+
+```text
+token = 原请求的 token 请求头（登录态注入，网关实际认证的凭据） or sdk.api_key（profile，v1.1 行为）
+```
+
+- 读点：`track_queue_request` 已收到的 `raw.http_response.request`——SDK 已把 `extra_headers`
+  合并进实际请求头，登录 token 就在该对象上（此前只从中读了 `Chrys-Request-Attempt-Id`）。
+- 为什么原请求优先而不是取消时再查 `login_token_header_value()`：取消凭据应与入队凭据**同源**，
+  排队期间登出也不会改变取消身份；不新增对 kernel auth 层的依赖（queue_cancel 保持只依赖
+  request/sdk 两输入）；静态调用方自带的 `token` 头同样被覆盖到。
+- 行为变化：
+  - 纯登录态环境 cancel 正常发出（本次故障修复）；
+  - **两源皆空**才跳过，WARNING 文案改为 `网关排队取消跳过：没有可用 token，请求将留在队列中`；
+  - `网关排队取消已就绪` detail 日志新增 `token来源=请求头|api_key`（不记 token 值）；
+  - `QueueRequestTracker` 字段/参数 `api_key` 更名 `token`（如实反映语义：cancel 请求 `token`
+    头的取值）。
+
+### 上游改动清单（R2，相对 v1.4 的增量）
+
+**无。** 全部改动落在定制包 `queue_cancel.py` 与 `aixcoding/tests/llm/`（cancel/frames/progress
+三个测试文件的构造参数更名）；上游 `chat_completions/client.py` 接线不动，登记表无变化。
+按 R10 正文变更需责任人重签头部。
+
+### 假设与风险（增量）
+
+- 假设：网关 cancel 端点接受与 completion 相同的 `token` 头凭据（契约 `ModelQueueFrontend.md`
+  §3.6 示例即 `token` 头；本变更只修正 v1.1 假设 4 的**取值来源**，假设本身不变）。失效表现：
+  `401/403`，日志可见，仅影响 cancel。
+- 风险：`token` 头被代理改写时 cancel 与主请求受同样影响（同源一致性，无新增风险面）；tracker
+  在流生命周期内多持有一份凭据引用（原请求对象本就持有，不落日志）。
+- 回滚：恢复 v1.4 取值（仅 `sdk.api_key`），即回到本次故障前行为。
+
+### 验证（2026-11-25，本地）
+
+- 新增单测：原请求 `token` 头优先 / 无头回退 `api_key` / 两源皆空跳过（新文案）。
+- 新增端到端：经生产 profile 客户端、请求带 `token` 头（模拟登录态注入）中断 → cancel 以该
+  token 发出（断言不等于 SDK `api_key`，证明优先级）。
+- 既有 29 条取消链路用例（api_key 环境）不变全绿。

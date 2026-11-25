@@ -245,11 +245,11 @@ uv run ruff format aixcoding/tests/llm
 | 同上 | 契约漂移帧（带 `position`/`queueSize` 但不满足判据） | **模块 logger WARNING** + detail WARNING：记录 `choices` 形状、`id`/`usage`、两个队列值、`model_extra`，不记录正文 |
 | `queue_frames._notify` | 前端回调失败 | 模块 logger 由 DEBUG 升 **WARNING** + detail WARNING：`排队状态回调失败…` |
 | `QueueRequestTracker.observing` | 首帧/放行（带 request_id） | detail INFO：`网关排队：…（request_id=…）` / `网关已放行排队请求（request_id=…）` |
-| `queue_cancel.track_queue_request` | tracker 建立 / base_url 不可用 / extra_body 非 mapping | detail DEBUG（含 `endpoint`/`base_url`）/ detail WARNING |
+| `queue_cancel.track_queue_request` | tracker 建立 / base_url 不可用 / extra_body 非 mapping | detail DEBUG（含 `endpoint`/`base_url`；v1.5 起含 `token来源`）/ detail WARNING |
 | `queue_cancel.cancel_on_close` | 发起 cancel | 模块 logger INFO + detail INFO：`正在离开网关队列：POST <url>，model/request_id` |
 | `queue_cancel._post_cancel` | 取消请求报文 | detail INFO：`发送取消排队请求：POST <url>，body={'model':…,'request_id':…}，token=已携带`（不记 token 值） |
 | 同上 | 取消响应 | 204 detail INFO；404·409 detail INFO（status + `body` + endpoint）；非 2xx detail WARNING（status + `body` + endpoint） |
-| 同上 | **排队中但 api_key 为空** | **模块 logger WARNING** + detail WARNING：`网关排队取消跳过：没有 api_key，请求将留在队列中` |
+| 同上 | **排队中但凭据两源皆空**（v1.5：请求头 `token` 与 `api_key` 均无） | **模块 logger WARNING** + detail WARNING：`网关排队取消跳过：没有可用 token，请求将留在队列中` |
 
 ### 日志查看路径（内网操作手册口径）
 
@@ -347,3 +347,29 @@ gen_customizations.py --strict：check OK
 ```
 
 **待重签**：v1.4 实测净行数（+30/−1，高于预估的降级分支说明）属正文回填，AI 未改头部。
+
+---
+
+## 2026-11-25 v1.5 cancel 凭据同源实施验证
+
+```text
+uv run pytest aixcoding/tests/llm -m "not integration and not gc_calibration" -q
+84 passed（v1.4 时 71：新增 13 = 请求头 token 优先 2、无头回退 api_key 1、
+登录态端到端中断 1、更名重锚 9）
+
+Smart Test --paths（queue_cancel.py + 3 个测试文件）：
+  tests         2749 passed, 27 skipped
+  architecture  首跑 1 failed：wait 清单 _post_cancel:2 表达式漂移（token 更名）
+                → uv run python -m tests.support.trajectory_wait_inventory 刷新
+                  （重开 1 条，旧/新规则同为 unresolved，无需重新套用）
+                → 复跑 tests/architecture/test_trajectory_wait_inventory.py 57 passed
+
+ruff check / ruff format --check（本变更文件）：通过。
+  注：test_model_queue_progress.py 的 2 处 RUF012（511/542）与格式漂移（411/441）
+  为工作区既有未提交状态，非本变更引入，未顺手修改。
+ty check --error-on-warning：win32、linux All checks passed!
+gen_customizations.py --strict：check OK — 133 行 / 198 标记
+  （较 v1.4 记录的 134/199 少 1：6878be6e progress 批所致，本变更未动登记表与 marker）
+```
+
+**待重签**：design.md 头部（v1.5 为正文追加，R10 需责任人重签；本变更无 R2 上游改动）。

@@ -4061,7 +4061,7 @@
     "chrys.service.aixcoding.llm_queue.queue_cancel": {
       "QueueRequestTracker._post_cancel": [
         ["async_context", "async with httpx.AsyncClient(timeout=CANCEL_TIMEOUT_SECONDS, transport=self._transport)", "unresolved"],
-        ["awaitable", "await client.post(endpoint, json=payload, headers={'token': self._api_key})", "unresolved"]
+        ["awaitable", "await client.post(endpoint, json=payload, headers={'token': self._token})", "unresolved"]
       ],
       "QueueRequestTracker.cancel_on_close": [
         ["shield", "await asyncio.shield(task)", "unresolved"]

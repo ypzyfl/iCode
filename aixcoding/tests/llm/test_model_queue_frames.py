@@ -245,7 +245,7 @@ async def test_queue_frame_logs_name_the_request_id(detail_records: list[logging
     from chrys.service.aixcoding.llm_queue.queue_frames import RELEASED_POSITION
 
     tracker = QueueRequestTracker(
-        request_id="rid", model="m", endpoint="http://h/api/v3/chat/completions/cancel", api_key="k"
+        request_id="rid", model="m", endpoint="http://h/api/v3/chat/completions/cancel", token="k"
     )
     observe = tracker.observing(None)
     await observe(QueueStatus(position=2, queue_size=5))

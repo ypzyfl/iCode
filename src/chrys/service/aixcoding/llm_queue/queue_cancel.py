@@ -10,7 +10,10 @@ This client does not write that id into the request body: it is the per-attempt
 (``service/llm/request_tracking.py``), read back from the request that produced
 the response. A released request cannot be cancelled (``409``) and an unknown
 one is a no-op (``404``), so this only fires while the guard has seen a position
-and no release.
+and no release. The cancel carries the queued request's own ``token``
+credential — the login ``token`` header the wire layer put on it, falling back
+to the profile ``api_key`` (design v1.5) — so the gateway is asked to cancel
+with the very credential that queued the request.
 
 Wired from ``chrys.service.llm.chat_completions.client`` (registered as
 ``model-queue-client:queue-cancel``).
@@ -64,7 +67,7 @@ def cancel_endpoint(base_url: str) -> str | None:
 class QueueRequestTracker:
     """Ties one wire request to the gateway queue so an interrupt can leave it."""
 
-    __slots__ = ("_api_key", "_endpoint", "_model", "_position_seen", "_released", "_request_id", "_transport")
+    __slots__ = ("_endpoint", "_model", "_position_seen", "_released", "_request_id", "_token", "_transport")
 
     def __init__(
         self,
@@ -72,13 +75,15 @@ class QueueRequestTracker:
         request_id: str,
         model: str,
         endpoint: str | None,
-        api_key: str,
+        token: str,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._request_id = request_id
         self._model = model
         self._endpoint = endpoint
-        self._api_key = api_key
+        # The credential sent as the cancel ``token`` header: the queued
+        # request's own ``token`` header when it had one, else the profile key.
+        self._token = token
         self._transport = transport
         self._position_seen = False
         self._released = False
@@ -142,8 +147,8 @@ class QueueRequestTracker:
         if self._endpoint is None:
             _detail_logger.warning("网关排队取消跳过：没有可用的取消地址（request_id=%s）", self._request_id)
             return
-        if not self._api_key:
-            message = "网关排队取消跳过：没有 api_key，请求将留在队列中（request_id=%s）"
+        if not self._token:
+            message = "网关排队取消跳过：没有可用 token，请求将留在队列中（request_id=%s）"
             logger.warning(message, self._request_id)
             _detail_logger.warning(message, self._request_id)
             return
@@ -168,11 +173,11 @@ class QueueRequestTracker:
             "发送取消排队请求：POST %s，body=%s，token=%s",
             endpoint,
             _preview(payload),
-            "已携带" if self._api_key else "空",
+            "已携带" if self._token else "空",
         )
         try:
             async with httpx.AsyncClient(timeout=CANCEL_TIMEOUT_SECONDS, transport=self._transport) as client:
-                response = await client.post(endpoint, json=payload, headers={"token": self._api_key})
+                response = await client.post(endpoint, json=payload, headers={"token": self._token})
         except httpx.TransportError:
             # Also the symptom of a cancel URL derived from an unexpected base_url: loud on purpose.
             message = "网关排队取消无法连接 %s（request_id=%s），请求可能仍在队列中"
@@ -236,7 +241,9 @@ def track_queue_request(
     tracker is built from the response, not from the request body, because the
     gateway keys the queue entry by that same per-attempt header. *sdk* is the
     OpenAI SDK client the attempt ran on: the cancel URL derives from its
-    ``base_url`` and the ``token`` header from its ``api_key``. ``None`` means
+    ``base_url``. The cancel credential is the attempt's own ``token`` header —
+    what the gateway just authenticated — falling back to the SDK client's
+    ``api_key`` (design v1.5). ``None`` means
     no tracker is armed: no model, no such header on the attempt (a client
     built without the upstream tracking hooks), or a cancel endpoint that
     cannot be derived. The stream works either way; only the leave-the-queue
@@ -247,6 +254,11 @@ def track_queue_request(
         _detail_logger.debug("网关排队取消未启用：请求没有 model")
         return None
     base_url = str(sdk.base_url)
+    # The gateway authenticated this very request by its ``token`` header — the
+    # wire layer's login token; a pure-login profile carries no ``api_key`` — so
+    # that header is the cancel credential, with the SDK client's ``api_key``
+    # (what the request would carry as Bearer) as the fallback (design v1.5).
+    request_token = str(request.headers.get("token") or "")
     api_key = str(sdk.api_key or "")
     request_id = request.headers.get(REQUEST_ATTEMPT_ID_HEADER)
     if not request_id:
@@ -262,17 +274,18 @@ def track_queue_request(
         )
         return None
     _detail_logger.debug(
-        "网关排队取消已就绪：request_id=%s endpoint=%s model=%s base_url=%r",
+        "网关排队取消已就绪：request_id=%s endpoint=%s model=%s base_url=%r token来源=%s",
         request_id,
         endpoint,
         model,
         base_url,
+        "请求头" if request_token else "api_key",
     )
     return QueueRequestTracker(
         request_id=request_id,
         model=model,
         endpoint=endpoint,
-        api_key=str(api_key or ""),
+        token=request_token or api_key,
         transport=transport,
     )
 
