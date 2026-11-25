@@ -521,3 +521,41 @@ FULL 耗尽通知——破坏实验锚定挂点）。
   ruff / ty / check_docs / gen_customizations --strict。
 - 真实网关联调：超时场景（`max_wait_time` 调小）观察桌面端 rejected 横幅与文案。
 
+
+---
+
+## 变更单 v1.7（2026-11-25，责任人裁决）：相位布尔对合并为单字段 status（三态中文枚举）
+
+> 决策来源：同事反馈 + 责任人裁决（2026-11-25）。`released`/`rejected` 两个布尔合并为一个
+> `status` 字段，值为中文枚举 **「排队中」/「放行」/「拒绝」**（责任人 AskUserQuestion 三选一裁决；
+> 备选英文 queued/released/rejected 被否）。协议规范升 v1.1（v1.0 已外发给同事）。
+
+### 方案
+
+仅线上映射层变化——内部模型（`QueueStatus`/`GatewayQueueStatus` 的 position/rejected 字段）不动：
+
+| 位置 | 改什么 |
+|---|---|
+| `src/chrys/app/aixcoding/acp/queue_notify.py` | 载荷构造：两种布尔 → `"status": 常量`（`_STATUS_QUEUED/_RELEASED/_REJECTED` 中文常量） |
+| `aixcoding/tests/llm/test_model_queue_progress.py` | 5 组 ACP 载荷断言改 status 形态 |
+| `src/chrys/app/acp/doc/frontend-api.md` | 契约条目改 status 三态（同行改写，marker 不变） |
+
+**`server.py` 零改动**（v1.6 整体传 event 的直接红利）；guard/事件/去重键/wait 清单均不动。
+
+### 上游改动清单（R2，相对 v1.6 的增量）
+
+| 文件 | 改什么 | 行数 | 标记注释位置 |
+|---|---|---|---|
+| `src/chrys/app/acp/doc/frontend-api.md` | 契约条目：相位布尔对 → `status` 三态（中文值） | 约 +2/−2（同行改写） | 既有 HTML 注释 marker（计数 1，锚不变） |
+
+### 风险与最坏情况
+
+- 现版桌面端无 `status` 概念：排队帧仍走 position 分支正常显示；**放行帧被丢**（现版认 `released:true`）
+  → 横幅随 prompt 结束消失而非即时消失——桌面端改造（本来就要做）消除。
+- 中文枚举值：JSON UTF-8 串，无编码歧义（无标点，RUF001 不触发）；桌面端需中文→内部 phase 映射。
+- 回滚：`queue_notify.py` 载荷构造改回布尔对即回 v1.6。
+
+### 验证（2026-11-25 实施后，实测）
+
+- `aixcoding/tests/llm/` 81 passed（5 组载荷断言改 status 后）；ruff/format、ty 三平台、check_docs、
+  gen_customizations --strict 全绿；wait 清单无变化（无 await 改动）。

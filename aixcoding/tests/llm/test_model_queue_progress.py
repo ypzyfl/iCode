@@ -175,7 +175,7 @@ async def test_tracker_names_every_forwarded_status() -> None:
     async def on_status(status: Any) -> None:
         seen.append(status.request_id)
 
-    tracker = QueueRequestTracker(request_id="rid-1", model="m", endpoint=None, api_key="k")
+    tracker = QueueRequestTracker(request_id="rid-1", model="m", endpoint=None, token="k")
     observe = tracker.observing(on_status)
     await observe(QueueStatus(position=2, queue_size=5))
     await observe(QueueStatus(position=RELEASED_POSITION, queue_size=0))
@@ -352,10 +352,10 @@ async def test_acp_queue_status_is_deduped_per_session() -> None:
     await server._handle_turn_event("fallback", GatewayQueueStatus(session_id="s1", position=2, queue_size=5), None)  # type: ignore[arg-type]
 
     assert client.sent == [
-        ("queue_status", {"sessionId": "s1", "released": False, "rejected": False, "position": 2, "queueSize": 5}),
-        ("queue_status", {"sessionId": "s2", "released": False, "rejected": False, "position": 2, "queueSize": 5}),
-        ("queue_status", {"sessionId": "s1", "released": True, "rejected": False}),
-        ("queue_status", {"sessionId": "s1", "released": False, "rejected": False, "position": 2, "queueSize": 5}),
+        ("queue_status", {"sessionId": "s1", "status": "排队中", "position": 2, "queueSize": 5}),
+        ("queue_status", {"sessionId": "s2", "status": "排队中", "position": 2, "queueSize": 5}),
+        ("queue_status", {"sessionId": "s1", "status": "放行"}),
+        ("queue_status", {"sessionId": "s1", "status": "排队中", "position": 2, "queueSize": 5}),
     ]
 
 
@@ -387,8 +387,8 @@ async def test_acp_turn_started_resets_the_dedupe() -> None:
 
     queue_sends = [params for method, params in client.sent if method == "queue_status"]
     assert queue_sends == [
-        {"sessionId": "s1", "released": False, "rejected": False, "position": 2, "queueSize": 5},
-        {"sessionId": "s1", "released": False, "rejected": False, "position": 2, "queueSize": 5},
+        {"sessionId": "s1", "status": "排队中", "position": 2, "queueSize": 5},
+        {"sessionId": "s1", "status": "排队中", "position": 2, "queueSize": 5},
     ]
 
 
@@ -413,9 +413,9 @@ async def test_acp_payload_carries_the_request_id() -> None:
     await server._handle_turn_event("fb", GatewayQueueStatus(session_id="s1", position=1, queue_size=3), None)  # type: ignore[arg-type]
 
     assert client.sent == [
-        ("queue_status", {"sessionId": "s1", "requestId": "rid-1", "released": False, "rejected": False, "position": 2, "queueSize": 5}),
-        ("queue_status", {"sessionId": "s1", "requestId": "rid-1", "released": True, "rejected": False}),
-        ("queue_status", {"sessionId": "s1", "released": False, "rejected": False, "position": 1, "queueSize": 3}),
+        ("queue_status", {"sessionId": "s1", "requestId": "rid-1", "status": "排队中", "position": 2, "queueSize": 5}),
+        ("queue_status", {"sessionId": "s1", "requestId": "rid-1", "status": "放行"}),
+        ("queue_status", {"sessionId": "s1", "status": "排队中", "position": 1, "queueSize": 3}),
     ]
 
 
@@ -441,8 +441,8 @@ async def test_acp_new_request_same_position_is_not_deduped() -> None:
 
     queue_sends = [params for method, params in client.sent if method == "queue_status"]
     assert queue_sends == [
-        {"sessionId": "s1", "requestId": "rid-a", "released": False, "rejected": False, "position": 2, "queueSize": 5},
-        {"sessionId": "s1", "requestId": "rid-b", "released": False, "rejected": False, "position": 2, "queueSize": 5},
+        {"sessionId": "s1", "requestId": "rid-a", "status": "排队中", "position": 2, "queueSize": 5},
+        {"sessionId": "s1", "requestId": "rid-b", "status": "排队中", "position": 2, "queueSize": 5},
     ]
 
 
@@ -480,8 +480,7 @@ async def test_acp_rejection_payload_is_sent_unduped() -> None:
             {
                 "sessionId": "s1",
                 "requestId": "rid-1",
-                "released": False,
-                "rejected": True,
+                "status": "拒绝",
                 "reason": "QUEUE_TIMEOUT",
                 "message": "排队等待超时",
                 "traceId": "trace-1",
@@ -492,8 +491,7 @@ async def test_acp_rejection_payload_is_sent_unduped() -> None:
             {
                 "sessionId": "s1",
                 "requestId": "rid-1",
-                "released": False,
-                "rejected": True,
+                "status": "拒绝",
                 "reason": "QUEUE_TIMEOUT",
                 "message": "排队等待超时",
                 "traceId": "trace-1",
@@ -564,7 +562,7 @@ async def test_tracker_treats_a_rejection_as_out_of_the_queue() -> None:
     """A rejected request is no longer queued: no cancel can or should follow."""
     from chrys.service.aixcoding.llm_queue import QueueRequestTracker, QueueStatus
 
-    tracker = QueueRequestTracker(request_id="rid-1", model="m", endpoint=None, api_key="k")
+    tracker = QueueRequestTracker(request_id="rid-1", model="m", endpoint=None, token="k")
     await tracker.observing(None)(QueueStatus(position=2, queue_size=5))
     await tracker.observing(None)(QueueStatus(position=-1, queue_size=0, rejected="QUEUE_TIMEOUT"))
 

@@ -96,10 +96,10 @@
 
 - **前置**：ACP 客户端/桌面端连接真实网关；先占位。
 - **预期**：
-  - 收到 `queue_status`（线上名 `_queue_status`）：排队帧 `{sessionId, requestId, released:false, rejected:false, position, queueSize}`（`requestId` 为 32 位小写 hex，等于该次请求的 `Chrys-Request-Attempt-Id` 请求头值）；
+  - 收到 `queue_status`（线上名 `_queue_status`）：排队帧 `{sessionId, requestId, status:"排队中", position, queueSize}`（`requestId` 为 32 位小写 hex，等于该次请求的 `Chrys-Request-Attempt-Id` 请求头值）；
   - 同 (requestId, position) 不重发；重试产生新 `requestId`，同名次也重发；
-  - 放行帧 `{sessionId, requestId, released:true, rejected:false}`；
-  - 超时拒绝帧（v1.6）`{sessionId, requestId, released:false, rejected:true, reason:"QUEUE_TIMEOUT", message?, traceId?}`，一次、不去重；
+  - 放行帧 `{sessionId, requestId, status:"放行"}`；
+  - 超时拒绝帧（v1.6）`{sessionId, requestId, status:"拒绝", reason:"QUEUE_TIMEOUT", message?, traceId?}`，一次、不去重；
   - 未排队时只会有 `position:0` 排队帧与放行帧（若网关推了 0）。
 - **证据**：ACP 客户端日志/驱动脚本输出。
 

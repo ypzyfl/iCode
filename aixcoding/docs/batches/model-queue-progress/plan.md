@@ -24,6 +24,11 @@ CANCELLED 不通知）。**QUEUE_FULL 耗尽挂点延期**（kernel/loop.py 重�
 按开放项预授权上报；规范已支持）。验证：定制 81 + wait 57 + 上游 ACP 683 passed、ruff/ty/check_docs/
 gen_customizations 全绿；详见 verification.md 同日（二）节。
 
+**2026-11-25（三）v1.7 已实施（同事反馈+责任人裁决）**：相位布尔对合并为单字段 `status` 三态
+**中文枚举**（排队中/放行/拒绝），协议规范升 v1.1。仅 `queue_notify.py` 载荷构造 + 测试断言 +
+frontend-api.md 契约行；server.py 零改动。定制 81 passed、ruff/ty/check_docs/gen_customizations 全绿。
+未提交。
+
 ## 下一步（接续入口）
 
 1. 真实网关 + 桌面端联调：桌面端**先双注册** `_queue_status` 与 `_chrys/queue_status`，再上含 v1.5 的

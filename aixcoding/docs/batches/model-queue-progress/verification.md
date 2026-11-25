@@ -373,3 +373,19 @@ check_docs: OK
 
 **未跑**：真实网关 + 桌面端联调（桌面端需先双注册 `_queue_status`/`_chrys/queue_status`，再上含
 v1.5 的 iCode 构建；拒绝帧联调用网关小 `max_wait_time` 复现）；CI 待 PR。
+
+---
+
+## 2026-11-25（三）：design v1.7（相位布尔对 → 单字段 status 三态中文枚举）
+
+同事反馈 + 责任人裁决（中文值「排队中」/「放行」/「拒绝」）。仅 `queue_notify.py` 载荷构造 +
+测试断言 + frontend-api.md 契约行；**server.py 零改动**（v1.6 整体传 event 的红利），内部模型与
+wait 清单不动。
+
+```text
+uv run pytest aixcoding/tests/llm/ -n0 -q        → 81 passed
+uv run ruff check …/format --check …             → All checks passed! / already formatted
+uv run ty check ×3 平台                           → All checks passed!
+uv run python aixcoding/tools/check_docs.py      → OK
+uv run python aixcoding/tools/gen_customizations.py --strict → OK（133 行 / 198 marker）
+```

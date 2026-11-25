@@ -399,16 +399,16 @@ aixcoding-cli -m <测试模型>
 用桌面端或 ACP 客户端连接 `aixcoding-cli acp`，排队时观察扩展通知（线上方法名 `_queue_status`）：
 
 ```json
-{"sessionId":"...","requestId":"<32位hex>","released":false,"rejected":false,"position":1,"queueSize":2}
-{"sessionId":"...","requestId":"<32位hex>","released":false,"rejected":false,"position":0,"queueSize":1}
-{"sessionId":"...","requestId":"<32位hex>","released":true,"rejected":false}
+{"sessionId":"...","requestId":"<32位hex>","status":"排队中","position":1,"queueSize":2}
+{"sessionId":"...","requestId":"<32位hex>","status":"排队中","position":0,"queueSize":1}
+{"sessionId":"...","requestId":"<32位hex>","status":"放行"}
 ```
 
 - 同一 `(requestId, position)` 只发一次；重试产生新 `requestId`，同名次也重发；
 - `requestId` 等于该次请求的 `Chrys-Request-Attempt-Id` 请求头值（网关日志可对齐）；
-- 放行帧 `released:true, rejected:false`；
+- 放行帧 `status:"放行"`；
 - 超时（网关把 `max_wait_time` 调小可复现）另收一次拒绝帧：
-  `{"sessionId":"...","requestId":"...","released":false,"rejected":true,"reason":"QUEUE_TIMEOUT","message":"...","traceId":"..."}`；
+  `{"sessionId":"...","requestId":"...","status":"拒绝","reason":"QUEUE_TIMEOUT","message":"...","traceId":"..."}`；
 - 若桌面端不显示，先确认客户端注册的方法名是否已含 `_queue_status`（现版只认旧名 `_chrys/queue_status`，
   过渡期双注册；这是桌面端/插件侧责任）。
 
@@ -472,7 +472,7 @@ aixcoding-cli -m <测试模型>
 
 | detail 日志 | 含义 | 处置 |
 |---|---|---|
-| `网关排队取消跳过：没有 api_key，请求将留在队列中` | profile 没有 `api_key`（纯登录态），cancel 被跳过 | **已知风险**，记录为待修；见 5.5 |
+| `网关排队取消跳过：没有可用 token，请求将留在队列中` | 请求头无 `token` **且** profile 无 `api_key`（两源皆空） | 升级排查：确认登录态与请求头注入是否生效；v1.5（2026-11-25）后纯登录态不应再触发，见 5.5 |
 | `取消排队响应：status=401/403` | token 不对/头被代理改写 | 换 token/查代理 |
 | `网关排队取消无法连接 …` | URL 推导错 / 代理 / TLS | 核对 endpoint、NO_PROXY、证书 |
 | 完全没有 `正在离开网关队列` | 已放行、从未排队，或 CLI Ctrl+C 时序 | 用 TUI/ACP 复测；看是否有 `网关排队取消已就绪`（detail DEBUG） |
@@ -484,6 +484,9 @@ aixcoding-cli -m <测试模型>
 - 如果内网 profile **没有 api_key**（纯登录态），取消会被静默跳过（现在会打 WARNING）。
 - 验收时把这一项单独记录：**「排队中取消」是否真正发出 cancel**，不要只看 UI 是否收尾。
 - 如果是这个原因，取消功能不能算通过；需要后续最小修复（`登录 token or api_key`）。
+- **2026-11-25 已修复（design v1.5，同日实施）**：cancel 凭据改为「原请求 `token` 头优先，回退 `api_key`」
+  ——网关用什么凭据入队，就用什么凭据取消。纯登录态环境不再跳过；触发跳过需两源皆空
+  （WARNING 文案同步改为「没有可用 token」，`取消已就绪` 日志新增 `token来源=`）。
 
 ---
 
