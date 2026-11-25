@@ -12,6 +12,8 @@ from collections.abc import AsyncIterator
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+
 QUEUE_STATUS = 'event:queue_status\ndata:{"position":%d,"queueSize":%d}'
 CHUNK = (
     'data: {"id":"chatcmpl-1","object":"chat.completion.chunk","created":1,"model":"m",'
@@ -350,10 +352,10 @@ async def test_acp_queue_status_is_deduped_per_session() -> None:
     await server._handle_turn_event("fallback", GatewayQueueStatus(session_id="s1", position=2, queue_size=5), None)  # type: ignore[arg-type]
 
     assert client.sent == [
-        ("chrys/queue_status", {"sessionId": "s1", "position": 2, "queueSize": 5}),
-        ("chrys/queue_status", {"sessionId": "s2", "position": 2, "queueSize": 5}),
-        ("chrys/queue_status", {"sessionId": "s1", "released": True}),
-        ("chrys/queue_status", {"sessionId": "s1", "position": 2, "queueSize": 5}),
+        ("queue_status", {"sessionId": "s1", "released": False, "rejected": False, "position": 2, "queueSize": 5}),
+        ("queue_status", {"sessionId": "s2", "released": False, "rejected": False, "position": 2, "queueSize": 5}),
+        ("queue_status", {"sessionId": "s1", "released": True, "rejected": False}),
+        ("queue_status", {"sessionId": "s1", "released": False, "rejected": False, "position": 2, "queueSize": 5}),
     ]
 
 
@@ -383,10 +385,10 @@ async def test_acp_turn_started_resets_the_dedupe() -> None:
     await server._handle_turn_event("fallback", TurnStarted(session_id="s1", turn_id="t2"), None)  # type: ignore[arg-type]
     await server._handle_turn_event("fallback", GatewayQueueStatus(session_id="s1", position=2, queue_size=5), None)  # type: ignore[arg-type]
 
-    queue_sends = [params for method, params in client.sent if method == "chrys/queue_status"]
+    queue_sends = [params for method, params in client.sent if method == "queue_status"]
     assert queue_sends == [
-        {"sessionId": "s1", "position": 2, "queueSize": 5},
-        {"sessionId": "s1", "position": 2, "queueSize": 5},
+        {"sessionId": "s1", "released": False, "rejected": False, "position": 2, "queueSize": 5},
+        {"sessionId": "s1", "released": False, "rejected": False, "position": 2, "queueSize": 5},
     ]
 
 
@@ -411,9 +413,9 @@ async def test_acp_payload_carries_the_request_id() -> None:
     await server._handle_turn_event("fb", GatewayQueueStatus(session_id="s1", position=1, queue_size=3), None)  # type: ignore[arg-type]
 
     assert client.sent == [
-        ("chrys/queue_status", {"sessionId": "s1", "requestId": "rid-1", "position": 2, "queueSize": 5}),
-        ("chrys/queue_status", {"sessionId": "s1", "requestId": "rid-1", "released": True}),
-        ("chrys/queue_status", {"sessionId": "s1", "position": 1, "queueSize": 3}),
+        ("queue_status", {"sessionId": "s1", "requestId": "rid-1", "released": False, "rejected": False, "position": 2, "queueSize": 5}),
+        ("queue_status", {"sessionId": "s1", "requestId": "rid-1", "released": True, "rejected": False}),
+        ("queue_status", {"sessionId": "s1", "released": False, "rejected": False, "position": 1, "queueSize": 3}),
     ]
 
 
@@ -437,11 +439,136 @@ async def test_acp_new_request_same_position_is_not_deduped() -> None:
     await server._handle_turn_event("fb", GatewayQueueStatus(session_id="s1", position=2, queue_size=5, request_id="rid-a"), None)  # type: ignore[arg-type]
     await server._handle_turn_event("fb", GatewayQueueStatus(session_id="s1", position=2, queue_size=5, request_id="rid-b"), None)  # type: ignore[arg-type]
 
-    queue_sends = [params for method, params in client.sent if method == "chrys/queue_status"]
+    queue_sends = [params for method, params in client.sent if method == "queue_status"]
     assert queue_sends == [
-        {"sessionId": "s1", "requestId": "rid-a", "position": 2, "queueSize": 5},
-        {"sessionId": "s1", "requestId": "rid-b", "position": 2, "queueSize": 5},
+        {"sessionId": "s1", "requestId": "rid-a", "released": False, "rejected": False, "position": 2, "queueSize": 5},
+        {"sessionId": "s1", "requestId": "rid-b", "released": False, "rejected": False, "position": 2, "queueSize": 5},
     ]
+
+
+async def test_acp_rejection_payload_is_sent_unduped() -> None:
+    """A rejection is terminal: its payload passes through and is never deduped."""
+    from chrys.app.acp.server import ChrysAcpServer
+    from chrys.kernel.aixcoding.queue_progress import GatewayQueueStatus
+
+    class _Client:
+        def __init__(self) -> None:
+            self.sent: list[tuple[str, dict[str, Any]]] = []
+
+        async def ext_notification(self, method: str, params: dict[str, Any]) -> None:
+            self.sent.append((method, params))
+
+    client = _Client()
+    server = ChrysAcpServer(manager=object(), initial_vision=False)  # type: ignore[arg-type]
+    server.on_connect(client)  # type: ignore[arg-type]
+
+    rejection = GatewayQueueStatus(
+        session_id="s1",
+        position=-1,
+        queue_size=0,
+        request_id="rid-1",
+        rejected="QUEUE_TIMEOUT",
+        reject_message="排队等待超时",
+        trace_id="trace-1",
+    )
+    await server._handle_turn_event("fb", rejection, None)  # type: ignore[arg-type]
+    await server._handle_turn_event("fb", rejection, None)  # type: ignore[arg-type]
+
+    assert client.sent == [
+        (
+            "queue_status",
+            {
+                "sessionId": "s1",
+                "requestId": "rid-1",
+                "released": False,
+                "rejected": True,
+                "reason": "QUEUE_TIMEOUT",
+                "message": "排队等待超时",
+                "traceId": "trace-1",
+            },
+        ),
+        (
+            "queue_status",
+            {
+                "sessionId": "s1",
+                "requestId": "rid-1",
+                "released": False,
+                "rejected": True,
+                "reason": "QUEUE_TIMEOUT",
+                "message": "排队等待超时",
+                "traceId": "trace-1",
+            },
+        ),
+    ]
+
+
+async def test_guard_notifies_the_rejection_before_raising() -> None:
+    """The frontends learn the timeout before the translated error ends the turn."""
+    from chrys.foundation.errors import ProviderResponseError
+    from chrys.service.aixcoding.llm_queue import guard_queue_frames
+
+    class _QueueRejected(Exception):
+        code = "QUEUE_TIMEOUT"
+        message = "排队等待超时"
+        body = {"code": "QUEUE_TIMEOUT", "message": "排队等待超时", "traceId": "trace-1"}
+
+    async def chunks() -> AsyncIterator[Any]:
+        yield _queue_chunk(2, 5)
+        raise _QueueRejected()
+
+    seen: list[Any] = []
+
+    async def on_status(status: Any) -> None:
+        seen.append(status)
+
+    stream = guard_queue_frames(chunks(), on_status=on_status)
+    with pytest.raises(ProviderResponseError):
+        async for _ in stream:
+            pass
+
+    assert [(s.position, s.rejected, s.trace_id) for s in seen] == [
+        (2, None, None),
+        (-1, "QUEUE_TIMEOUT", "trace-1"),
+    ]
+    assert seen[-1].reject_message == "排队等待超时"
+
+
+async def test_guard_does_not_notify_a_user_cancelled_rejection() -> None:
+    """A user-initiated cancel is already known; it raises without a notice."""
+    from chrys.foundation.errors import ProviderResponseError
+    from chrys.service.aixcoding.llm_queue import guard_queue_frames
+
+    class _Cancelled(Exception):
+        code = "QUEUE_CANCELLED"
+        message = "请求排队已取消"
+        body = {"code": "QUEUE_CANCELLED", "message": "请求排队已取消", "traceId": "t"}
+
+    async def chunks() -> AsyncIterator[Any]:
+        yield _queue_chunk(1, 2)
+        raise _Cancelled()
+
+    seen: list[Any] = []
+
+    async def on_status(status: Any) -> None:
+        seen.append(status)
+
+    stream = guard_queue_frames(chunks(), on_status=on_status)
+    with pytest.raises(ProviderResponseError):
+        async for _ in stream:
+            pass
+
+    assert [(s.position, s.rejected) for s in seen] == [(1, None)]
+
+
+async def test_tracker_treats_a_rejection_as_out_of_the_queue() -> None:
+    """A rejected request is no longer queued: no cancel can or should follow."""
+    from chrys.service.aixcoding.llm_queue import QueueRequestTracker, QueueStatus
+
+    tracker = QueueRequestTracker(request_id="rid-1", model="m", endpoint=None, api_key="k")
+    await tracker.observing(None)(QueueStatus(position=2, queue_size=5))
+    await tracker.observing(None)(QueueStatus(position=-1, queue_size=0, rejected="QUEUE_TIMEOUT"))
+
+    assert tracker.queued is False
 
 
 async def test_tui_turn_started_clears_the_waiting_row_note() -> None:

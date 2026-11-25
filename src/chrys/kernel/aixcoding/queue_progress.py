@@ -54,12 +54,18 @@ class GatewayQueueStatus(Event):
     session id rather than an :class:`chrys.foundation.events.types.InvocationOrigin`.
     ``request_id`` names the queued request (the per-attempt
     ``Chrys-Request-Attempt-Id``, filled by the tracker); ``None`` when no
-    tracker armed the request (design v1.4).
+    tracker armed the request (design v1.4). ``rejected`` names the queue's
+    terminal refusal instead — one such event precedes the translated error
+    that ends the turn, carrying the gateway's ``reject_message``/``trace_id``
+    (design v1.6).
     """
 
     position: int = 0
     queue_size: int = 0
     request_id: str | None = None
+    rejected: str | None = None
+    reject_message: str | None = None
+    trace_id: str | None = None
 
 
 def make_queue_status_publisher(bus: Any, session_id: str | None) -> Callable[[Any], Awaitable[None]]:
@@ -77,6 +83,9 @@ def make_queue_status_publisher(bus: Any, session_id: str | None) -> Callable[[A
                 position=status.position,
                 queue_size=status.queue_size,
                 request_id=status.request_id,
+                rejected=status.rejected,
+                reject_message=status.reject_message,
+                trace_id=status.trace_id,
             )
         )
 

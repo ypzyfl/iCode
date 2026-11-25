@@ -162,7 +162,7 @@ ACP_EXTENSION_NOTIFICATIONS: tuple[str, ...] = (
     "chrys/user_messages_dropped",
     "chrys/retry_attempt",
     # AIxCoding queue-progress: ACP notification
-    "chrys/queue_status",
+    "queue_status",
     "chrys/messages_retracted",
     "chrys/user_inject_result",
     "chrys/usage_update",
@@ -1294,10 +1294,10 @@ class ChrysAcpServer:
         # AIxCoding queue-progress: ACP notification (dedupe in src/chrys/app/aixcoding/acp/queue_notify)
         if isinstance(event, GatewayQueueStatus):
             session_key = _event_session_id(event, session_id)
-            payload = queue_status_payload(self, session_key, event.position, event.queue_size, event.request_id)
+            payload = queue_status_payload(self, session_key, event)
             if payload is not None:
-                await self._client_or_error().ext_notification("chrys/queue_status", payload)
-                confirm_queue_status(self, session_key, event.position, event.request_id)
+                await self._client_or_error().ext_notification("queue_status", payload)
+                confirm_queue_status(self, session_key, event)
             return True
         if isinstance(event, InvocationRetryAttempt) and event.origin.kind == "turn":
             await self._client_or_error().ext_notification(

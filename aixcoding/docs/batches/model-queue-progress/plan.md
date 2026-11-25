@@ -18,10 +18,18 @@ id 取 `QueueRequestTracker.request_id`（应答尝试的 `Chrys-Request-Attempt
 ruff/ty 三平台/check_docs/gen_customizations --strict 全绿；实施中修复 confirm 漏传 request_id 的去重失效缺陷。
 详见 verification.md 同日节。
 
+**2026-11-25（二）v1.5 + v1.6 已签认并实施完成**：方法名 `queue_status`（线上一致 `_queue_status`）、
+相位布尔对 `(released, rejected)` 每帧必填、第三帧拒绝（TIMEOUT 在 guard 转译点先通知后抛；
+CANCELLED 不通知）。**QUEUE_FULL 耗尽挂点延期**（kernel/loop.py 重试机制深处，超 v1.6 规模，
+按开放项预授权上报；规范已支持）。验证：定制 81 + wait 57 + 上游 ACP 683 passed、ruff/ty/check_docs/
+gen_customizations 全绿；详见 verification.md 同日（二）节。
+
 ## 下一步（接续入口）
 
-1. 真实网关 + 桌面端联调：桌面端同步改造后按 `requestId` 消费；联调须将桌面 `icode.binaries` 指向含本功能的构建
-2. 双 AI 自审（self-review 追加一轮）与 PR 组装（§7 交付报告）
+1. 真实网关 + 桌面端联调：桌面端**先双注册** `_queue_status` 与 `_chrys/queue_status`，再上含 v1.5 的
+   iCode 构建（顺序不可倒）；按 `requestId` 消费、rejected 横幅；拒绝场景用网关小 `max_wait_time` 复现
+2. QUEUE_FULL 耗尽通知（v1.6 延期项）：待责任人需要时另立挂点方案（wire 重试层，需新一轮 R2 报批）
+3. 双 AI 自审（self-review 追加一轮）与 PR 组装（§7 交付报告；含 v1.4–v1.6 全部增量）
 
 前置批次 `../model-queue-client/` 已完成并提交（design/ADR/self-review 均已签认），本批次依赖其 `src/chrys/service/aixcoding/llm_queue/queue_frames.py` 与 `chat_completions/client.py` 的接线；续接时先读该批次的 plan.md 与 verification.md。
 

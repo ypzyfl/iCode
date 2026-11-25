@@ -326,3 +326,50 @@ v1.4 增量 numstat（相对 HEAD daa58337，实测）：`server.py` +2/−2、`
 `test_model_queue_progress.py` +163/−0、manifest +2/−2。
 
 **未跑**：真实网关 + 桌面端联调（含桌面端同步改造后的 requestId 消费）；CI 待 PR。
+
+---
+
+## 2026-11-25（二）：design v1.5 + v1.6 实施（同日签认 426ff874 之后）
+
+裁决：方法名 `queue_status`（线上一致 `_queue_status`，去 chrys 命名空间）、相位布尔对每帧必填、
+第三帧拒绝（TIMEOUT 即发 / FULL 重试耗尽才发 / CANCELLED 不发）。
+
+**实施注记（与变更单的两处偏差，均已按预授权或规范可选条款处理）**：
+
+1. **QUEUE_FULL 耗尽挂点延期**：wire 重试的耗尽判定在 `kernel/loop.py` 重试机制深处（核心热点），
+   超出 v1.6 限定规模（>1 处接线或 >10 行）——按变更单开放项预授权路径延期上报。iCode 拒绝帧现只发
+   `QUEUE_TIMEOUT`；FULL 耗尽表现为普通错误（与现状一致），规范对两 reason 均已定义供其他引擎。
+2. **拒绝帧不带最后已知 position/queueSize**（规范标可选，选择省略）：拒绝通知 position=-1 复用
+   TUI/CLI 既有放行清屏路径，避免为此改上游 handler。
+
+```text
+uv run pytest aixcoding/tests/llm/ -n0 -q
+81 passed（新增 4 用例：ACP 拒绝载荷不去重 / TIMEOUT 通知先于抛出（含 message+traceId 提取）/
+    CANCELLED 不通知 / tracker 视拒绝为已出队；既有 4 组 ACP 断言改方法名+相位布尔对）
+
+uv run pytest tests/architecture/test_trajectory_wait_inventory.py -n0 -q
+57 passed
+
+uv run pytest tests/app/acp -n0 -q -m "not integration and not gc_calibration"
+683 passed, 2 skipped, 1 deselected
+
+uv run python -m tests.support.trajectory_wait_inventory
+2922 waits, 5 reopened（queue_progress publish 重锚、guard 新增第 4 个 wait——转译点拒绝通知；
+    均默认 unresolved，无需重套规则）
+
+uv run ruff check …（EDITS 面）/ ruff format --check …
+All checks passed!（1 处 RUF002 en-dash 修为 "to"）；2765 files already formatted
+
+uv run ty check --error-on-warning --python-platform linux|darwin|win32 src/chrys
+All checks passed!（×3）
+
+uv run python aixcoding/tools/gen_customizations.py --strict
+check OK — 133 registration row(s) / 198 marker(s)（frontend-api-doc 锚随方法名改写后同步：
+    `document chrys/queue_status` → `document queue_status`）
+
+uv run python aixcoding/tools/check_docs.py
+check_docs: OK
+```
+
+**未跑**：真实网关 + 桌面端联调（桌面端需先双注册 `_queue_status`/`_chrys/queue_status`，再上含
+v1.5 的 iCode 构建；拒绝帧联调用网关小 `max_wait_time` 复现）；CI 待 PR。

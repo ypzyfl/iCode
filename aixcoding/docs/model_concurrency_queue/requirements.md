@@ -113,7 +113,7 @@ token: <凭据>
 |---|---|
 | TUI | 转写区等待行（呼吸点同行）显示文案；名次变化更新；首个回答字到达即消失；新一轮开始清空 |
 | CLI | stderr 追加一行；同一 `position` 只输出一次；`position=0` 为「已排到队首，当前为队列第一位」 |
-| ACP | `chrys/queue_status` 扩展通知：`{sessionId, requestId, position, queueSize}`；放行后 `{sessionId, requestId, released: true}`；同 (requestId, position) 不重发（2026-11-25 v1.4：`requestId` 为该次请求的 `Chrys-Request-Attempt-Id`，可能缺席） |
+| ACP | `queue_status` 扩展通知（线上名 `_queue_status`，2026-11-25 v1.5 去 chrys 命名空间）：三帧、相位布尔对每帧必填——排队 `{sessionId, requestId, released:false, rejected:false, position, queueSize}`；放行 `{sessionId, requestId, released:true, rejected:false}`；拒绝（v1.6）`{sessionId, requestId, released:false, rejected:true, reason, message?, traceId?}`；同 (requestId, position) 不重发，拒绝不去重 |
 
 > `queueSize` 当前不进入 TUI/CLI 文案，但事件与 ACP 载荷仍携带，供客户端自行展示。
 

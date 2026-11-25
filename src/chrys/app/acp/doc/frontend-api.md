@@ -630,7 +630,7 @@ One-way `ext_notification` pushes, bridged from `EventBus`:
   `chrys/compaction_started`, `chrys/compaction_finished`.
 - Edits / turns: `chrys/rollback_result`, `chrys/user_inject_result`,
   `chrys/turn_started`, `chrys/user_messages_dropped`, `chrys/retry_attempt`,
-  `chrys/messages_retracted`, `chrys/queue_status`.
+  `chrys/messages_retracted`, `queue_status`.
 - Sub-agent lifecycle: `chrys/sub_agent_invocation_start`,
   `chrys/sub_agent_tool_call_start`, `chrys/sub_agent_tool_call_result`,
   `chrys/sub_agent_progress`, `chrys/sub_agent_retry_attempt`,
@@ -650,12 +650,18 @@ Notes:
   `schema_too_new`, `unreadable_tail`, `sequence_exhausted` or `activation_failed`
   (anything else). The session itself keeps working, so none of these calls for a
   new session.
-<!-- AIxCoding queue-progress: document chrys/queue_status (v1.4 D3) -->
-- `chrys/queue_status` is `{ sessionId, requestId?, position, queueSize }` while
-  the gateway holds the turn's model request in its FIFO queue, then
-  `{ sessionId, requestId?, released: true }` when the first data chunk ends the
-  wait. `requestId` is the answering HTTP attempt's `Chrys-Request-Attempt-Id`
-  — the gateway's queue key, one per attempt — and is omitted when the attempt
+<!-- AIxCoding queue-progress: document queue_status (v1.4 D3, v1.5/v1.6) -->
+- `queue_status` is the model-queue channel (wire name `_queue_status`: the SDK
+  prefixes extension notifications). Three frame shapes share it, and the phase
+  booleans ride every frame: `{ sessionId, requestId?, released: false,
+  rejected: false, position, queueSize }` while the gateway holds the turn's
+  model request in its FIFO queue; `{ sessionId, requestId?, released: true,
+  rejected: false }` when the first data chunk ends the wait; and
+  `{ sessionId, requestId?, released: false, rejected: true, reason, message?,
+  traceId? }` when the queue finally rejects the turn (`reason` is
+  `QUEUE_TIMEOUT`, or `QUEUE_FULL` once the engine's retries are exhausted).
+  `requestId` is the answering HTTP attempt's `Chrys-Request-Attempt-Id` — the
+  gateway's queue key, one per attempt — and is omitted when the attempt
   carried none. A repeated `(requestId, position)` pair is not resent (the
   gateway's position heartbeat repeats it); `chrys/turn_started` resets the
   dedupe.

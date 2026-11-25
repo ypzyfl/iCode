@@ -51,19 +51,27 @@ _QUEUE_STATUS_FIELDS: Final = ("position", "queueSize")
 
 @dataclass(frozen=True, slots=True)
 class QueueStatus:
-    """One gateway queue position report; ``position`` counts the requests ahead.
+    """One gateway queue report: a position while waiting, or the terminal rejection.
 
     ``position == RELEASED_POSITION`` says the queue let this request through:
     the first data chunk arrived, so a frontend showing a queue note must drop
     it (the turn may still wait later, for reasons that are not the queue).
     ``request_id`` names the request the gateway queued (the per-attempt
     ``Chrys-Request-Attempt-Id``); the guard leaves it ``None`` and the tracker
-    fills it before the status reaches a frontend (design v1.4).
+    fills it before the status reaches a frontend (design v1.4). ``rejected``
+    names the queue's terminal refusal instead (design v1.6): the guard emits
+    one such status before raising the translated error, carrying the
+    gateway's own ``message`` and ``traceId`` for diagnostics. A rejection
+    keeps ``position == RELEASED_POSITION`` so every frontend's release
+    handling also clears its queue note.
     """
 
     position: int
     queue_size: int
     request_id: str | None = None
+    rejected: str | None = None
+    reject_message: str | None = None
+    trace_id: str | None = None
 
 
 RELEASED_POSITION: Final = -1
@@ -211,6 +219,19 @@ async def guard_queue_frames(
                         _exception_summary(exc),
                     )
                 raise
+            if terminal.code == "QUEUE_TIMEOUT":
+                # The frontends learn the refusal before the error ends the turn;
+                # a user-cancelled request (QUEUE_CANCELLED) needs no notice.
+                await _notify(
+                    on_status,
+                    QueueStatus(
+                        position=RELEASED_POSITION,
+                        queue_size=0,
+                        rejected=terminal.code,
+                        reject_message=_string_field(exc, "message"),
+                        trace_id=_trace_id(exc),
+                    ),
+                )
             message = "网关拒绝排队请求：code=%s retryable=False"
             logger.info(message, terminal.code)
             _detail_logger.info(
@@ -279,3 +300,12 @@ def _string_field(exc: BaseException, name: str) -> str | None:
     except Exception:
         return None
     return value if isinstance(value, str) else None
+
+
+def _trace_id(exc: BaseException) -> str | None:
+    """The gateway rejection body's ``traceId``, when the exception carries the body."""
+    body = getattr(exc, "body", None)
+    if not isinstance(body, dict):
+        return None
+    value = body.get("traceId")
+    return value if isinstance(value, str) and value else None

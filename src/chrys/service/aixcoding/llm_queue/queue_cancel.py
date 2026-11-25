@@ -104,7 +104,12 @@ class QueueRequestTracker:
         """
 
         async def observe(status: QueueStatus) -> None:
-            if status.position == RELEASED_POSITION:
+            if status.rejected is not None:
+                # The gateway's terminal refusal: the request is out of the queue,
+                # so no cancel can or should follow (design v1.6).
+                self._released = True
+                _detail_logger.info("网关拒绝排队请求：code=%s（request_id=%s）", status.rejected, self._request_id)
+            elif status.position == RELEASED_POSITION:
                 self._released = True
                 _detail_logger.info("网关已放行排队请求（request_id=%s）", self._request_id)
             elif not self._position_seen:

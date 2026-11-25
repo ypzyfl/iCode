@@ -396,18 +396,21 @@ aixcoding-cli -m <测试模型>
 
 ### 3.3 ACP / 桌面端
 
-用桌面端或 ACP 客户端连接 `aixcoding-cli acp`，排队时观察扩展通知：
+用桌面端或 ACP 客户端连接 `aixcoding-cli acp`，排队时观察扩展通知（线上方法名 `_queue_status`）：
 
 ```json
-{"sessionId":"...","requestId":"<32位hex>","position":1,"queueSize":2}
-{"sessionId":"...","requestId":"<32位hex>","position":0,"queueSize":1}
-{"sessionId":"...","requestId":"<32位hex>","released":true}
+{"sessionId":"...","requestId":"<32位hex>","released":false,"rejected":false,"position":1,"queueSize":2}
+{"sessionId":"...","requestId":"<32位hex>","released":false,"rejected":false,"position":0,"queueSize":1}
+{"sessionId":"...","requestId":"<32位hex>","released":true,"rejected":false}
 ```
 
 - 同一 `(requestId, position)` 只发一次；重试产生新 `requestId`，同名次也重发；
-- `requestId` 等于该次请求的 `Chrys-Request-Attempt-Id` 请求头值（网关日志可对齐），可能缺席（tracker 未武装）；
-- 放行后有 `released: true`；
-- 若桌面端不显示，先确认客户端是否消费 `_chrys/queue_status`（线上名带 `_` 前缀；这是桌面端/插件侧责任）。
+- `requestId` 等于该次请求的 `Chrys-Request-Attempt-Id` 请求头值（网关日志可对齐）；
+- 放行帧 `released:true, rejected:false`；
+- 超时（网关把 `max_wait_time` 调小可复现）另收一次拒绝帧：
+  `{"sessionId":"...","requestId":"...","released":false,"rejected":true,"reason":"QUEUE_TIMEOUT","message":"...","traceId":"..."}`；
+- 若桌面端不显示，先确认客户端注册的方法名是否已含 `_queue_status`（现版只认旧名 `_chrys/queue_status`，
+  过渡期双注册；这是桌面端/插件侧责任）。
 
 ---
 

@@ -421,7 +421,7 @@
     },
     "chrys.kernel.aixcoding.queue_progress": {
       "make_queue_status_publisher.publish": [
-        ["awaitable", "await bus.publish(GatewayQueueStatus(session_id=session_id, position=status.position, queue_size=status.queue_size, request_id=status.request_id))", "unresolved"]
+        ["awaitable", "await bus.publish(GatewayQueueStatus(session_id=session_id, position=status.position, queue_size=status.queue_size, request_id=status.request_id, rejected=status.rejected, reject_message=status.reject_message, trace_id=status.trace_id))", "unresolved"]
       ]
     },
     "chrys.kernel.client": {
@@ -4080,6 +4080,7 @@
       ],
       "guard_queue_frames": [
         ["awaitable", "await anext(iterator)", "unresolved"],
+        ["wrapper", "await _notify(on_status, QueueStatus(position=RELEASED_POSITION, queue_size=0, rejected=terminal.code, reject_message=_string_field(exc, 'message'), trace_id=_trace_id(exc)))", "unresolved", "chrys.service.aixcoding.llm_queue.queue_frames._notify"],
         ["wrapper", "await _notify(on_status, QueueStatus(position=RELEASED_POSITION, queue_size=0))", "unresolved", "chrys.service.aixcoding.llm_queue.queue_frames._notify"],
         ["wrapper", "await _notify(on_status, status)", "unresolved", "chrys.service.aixcoding.llm_queue.queue_frames._notify"]
       ]

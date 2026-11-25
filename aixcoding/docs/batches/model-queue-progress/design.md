@@ -8,7 +8,7 @@
 - 责任人：李海潮
 - 状态：已确认
 - 确认日期：2026-11-25
-- 确认意见：尽量不改上游，若必须要改，要少而集中的改（可选；审阅中形成的判断、附加条件或保留）
+- 确认意见：尽量不改上游，若必须要改，要少而集中的改（可选；审阅中形成的判断、附加条件或保留）确认签订和桌面端ACP通讯
 
 ## 方案概述
 
@@ -118,7 +118,7 @@ R1 自查（逐行归属）：上游每处均为"挂点 + 一行调用/一个字
 | model-queue-progress:cli-line | src/chrys/app/cli/progress.py | AIxCoding queue-progress: CLI line | 6 | `TurnProgress.handle`（含 `TurnStarted` 重置；去重与写行逻辑居 `app/aixcoding/cli/queue_line.py::QueueLineNote`，v1.3） | 中（锚点错即静默） | 〔上游等价〕CLI 提供实时状态行机制 |
 | model-queue-progress:acp-notification | src/chrys/app/acp/server.py | AIxCoding queue-progress: ACP notification | 5 | `ext_notification` 白名单 + `_handle_chrys_extension_event`（`TurnStarted` 重置，v1.3；去重与载荷居 `app/aixcoding/acp/queue_notify.py`；计数 5 = import×2/白名单/分支/重置） | 低 | 〔协议变更〕ACP 协议原生提供排队/背压通知 |
 | model-queue-progress:test-double | tests/app/tui/screens/test_prompt_shortcut_send.py | AIxCoding queue-progress: test double accepts the callback | 1 | `Builds.create_client` | 低 | 随 factory-passthrough |
-| model-queue-progress:frontend-api-doc | src/chrys/app/acp/doc/frontend-api.md | AIxCoding queue-progress: document chrys/queue_status | 1 | Extension notifications 分组列表与 Notes 的 `chrys/queue_status` 载荷契约（marker 为渲染不可见的 HTML 注释，v1.4 D3） | 低（纯文档） | 〔上游等价〕上游文档原生收录该通知契约 |
+| model-queue-progress:frontend-api-doc | src/chrys/app/acp/doc/frontend-api.md | AIxCoding queue-progress: document queue_status | 1 | Extension notifications 分组列表与 Notes 的 `queue_status` 三帧契约（marker 为渲染不可见的 HTML 注释，v1.4 D3 落地、v1.5 随方法名改锚） | 低（纯文档） | 〔上游等价〕上游文档原生收录该通知契约 |
 
 ## 风险与最坏情况
 
@@ -381,4 +381,143 @@ R1 自查（必答）：
 - 本批 `requirements.md`、`test-plan.md`、`plan.md`、`verification.md`；client 批 `plan.md` 备忘加一行互指。
 - `aixcoding/docs/model_concurrency_queue/{requirements,test-cases,intranet-verification}.md` 的 ACP 载荷口径。
 - 新增《模型排队桌面端透传说明.md》（同目录，中文名）：链路、载荷契约、桌面端展示口径、联调步骤、排障检查单。
+
+---
+
+## 变更单 v1.5（2026-11-25，责任人裁决）：通知方法名去 chrys 命名空间 + 排队帧补 released:false
+
+> 决策来源：责任人对话裁决（2026-11-25）。该通知将作为**跨引擎标准**发给桌面端与其他引擎团队
+> （权威契约：`aixcoding/docs/model_concurrency_queue/模型排队通知协议规范.md` v1.0），方法名不得带
+> chrys 品牌；字面 `/queue_status`（无下划线）被否决——Python SDK 的 `ext_notification` 无条件加 `_`
+> 前缀，发无下划线名字须伸手 SDK 私有连接，且偏离 ACP 扩展方法约定。定名 **`_queue_status`**
+> （代码字面量 `queue_status`，SDK 自动加前缀）。同日裁决：**相位布尔对 `(released, rejected)` 每帧必填**
+> （字段尽可能一致）：排队帧 `false,false`、放行帧 `true,false`；`message`/`traceId` 仅拒绝帧
+> （v1.6）——无数据来源的字段不造值。本变更修改 R2 对象（`server.py` 字面量
+> 与白名单），须责任人重签本文件头部后实施；AI 未改头部。
+
+### 方案
+
+| 位置 | 现状 | 改为 |
+|---|---|---|
+| `server.py::ACP_EXTENSION_NOTIFICATIONS` 白名单 | `"chrys/queue_status"` | `"queue_status"` |
+| `server.py` `ext_notification` 调用字面量 | `"chrys/queue_status"` | `"queue_status"` |
+| `queue_notify.py` docstring | `chrys/queue_status` | `queue_status`（线上名 `_queue_status`） |
+| `queue_notify.py::queue_status_payload` | 排队帧不带相位布尔 | 三帧统一相位布尔对：排队 `"released": False, "rejected": False`、放行 `"released": True, "rejected": False`（键序 sessionId, requestId, released, rejected, position, queueSize） |
+| `frontend-api.md` 契约行（分组列表 + Notes，v1.4 D3 所加） | `chrys/queue_status`；排队帧形无 `released` | `queue_status`（注明线上名带 `_` 前缀）；排队帧形补 `released: false` |
+| `test_model_queue_progress.py` | 方法名 `"chrys/queue_status"`；排队载荷无相位布尔 | 方法名 `"queue_status"`；载荷断言补相位布尔对（排队 `released:False, rejected:False`；放行 `rejected:False`） |
+
+定制点登记不变（`frontend-api-doc` 行的 marker 锚不含方法名；`acp-notification` 计数仍 5，
+均在既有 marker 块内改写字面量，numstat 与 marker 计数不变）。
+
+### 上游改动清单（R2，相对 v1.4 的增量）
+
+| 文件 | 改什么 | 预估行数 | 标记注释位置 |
+|---|---|---|---|
+| `src/chrys/app/acp/server.py` | 白名单条目与 `ext_notification` 字面量 `chrys/queue_status` → `queue_status`（同行改写，既有 marker 块内） | 2 行改写（0 净增） | 既有 `AIxCoding queue-progress: ACP notification`（计数仍 5） |
+| `src/chrys/app/acp/doc/frontend-api.md` | 契约行方法名 `chrys/queue_status` → `queue_status`（2 处） | 2 行改写（0 净增） | 既有 HTML 注释 marker（计数仍 1） |
+
+### 兼容与迁移（上线顺序）
+
+1. **桌面端先双注册** `_queue_status` 与 `_chrys/queue_status`（先例：其 `chrys/error` 与
+   `_chrys/error` 双拼写），现版行为不受影响——排队帧的 `released: false` 现版不读该值，
+   落入 position/queueSize 校验分支，天然兼容；
+2. **iCode 后切**（本变更单实施）——只认旧名的桌面端从此收不到排队通知（丢横幅），故顺序不可倒；
+3. 稳定后桌面端移除旧名注册。其他引擎直接按协议规范发 `_queue_status`。
+
+### 风险与最坏情况
+
+- 桌面端未双注册就发新 iCode：排队横幅消失（通知被忽略），无其他影响；回滚即改回字面量。
+- 上游若引入以方法名为键的通知路由/测试：pin test（`test_server_capabilities.py` 扫描 server.py
+  通知字面量并与白名单比对）随两处字面量同步改，红即发现。
+
+### ADR 判定（增量）
+
+四问均否，不出 ADR：改名是对外契约演进，撤销代价低（改回字面量）；不依赖新的上游非公开行为；
+`_` 前缀约定与 SDK 自动加前缀行为已在 v1.4 假设范围内。
+
+### 验证计划（实施后执行）
+
+- `test_model_queue_progress.py` 方法名与排队载荷（含 `"released": False`）断言更新后全绿；
+  `tests/app/acp`（含 pin test）回归；ruff / ty / check_docs / gen_customizations --strict；
+  wait 清单不受影响（无 await 变化）。
+
+---
+
+## 变更单 v1.6（2026-11-25，责任人裁决）：第三帧「拒绝」（QUEUE_TIMEOUT / QUEUE_FULL）
+
+> 决策来源：责任人对话裁决（2026-11-25）。契约见
+> `aixcoding/docs/model_concurrency_queue/模型排队通知协议规范.md` §2.3/§4.7。现状空缺：队列拒绝
+> （超时/队满）被 guard 转译为终态异常 → turn 普通失败 → 桌面端只见笼统错误（`kind:"unknown"`，
+> 分类器无 QUEUE_TIMEOUT/QUEUE_FULL 映射，已核 `classify.py`），排队超时专属横幅永不触发。
+> 时机语义（责任人已裁）：TIMEOUT 轮次终结即发；FULL 仅重试耗尽、整轮被它终结时发；
+> CANCELLED 不发。本变更修改 R2 对象，须责任人重签本文件头部后实施；AI 未改头部。
+
+### 方案（复用既有回调通道，零新增事件接线）
+
+```text
+guard_queue_frames 转译点（TIMEOUT/CANCELLED 命中处）
+  └─ 先 await _notify(on_status, QueueStatus(rejected=code, …))，再 raise ProviderResponseError
+       （顺序固定：通知先于抛出；CANCELLED 命中但不通知——用户主动中断）
+wire 重试耗尽上抛处（FULL 最终异常）                    ← 开放项，见下
+  └─ lazy import 定制回调 + 全吞错（模式同 client.py 既有接线）
+两路共用：QueueStatus 扩展拒绝字段（rejected: str|None 原因码 / reject_message / trace_id，默认 None）
+  → observer.on_queue_status（既有回调）→ GatewayQueueStatus 扩展同名字段（既有事件，
+  headless 白名单不动）→ server.py 挂点 → queue_notify 第三种载荷
+```
+
+- 拒绝帧相位布尔 `released:False, rejected:True`（布尔对规范见协议规范 §3）；**可选携带最后已知
+  `position`/`queueSize`**（guard 记住最后一个吸收的位置帧即可，协议规范「字段尽可能一致」条款）；
+  放行帧是否补最后已知值由 v1.5 实施——规范标可选，iCode 默认不带（放行即横幅消失，旧值无展示价值）。
+
+- `GatewayQueueStatus` 不另立新事件类：拒绝是排队状态的终态相位，同通道同白名单；
+  TUI/CLI 不读新字段，行为不变（iCode 自身仍以普通错误呈现，拒绝文案只约束桌面端渲染）。
+- **server.py 挂点 revisit v1.4 归属结论**：逐字段透传在字段增至 6+ 后行数反超，改为整体传
+  `event`（`queue_status_payload(self, session_key, event)`）——R1「条件变化可 revisit」；
+  此后载荷再加字段，上游挂点零变动。
+- 拒绝帧不进 `(requestId, position)` 去重（无 position）；同 requestId 拒绝只发一次由
+  发送侧"终态只经过一次"保证，`queue_notify` 对拒绝帧直接放行。
+
+### 上游改动清单（R2，相对 v1.5 的增量）
+
+| 文件 | 改什么 | 预估行数 | 标记注释位置 |
+|---|---|---|---|
+| `src/chrys/app/acp/server.py` | 挂点改为整体传 `event`（1 行改写，既有 marker 块内） | 1 行改写（0 净增） | 既有 `AIxCoding queue-progress: ACP notification`（计数仍 5） |
+| wire 重试层（FULL 耗尽挂点，文件实施时定位：kernel wire retry / attempts 路径） | lazy import 定制回调 + 全吞错 | 约 +6 | `# AIxCoding queue-progress: report queue-full exhaustion` |
+| `src/chrys/app/acp/doc/frontend-api.md` | 第三帧契约（排队/放行条目旁补拒绝条目） | 约 +6 | 既有 HTML 注释 marker（计数仍 1） |
+
+**开放项（实施前须定稿）**：FULL 耗尽挂点的最小落点。TIMEOUT 的通知在 guard 转译处即完整；
+FULL 在 guard 只见每次失败、不知是否最后一次，"最终上抛"发生在 wire 重试层——实施时定位，
+若评估超出上表规模（>1 处上游接线或 >10 行），**停下上报责任人裁决**是否 FULL 延期
+（规范已支持 FULL，iCode 暂只发 TIMEOUT，功能不受阻：FULL 耗尽本身极罕见——重试阶梯约 20 分钟）。
+
+定制包改动（非 R2）：`queue_frames.py`（QueueStatus 扩展 + 转译点通知）、`queue_progress.py`
+（事件扩展）、`queue_notify.py`（第三种载荷 + 传 event 后签名调整）、
+`test_model_queue_progress.py`（新用例：通知先于抛出的顺序、拒绝载荷三字段、CANCELLED 不通知、
+FULL 耗尽通知——破坏实验锚定挂点）。
+
+### 对上游隐式行为的假设（增量）
+
+13. wire 重试层最终上抛的是最后一个尝试的原始异常（QUEUE_FULL 的 bare `APIError` 带 `code`）
+    → 依赖方式：耗尽挂点读该 code → 失效表现：FULL 通知缺失或误发；破坏实验锚定。
+14. `_notify` 在 raise 前被 await 到完成（`bus.publish` 内联 await 订阅者）→ 失效表现：通知可能
+    未送达异常已上抛——顺序由测试锚定。
+
+### 风险与最坏情况
+
+- 拒绝通知与 `chrys/error`/prompt 拒绝双通道并存：桌面端既出 rejected 横幅又出错误——消费策略
+  归桌面端（规范 §5 已注明两通道职责）；不禁止。
+- 现版桌面端丢拒绝帧（无 position 被排队校验拒绝，规范 §7 已注）：改造前的可见行为与现状等价，无回归。
+- 通知顺序被破坏（先抛后通知）→ 超时无横幅：测试锚定；回滚删转译点 3 行。
+- 回滚：撤销挂点改写与 FULL 挂点、定制包字段与载荷分支，即回 v1.5；无持久化。
+
+### ADR 判定（增量）
+
+四问均否：同通道载荷演进（复用既有 ADR `observer-callback-channel` 的决策范围），撤销代价低，
+不新增上游非公开依赖（假设 13/14 均有测试锚定）。
+
+### 验证计划（实施后执行）
+
+- 新用例全绿 + `tests/app/acp` 回归（含 pin test）+ wait 清单刷新（转译点新增 await _notify）；
+  ruff / ty / check_docs / gen_customizations --strict。
+- 真实网关联调：超时场景（`max_wait_time` 调小）观察桌面端 rejected 横幅与文案。
 
