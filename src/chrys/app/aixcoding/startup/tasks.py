@@ -17,3 +17,10 @@ def _ensure_file_sink() -> None:
     from chrys.service.aixcoding.config import load_config
 
     ensure_file_sink(load_config().diagnostics)
+
+
+def _install_llm_http_interception() -> None:
+    """Install the empty-by-default HTTP policy hooks before model clients exist."""
+    from chrys.service.aixcoding.llm_call_interception.installer import install_http_interception
+
+    install_http_interception()

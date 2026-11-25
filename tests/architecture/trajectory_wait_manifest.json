@@ -4053,6 +4053,70 @@
         ["awaitable", "await self._sources.extension_context.collect(prompt)", "unresolved"]
       ]
     },
+    "chrys.service.aixcoding.llm_call_interception.hooks": {
+      "_AdaptiveResponseStream.__aiter__": [
+        ["wrapper", "await self._read_prefix()", "unresolved", "chrys.service.aixcoding.llm_call_interception.hooks._AdaptiveResponseStream._read_prefix"],
+        ["async_iteration", "async for chunk in prefixed", "unresolved"],
+        ["async_iteration", "async for chunk in processor", "unresolved"],
+        ["wrapper", "await self.aclose()", "unresolved", "chrys.service.aixcoding.llm_call_interception.hooks._AdaptiveResponseStream.aclose"]
+      ],
+      "_AdaptiveResponseStream._read_prefix": [
+        ["async_iteration", "async for chunk in iterator", "unresolved"]
+      ],
+      "_AdaptiveResponseStream.aclose": [
+        ["awaitable", "await self._prefixed.aclose()", "unresolved"],
+        ["awaitable", "await self._stream.aclose()", "unresolved"]
+      ],
+      "_NormalBodyStream.__aiter__": [
+        ["async_iteration", "async comprehension for chunk in self._stream", "unresolved"],
+        ["awaitable", "await self._handler(self._context, self._response.status_code, httpx.Headers(self._response.headers), original_body)", "unresolved"],
+        ["wrapper", "await self.aclose()", "unresolved", "chrys.service.aixcoding.llm_call_interception.hooks._NormalBodyStream.aclose"]
+      ],
+      "_NormalBodyStream.aclose": [
+        ["awaitable", "await self._stream.aclose()", "unresolved"]
+      ],
+      "_PrefixedStream.__aiter__": [
+        ["async_iteration", "async for chunk in self._iterator", "unresolved"]
+      ],
+      "_PrefixedStream.aclose": [
+        ["awaitable", "await self._stream.aclose()", "unresolved"]
+      ],
+      "_SSEEventStream.__aiter__": [
+        ["async_iteration", "async for chunk in self._stream", "unresolved"],
+        ["wrapper", "await _process_sse_event(self._response, self._context, self._handler, event, stream=True)", "unresolved", "chrys.service.aixcoding.llm_call_interception.hooks._process_sse_event"],
+        ["wrapper", "await self.aclose()", "unresolved", "chrys.service.aixcoding.llm_call_interception.hooks._SSEEventStream.aclose"]
+      ],
+      "_SSEEventStream.aclose": [
+        ["awaitable", "await self._stream.aclose()", "unresolved"]
+      ],
+      "_handle_buffered_body": [
+        ["awaitable", "await handler(context, response.status_code, httpx.Headers(response.headers), original_body)", "unresolved"]
+      ],
+      "_handle_buffered_sse": [
+        ["wrapper", "await _process_sse_event(response, context, handler, event, stream=False)", "unresolved", "chrys.service.aixcoding.llm_call_interception.hooks._process_sse_event"]
+      ],
+      "_handle_request": [
+        ["awaitable", "await request.aread()", "unresolved"],
+        ["awaitable", "await handler(context, httpx.Headers(request.headers), original_body)", "unresolved"]
+      ],
+      "_handle_response": [
+        ["wrapper", "await _handle_response_headers(response, context, header_handler)", "unresolved", "chrys.service.aixcoding.llm_call_interception.hooks._handle_response_headers"],
+        ["wrapper", "await _handle_buffered_sse(response, context, handler)", "unresolved", "chrys.service.aixcoding.llm_call_interception.hooks._handle_buffered_sse"],
+        ["wrapper", "await _handle_buffered_body(response, context, handler)", "unresolved", "chrys.service.aixcoding.llm_call_interception.hooks._handle_buffered_body"]
+      ],
+      "_handle_response_headers": [
+        ["awaitable", "await handler(context, response.status_code, httpx.Headers(response.headers))", "unresolved"]
+      ],
+      "_process_sse_event": [
+        ["awaitable", "await handler(context, response.status_code, httpx.Headers(response.headers), event)", "unresolved"]
+      ],
+      "build_http_hooks.request_hook": [
+        ["wrapper", "await _handle_request(request, provider=provider, model=model)", "unresolved", "chrys.service.aixcoding.llm_call_interception.hooks._handle_request"]
+      ],
+      "build_http_hooks.response_hook": [
+        ["wrapper", "await _handle_response(response, provider=provider, model=model)", "unresolved", "chrys.service.aixcoding.llm_call_interception.hooks._handle_response"]
+      ]
+    },
     "chrys.service.aixcoding.models.catalog": {
       "fetch_catalog": [
         ["awaitable", "await get_login_session().verify_live_credential()", "unresolved"],

@@ -78,12 +78,14 @@ def test_startup_task_order_and_single_snapshot(tmp_path: Path, monkeypatch):
     import chrys.foundation.platform as platform
     import chrys.service.aixcoding.config.loader as config_loader
     from chrys.kernel.aixcoding.auth import environments
+    from chrys.service.aixcoding.llm_call_interception import installer
 
     (tmp_path / "aixcoding.toml").write_text('environment = "local"\n', encoding="utf-8")
     monkeypatch.setattr(platform, "get_platform", lambda: SimpleNamespace(config_dir=tmp_path))
     events = []
     monkeypatch.setattr(environments, "configure_environment", lambda raw: events.append(("environment", raw)))
     monkeypatch.setattr(logging_support, "ensure_file_sink", lambda config: events.append(("logging", config)))
+    monkeypatch.setattr(installer, "install_http_interception", lambda: events.append(("http", None)))
     loads = 0
     real_loads = tomllib.loads
 
@@ -99,6 +101,7 @@ def test_startup_task_order_and_single_snapshot(tmp_path: Path, monkeypatch):
         assert events[0] == ("environment", "local")
         assert events[1][0] == "logging"
         assert events[1][1].source == tmp_path / "aixcoding.toml"
+        assert events[2] == ("http", None)
         assert loads == 1
     finally:
         load_config.cache_clear()
@@ -108,12 +111,14 @@ def test_environment_injection_precedes_default_session_construction(monkeypatch
     import chrys.kernel.aixcoding.auth.session as session_module
     from chrys.kernel.aixcoding.auth import environments
     from chrys.service.aixcoding import config as config_package
+    from chrys.service.aixcoding.llm_call_interception import installer
 
     events = []
     snapshot = SimpleNamespace(environment="local", diagnostics=make_cfg())
     monkeypatch.setattr(config_package, "load_config", lambda: snapshot)
     monkeypatch.setattr(environments, "configure_environment", lambda raw: events.append("configure"))
     monkeypatch.setattr(logging_support, "ensure_file_sink", lambda config: None)
+    monkeypatch.setattr(installer, "install_http_interception", lambda: None)
     monkeypatch.setattr(session_module, "_default_session", None)
     monkeypatch.setattr(session_module, "LoginSession", lambda: events.append("session") or object())
 
@@ -142,4 +147,31 @@ def test_startup_placement_and_task_registration():
     assert file.parts[-4:-1] == ("app", "aixcoding", "startup")
     assert (file.parent.parent / "tui").is_dir()
     assert callable(startup.aixcoding_startup)
-    assert (startup._configure_environment, startup._ensure_file_sink) == startup._TASKS
+    assert (
+        startup._configure_environment,
+        startup._ensure_file_sink,
+        startup._install_llm_http_interception,
+    ) == startup._TASKS
+
+
+def test_llm_http_install_failure_is_contained_and_logged(monkeypatch, capsys, caplog):
+    from chrys.service.aixcoding.llm_call_interception import installer
+
+    calls = []
+
+    def after():
+        calls.append("after")
+
+    def fail_install():
+        raise RuntimeError("synthetic install failure")
+
+    monkeypatch.setattr(installer, "install_http_interception", fail_install)
+    monkeypatch.setattr(startup, "_TASKS", (startup._install_llm_http_interception, after))
+    caplog.set_level(5)
+
+    startup.aixcoding_startup()
+
+    assert calls == ["after"]
+    assert "启动任务 _install_llm_http_interception 失败" in capsys.readouterr().err
+    assert any(record.name == "aixcoding.startup" and record.levelno == logging.WARNING for record in caplog.records)
+    assert any(record.name == "aixcoding.detail.startup" and record.exc_info is not None for record in caplog.records)
