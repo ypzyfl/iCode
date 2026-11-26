@@ -389,3 +389,32 @@ uv run ty check ×3 平台                           → All checks passed!
 uv run python aixcoding/tools/check_docs.py      → OK
 uv run python aixcoding/tools/gen_customizations.py --strict → OK（133 行 / 198 marker）
 ```
+
+---
+
+## 2026-11-26：design v1.8（重试后再排队可见 + TUI 取消排队按钮）
+
+责任人签认（同日；签认时裁定按钮语义=复用中断链路 + toast「用户已取消排队」）。
+
+**本机（无 uv/textual 环境）已做的验证**：
+
+- `py_compile` 语法级自检：6 个改动/新增文件全部通过；
+- marker 计数核对（相对 design v1.8 修订记录口径）：`waiting_row.py` 3、`panel.py` 2、
+  `screen.py` queue-progress 2（该文件另有其他批次 6 个非本批 marker）、`event_handlers.py` 3（不变）、
+  `view_adapter.py` 1（不变）；`event_handlers.py` 已核对还原为零 diff。
+
+**待有环境机器/CI 执行后回填**：
+
+```text
+uv run python scripts/chrys_test.py --smart --paths src/chrys/app/tui/widgets/chat/waiting_row.py src/chrys/app/tui/widgets/chat/panel.py src/chrys/app/tui/screens/main/screen.py src/chrys/app/aixcoding/tui/queue_cancel_button.py tests/app/tui/widgets/chat/test_queue_note_row.py tests/app/tui/screens/main/test_queue_cancel_button.py
+uv run ruff check src/ tests/ scripts/chrys_test.py …   # 及 ruff format --check
+uv run ty check --error-on-warning …×3 平台
+uv run python aixcoding/tools/check_docs.py
+uv run python aixcoding/tools/gen_customizations.py --strict   # 登记表已按 v1.8 更新，计数待核
+uv run pytest tests/app/tui/screens/test_editor_dialog.py tests/app/tui/widgets/chat/test_waiting_row.py tests/app/tui/widgets/chat/test_retry_countdown.py   # 邻域回归
+```
+
+风险敞口（design v1.8 假设 15/16，本地无法运行 TUI）：绝对定位子控件与
+`WaitingRow._size_updated(layout=False)` 的相互作用、命中测试层级——由
+`test_queue_note_row.py` / `test_queue_cancel_button.py` 锚定；若红，回退 B4
+（文案并入 render 文本 + 记录区域手工命中）。

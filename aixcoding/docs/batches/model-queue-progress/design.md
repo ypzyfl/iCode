@@ -7,7 +7,7 @@
 
 - 责任人：李海潮
 - 状态：已确认
-- 确认日期：2026-11-25
+- 确认日期：2026-11-26
 - 确认意见：尽量不改上游，若必须要改，要少而集中的改（可选；审阅中形成的判断、附加条件或保留）确认签订和桌面端ACP通讯
 
 ## 方案概述
@@ -116,7 +116,9 @@ R1 自查（逐行归属）：上游每处均为"挂点 + 一行调用/一个字
 | model-queue-progress:tui-render | src/chrys/app/tui/screens/main/view_adapter.py | AIxCoding queue-progress: TUI render | 1 | `show_status` 邻域 | 低 | 随 event-type |
 | model-queue-progress:ports-protocol | src/chrys/app/tui/screens/main/ports.py | AIxCoding queue-progress: ports protocol | 1 | `MainScreenPresentationView` | 低 | 随 tui-render |
 | model-queue-progress:presenter-facade | src/chrys/app/tui/screens/main/main_screen_presenter.py | AIxCoding queue-progress: presenter facade | 1 | `MainScreenPresenter` | 低 | 随 tui-render |
-| model-queue-progress:waiting-row | src/chrys/app/tui/widgets/chat/waiting_row.py | AIxCoding queue-progress: waiting row note | 1 | `WaitingRow.render` | 中（高度/换行/跨轮残留） | 〔上游等价〕WaitingRow 自带文案能力 |
+| model-queue-progress:waiting-row | src/chrys/app/tui/widgets/chat/waiting_row.py | AIxCoding queue-progress: waiting row note / waiting row cancel button | 3（v1.8：1+2，import 与类体各一） | `WaitingRow.render` / `compose`·`set_queue_note` | 中（高度/换行/跨轮残留） | 〔上游等价〕WaitingRow 自带文案能力 |
+| model-queue-progress:waiting-row-visibility | src/chrys/app/tui/widgets/chat/panel.py | AIxCoding queue-progress: queued turn waits behind status cards | 2（v1.8 新增点：`_turn_waits` / `on_queue_note_changed`） | `ChatPanel._turn_waits` | 中（状态卡期间显隐语义） | 〔上游等价〕上游等待行感知排队状态 |
+| model-queue-progress:cancel-button-screen-handler | src/chrys/app/tui/screens/main/screen.py | AIxCoding queue-progress: cancel-queue button handler | 2（v1.8 新增点：import + 处理器） | `MainScreen._cancel_queue` | 低 | 〔上游等价〕上游提供通用的"放弃当前等待"入口 |
 | model-queue-progress:cli-line | src/chrys/app/cli/progress.py | AIxCoding queue-progress: CLI line | 6 | `TurnProgress.handle`（含 `TurnStarted` 重置；去重与写行逻辑居 `app/aixcoding/cli/queue_line.py::QueueLineNote`，v1.3） | 中（锚点错即静默） | 〔上游等价〕CLI 提供实时状态行机制 |
 | model-queue-progress:acp-notification | src/chrys/app/acp/server.py | AIxCoding queue-progress: ACP notification | 5 | `ext_notification` 白名单 + `_handle_chrys_extension_event`（`TurnStarted` 重置，v1.3；去重与载荷居 `app/aixcoding/acp/queue_notify.py`；计数 5 = import×2/白名单/分支/重置） | 低 | 〔协议变更〕ACP 协议原生提供排队/背压通知 |
 | model-queue-progress:test-double | tests/app/tui/screens/test_prompt_shortcut_send.py | AIxCoding queue-progress: test double accepts the callback | 1 | `Builds.create_client` | 低 | 随 factory-passthrough |
@@ -561,3 +563,141 @@ FULL 耗尽通知——破坏实验锚定挂点）。
 
 - `aixcoding/tests/llm/` 81 passed（5 组载荷断言改 status 后）；ruff/format、ty 三平台、check_docs、
   gen_customizations --strict 全绿；wait 清单无变化（无 await 改动）。
+
+---
+
+## 变更单 v1.8（2026-11-26，责任人裁决）：重试后再排队可见性修复 + TUI 取消排队按钮
+
+> 决策来源：责任人对话裁决（2026-11-26）：修复方案 A1 + 按钮骨架 B1 认可、布局**同行**；
+> 按钮语义对话中**待定**，本单按 AI 推荐「中断本 turn」起草，签认时可推翻（备选对比见下）。
+> 本变更修改 R2 对象（`panel.py` 新接触点、`waiting_row.py`/`event_handlers.py` 既有 marker 块扩容），
+> 须责任人重签本文件头部后实施；AI 未改头部。
+
+### 问题与根因
+
+1. **重试后不显示排队信息**：排队文案只渲染在 `WaitingRow`，其显隐由
+   `ChatPanel._turn_waits() → waits_after(尾条)` 决定，而 `waits_after` 对
+   ErrorMessage/InterruptedMessage/RetryMessage 一律 False（上游设计："错误、重试和中断卡自己说明为什么在等"）。
+   排队超时（`QUEUE_TIMEOUT` → 放行帧清文案 → 终态错误）后的重试，无论手动（错误卡内联重试 →
+   `RetryMessage` 常驻为尾条，直到新内容挂载）还是任何重试通道，重试请求**重新排队期间没有任何新转录项挂载**
+   → 尾条仍是状态卡 → 行隐藏 → 文案设在隐藏行上不可见。首次排队能显示，是因为尾条是用户消息。
+   事件链路本身无恙（`on_queue_status` → `show_queue_status` → `set_queue_note` 均正常执行）。
+2. **取消排队按钮（新增能力）**：请求一旦出队就不可能再被放行（`QUEUE_CANCELLED` 终态、不重试），
+   「取消排队」在语义上等价于中断本 turn；而中断链路已保证出队（client 批 `close_stream_and_cancel` →
+   `cancel_on_close`，shielded POST `/api/v3/chat/completions/cancel`，`test_model_queue_cancel.py` 锚定）
+   → **零后端改动**。
+
+### 方案
+
+**修复 1（A1）**：`panel.py::_turn_waits` 增加一个条件——等待行当前带排队文案时视为"在等"
+（`waits_after(last) or 行上有排队文案`，含 chrome 行归属检查）。放行/超时帧清文案后自动恢复原显隐；
+重试退避倒计时期间（尚未重新排队、无文案）不显示，无噪音。
+
+**修复 2（B1 骨架 + 同行布局）**：
+
+```text
+WaitingRow.compose() 挂 QueueCancelButton(ClickAffordance)      ← 绝对定位子控件，bottom:0 右锚（同行）
+  └─ set_queue_note 联动显隐（非空显示 / 清空隐藏）
+       └─ 点击 → prevent_default + stop → post QueueCancelRequested（命名处理器风格，先例
+            ChatPanel.on_scroll_to_bottom_requested）
+            └─ 冒泡至 MainScreen：on_queue_cancel_requested → action_interrupt()（既有 Esc 入口）
+                 └─ _input_flow.publish_interrupt() → engine abort → 流关闭
+                      └─ close_stream_and_cancel → tracker.cancel_on_close → POST /cancel（既有、已测）
+                           → turn 以「已中断」卡收尾，请求出队
+```
+
+- 按钮控件与消息落定制包新文件 `src/chrys/app/aixcoding/tui/queue_cancel_button.py`（先例：login 批）；
+  标签「取消排队」为 ADR-0010 内联中文（pyproject 已对该目录豁免 RUF001）。
+- 仅 TUI：CLI/ACP/桌面端无此按钮；键盘路径已有 Esc；桌面端将来用 session 中断即同一语义。
+- **按钮语义（待定项，按推荐起草）**：中断本 turn。备选「仅出队不中断」被否——`QUEUE_CANCELLED`
+  终态使 turn 必失败，用户主动操作以错误卡收尾；且需 TUI→tracker 新跨层通道（tracker 无注册表）。
+
+### 备选方案对比
+
+| 方案 | 说明 | 结论 |
+|---|---|---|
+| A1. `_turn_waits` 带文案即等待（本单） | 一个条件；显隐恢复由文案清空自然回退 | ✓ 采纳 |
+| A2. `waits_after` 把 RetryMessage 当等待 | 退避倒计时期间显示光秃 dot（该函数拿不到文案状态），上游语义面更大 | ✗ |
+| A3. 重试期间文案渲染进 RetryMessage/状态栏 | 双渲染路径，侵入更大 | ✗ |
+| B1. 绝对定位子控件 + 复用中断链路（本单） | ClickAffordance 既有点击消费不变量；零后端改动 | ✓ 采纳 |
+| B2. WaitingRow 改组合控件（compose 横向容器） | dot 动画（auto_refresh+render）与 fold-gap 高度逻辑全要重适配，热 chrome 侵入最大 | ✗ |
+| B3. 仅出队（新事件通道 TUI→tracker） | 主动操作以错误卡收尾 + 新跨层机制（tracker 无注册表） | ✗ |
+| B4. 按钮文案并入 render() Text + 记录区域手工命中 | 无布局风险但手写 hit-test | 备选（B1 布局验证失败时回退） |
+
+R1 自查（必答）：
+- 业务逻辑已外置？是。控件、消息、标签全在 `app/aixcoding/tui/` 新文件（非 R2）；上游仅挂点：
+  compose 一处、显隐联动一行、`queue_note` 只读属性、`_turn_waits` 一个条件、命名处理器一个。
+- 接线点能否更少？不能。显隐判定只在上游 `panel.py::_turn_waits`；点击必须经 MainScreen 的中断入口。
+- 能否完全不改上游？不能：显隐判定与消息处理都在上游 TUI 层，无扩展点。
+
+### 上游改动清单（R2，相对 v1.7 的增量）
+
+| 文件 | 改什么 | 预估行数 | 标记注释位置 |
+|---|---|---|---|
+| `src/chrys/app/tui/widgets/chat/panel.py` | `_turn_waits` 带排队文案时返回 True；`on_queue_note_changed` 消息处理器触发等待行 sync（实施核正：文案到达不经过任何会调 `_sync_waiting_row` 的转录变更，必须由行自身通知——`set_queue_note` post `QueueNoteChanged`，panel 处理后 sync；import 名追加随行） | +12 | `# AIxCoding queue-progress: queued turn waits behind status cards` ×2（新登记点 `waiting-row-visibility`，计数 2，anchor `_turn_waits` / `on_queue_note_changed`） |
+| `src/chrys/app/tui/widgets/chat/waiting_row.py` | `compose()` 挂取消按钮（初始隐藏）、`queue_note` 只读属性、`set_queue_note` 联动按钮显隐、import | +14 | 新 marker 行 `# AIxCoding queue-progress: waiting row cancel button`（`waiting-row` 计数 1→2） |
+| `src/chrys/app/tui/screens/main/screen.py` | `@on(QueueCancelRequested)` 处理器：`stop()` + toast + `action_interrupt()`（实施修正：原定 event_handlers.py，但 `BackendEventHandler` 是独立类、只路由后端 EventBus 事件且无中断通路；widget 消息按 `@on(BackgroundTaskList.Opened)` 先例落 MainScreen 本体） | +9 | 新 marker ×2（新登记点 `cancel-button-screen-handler`：import + 处理器） |
+
+测试为两个**新文件**（非上游改动、无 marker）：`tests/app/tui/widgets/chat/test_queue_note_row.py`
+（重试卡后可见性 + 按钮显隐 + 点击冒泡）、`tests/app/tui/screens/main/test_queue_cancel_button.py`
+（make_chrys_app 真实派发：点击 → toast + `action_interrupt`）。
+
+定制包改动（非 R2，无 marker 义务）：
+
+| 文件 | 改什么 |
+|---|---|
+| `src/chrys/app/aixcoding/tui/queue_cancel_button.py`（新） | `QueueCancelButton(ClickAffordance)`（DEFAULT_CSS：`position: absolute; bottom: 0` 右锚、hover、`pointer`；`ALLOW_SELECT = False`）+ `QueueCancelRequested(Message)` + 标签常量「取消排队」 |
+
+### 对上游隐式行为的假设（增量）
+
+15. `WaitingRow._size_updated(layout=False)` 不阻止绝对定位子控件随内容高度（fold gap 1↔2 行）重新锚定到末行
+    → 失效表现：gap 切换后按钮停错一行 → TUI harness 测试锚定；失败则回退 B4。
+16. 绝对定位子控件在命中测试中先于父级 render 文本接收点击 → 失效表现：点击落到行本体 →
+    ClickAffordance 消费不变量测试锚定。
+17. 状态卡为尾条期间 `agent_running` 保持 True（wire 重试/重试 pass 内不掉；重试 pass 不发 `TurnStarted`
+    清文案）→ 依赖方式：`_turn_waits` 排队分支不重复检查 → 失效表现：文案在、行不显。
+
+### 风险与最坏情况
+
+- **布局回退**：B1 的绝对子控件若与 `_size_updated(layout=False)` 冲突 → 回退 B4（文案并入 Text +
+  记录区域手工命中），上游接触面不增。
+- **窄终端重叠**：文案约 36 列 + 按钮约 12 列，80 列终端不重叠；更窄接受重叠（右锚设计）。
+- **视觉约定变化**：状态卡为尾条时出现排队行——仅当行上带文案（有网关排队事实）；文案清空即恢复
+  "状态卡自己说明"的原约定。
+- **重复点击**：中断传播期间的二次点击由 `action_interrupt` 既有幂等性吸收；按钮随文案清空而隐藏。
+- **回滚**：撤销上表 4 个上游文件改动与定制包新文件即回 v1.7；无持久化、无协议变化、无 i18n catalog 改动。
+
+### ADR 判定（增量）
+
+四问均否，不出 ADR：① 否决 A2/A3/B2/B3 属照 R1 规范排除（B4 为回退预案，非同等取舍）；② 撤销代价低；
+③ 不约束后续工作模式；④ 未新增上游非公开依赖（假设 15/16/17 均以测试锚定，`_turn_waits`/compose 为
+上游既有扩展形态）。
+
+### 验证计划（实施后执行，结果回填 verification.md）
+
+- `tests/app/tui/widgets/chat/test_waiting_row.py` 新用例：
+  - 尾条为 RetryMessage（及 ErrorMessage）+ 行带文案 → 行显示；`set_queue_note("")` → 行隐藏（恢复原行为）；
+  - 文案出现 → 按钮可见；清空/放行帧（position<0）→ 按钮隐藏；
+  - 点击按钮 → 点击被消费（prevent_default/stop）且 `QueueCancelRequested` 送达。
+- MainScreen 层：`on_queue_cancel_requested` → 中断发布被调用（spy `action_interrupt`/`_input_flow.publish_interrupt`）。
+- 回归：`test_waiting_row.py` 既有用例、`test_retry_countdown.py`、上游 `tests/app/tui` 相关分片、
+  `aixcoding/tests/llm/`（应零改动全绿）。
+- 门禁：ruff check/format、ty 三平台、`check_docs.py`、`gen_customizations --strict`；
+  wait 清单预计不刷新（按钮处理器同步、无新增 await；实施引入 await 则按门禁刷新）。
+
+### 文档同步（随实施）
+
+- 本批 `requirements.md`、`test-plan.md`、`plan.md`、`verification.md`；
+- `aixcoding/docs/model_concurrency_queue/{requirements,test-cases}.md` 的 TUI 展示口径（重试后再排队可见、
+  取消排队按钮与其中断语义）；用户指南 `docs/en`/`docs/zh-Hans` 现无排队相关页面，不涉及。
+
+**2026-11-26 修订记录（签认时裁决，同日实施前）**：待定项裁定——按钮语义按推荐**复用中断链路**
+（`action_interrupt`），并在点击后以 toast 提示「**用户已取消排队**」（常量 `QUEUE_CANCELLED_NOTICE`
+随按钮同住定制包 `queue_cancel_button.py`）。实施核正两处：① 处理器落点由 `event_handlers.py` 改为
+`screen.py`（`BackendEventHandler` 是独立类、只路由后端 EventBus 事件，无中断通路；widget 消息按
+`@on(BackgroundTaskList.Opened)` 先例落 MainScreen 本体）——`tui-handler` 计数维持 3，新登记点
+`cancel-button-screen-handler`（screen.py，计数 2：import + 处理器）；② `waiting_row.py` 的 import 与
+类体两处各需一条 marker（先例：session_host 的 import + 元组条目计 2），`waiting-row` 计数 1→**3**
+（起草时估 2）；③ 排队文案到达不经过任何会调 `_sync_waiting_row` 的转录变更——`set_queue_note` 须
+post `QueueNoteChanged`、由 panel 处理并 sync（`waiting-row-visibility` 计数 1→2），否则重试场景下
+行仍不显示（实施时发现的起草缺口）。本修订记录责任人的签认时口头裁决与实施核正，正文其余不变。

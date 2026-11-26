@@ -13,8 +13,12 @@ import time
 from typing import TYPE_CHECKING, ClassVar
 
 from rich.text import Text
+from textual.app import ComposeResult
+from textual.message import Message
 from textual.widget import Widget
 
+# AIxCoding queue-progress: waiting row cancel button (floated over the queue note's line)
+from chrys.app.aixcoding.tui.queue_cancel_button import QueueCancelButton
 from chrys.app.tui.util.shimmer import FRAME_SECONDS, breathing_dot
 from chrys.app.tui.widgets.chat.compaction_card import CompactionCard
 from chrys.app.tui.widgets.chat.context_fold import ContextFoldWidget
@@ -25,6 +29,10 @@ from chrys.app.tui.widgets.loading import GatedAnimation
 
 if TYPE_CHECKING:
     from textual.geometry import Size
+
+
+class QueueNoteChanged(Message):
+    """The queue note came or went; the chat panel owns whether the row then shows."""
 
 
 class WaitingRow(GatedAnimation, FoldGap, Widget):
@@ -72,15 +80,35 @@ class WaitingRow(GatedAnimation, FoldGap, Widget):
         # lay the whole transcript out again as its gap comes and goes.
         return super()._size_updated(size, virtual_size, container_size, layout=False)
 
+    # AIxCoding queue-progress: waiting row cancel button (floated over the note line)
+    def compose(self) -> ComposeResult:
+        yield QueueCancelButton()
+
+    @property
+    def queue_note(self) -> str:
+        """The queue note beside the dot; empty when the turn is not queued."""
+        return self._queue_note
+
     def set_queue_note(self, note: str) -> None:
         """Show *note* beside the dot; an empty note restores the bare dot.
 
-        The note shares the dot's line, so it never changes the row's height.
+        The note shares the dot's line, so it never changes the row's height,
+        and the cancel affordance comes with it: floated in place, it takes no
+        flow space of its own.
         """
         if note == self._queue_note:
             return
         self._queue_note = note
+        button = self._queue_cancel_button()
+        if button is not None:
+            button.display = bool(note)
         self.refresh()
+        # The note changes outside any transcript move the panel already syncs on, so it hears.
+        self.post_message(QueueNoteChanged())
+
+    def _queue_cancel_button(self) -> QueueCancelButton | None:
+        """The cancel affordance over the note line, once composed; absent while the row is unmounted."""
+        return next(iter(self.query(QueueCancelButton)), None)
 
     def render(self) -> Text:
         if self.app.animation_level == "none":

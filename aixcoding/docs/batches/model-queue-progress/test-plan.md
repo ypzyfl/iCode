@@ -29,6 +29,9 @@
 | ACP 载荷四字段（v1.4） | 排队 `{sessionId, requestId, position, queueSize}`、放行 `{sessionId, requestId, released: true}`、未知 id 时无 `requestId` 键 | 单元 |
 | D2 去重键（v1.4） | 同 session 同 position、不同 requestId 各发一次（重试新请求不被吞） | 单元 |
 | 子代理/workflow 不展示（边界） | 子代理构建路径不注入回调 → 无事件发出；与改造前一致 | 单元 |
+| 重试后再排队可见（v1.8） | 尾条为 RetryMessage 时 `set_queue_note` → 等待行显示；清空（放行/超时帧）→ 隐藏并清计时器，恢复"状态卡自己说明"的原约定 | TUI（ChatPanelApp） |
+| 取消按钮显隐（v1.8） | 文案出现 → 按钮显示；清空 → 隐藏；无文案的裸 dot 无按钮 | TUI（ChatPanelApp） |
+| 取消按钮点击接线（v1.8） | 点击 → 消息冒泡出 ChatPanel；MainScreen `@on` 真实派发 → toast「用户已取消排队」+ `action_interrupt` | TUI（make_chrys_app） |
 
 ## 异常与降级路径
 

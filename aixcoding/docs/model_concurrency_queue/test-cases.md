@@ -45,6 +45,8 @@
 | TC-18 | P2 | 子代理 | 子代理/workflow 排队不显示 UI（边界） |
 | TC-19 | P0 | 抓包/网关日志 | `Chrys-Request-Attempt-Id` 请求头存在且每次尝试不同 |
 | TC-20 | P0 | 接口 | cancel URL 推导正确 |
+| TC-21 | P0 | TUI | 排队超时重试后再次排队：重试卡为尾条期间文案仍显示（2026-11-26 v1.8） |
+| TC-22 | P0 | TUI | 「取消排队」按钮：文案同行、点击 toast「用户已取消排队」+ turn「已中断」+ cancel 204（2026-11-26 v1.8） |
 
 ---
 
@@ -236,6 +238,22 @@ http://host/aicoding         → 同上
   - `401/403` 说明 `token` 头/凭据不对；
   - 连接失败说明代理/地址不对。
 - **证据**：curl `-i` 输出 + detail 日志中的 endpoint。
+
+### TC-21 重试后再排队可见（P0，2026-11-26 v1.8）
+
+- **前置**：`max_concurrency=1`；`max_wait_time` 调小；TUI 发请求排队 → 超时 → turn 失败 → 点错误卡上的重试。
+- **步骤**：观察重试请求再次排上队列后的等待行。
+- **预期**：重试倒计时卡仍在转写区末尾时，等待行照样出现并显示「当前模型请求量大，请求排队约 N 人」；
+  放行帧或再次超时后文案消失、行隐藏。
+- **证据**：TUI 截图 + `tests/app/tui/widgets/chat/test_queue_note_row.py` 单测（CI）。
+
+### TC-22 取消排队按钮（P0，2026-11-26 v1.8）
+
+- **前置**：同 TC-09（先占位，TUI 发请求出现排队文案）。
+- **步骤**：点击排队文案同行的「取消排队」按钮。
+- **预期**：toast「用户已取消排队」；turn 立即以「已中断」收尾；网关侧 cancel `204`（复用 TC-09 的 cancel 链路）；
+  文案与按钮随中断消失。
+- **证据**：TUI 截图 + detail 日志 cancel 记录 + `tests/app/tui/screens/main/test_queue_cancel_button.py` 单测（CI）。
 
 ---
 

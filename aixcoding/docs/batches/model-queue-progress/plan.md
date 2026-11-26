@@ -29,6 +29,14 @@ gen_customizations 全绿；详见 verification.md 同日（二）节。
 frontend-api.md 契约行；server.py 零改动。定制 81 passed、ruff/ty/check_docs/gen_customizations 全绿。
 未提交。
 
+**2026-11-26 v1.8 已实施（责任人签认，签认时裁定：中断语义 + toast「用户已取消排队」）**：
+重试后再排队可见性修复（`panel.py::_turn_waits` 带文案即等待 + `QueueNoteChanged` 消息补 sync 接线）
++ TUI 取消排队按钮（定制包 `app/aixcoding/tui/queue_cancel_button.py`，同行浮动；screen.py `@on` 处理器
+→ toast + `action_interrupt`，出队走既有 client 批链路）。实施核正两处见 design 修订记录（处理器落点
+event_handlers→screen.py；sync 缺口补 `QueueNoteChanged`）。测试为两个新文件
+（`test_queue_note_row.py`、`test_queue_cancel_button.py`）。**本机无 uv 环境，仅 py_compile 语法级自检
+与 marker 计数核对；全套门禁与测试待 CI/有环境机器执行后回填 verification.md。未提交。**
+
 ## 下一步（接续入口）
 
 1. 真实网关 + 桌面端联调：桌面端**先双注册** `_queue_status` 与 `_chrys/queue_status`，再上含 v1.5 的
