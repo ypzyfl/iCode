@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 
@@ -508,7 +508,11 @@ async def test_guard_notifies_the_rejection_before_raising() -> None:
     class _QueueRejected(Exception):
         code = "QUEUE_TIMEOUT"
         message = "排队等待超时"
-        body = {"code": "QUEUE_TIMEOUT", "message": "排队等待超时", "traceId": "trace-1"}
+        body: ClassVar[dict[str, str]] = {
+            "code": "QUEUE_TIMEOUT",
+            "message": "排队等待超时",
+            "traceId": "trace-1",
+        }
 
     async def chunks() -> AsyncIterator[Any]:
         yield _queue_chunk(2, 5)
@@ -539,7 +543,11 @@ async def test_guard_does_not_notify_a_user_cancelled_rejection() -> None:
     class _Cancelled(Exception):
         code = "QUEUE_CANCELLED"
         message = "请求排队已取消"
-        body = {"code": "QUEUE_CANCELLED", "message": "请求排队已取消", "traceId": "t"}
+        body: ClassVar[dict[str, str]] = {
+            "code": "QUEUE_CANCELLED",
+            "message": "请求排队已取消",
+            "traceId": "t",
+        }
 
     async def chunks() -> AsyncIterator[Any]:
         yield _queue_chunk(1, 2)
