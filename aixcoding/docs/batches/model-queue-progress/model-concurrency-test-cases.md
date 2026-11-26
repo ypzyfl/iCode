@@ -3,7 +3,7 @@
 > 适用：AIxCoding / iCode 内网版本（`feat/model-concurrency-queue` 分支）
 > 读者：测试、内网联调
 > 日期：2026-11-20
-> 配套文档：`requirements.md`、`development.md`、`intranet-verification.md`
+> 配套文档：`model-concurrency-requirements.md`、`development.md`、`intranet-verification.md`
 
 ---
 

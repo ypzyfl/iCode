@@ -65,7 +65,7 @@ R1 自查（必答）：
 | `src/chrys/orchestration/engine/build/builder.py` | 透传参数到 client 构造 | +3 | +4/−0 | `# AIxCoding queue-progress: build passthrough` |
 | `src/chrys/orchestration/engine/build/construction.py` | async 闭包：`await bus.publish(GatewayQueueStatus(...))` | +14 | +15/−1 | `# AIxCoding queue-progress: publish queue status` |
 | `src/chrys/orchestration/session_host.py` | `_HEADLESS_RUN_EVENT_TYPES` 元组加入事件类型 + import（否则 CLI/ACP 静默丢弃） | +2 | +4/−0 | `# AIxCoding queue-progress: headless event type` |
-| `src/chrys/foundation/events/types.py` | 新增 `GatewayQueueStatus(Event)`（position/queue_size） | +12 | +14/−0 | `# AIxCoding queue-progress: event type` |
+| `src/chrys/foundation/events/types.py` | 新增 `GatewayQueueStatus(Event)`（position/queue_size）——**v1.3 已迁包** `kernel/aixcoding/queue_progress.py`，本文件相对 base 归零 | +12 | +14/−0（v1.3 后 0/0） | `# AIxCoding queue-progress: event type` |
 | `src/chrys/app/tui/screens/main/subscriptions.py` | 订阅一行 | +1 | +4/−0 | `# AIxCoding queue-progress: TUI subscription` |
 | `src/chrys/app/tui/screens/main/event_handlers.py` | `on_queue_status` handler + 轮次开始清等待行文案 | +12 | +15/−0 | `# AIxCoding queue-progress: TUI handler` |
 | `src/chrys/app/tui/screens/main/view_adapter.py` | `show_queue_status` / `clear_queue_status`（等待行文案） | +10 | +22/−0 | `# AIxCoding queue-progress: TUI render` |
@@ -76,7 +76,10 @@ R1 自查（必答）：
 | `src/chrys/app/acp/server.py` | `chrys/queue_status` 通知 + 白名单注册 + 同 position 不重发 | +16 | +28/−0 | `# AIxCoding queue-progress: ACP notification` |
 | `tests/app/tui/screens/test_prompt_shortcut_send.py` | 共享测试替身 `Builds.create_client` 接受并忽略新参数（被 ACP/TUI 多层测试复用） | +1 | +2/−0 | `# AIxCoding queue-progress: test double accepts the callback` |
 | `tests/architecture/trajectory_wait_manifest.json` | progress 批刷新 wait 清单（生成产物，`MARKER_EXEMPTIONS`） | 未列 | +10/−2（progress 增量；文件总计 +29/−3，含 client 两表） | — |
-| `src/chrys/app/acp/doc/frontend-api.md` | Extension notifications 分组列表加 `queue_status`；Notes 补三帧契约（v1.4 D3 落地；v1.5 改方法名、v1.6 补拒绝帧、v1.7 合并为 status 三态） | +10 | +15/−1 | HTML 注释 `<!-- AIxCoding queue-progress: document queue_status (v1.4 D3, v1.5 to v1.7) -->`（`#` 行在 .md 会渲染成标题，故用渲染不可见的 HTML 注释） |
+| `src/chrys/app/acp/doc/frontend-api.md` | Extension notifications 分组列表加 `queue_status`；Notes 补三帧契约（v1.4 D3 落地；v1.5 改方法名、v1.6 补拒绝帧、v1.7 合并为 status 三态；v1.9 更正 QUEUE_FULL 为延期口径） | +10 | +15/−1 | HTML 注释 `<!-- AIxCoding queue-progress: document queue_status (v1.4 D3, v1.5 to v1.7) -->`（`#` 行在 .md 会渲染成标题，故用渲染不可见的 HTML 注释） |
+| `src/chrys/app/tui/widgets/chat/panel.py` | v1.8：`_turn_waits` 带排队文案时返回 True；`on_queue_note_changed` 处理器触发等待行 sync | +12 | +15/−0 | `# AIxCoding queue-progress: queued turn waits behind status cards` ×2 |
+| `tests/app/tui/widgets/chat/test_queue_note_row.py` | v1.8 新增测试文件：重试卡后可见性 + 按钮显隐 + 点击冒泡（tests/ 树内新文件同属 R2 对象——v1.8 草稿"非上游改动"表述有误，以此为准） | 新文件 | +92/−0 | — |
+| `tests/app/tui/screens/main/test_queue_cancel_button.py` | v1.8 新增测试文件：make_chrys_app 真实派发，点击 → toast + `action_interrupt` | 新文件 | +43/−0 | — |
 
 合计 **17 文件**；首版预估约 123 行，实测（numstat）约 **+191/−7**：
 15 个专属文件 +179/−4、`client.py` 内 progress 部分 +2/−1、manifest progress 增量约 +10/−2。
@@ -89,6 +92,7 @@ R1 自查（必答）：
 **R2 追加记录（2026-11-18 实施中）**：`ports.py` 与 `main_screen_presenter.py` 不在首版清单内，是 TUI 分层（handler → `MainScreenPresenter` → `MainScreenPresentationView` 协议 → `ViewAdapter`）的必然接触面；跳过 facade 直连 `_view` 属穿透私有成员。追加经责任人批准（对 AI「R2 从 13 文件 114 行变为 15 文件 122 行」申请的答复为「design.md 为已确认」），共 +8 行。
 **2026-11-20 回填（C1/C7）**：`tests/architecture/trajectory_wait_manifest.json` 为第 17 个文件（progress 批增量），实测行数已入上表；本行为正文变更，需责任人重签。
 **2026-11-26 回填（CI R2 门禁）**：v1.4 D3 裁决的 `src/chrys/app/acp/doc/frontend-api.md` 此前只登记在 v1.4–v1.7 变更单各自的 R2 增量表里，而 `check_r2_diff` 只解析本节顶层表，govern 门禁判其 unauthorized；现按已签变更单回填为第 18 个文件。本行为正文变更，需责任人重签，AI 未改头部签认行。
+**2026-11-26 回填（PR #154 独立评审 B4/B5）**：v1.8 已签变更单的 `panel.py` 与两个新测试文件同理回填为第 19–21 行（`types.py` 行同步标注 v1.3 迁包归零）；`construction.py` 的 v1.0 无关 import 折叠同批恢复上游原样（评审 R5）。本行为正文变更，并入本次重签。
 
 R1 自查（逐行归属）：上游每处均为"挂点 + 一行调用/一个字段/一个元组条目"，无既有逻辑搬动。
 
@@ -166,7 +170,7 @@ R1 自查（逐行归属）：上游每处均为"挂点 + 一行调用/一个字
 已知边界：队首超时是服务端排队语义，客户端不改变其判定；若服务端希望"队首不再超时"，需服务端调整
 `max_wait_time` 语义或不再对队首下发 `position:0`。
 
-文档同步：本批 `requirements.md`（验收文案）、`aixcoding/docs/model_concurrency_queue/{requirements,test-cases,intranet-verification}.md`
+文档同步：本批 `requirements.md`（验收文案）、`aixcoding/docs/batches/model-queue-progress/{model-concurrency-requirements,model-concurrency-test-cases,intranet-verification}.md`
 的 position 0 文案；`verification.md` 为 2026-11-19/20 的历史取证记录，保留原样不改。
 
 本正文增量按 R10 需责任人重签头部，AI 未代填。
@@ -383,7 +387,7 @@ R1 自查（必答）：
 ### 文档同步（随实施）
 
 - 本批 `requirements.md`、`test-plan.md`、`plan.md`、`verification.md`；client 批 `plan.md` 备忘加一行互指。
-- `aixcoding/docs/model_concurrency_queue/{requirements,test-cases,intranet-verification}.md` 的 ACP 载荷口径。
+- `aixcoding/docs/batches/model-queue-progress/{model-concurrency-requirements,model-concurrency-test-cases,intranet-verification}.md` 的 ACP 载荷口径。
 - 新增《模型排队桌面端透传说明.md》（同目录，中文名）：链路、载荷契约、桌面端展示口径、联调步骤、排障检查单。
 
 ---
@@ -391,7 +395,7 @@ R1 自查（必答）：
 ## 变更单 v1.5（2026-11-25，责任人裁决）：通知方法名去 chrys 命名空间 + 排队帧补 released:false
 
 > 决策来源：责任人对话裁决（2026-11-25）。该通知将作为**跨引擎标准**发给桌面端与其他引擎团队
-> （权威契约：`aixcoding/docs/model_concurrency_queue/模型排队通知协议规范.md` v1.0），方法名不得带
+> （权威契约：`aixcoding/docs/batches/model-queue-progress/模型排队通知协议规范.md` v1.0），方法名不得带
 > chrys 品牌；字面 `/queue_status`（无下划线）被否决——Python SDK 的 `ext_notification` 无条件加 `_`
 > 前缀，发无下划线名字须伸手 SDK 私有连接，且偏离 ACP 扩展方法约定。定名 **`_queue_status`**
 > （代码字面量 `queue_status`，SDK 自动加前缀）。同日裁决：**相位布尔对 `(released, rejected)` 每帧必填**
@@ -450,7 +454,7 @@ R1 自查（必答）：
 ## 变更单 v1.6（2026-11-25，责任人裁决）：第三帧「拒绝」（QUEUE_TIMEOUT / QUEUE_FULL）
 
 > 决策来源：责任人对话裁决（2026-11-25）。契约见
-> `aixcoding/docs/model_concurrency_queue/模型排队通知协议规范.md` §2.3/§4.7。现状空缺：队列拒绝
+> `aixcoding/docs/batches/model-queue-progress/模型排队通知协议规范.md` §2.3/§4.7。现状空缺：队列拒绝
 > （超时/队满）被 guard 转译为终态异常 → turn 普通失败 → 桌面端只见笼统错误（`kind:"unknown"`，
 > 分类器无 QUEUE_TIMEOUT/QUEUE_FULL 映射，已核 `classify.py`），排队超时专属横幅永不触发。
 > 时机语义（责任人已裁）：TIMEOUT 轮次终结即发；FULL 仅重试耗尽、整轮被它终结时发；
@@ -563,6 +567,13 @@ FULL 耗尽通知——破坏实验锚定挂点）。
 
 - `aixcoding/tests/llm/` 81 passed（5 组载荷断言改 status 后）；ruff/format、ty 三平台、check_docs、
   gen_customizations --strict 全绿；wait 清单无变化（无 await 改动）。
+
+### ADR 判定（增量，2026-11-26 补记——PR #154 独立评审指出缺节）
+
+四问均否，不出 ADR：① 布尔对 → 单字段是 v1.6 已签契约的表述形式收敛（同事反馈），非同等份量
+取舍；② 三态值是**对外契约面**（桌面端按值映射 phase），已由 `frontend-api.md` 与中文协议规范
+双语同步锁定，撤销代价=桌面端同步改映射，登记在案；③ 不约束后续工作模式；④ 无新增上游非公开
+依赖。属既有 `model-queue-progress--observer-callback-channel` 载荷演进，ADR 正文不动。
 
 ---
 
@@ -688,7 +699,7 @@ R1 自查（必答）：
 ### 文档同步（随实施）
 
 - 本批 `requirements.md`、`test-plan.md`、`plan.md`、`verification.md`；
-- `aixcoding/docs/model_concurrency_queue/{requirements,test-cases}.md` 的 TUI 展示口径（重试后再排队可见、
+- `aixcoding/docs/batches/model-queue-progress/{model-concurrency-requirements,model-concurrency-test-cases}.md` 的 TUI 展示口径（重试后再排队可见、
   取消排队按钮与其中断语义）；用户指南 `docs/en`/`docs/zh-Hans` 现无排队相关页面，不涉及。
 
 **2026-11-26 修订记录（签认时裁决，同日实施前）**：待定项裁定——按钮语义按推荐**复用中断链路**
@@ -701,3 +712,48 @@ R1 自查（必答）：
 （起草时估 2）；③ 排队文案到达不经过任何会调 `_sync_waiting_row` 的转录变更——`set_queue_note` 须
 post `QueueNoteChanged`、由 panel 处理并 sync（`waiting-row-visibility` 计数 1→2），否则重试场景下
 行仍不显示（实施时发现的起草缺口）。本修订记录责任人的签认时口头裁决与实施核正，正文其余不变。
+
+---
+
+## 变更单 v1.9（2026-11-26，责任人裁决）：PR #154 独立评审修复批（文档与落位）
+
+> 决策来源：责任人会话裁决（2026-11-26，"根据评审结果帮我把问题修复"）。本单只收**文档与资产
+> 落位**修复；代码面的 cancel 传输同源在 client 批 v1.6。均不动代码行为，无新 marker，
+> 定制点登记不变。
+
+### 内容
+
+1. **R2 顶层表回填（评审 B4 同因）**：v1.8 已签变更单的 `panel.py` 与两个新测试文件
+   （`tests/app/tui/widgets/chat/test_queue_note_row.py`、`tests/app/tui/screens/main/test_queue_cancel_button.py`）
+   此前只登记在 v1.8 变更单的 R2 增量表，`check_r2_diff` 只解析顶层表——与 v1.4 D3 的
+   `frontend-api.md` 同一陷阱。已回填为顶层表第 19–21 行；v1.8 草稿"测试为两个新文件（非上游
+   改动、无 marker）"的表述有误：tests/ 树内新文件同属上游面对象（gate 按 diff+untracked 计）。
+2. **`frontend-api.md` QUEUE_FULL 口径更正（评审 B3）**：英文契约原写 `QUEUE_FULL once the
+   engine's retries are exhausted` 会作为拒绝帧发出——实现是 `QUEUE_FULL` 原样上抛、wire 通道
+   退避重试、耗尽后以原始错误收尾，**永不发该帧**（中文协议规范 :147、透传说明 :91 早已如实写
+   延期）。英文条目改为与实现一致；桌面端不应再等"队列已满"横幅。
+3. **`construction.py` 无关折叠恢复（评审 R5）**：v1.0 把上游三行括号 import 折成单行，与本批
+   无关，恢复上游原样（该文件 R2 行的接触面不变）。
+4. **文档落位迁移（评审 B5）**：`aixcoding/docs/model_concurrency_queue/` 顶层目录迁入本批次
+   目录（`DIRECTORY.md`：其余文档一律 `batches/<name>/`）——`requirements.md`/`test-cases.md`
+   因与六件套撞名更名 `model-concurrency-requirements.md`/`model-concurrency-test-cases.md`，
+   其余四件原名随迁；design 正文与迁移文档内部的路径引用同步改。
+   `aixcoding/docs/pr/日志覆盖PR141独立评审.md` 按其自带约定（"未跟踪工作文档区，默认不入库"）
+   退出本 PR（保留本地未跟踪副本；如需防丢由责任人单独提交）。
+5. **文档清扫（评审建议项）**：本批 `requirements.md`/`test-plan.md`/`plan.md` 的 v1.1 旧口径
+   （方法名 `chrys/queue_status`、`released: true`、旧文案）更正到 v1.7 口径；plan 状态推进到
+   当前事实。顶层 R2 表 `types.py` 行标注 v1.3 迁包归零。
+
+### 上游改动清单（R2，相对 v1.8 的增量）
+
+无新增对象；`frontend-api.md`（第 2 项，约 +2/−2 同行改写，marker 不变）与
+`construction.py`（第 3 项，恢复上游原样、相对 base 净变化 −3）均为既有 R2 行内更正。
+
+### 风险与回滚
+
+纯文档与文件移动，无行为风险；回滚即反向移动路径。R2 门禁（check_r2_diff / check_r3_markers）
+与 gen_customizations --strict 预期不变绿转绿。
+
+### ADR 判定（增量）
+
+四问均否，不出 ADR：本单全部为既签决策的记录更正与资产归位，无新取舍、无新契约、无新依赖。

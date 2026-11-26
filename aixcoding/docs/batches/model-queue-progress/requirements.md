@@ -8,14 +8,14 @@
 
 ## 目标与非目标
 
-- 目标：排队期间在 TUI、CLI、ACP 三个前端都显示"排队中，前方 N 个请求"，放行后提示自动消失；被拒时沿用既有错误路径。
-- 非目标：不实现取消排队（断连即出队）；不做预计等待时间估算（网关不提供）；不改网关协议；不改 `model-queue-client` 已定的帧判据与重译语义。
+- 目标：排队期间在 TUI、CLI、ACP 三个前端都显示排队文案（v1.2 定稿：「当前模型请求量大，请求排队约 N 人」；队首「已排到队首，当前为队列第一位」），放行后提示自动消失；被拒时沿用既有错误路径。
+- 非目标（2026-11-26 更正）：不做预计等待时间估算（网关不提供）；不改网关协议；不改 `model-queue-client` 已定的帧判据与重译语义。~~不实现取消排队（断连即出队）~~——前提不成立（网关无法感知断连，见 ADR-model-queue-client--gateway-cancel-required）；v1.8 起 TUI 提供取消排队按钮（中断语义，复用 client 批出队链路）。
 
 ## 用户场景
 
-1. TUI：发起提问后转写区的等待行变为「排队中，前方 3 个请求」，名次前移时文案更新，放行后恢复呼吸点。
-2. CLI（`aicode run`）：排队时输出一行 `• 排队中，前方 3 个请求`（名次变化才再输出，避免刷屏）。
-3. ACP（插件/桌面端）：收到 `chrys/queue_status` 通知，可在会话 UI 展示进度。
+1. TUI：发起提问后转写区的等待行变为「当前模型请求量大，请求排队约 3 人」，名次前移时文案更新，放行后恢复呼吸点；排队期间等待行旁有「取消排队」按钮（v1.8）。
+2. CLI（`aixcoding-cli run`）：排队时输出一行排队文案（名次变化才再输出，避免刷屏）。
+3. ACP（插件/桌面端）：收到 `queue_status` 通知（v1.5 方法名，线上一致 `_queue_status`），可在会话 UI 展示进度。
 
 ## 验收标准
 
@@ -23,8 +23,9 @@
       "已排到队首，当前为队列第一位"（2026-11-24 变更：position 0 不等于已获得模型资源，仍可能排队超时）。
 - [ ] 无排队时等待行行为与改造前完全一致（不显示任何新增文案）。
 - [ ] CLI 在名次未变化时不重复输出；放行后不输出残留。
-- [ ] ACP 客户端收到 `chrys/queue_status`（字段含 sessionId/requestId/position/queueSize；2026-11-25 v1.4 加 `requestId`，
-      D1 放行通知也带、D2 去重键为 (requestId, position)、缺席时省略该键）。
+- [ ] ACP 客户端收到 `queue_status`（v1.7 口径：`status` 三态中文枚举——排队中 {sessionId, requestId?, status, position, queueSize} /
+      放行 {sessionId, requestId?, status} / 拒绝 {sessionId, requestId?, status, reason, message?, traceId?}；`requestId` 为应答尝试的
+      `Chrys-Request-Attempt-Id`、缺席时省略该键；D2 去重键为 (requestId, position)；`QUEUE_FULL` 拒绝帧延期，见 v1.9 更正）。
 - [ ] 排队帧到事件的转换失败（订阅方异常）不会中断 LLM 流。
 - [ ] 三个前端在未订阅/未接线时互不影响。
 - [ ] 2026-11-26 v1.8：排队超时重试后再次排队时，等待行在重试/错误卡为尾条期间仍显示排队文案；

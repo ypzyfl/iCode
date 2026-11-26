@@ -24,10 +24,9 @@ CANCELLED 不通知）。**QUEUE_FULL 耗尽挂点延期**（kernel/loop.py 重�
 按开放项预授权上报；规范已支持）。验证：定制 81 + wait 57 + 上游 ACP 683 passed、ruff/ty/check_docs/
 gen_customizations 全绿；详见 verification.md 同日（二）节。
 
-**2026-11-25（三）v1.7 已实施（同事反馈+责任人裁决）**：相位布尔对合并为单字段 `status` 三态
+**2026-11-25（三）v1.7 已实施并提交（`9e5ebdf3`；2026-11-26 更正原"未提交"）**：相位布尔对合并为单字段 `status` 三态
 **中文枚举**（排队中/放行/拒绝），协议规范升 v1.1。仅 `queue_notify.py` 载荷构造 + 测试断言 +
 frontend-api.md 契约行；server.py 零改动。定制 81 passed、ruff/ty/check_docs/gen_customizations 全绿。
-未提交。
 
 **2026-11-26 v1.8 已实施（责任人签认，签认时裁定：中断语义 + toast「用户已取消排队」）**：
 重试后再排队可见性修复（`panel.py::_turn_waits` 带文案即等待 + `QueueNoteChanged` 消息补 sync 接线）
@@ -35,7 +34,12 @@ frontend-api.md 契约行；server.py 零改动。定制 81 passed、ruff/ty/che
 → toast + `action_interrupt`，出队走既有 client 批链路）。实施核正两处见 design 修订记录（处理器落点
 event_handlers→screen.py；sync 缺口补 `QueueNoteChanged`）。测试为两个新文件
 （`test_queue_note_row.py`、`test_queue_cancel_button.py`）。**本机无 uv 环境，仅 py_compile 语法级自检
-与 marker 计数核对；全套门禁与测试待 CI/有环境机器执行后回填 verification.md。未提交。**
+与 marker 计数核对；全套门禁与测试待 CI 执行后回填 verification.md。已提交（`f166f019`，2026-11-26 更正）。**
+
+**2026-11-26 v1.9 已实施（PR #154 独立评审修复批，责任人裁决"根据评审结果修复"）**：R2 顶层表回填
+panel.py + 两个 v1.8 新测试文件、frontend-api.md QUEUE_FULL 口径更正、construction.py 恢复无关折叠、
+`model_concurrency_queue/` 文档迁入本批目录（两件避撞名更名）、`pr/` 评审记录退未跟踪、本批活文档清扫
+（requirements/test-plan/plan 旧口径、v1.7 补 ADR 判定节）。纯文档与移动；client 批 v1.6 同日处理代码面（M1）。
 
 ## 下一步（接续入口）
 

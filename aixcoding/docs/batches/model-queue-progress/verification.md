@@ -418,3 +418,13 @@ uv run pytest tests/app/tui/screens/test_editor_dialog.py tests/app/tui/widgets/
 `WaitingRow._size_updated(layout=False)` 的相互作用、命中测试层级——由
 `test_queue_note_row.py` / `test_queue_cancel_button.py` 锚定；若红，回退 B4
 （文案并入 render 文本 + 记录区域手工命中）。
+
+## 2026-11-26 v1.9（PR #154 评审修复批：文档与落位）追加
+
+- 纯文档/文件移动（B3/R5/B5/清扫），无代码行为变化；R2 门禁复刻脚本（本地 3.13 等效实现
+  `_common.r2_approved_upstream_files` 解析）确认回填后 panel.py 与两个 v1.8 新测试文件入池、
+  unauthorized 清零。
+- 待跑（与 v1.8 清单同批执行）：`check_r2_diff` / `check_r3_markers`（以 merge-base 为基准）、
+  `check_docs --closure`（新 ADR 为草案状态、两 design 正文待重签后复跑）、
+  `gen_customizations --strict`（登记表未动，预期不变）。
+- 结果回填：CI（PR #154 推送后）。

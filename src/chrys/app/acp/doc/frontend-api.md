@@ -658,8 +658,10 @@ Notes:
   gateway holds the turn's model request in its FIFO queue;
   `{ sessionId, requestId?, status: 放行 }` when the first data chunk ends the
   wait; and `{ sessionId, requestId?, status: 拒绝, reason, message?, traceId? }`
-  when the queue finally rejects the turn (`reason` is `QUEUE_TIMEOUT`, or
-  `QUEUE_FULL` once the engine's retries are exhausted). `requestId` is the
+  when the queue finally rejects the turn (`reason` is `QUEUE_TIMEOUT`; a
+  `QUEUE_FULL` rejection frame is deferred — today a full queue is retried by
+  the engine and finally surfaces as the raw error, never as this
+  notification). `requestId` is the
   answering HTTP attempt's `Chrys-Request-Attempt-Id` — the gateway's queue
   key, one per attempt — and is omitted when the attempt carried none. A
   repeated `(requestId, position)` pair is not resent (the gateway's position
