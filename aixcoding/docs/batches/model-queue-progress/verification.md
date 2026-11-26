@@ -428,3 +428,6 @@ uv run pytest tests/app/tui/screens/test_editor_dialog.py tests/app/tui/widgets/
   `check_docs --closure`（新 ADR 为草案状态、两 design 正文待重签后复跑）、
   `gen_customizations --strict`（登记表未动，预期不变）。
 - 结果回填：CI（PR #154 推送后）。
+
+**2026-11-26 AI 复评轮补记**：修复 v1.8 登记行两处 strict 红点（斜杠多选锚拆两行、非整数计数
+改纯数字）——详见 self-review 同日复评轮节。

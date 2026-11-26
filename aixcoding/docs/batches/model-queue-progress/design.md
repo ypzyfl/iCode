@@ -120,9 +120,10 @@ R1 自查（逐行归属）：上游每处均为"挂点 + 一行调用/一个字
 | model-queue-progress:tui-render | src/chrys/app/tui/screens/main/view_adapter.py | AIxCoding queue-progress: TUI render | 1 | `show_status` 邻域 | 低 | 随 event-type |
 | model-queue-progress:ports-protocol | src/chrys/app/tui/screens/main/ports.py | AIxCoding queue-progress: ports protocol | 1 | `MainScreenPresentationView` | 低 | 随 tui-render |
 | model-queue-progress:presenter-facade | src/chrys/app/tui/screens/main/main_screen_presenter.py | AIxCoding queue-progress: presenter facade | 1 | `MainScreenPresenter` | 低 | 随 tui-render |
-| model-queue-progress:waiting-row | src/chrys/app/tui/widgets/chat/waiting_row.py | AIxCoding queue-progress: waiting row note / waiting row cancel button | 3（v1.8：1+2，import 与类体各一） | `WaitingRow.render` / `compose`·`set_queue_note` | 中（高度/换行/跨轮残留） | 〔上游等价〕WaitingRow 自带文案能力 |
-| model-queue-progress:waiting-row-visibility | src/chrys/app/tui/widgets/chat/panel.py | AIxCoding queue-progress: queued turn waits behind status cards | 2（v1.8 新增点：`_turn_waits` / `on_queue_note_changed`） | `ChatPanel._turn_waits` | 中（状态卡期间显隐语义） | 〔上游等价〕上游等待行感知排队状态 |
-| model-queue-progress:cancel-button-screen-handler | src/chrys/app/tui/screens/main/screen.py | AIxCoding queue-progress: cancel-queue button handler | 2（v1.8 新增点：import + 处理器） | `MainScreen._cancel_queue` | 低 | 〔上游等价〕上游提供通用的"放弃当前等待"入口 |
+| model-queue-progress:waiting-row | src/chrys/app/tui/widgets/chat/waiting_row.py | AIxCoding queue-progress: waiting row note | 1 | `WaitingRow.render` | 中（高度/换行/跨轮残留） | 〔上游等价〕WaitingRow 自带文案能力 |
+| model-queue-progress:waiting-row-cancel | src/chrys/app/tui/widgets/chat/waiting_row.py | AIxCoding queue-progress: waiting row cancel button | 2 | `compose` · `set_queue_note` 联动（v1.8 新增点：import 与类体各一） | 低（浮动控件随文案显隐） | 随 waiting-row |
+| model-queue-progress:waiting-row-visibility | src/chrys/app/tui/widgets/chat/panel.py | AIxCoding queue-progress: queued turn waits behind status cards | 2 | `ChatPanel._turn_waits` / `on_queue_note_changed`（v1.8 新增点） | 中（状态卡期间显隐语义） | 〔上游等价〕上游等待行感知排队状态 |
+| model-queue-progress:cancel-button-screen-handler | src/chrys/app/tui/screens/main/screen.py | AIxCoding queue-progress: cancel-queue button handler | 2 | `MainScreen._cancel_queue`（v1.8 新增点：import + 处理器） | 低 | 〔上游等价〕上游提供通用的"放弃当前等待"入口 |
 | model-queue-progress:cli-line | src/chrys/app/cli/progress.py | AIxCoding queue-progress: CLI line | 6 | `TurnProgress.handle`（含 `TurnStarted` 重置；去重与写行逻辑居 `app/aixcoding/cli/queue_line.py::QueueLineNote`，v1.3） | 中（锚点错即静默） | 〔上游等价〕CLI 提供实时状态行机制 |
 | model-queue-progress:acp-notification | src/chrys/app/acp/server.py | AIxCoding queue-progress: ACP notification | 5 | `ext_notification` 白名单 + `_handle_chrys_extension_event`（`TurnStarted` 重置，v1.3；去重与载荷居 `app/aixcoding/acp/queue_notify.py`；计数 5 = import×2/白名单/分支/重置） | 低 | 〔协议变更〕ACP 协议原生提供排队/背压通知 |
 | model-queue-progress:test-double | tests/app/tui/screens/test_prompt_shortcut_send.py | AIxCoding queue-progress: test double accepts the callback | 1 | `Builds.create_client` | 低 | 随 factory-passthrough |
@@ -646,7 +647,7 @@ R1 自查（必答）：
 | 文件 | 改什么 | 预估行数 | 标记注释位置 |
 |---|---|---|---|
 | `src/chrys/app/tui/widgets/chat/panel.py` | `_turn_waits` 带排队文案时返回 True；`on_queue_note_changed` 消息处理器触发等待行 sync（实施核正：文案到达不经过任何会调 `_sync_waiting_row` 的转录变更，必须由行自身通知——`set_queue_note` post `QueueNoteChanged`，panel 处理后 sync；import 名追加随行） | +12 | `# AIxCoding queue-progress: queued turn waits behind status cards` ×2（新登记点 `waiting-row-visibility`，计数 2，anchor `_turn_waits` / `on_queue_note_changed`） |
-| `src/chrys/app/tui/widgets/chat/waiting_row.py` | `compose()` 挂取消按钮（初始隐藏）、`queue_note` 只读属性、`set_queue_note` 联动按钮显隐、import | +14 | 新 marker 行 `# AIxCoding queue-progress: waiting row cancel button`（`waiting-row` 计数 1→2） |
+| `src/chrys/app/tui/widgets/chat/waiting_row.py` | `compose()` 挂取消按钮（初始隐藏）、`queue_note` 只读属性、`set_queue_note` 联动按钮显隐、import | +14 | 新 marker 行 `# AIxCoding queue-progress: waiting row cancel button`（新登记点 `waiting-row-cancel`，计数 2；`waiting-row` 维持 1——2026-11-26 复评更正：锚为逐字前缀，不支持 `/` 多选并档） |
 | `src/chrys/app/tui/screens/main/screen.py` | `@on(QueueCancelRequested)` 处理器：`stop()` + toast + `action_interrupt()`（实施修正：原定 event_handlers.py，但 `BackendEventHandler` 是独立类、只路由后端 EventBus 事件且无中断通路；widget 消息按 `@on(BackgroundTaskList.Opened)` 先例落 MainScreen 本体） | +9 | 新 marker ×2（新登记点 `cancel-button-screen-handler`：import + 处理器） |
 
 测试为两个**新文件**（非上游改动、无 marker）：`tests/app/tui/widgets/chat/test_queue_note_row.py`
@@ -708,7 +709,8 @@ R1 自查（必答）：
 `screen.py`（`BackendEventHandler` 是独立类、只路由后端 EventBus 事件，无中断通路；widget 消息按
 `@on(BackgroundTaskList.Opened)` 先例落 MainScreen 本体）——`tui-handler` 计数维持 3，新登记点
 `cancel-button-screen-handler`（screen.py，计数 2：import + 处理器）；② `waiting_row.py` 的 import 与
-类体两处各需一条 marker（先例：session_host 的 import + 元组条目计 2），`waiting-row` 计数 1→**3**
+类体两处各需一条 marker（先例：session_host 的 import + 元组条目计 2），新登记点 `waiting-row-cancel`
+计数 **2**、`waiting-row` 维持 1（2026-11-26 复评更正：marker 锚为逐字前缀匹配，"1→3 并档"写法不成立）
 （起草时估 2）；③ 排队文案到达不经过任何会调 `_sync_waiting_row` 的转录变更——`set_queue_note` 须
 post `QueueNoteChanged`、由 panel 处理并 sync（`waiting-row-visibility` 计数 1→2），否则重试场景下
 行仍不显示（实施时发现的起草缺口）。本修订记录责任人的签认时口头裁决与实施核正，正文其余不变。

@@ -53,3 +53,22 @@
 - v1.8（重试可见性 + 按钮）与 v1.9 的**门禁与测试从未在任何环境跑过**（本机无 uv）：以推送后
   CI 为准，结果回填 verification.md；推送后另有 AI 复评轮，发现将追记本节。
 - 声明：本节为开发 AI 补档 + 外部评审引用，非独立子代理评审；终裁在责任人。
+
+## 2026-11-26 AI 复评轮（推送前本地，PR #154 步骤 4）
+
+- 范围：v1.8 全部代码面（queue_cancel_button.py / waiting_row.py / panel.py / screen.py / 两个新测试
+  文件）+ v1.9/v1.6 文档批 + M1 代码面。
+- **发现并修复 2 个 strict 门禁红点**（均在 v1.8 登记行，从未过 CI）：
+  1. `waiting-row` 行把 marker 锚写成 `A / B` 多选并档计数 3——`gen_customizations` 的锚匹配是
+     **逐字前缀**（`startswith`），无多选语法 → orphan + 新 marker 无登记双重失败。拆为
+     `waiting-row`（锚 `waiting row note`，1）+ 新登记点 `waiting-row-cancel`（锚
+     `waiting row cancel button`，2）。
+  2. 三个 v1.8 新行的 `预期计数` 带中文括注（如 `2（v1.8 新增点：…）`）——计数字段是**严格整数
+     解析**，非整数行被忽略同样触发无登记 error。计数改纯数字，括注挪入 anchor 列。
+- 复刻验证（本机 3.13 等效实现扫描与最长锚优先匹配）：三个触碰文件的登记行全部命中且无
+  未吸收 marker；全仓非整数计数清零；R2 池复刻 unauthorized 清零（v1.8 三文件入池）。
+- 其余核点无发现：行宽全 ≤120（两处 >120 为上游存量 docstring/noqa）；ClickAffordance
+  构造/CLICK_MESSAGE 协议、`add_retry`/`add_user_message` 签名、`notify(markup=False)` 先例、
+  import 序（aixcoding < tui）、`on` 已导入、`_chrome.waiting_row` 存在。
+- 局限：本机无 uv，py_compile 与复刻之外的全部验证仍以 CI 为准（chat_completions/client.py 为
+  PEP 758 语法本机不可编译）。
