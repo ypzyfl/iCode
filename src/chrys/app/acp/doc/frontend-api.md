@@ -630,7 +630,7 @@ One-way `ext_notification` pushes, bridged from `EventBus`:
   `chrys/compaction_started`, `chrys/compaction_finished`.
 - Edits / turns: `chrys/rollback_result`, `chrys/user_inject_result`,
   `chrys/turn_started`, `chrys/user_messages_dropped`, `chrys/retry_attempt`,
-  `chrys/messages_retracted`.
+  `chrys/messages_retracted`, `queue_status`.
 - Sub-agent lifecycle: `chrys/sub_agent_invocation_start`,
   `chrys/sub_agent_tool_call_start`, `chrys/sub_agent_tool_call_result`,
   `chrys/sub_agent_progress`, `chrys/sub_agent_retry_attempt`,
@@ -650,6 +650,22 @@ Notes:
   `schema_too_new`, `unreadable_tail`, `sequence_exhausted` or `activation_failed`
   (anything else). The session itself keeps working, so none of these calls for a
   new session.
+<!-- AIxCoding queue-progress: document queue_status (v1.4 D3, v1.5 to v1.7) -->
+- `queue_status` is the model-queue channel (wire name `_queue_status`: the SDK
+  prefixes extension notifications). Three frame shapes share it, and the phase
+  is one `status` field with the values 排队中 / 放行 / 拒绝:
+  `{ sessionId, requestId?, status: 排队中, position, queueSize }` while the
+  gateway holds the turn's model request in its FIFO queue;
+  `{ sessionId, requestId?, status: 放行 }` when the first data chunk ends the
+  wait; and `{ sessionId, requestId?, status: 拒绝, reason, message?, traceId? }`
+  when the queue finally rejects the turn (`reason` is `QUEUE_TIMEOUT`; a
+  `QUEUE_FULL` rejection frame is deferred — today a full queue is retried by
+  the engine and finally surfaces as the raw error, never as this
+  notification). `requestId` is the
+  answering HTTP attempt's `Chrys-Request-Attempt-Id` — the gateway's queue
+  key, one per attempt — and is omitted when the attempt carried none. A
+  repeated `(requestId, position)` pair is not resent (the gateway's position
+  heartbeat repeats it); `chrys/turn_started` resets the dedupe.
 - `chrys/runtime_update` always uses the envelope `{ sessionId, runtime: {...} }`
   for every sender (`session/new`/`load`, model switch, settings reload,
   `set_config_option`, `set_workspace`, rollback, `SessionReady`,

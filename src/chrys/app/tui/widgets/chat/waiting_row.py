@@ -13,8 +13,12 @@ import time
 from typing import TYPE_CHECKING, ClassVar
 
 from rich.text import Text
+from textual.app import ComposeResult
+from textual.message import Message
 from textual.widget import Widget
 
+# AIxCoding queue-progress: waiting row cancel button (floated over the queue note's line)
+from chrys.app.aixcoding.tui.queue_cancel_button import QueueCancelButton, pin_queue_cancel_button
 from chrys.app.tui.util.shimmer import FRAME_SECONDS, breathing_dot
 from chrys.app.tui.widgets.chat.compaction_card import CompactionCard
 from chrys.app.tui.widgets.chat.context_fold import ContextFoldWidget
@@ -24,7 +28,12 @@ from chrys.app.tui.widgets.chat.tool_call import ToolGroup
 from chrys.app.tui.widgets.loading import GatedAnimation
 
 if TYPE_CHECKING:
+    from textual._arrange import DockArrangeResult
     from textual.geometry import Size
+
+
+class QueueNoteChanged(Message):
+    """The queue note came or went; the chat panel owns whether the row then shows."""
 
 
 class WaitingRow(GatedAnimation, FoldGap, Widget):
@@ -36,6 +45,10 @@ class WaitingRow(GatedAnimation, FoldGap, Widget):
     """
 
     ALLOW_SELECT = False
+
+    # AIxCoding queue-progress: waiting row note
+    _queue_note: str = ""
+    """Shown beside the dot while the gateway queues this turn; empty otherwise."""
 
     COMPONENT_CLASSES: ClassVar[set[str]] = {"waitingrow--lit"}
 
@@ -68,13 +81,49 @@ class WaitingRow(GatedAnimation, FoldGap, Widget):
         # lay the whole transcript out again as its gap comes and goes.
         return super()._size_updated(size, virtual_size, container_size, layout=False)
 
+    # AIxCoding queue-progress: waiting row cancel button (floated over the note line)
+    _cancel_button: QueueCancelButton | None = None
+    """The affordance over the note line; ``compose`` sets it, ``None`` before the row mounts."""
+
+    def compose(self) -> ComposeResult:
+        self._cancel_button = QueueCancelButton()
+        yield self._cancel_button
+
+    def arrange(self, size: Size, optimal: bool = False) -> DockArrangeResult:
+        """Pin the cancel affordance to the note line's right edge, out of the row's flow."""
+        result = super().arrange(size, optimal=optimal)
+        pin_queue_cancel_button(result, self._cancel_button, size)
+        return result
+
+    @property
+    def queue_note(self) -> str:
+        """The queue note beside the dot; empty when the turn is not queued."""
+        return self._queue_note
+
+    def set_queue_note(self, note: str) -> None:
+        """Show *note* beside the dot; an empty note restores the bare dot.
+
+        The note shares the dot's line, so it never changes the row's height,
+        and the cancel affordance comes with it: floated in place, it takes no
+        flow space of its own.
+        """
+        if note == self._queue_note:
+            return
+        self._queue_note = note
+        if self._cancel_button is not None:
+            self._cancel_button.display = bool(note)
+        self.refresh()
+        # The note changes outside any transcript move the panel already syncs on, so it hears.
+        self.post_message(QueueNoteChanged())
+
     def render(self) -> Text:
         if self.app.animation_level == "none":
             dot = breathing_dot(None, None, 0.0)
         else:
             lit = self.text_style_of("waitingrow--lit")
             dot = breathing_dot(self.rich_style.color, lit.color, time.monotonic())
-        return Text.assemble(self.gap_text(), "\n", dot) if self.gap_above else dot
+        line = Text.assemble(dot, f"  {self._queue_note}") if self._queue_note else dot
+        return Text.assemble(self.gap_text(), "\n", line) if self.gap_above else line
 
 
 def waits_after(entry: Widget | None) -> bool:

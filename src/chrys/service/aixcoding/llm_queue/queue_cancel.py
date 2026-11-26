@@ -1,0 +1,357 @@
+# Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+
+"""Leave the gateway queue when a queued request is abandoned.
+
+``/api/v3/chat/completions/cancel`` is the queue's side channel: a request still
+waiting in the FIFO queue is taken out by the ``request_id`` its completion
+request carried (``ModelQueueFrontend.md`` §3.6, ``LlmRequestFlow.md`` §5).
+This client does not write that id into the request body: it is the per-attempt
+``Chrys-Request-Attempt-Id`` header upstream stamps on every HTTP attempt
+(``service/llm/request_tracking.py``), read back from the request that produced
+the response. A released request cannot be cancelled (``409``) and an unknown
+one is a no-op (``404``), so this only fires while the guard has seen a position
+and no release. The cancel carries the queued request's own ``token``
+credential — the login ``token`` header the wire layer put on it, falling back
+to the profile ``api_key`` (design v1.5) — and shares the profile's transport
+posture, ``verify`` and proxy bypass (design v1.6), so the gateway is asked to
+cancel the way the request was queued: a self-signed profile must not strand
+its request in the queue over a TLS failure, and a proxy-bypassing profile must
+not leak the cancel through an environment proxy.
+
+Wired from ``chrys.service.llm.chat_completions.client`` (registered as
+``model-queue-client:queue-cancel``).
+Design: ``aixcoding/docs/batches/model-queue-client/design.md``.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from collections.abc import Awaitable, Callable, Mapping
+from dataclasses import replace
+from typing import Any, Final
+
+import httpx
+
+from chrys.foundation.util.chrys_headers import REQUEST_ATTEMPT_ID_HEADER
+from chrys.service.aixcoding.llm_queue.queue_frames import RELEASED_POSITION, QueueStatus, _preview
+
+logger = logging.getLogger(__name__)
+_detail_logger = logging.getLogger("aixcoding.detail.llm_queue")
+"""File-only technical channel (ADR-0017): unlike the module logger, it reaches
+a file on every surface (CLI, TUI and ACP), at DETAIL level."""
+
+CANCEL_PATH: Final = "/api/v3/chat/completions/cancel"
+"""The gateway's queue-cancel endpoint, resolved against the gateway root."""
+
+CANCEL_TIMEOUT_SECONDS: Final = 2.0
+"""Upper bound on one cancel call: it must never hold up the interrupt."""
+
+_COMPLETION_SUFFIXES: Final = ("/api/v3", "/api/v2", "/api/v1", "/v1")
+"""What an OpenAI-compatible base URL may end with; none of it belongs to the cancel URL."""
+
+_PENDING_CANCELS: set[asyncio.Task[None]] = set()
+"""Cancel calls still in flight; a strong reference keeps them from being collected."""
+
+
+def cancel_endpoint(base_url: str) -> str | None:
+    """The cancel URL for a completion base URL, or ``None`` when it cannot be derived."""
+    root = base_url.strip().rstrip("/")
+    if not root.startswith(("http://", "https://")):
+        return None
+    while True:
+        stripped = next((root[: -len(suffix)] for suffix in _COMPLETION_SUFFIXES if root.endswith(suffix)), None)
+        if stripped is None:
+            break
+        root = stripped.rstrip("/")
+    return f"{root}{CANCEL_PATH}" if root else None
+
+
+class QueueRequestTracker:
+    """Ties one wire request to the gateway queue so an interrupt can leave it."""
+
+    __slots__ = (
+        "_endpoint",
+        "_http_kwargs",
+        "_model",
+        "_position_seen",
+        "_released",
+        "_request_id",
+        "_token",
+        "_transport",
+    )
+
+    def __init__(
+        self,
+        *,
+        request_id: str,
+        model: str,
+        endpoint: str | None,
+        token: str,
+        transport: httpx.AsyncBaseTransport | None = None,
+        http_kwargs: Mapping[str, Any] | None = None,
+    ) -> None:
+        self._request_id = request_id
+        self._model = model
+        self._endpoint = endpoint
+        # The credential sent as the cancel ``token`` header: the queued
+        # request's own ``token`` header when it had one, else the profile key.
+        self._token = token
+        self._transport = transport
+        # The cancel shares the queued request's transport posture (verify,
+        # proxy bypass) — design v1.6; ``None`` leaves httpx defaults.
+        self._http_kwargs = dict(http_kwargs) if http_kwargs else None
+        self._position_seen = False
+        self._released = False
+
+    @property
+    def request_id(self) -> str:
+        """The id the gateway knows this request by."""
+        return self._request_id
+
+    @property
+    def queued(self) -> bool:
+        """Whether the gateway may still hold this request in its queue."""
+        return self._position_seen and not self._released
+
+    def observing(
+        self, on_status: Callable[[QueueStatus], Awaitable[None]] | None
+    ) -> Callable[[QueueStatus], Awaitable[None]]:
+        """The status callback for the guard: track the queue phase, then forward to the frontend.
+
+        Every forwarded status is named with this tracker's request id (design
+        v1.4), so a frontend can attribute the wait to the request the gateway
+        actually queued.
+        """
+
+        async def observe(status: QueueStatus) -> None:
+            if status.rejected is not None:
+                # The gateway's terminal refusal: the request is out of the queue,
+                # so no cancel can or should follow (design v1.6).
+                self._released = True
+                _detail_logger.info("网关拒绝排队请求：code=%s（request_id=%s）", status.rejected, self._request_id)
+            elif status.position == RELEASED_POSITION:
+                self._released = True
+                _detail_logger.info("网关已放行排队请求（request_id=%s）", self._request_id)
+            elif not self._position_seen:
+                self._position_seen = True
+                _detail_logger.info(
+                    "网关排队：position=%d queueSize=%d（request_id=%s）",
+                    status.position,
+                    status.queue_size,
+                    self._request_id,
+                )
+            if on_status is not None:
+                await on_status(replace(status, request_id=self._request_id))
+
+        return observe
+
+    async def cancel_on_close(self) -> None:
+        """Leave the queue if this request is still waiting; never raises on its own.
+
+        Shielded, because the usual caller is a stream being cancelled: the cancel
+        request must outlive the await that cancelled the stream. The task is kept
+        in ``_PENDING_CANCELS`` so it is never collected mid-flight.
+        """
+        if not self.queued:
+            if self._position_seen:
+                _detail_logger.debug(
+                    "网关排队取消跳过：请求在中断前已被放行（request_id=%s）",
+                    self._request_id,
+                )
+            return
+        if not self._token:
+            message = "网关排队取消跳过：没有可用 token，请求将留在队列中（request_id=%s）"
+            logger.warning(message, self._request_id)
+            _detail_logger.warning(message, self._request_id)
+            return
+        message = "正在离开网关队列：POST %s，model=%s，request_id=%s"
+        logger.info(message, self._endpoint, self._model, self._request_id)
+        _detail_logger.info(message, self._endpoint, self._model, self._request_id)
+        task = asyncio.ensure_future(self._post_cancel())
+        _PENDING_CANCELS.add(task)
+        task.add_done_callback(_PENDING_CANCELS.discard)
+        current = asyncio.current_task()
+        if current is not None and current.cancelling():
+            # Already being cancelled: the request still leaves, the interrupt is not delayed.
+            return
+        await asyncio.shield(task)
+
+    async def _post_cancel(self) -> None:
+        endpoint = self._endpoint
+        if endpoint is None:
+            # Only a hand-built tracker can get here: track_queue_request returns None
+            # when the cancel endpoint cannot be derived. The checker does not follow
+            # that factory guard, so the narrowing stays here.
+            return
+        payload = {"model": self._model, "request_id": self._request_id}
+        _detail_logger.info(
+            "发送取消排队请求：POST %s，body=%s，token=%s",
+            endpoint,
+            _preview(payload),
+            "已携带" if self._token else "空",
+        )
+        # One mapping for the call: an unrecorded posture and an empty one both mean httpx defaults.
+        http_kwargs = self._http_kwargs or {}
+        try:
+            async with _cancel_client(
+                timeout=CANCEL_TIMEOUT_SECONDS, transport=self._transport, **http_kwargs
+            ) as client:
+                response = await client.post(endpoint, json=payload, headers={"token": self._token})
+        except httpx.TransportError:
+            # Also the symptom of a cancel URL derived from an unexpected base_url: loud on purpose.
+            message = "网关排队取消无法连接 %s（request_id=%s），请求可能仍在队列中"
+            logger.warning(message, endpoint, self._request_id, exc_info=True)
+            _detail_logger.warning(message, endpoint, self._request_id, exc_info=True)
+            return
+        except Exception:
+            logger.debug("网关排队取消失败（request_id=%s）", self._request_id, exc_info=True)
+            _detail_logger.warning(
+                "网关排队取消在收到响应前失败（request_id=%s，endpoint=%s）",
+                self._request_id,
+                endpoint,
+                exc_info=True,
+            )
+            return
+        if response.status_code == httpx.codes.NO_CONTENT:
+            logger.info("已离开网关队列（request_id=%s）", self._request_id)
+            _detail_logger.info(
+                "取消排队响应：status=204，请求已出队（request_id=%s，endpoint=%s）",
+                self._request_id,
+                endpoint,
+            )
+        elif response.status_code in (httpx.codes.NOT_FOUND, httpx.codes.CONFLICT):
+            # The contract's normal no-ops: already released, finished, or already cancelled.
+            logger.debug(
+                "网关排队取消为正常 no-op（status=%s，request_id=%s，endpoint=%s）",
+                response.status_code,
+                self._request_id,
+                endpoint,
+            )
+            _detail_logger.info(
+                "取消排队响应：status=%s，body=%s（request_id=%s，endpoint=%s）",
+                response.status_code,
+                _preview(response.text),
+                self._request_id,
+                endpoint,
+            )
+        else:
+            message = "网关排队取消返回 %s（request_id=%s）"
+            logger.warning(message, response.status_code, self._request_id)
+            _detail_logger.warning(
+                "取消排队响应：status=%s，body=%s（request_id=%s，endpoint=%s）",
+                response.status_code,
+                _preview(response.text),
+                self._request_id,
+                endpoint,
+            )
+
+
+def _cancel_client(**kwargs: Any) -> httpx.AsyncClient:
+    """Build the cancel call's client; the one construction site tests can observe.
+
+    Carries the profile-posture kwargs (``verify``, ``mounts``) the tracker
+    holds beside the cancel's own timeout and test transport.
+    """
+    return httpx.AsyncClient(**kwargs)
+
+
+def track_queue_request(
+    request: httpx.Request,
+    *,
+    model: str,
+    sdk: Any,
+    transport: httpx.AsyncBaseTransport | None = None,
+    http_kwargs: Mapping[str, Any] | None = None,
+) -> QueueRequestTracker | None:
+    """Tie the queue entry of *request* to the id the gateway saw, when a cancel can be sent.
+
+    *request* is the attempt whose response arrived (``raw.http_response.request``),
+    so its ``Chrys-Request-Attempt-Id`` is the id the gateway queued — the
+    tracker is built from the response, not from the request body, because the
+    gateway keys the queue entry by that same per-attempt header. *sdk* is the
+    OpenAI SDK client the attempt ran on: the cancel URL derives from its
+    ``base_url``. The cancel credential is the attempt's own ``token`` header —
+    what the gateway just authenticated — falling back to the SDK client's
+    ``api_key`` (design v1.5). *http_kwargs* carries the profile's transport
+    posture (``verify`` and, on proxy bypass, ``mounts``) so the cancel shares
+    it with the queued request (design v1.6). ``None`` means
+    no tracker is armed: no model, no such header on the attempt (a client
+    built without the upstream tracking hooks), or a cancel endpoint that
+    cannot be derived. The stream works either way; only the leave-the-queue
+    call is lost. ``transport`` exists so tests can observe the cancel call;
+    production passes none.
+    """
+    if not model:
+        _detail_logger.debug("网关排队取消未启用：请求没有 model")
+        return None
+    base_url = str(sdk.base_url)
+    # The gateway authenticated this very request by its ``token`` header — the
+    # wire layer's login token; a pure-login profile carries no ``api_key`` — so
+    # that header is the cancel credential, with the SDK client's ``api_key``
+    # (what the request would carry as Bearer) as the fallback (design v1.5).
+    request_token = str(request.headers.get("token") or "")
+    api_key = str(sdk.api_key or "")
+    request_id = request.headers.get(REQUEST_ATTEMPT_ID_HEADER)
+    if not request_id:
+        message = "网关排队取消不可用：本次尝试没有 %s 请求头，中断后请求会留在队列中"
+        logger.warning(message, REQUEST_ATTEMPT_ID_HEADER)
+        _detail_logger.warning(message, REQUEST_ATTEMPT_ID_HEADER)
+        return None
+    endpoint = cancel_endpoint(base_url)
+    if endpoint is None:
+        logger.debug("网关排队取消跳过：base_url %r 无法推导取消地址（request_id=%s）", base_url, request_id)
+        _detail_logger.warning(
+            "网关排队取消不可用：base_url %r 无法推导取消地址（request_id=%s）", base_url, request_id
+        )
+        return None
+    _detail_logger.debug(
+        "网关排队取消已就绪：request_id=%s endpoint=%s model=%s base_url=%r token来源=%s",
+        request_id,
+        endpoint,
+        model,
+        base_url,
+        "请求头" if request_token else "api_key",
+    )
+    return QueueRequestTracker(
+        request_id=request_id,
+        model=model,
+        endpoint=endpoint,
+        token=request_token or api_key,
+        transport=transport,
+        http_kwargs=http_kwargs,
+    )
+
+
+def wire_queue_callback(
+    observer: Any, queue_request: QueueRequestTracker | None
+) -> Callable[[QueueStatus], Awaitable[None]] | None:
+    """The guard's status callback: the frontend's observer callback wrapped by the tracker.
+
+    *observer* is the wire ``WireCallObserver`` (or ``None``) whose
+    ``on_queue_status`` property carries the frontend callback; *queue_request*
+    wraps it so the tracker also sees the queue phase. ``None`` when there is
+    nothing to report to.
+    """
+    on_status = observer.on_queue_status if observer is not None else None
+    if queue_request is not None:
+        on_status = queue_request.observing(on_status)
+    return on_status
+
+
+async def close_stream_and_cancel(sdk_stream: Any, queue_request: QueueRequestTracker | None) -> None:
+    """Close the SDK stream, then leave the queue if the request is still waiting.
+
+    Mirrors the upstream close path: a close failure is swallowed. The cancel
+    runs even when the close raised or the task is being cancelled, so an
+    interrupted queued request always leaves the queue.
+    """
+    try:
+        if sdk_stream is not None:
+            try:
+                await sdk_stream.close()
+            except Exception:
+                logger.debug("Failed to close OpenAI chat-completion stream", exc_info=True)
+    finally:
+        if queue_request is not None:
+            await queue_request.cancel_on_close()

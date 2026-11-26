@@ -86,7 +86,7 @@ from chrys.app.tui.widgets.chat.tool_call import ToolGroup
 from chrys.app.tui.widgets.chat.tool_registry import ToolGroupRegistry
 from chrys.app.tui.widgets.chat.transcript_panel import ChatTranscriptPanelMarker
 from chrys.app.tui.widgets.chat.transcript_reader import TranscriptReader
-from chrys.app.tui.widgets.chat.waiting_row import WaitingRow, waits_after
+from chrys.app.tui.widgets.chat.waiting_row import QueueNoteChanged, WaitingRow, waits_after
 from chrys.app.tui.widgets.sidebar.toc_types import TocItem
 from chrys.app.tui.widgets.welcome import WelcomeWidget
 
@@ -526,8 +526,21 @@ class ChatPanel(VerticalScroll, ChatTranscriptPanelMarker, can_focus=True):
         """Whether a running turn waits with nothing in the transcript moving."""
         if not self.agent_running or self.replay_in_progress:
             return False
+        # AIxCoding queue-progress: queued turn waits behind status cards
+        row = self._chrome.waiting_row
+        if row is not None and row.parent is self and row.queue_note:
+            # The gateway's queue position is the wait itself, so the row shows even when a
+            # retry or error card is the last entry (it says why the turn waits, not that the
+            # gateway holds it). The release frame clears the note, and this branch with it.
+            return True
         last = next((child for child in reversed(self.children) if not self._chrome.is_infrastructure(child)), None)
         return waits_after(last)
+
+    # AIxCoding queue-progress: queued turn waits behind status cards
+    def on_queue_note_changed(self, event: QueueNoteChanged) -> None:
+        """The queue note changed without a transcript move; the row's visibility follows it alone."""
+        event.stop()
+        self._sync_waiting_row()
 
     def transcript_seq(self, widget: Widget) -> Fraction | None:
         """Document-order stamp for a top-level child; ``None`` if never

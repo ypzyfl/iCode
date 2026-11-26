@@ -77,6 +77,9 @@ from chrys.foundation.events.types import (
     WorkspaceUpdated,
 )
 
+# AIxCoding queue-progress: TUI subscription (the event class lives in the customization package)
+from chrys.kernel.aixcoding.queue_progress import GatewayQueueStatus
+
 if TYPE_CHECKING:
     from chrys.app.tui.screens.main.event_handlers import BackendEventHandler
     from chrys.app.tui.screens.main.session_handlers import SessionHandler
@@ -171,6 +174,8 @@ class MainScreenSubscriptions:
             _sub(UserInjectResult, events.on_injection_outcome),
             _sub(Error, events.on_error),
             _sub(InvocationRetryAttempt, events.on_retry_attempt),
+            # AIxCoding queue-progress: TUI subscription
+            _sub(GatewayQueueStatus, events.on_queue_status),
             _sub(Warning, events.on_warning),
             _sub(SettingsReloaded, events.on_settings_reloaded),
             _sub(SessionRestored, sessions.on_session_restored),
