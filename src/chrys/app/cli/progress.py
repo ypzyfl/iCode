@@ -30,6 +30,8 @@ from typing import IO, Any, Final
 from rich.console import Console
 from rich.text import Text
 
+# AIxCoding queue-progress: CLI line (dedupe and the appended line live in the customization package)
+from chrys.app.aixcoding.cli.queue_line import QueueLineNote
 from chrys.app.cli.tool_summary import (
     ToolSummary,
     clamp,
@@ -75,6 +77,8 @@ from chrys.foundation.events.types import (
     InvocationToolCallStatusUpdated,
     TodoListUpdated,
     ToolCompacted,
+    # AIxCoding queue-progress: CLI line
+    TurnStarted,
     Warning,
     WorkflowLoopIteration,
     WorkflowNodeOutput,
@@ -89,6 +93,9 @@ from chrys.foundation.models.invocations import InvocationOrigin
 from chrys.foundation.models.todos import TodoItem
 from chrys.foundation.platform.files import surrogate_safe_text
 from chrys.foundation.util.session_ids import session_short_id
+
+# AIxCoding queue-progress: CLI line (the event class lives in the customization package)
+from chrys.kernel.aixcoding.queue_progress import GatewayQueueStatus
 
 logger = logging.getLogger(__name__)
 
@@ -666,6 +673,8 @@ class TurnProgress:
         self._activity = InvocationActivity(writer, prefix=self._prefix, render=render)
         self._ready = False
         self._restored_name = ""
+        # AIxCoding queue-progress: CLI line
+        self._queue_line = QueueLineNote()
 
     @staticmethod
     def _prefix(origin: InvocationOrigin) -> str | None:
@@ -739,6 +748,12 @@ class TurnProgress:
                 self._writer.line(("• ", _ACCENT), f"Conversation compacted{tokens}")
             case TodoListUpdated():
                 self._writer.line(_todo_line(event.items))
+            # AIxCoding queue-progress: CLI line
+            case GatewayQueueStatus():
+                self._queue_line.render(self._writer, _ACCENT, event.position, event.queue_size)
+            case TurnStarted():
+                # AIxCoding queue-progress: CLI line
+                self._queue_line.reset()
             case _:
                 return
 

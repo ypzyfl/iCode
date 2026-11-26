@@ -1,0 +1,502 @@
+# 验证记录：排队进度提示（model-queue-progress）
+
+> 活文档（不签认）。交付证据（R7）：实际执行的命令与输出摘要。每次验证追加一节，**不删旧记录**。
+
+## 2026-11-18 实施验证（部分，按责任人要求先提交）
+
+命令：
+
+```
+uv run ruff check <16 个改动文件>
+```
+
+结果：`All checks passed!`
+
+命令：
+
+```
+uv run ty check --error-on-warning --python-platform win32 src/chrys
+```
+
+结果：`All checks passed!`（仅 win32；darwin / linux 未跑）
+
+命令：
+
+```
+uv run pytest aixcoding/tests/llm/test_model_queue_progress.py aixcoding/tests/llm/test_model_queue_frames.py -n0 -q
+```
+
+结果：`15 passed in 3.54s`（新批次 7 条 + 上一批次 8 条）。
+
+命令：
+
+```
+uv run pytest tests/service/llm tests/app/acp tests/orchestration/test_session_host.py -q -n4 -m "not integration and not gc_calibration"
+```
+
+结果：`2817 passed, 2 skipped`。首轮曾 `74 failed`，根因两处并已修复：`_assemble_stack` 新参数缺默认值、共享测试替身 `Builds.create_client` 签名固定（见下）。
+
+命令：
+
+```
+uv run python aixcoding/tools/gen_customizations.py
+```
+
+结果：`check OK — 132 registration row(s) / 193 marker(s) across 21 design(s), 7 retired id(s), 0 warning(s)`。首轮报 8 条 twin-group count mismatch（同文件多处同文本 marker 的预期计数），已按实际计数更新登记表。
+
+命令：
+
+```
+uv run python -m tests.support.trajectory_wait_inventory
+uv run pytest tests/architecture/test_trajectory_wait_inventory.py::test_wait_manifest_matches_source -n0 -q
+```
+
+结果：`2912 waits, 5 reopened`（2 条为新 await：`build_agent._on_queue_status`、`guard_queue_frames:2`；3 条为表达式漂移），刷新后守卫 `1 passed`。所有新节点保持默认规则 `unresolved`（fail-closed）。
+
+命令：
+
+```
+uv run python aixcoding/tools/check_docs.py
+```
+
+结果：`check_docs: OK`。
+
+**缺陷修复记录（实施中）**：
+
+1. `_assemble_stack(on_queue_status=...)` 首版为无默认值的 keyword-only 参数，上游 74 个直接调用它的测试全部 `TypeError` → 补 `= None`。
+2. `builder.py` 对 `create_client` 的传参曾改为"仅当回调非空"以绕开签名固定的测试替身；该写法触发三平台 `ty` 的 `invalid-argument-type`（字典展开推断不出参数名），**已回退为无条件传参**，改由替身 `Builds.create_client` 接受参数。
+3. 共享测试替身 `tests/app/tui/screens/test_prompt_shortcut_send.py::Builds.create_client` 追加 `on_queue_status: Any = None`（+1 行，被 ACP/TUI 多层测试复用）——R2 追加项，已入库 design R2 表。
+4. 文案初版使用全角逗号触发 RUF001，改写为中点分隔（避免新增 R13 lint 豁免）。
+
+## 2026-11-18 实现评审修复与全量补跑
+
+独立实现评审（子代理）发现 2 个 blocker 与若干建议，处置后补跑。
+
+**blocker 1 — 同轮内文案不释放**：guard 此前只上报位置帧，放行后无信号，`WaitingRow` 在本轮后续每次等待都会带"排队中"。修复：`queue_frames.py` 在首个数据块时上报 `RELEASED_POSITION = -1`（仅当此前吸收过排队帧），三个前端各自消费。
+
+**blocker 2 — ACP 去重跨会话串号**：`_last_queue_position` 原为单值且无轮次重置。修复：改为 `dict[session_id, position]`，放行时删条目，`ext_notification` 成功后才记录。
+
+其余处置：`query_one(WaitingRow)` → `_waiting_row()` 遍历查询（chrome 重建窗口不再抛 `NoMatches`）；CLI 新增 `TurnStarted` 清零；TUI 放行路径补 `_predates_active_run`；`queue_progress.py` docstring 修正（ACP 只透传位置）。
+
+命令：
+
+```
+uv run pytest aixcoding/tests/llm -n0 -q
+```
+
+结果：`19 passed`（新增放行上报、无排队不上报放行、CLI 放行重置三条）。
+
+命令：
+
+```
+uv run pytest tests/app/tui/screens tests/app/tui/widgets/chat -q -n4
+```
+
+结果：`4194 passed, 55 skipped`。
+
+命令：
+
+```
+uv run pytest tests/app/acp tests/app/cli -q -n4
+```
+
+结果：`1302 passed, 44 skipped`。
+
+命令：
+
+```
+uv run pytest tests/app/cli tests/orchestration/engine -q -n4
+```
+
+结果：`2020 passed, 55 skipped`。
+
+命令：
+
+```
+uv run pytest tests/app/tui -q -n4
+```
+
+结果：`13358 passed, 2 failed, 85 skipped`。2 条失败均为 `tests/app/tui/widgets/test_file_scanner.py` 的 `..._real_nul_file` 用例：本机 Windows 无法创建名为 `nul` 的设备名文件（`OSError Errno 123`），单独复跑 0.58s 稳定复现，且该文件与其被测模块 `src/chrys/app/tui/widgets/` 本轮零改动 → 环境限制，非本批次引入。
+
+命令：
+
+```
+uv run ty check --error-on-warning --python-platform {win32,darwin,linux} src/chrys
+```
+
+结果：三平台均 `All checks passed!`。
+
+命令：
+
+```
+uv run python -m tests.support.trajectory_wait_inventory
+uv run python aixcoding/tools/gen_customizations.py
+```
+
+结果：wait 清单 5 条 reopened（含 `_on_queue_status` 与 `guard_queue_frames:2` 两个新 await，规则 `unresolved`）已刷新；对账 `check OK`。
+
+**仍未完成**：
+
+- `uv run python scripts/chrys_test.py --smart --paths ...`（完整 Smart Test；已用更宽的目录集替代：tui / cli / engine / acp / service.llm / session_host / architecture 守卫）
+- 真实网关端到端联调（TUI 文案、CLI 去重行、ACP `chrys/queue_status` 的实际显示）
+
+## 2026-11-19 展示 queueSize
+
+需求侧关闭开放问题：`queueSize` 从"待联调确认"改为必须展示。
+
+改动：`queue_note(position, queue_size=0)` 追加「共 M 个」（`queue_size <= 0` 时省略）；TUI 链路 `ports` / `main_screen_presenter` / `view_adapter` / `event_handlers` 与 CLI `TurnProgress` 透传 `event.queue_size`；ACP payload 原本已带 `queueSize`，未改。
+
+最长文案：「排队中 · 前方 9 个请求 · 共 12 个 · 可稍后重试」（约 26 字），80 列终端可容纳。
+
+命令：
+
+```
+uv run pytest aixcoding/tests/llm -n0 -q
+```
+
+结果：`20 passed`（新增 `test_queue_note_reports_the_queue_size`）。
+
+命令：
+
+```
+uv run ruff check <改动文件>
+uv run ty check --error-on-warning --python-platform {win32,darwin,linux} src/chrys
+uv run pytest tests/app/cli tests/app/acp -q -n4
+uv run python aixcoding/tools/gen_customizations.py
+uv run python aixcoding/tools/check_docs.py
+```
+
+结果：ruff `All checks passed!`；三平台 ty 均通过；`1302 passed, 44 skipped`；对账 `check OK — 133 row(s) / 196 marker(s)`；`check_docs: OK`。
+
+**本轮未跑**：`tests/app/tui` 全量（新签名只是给已有方法加默认参数，向后兼容；上一轮该套件 `4194 passed`）。
+
+## 2026-11-19 文案调整：改为「当前模型请求量大…」
+
+- 变更：`queue_note` 排队文案由「排队中 · 前方 N 个请求 · 共 M 个」改为
+  「当前模型请求量大，请求排队约 N 人」；`position 0` 仍为「正在获取模型资源」。
+  `queueSize` 不再进文案（事件载荷与 ACP `queueSize` 字段不变），**推翻同日「展示 queueSize」的决定**，requirements 已同步。
+- 全角逗号触发 `RUF001`，采用行级 `# noqa: RUF001`（owner 指定文案，理由写在该行注释与文件 docstring）。
+- 同日二次调整（owner）：去掉尾部「，请稍候或切换至其他模型」，文案收窄为「当前模型请求量大，请求排队约 N 人」。
+- 测试：`test_queue_note_branches` 断言完整文案；`test_queue_note_does_not_show_the_queue_size`
+  断言总数不再渲染（`queue_note(2, 5) == queue_note(2)`）。
+
+实跑（mock scripted 网关，真实 CLI）：
+
+```text
+uv run aixcoding-cli run "你好" -a Code -m QueueMock -C <mock 目录>
+• Code Agent ready · QueueMock · session …
+• 当前模型请求量大，请求排队约 3 人
+• 当前模型请求量大，请求排队约 2 人
+• 当前模型请求量大，请求排队约 1 人
+• 正在获取模型资源
+✓ Done · 7.1s · 0 tool calls
+```
+
+门禁：`aixcoding/tests/llm` 49 passed、`ruff check` / `format` 通过、`ty`（win32）通过、`check_docs --closure` OK。
+**局限**：TUI 未截图（文案与 CLI 同源 `queue_note`，只用同一套单元断言；WaitingRow 单行渲染不因文案变化改高度）。
+
+## 2026-11-20 独立评审修复（C0/C1/C2/C3/C7）
+
+- **C0 轮次边界锚定**：新增 5 条用例——CLI `TurnStarted` 清去重、ACP 同 position 按 session 去重/
+  `released` 后重发、TUI `on_turn_started → clear_queue_status → apply_turn_event`、
+  `MainScreenPresenter` 转发 `show/clear_queue_status`、`MainScreenViewAdapter` 落到 WaitingRow 文案。
+- **C1/C7 R2 回填**：design R2 表新增 `tests/architecture/trajectory_wait_manifest.json` 行
+  （progress 增量约 +10/−2），并按 numstat 回填 17 文件实测约 **+191/−7**；正文变更待责任人重签。
+- **C2 接线顺序**：client 批将 `guard_queue_frames` 与 `track_queue_request` 改为同一次导入，
+  导入失败时不注入 `request_id`，消除「已带 id 但 guard 不可用、永不取消」的中间态。
+- **C3 使用约束**：profile 显式 `request_id` 复用时，detail 日志提示并发共享归属风险；
+  docstring 与 requirements 登记为「仅单飞行测试使用」。
+
+命令：
+
+```text
+uv run pytest aixcoding/tests/llm -n0 -q
+67 passed in 8.23s
+
+uv run ruff check <改动文件>
+All checks passed!
+（ruff format 已执行）
+
+uv run ty check --error-on-warning --python-platform win32 src/chrys
+All checks passed!
+
+uv run python aixcoding/tools/check_docs.py --closure
+check_docs: OK
+
+uv run python aixcoding/tools/gen_customizations.py --strict
+check OK
+```
+
+**未跑**：`tests/app/tui` / `tests/app/cli` / `tests/app/acp` 全量（本轮只加测试与文档，
+未改三个前端的运行时代码）；真实网关联调仍待内网执行。
+
+---
+
+## 2026-11-24 归位改造（design v1.3 实施验证）
+
+```text
+uv run pytest aixcoding/tests/llm -m "not integration and not gc_calibration" -q
+71 passed
+
+uv run pytest tests/architecture/test_event_declaration_guard.py tests/orchestration/test_session_host.py
+    tests/app/tui/screens/test_prompt_shortcut_send.py tests/app/acp tests/app/cli
+    （上游受影响分片，UTF-8 控制台）
+1 failed → tests/app/acp/test_server_capabilities.py 钉子测试（AST 扫描 server.py
+    通知字面量，发送体移包后失配）→ 改 claim/confirm 结构（字面量发送留上游）后：
+
+uv run pytest tests/app/acp/test_server_capabilities.py aixcoding/tests/llm -q
+74 passed
+
+uv run pytest tests/app/tui tests/orchestration/invoker tests/architecture
+    -q --tb=no -rf --junitxml（15333 tests）
+12 failed → 归因：invoker operation_close×6 / pause_persistence×2 / file_scanner×2
+    在 HEAD 代码同批同样失败（分支既有，git archive HEAD 取证）；chrys_test×2 单跑即绿
+    （并发抖动，非本次引入）
+
+uv run pytest aixcoding/tests -m "not integration and not gc_calibration" --junitxml
+950 tests, 23 failed —— 全部为 internal_installer test_install_ps1_*[pwsh]（本机无
+    pwsh 的已知环境噪音），其余 927 全绿
+
+uv run python -m tests.support.trajectory_wait_inventory
+2921 waits, 6 reopened（新：queue_progress publish、close_stream_and_cancel×2、
+    construction build_agent 重锚、client updates×5/6 重锚；全部默认 unresolved）
+
+uv run ruff check src/ tests/ …（EDITS 面）
+Found 6 errors (6 fixed, 0 remaining)；ruff format 后 15 文件已格式化
+
+uv run ty check --error-on-warning --python-platform linux|darwin|win32 src/chrys
+All checks passed!（×3；首轮 linux 报 1 处 session_id str|None，工厂注解对齐后清零）
+
+uv run python aixcoding/tools/gen_customizations.py --strict
+check OK — 132 registration row(s) / 197 marker(s)
+（中途红 3 项：finally marker 文本统一回 cancel 锚、acp-notification 计数 4→5，均系
+  登记勘误；PR #151 评审缺陷 1 的修复由新增用例
+  test_acp_turn_started_resets_the_dedupe 经生产入口锚定）
+
+uv run python aixcoding/tools/check_docs.py
+check_docs: OK
+
+净表 numstat（merge-base → 工作区，实测）：见 design.md v1.3 净表——
+上游 src/chrys 14 文件 +162/−7；含 tests 16 文件 +198/−9（原 17 文件 +248/−12）。
+```
+
+**未跑**：真实网关联调仍待内网执行；CI（双流水线）待 PR 更新后重跑。
+
+---
+
+## 2026-11-25：design v1.4（ACP 载荷加 requestId）实施验证
+
+裁决：D1 带（放行通知携带 requestId）/ D2 加（去重键 (requestId, position)）/ D3 补（frontend-api.md 契约 + 中文文档）。签认后实施。
+
+```text
+uv run pytest aixcoding/tests/llm/ -n0 -q
+77 passed（test_model_queue_progress.py 新增 6 用例：tracker 回填排队+放行 / 无 tracker 保持
+    None / 发布工厂带 id / ACP 载荷四字段+缺席省略 / D2 新请求同名次不去重 / 端到端
+    —— 生产 profile HTTP 客户端 + MockTransport，收到的 request_id == 网关侧
+    Chrys-Request-Attempt-Id，回复文本完好）
+实施中抓到并修复 1 个缺陷：confirm_queue_status 漏传 request_id 会使确认记录 (None, position)，
+    去重永判不等 → 心跳每帧重发；server.py 两行各多传 event.request_id 后测试转绿
+
+uv run pytest tests/architecture/test_trajectory_wait_inventory.py -n0 -q
+57 passed
+
+uv run pytest tests/app/acp -n0 -q -m "not integration and not gc_calibration"
+683 passed, 2 skipped, 1 deselected
+
+uv run python -m tests.support.trajectory_wait_inventory
+2921 waits, 2 reopened（queue_progress publish、queue_cancel observing.observe 两处 await 原文
+    变化；均保持默认 unresolved，无需重套规则）；manifest diff +2/−2
+
+uv run ruff check …（EDITS 面）/ ruff format --check …
+All checks passed!；2765 files already formatted
+
+uv run ty check --error-on-warning --python-platform linux|darwin|win32 src/chrys
+All checks passed!（×3）
+
+uv run python aixcoding/tools/gen_customizations.py --strict
+check OK — 133 registration row(s) / 198 marker(s)（新增登记行 model-queue-progress:frontend-api-doc，
+    frontend-api.md 的 HTML 注释 marker 被扫描计数，补行后绿）
+
+uv run python aixcoding/tools/check_docs.py
+check_docs: OK
+```
+
+v1.4 增量 numstat（相对 HEAD daa58337，实测）：`server.py` +2/−2、`frontend-api.md` +10/−1、
+`queue_notify.py` +34/−15、`queue_cancel.py` +8/−2、`queue_frames.py` +4/−0、`queue_progress.py` +5/−0、
+`test_model_queue_progress.py` +163/−0、manifest +2/−2。
+
+**未跑**：真实网关 + 桌面端联调（含桌面端同步改造后的 requestId 消费）；CI 待 PR。
+
+---
+
+## 2026-11-25（二）：design v1.5 + v1.6 实施（同日签认 426ff874 之后）
+
+裁决：方法名 `queue_status`（线上一致 `_queue_status`，去 chrys 命名空间）、相位布尔对每帧必填、
+第三帧拒绝（TIMEOUT 即发 / FULL 重试耗尽才发 / CANCELLED 不发）。
+
+**实施注记（与变更单的两处偏差，均已按预授权或规范可选条款处理）**：
+
+1. **QUEUE_FULL 耗尽挂点延期**：wire 重试的耗尽判定在 `kernel/loop.py` 重试机制深处（核心热点），
+   超出 v1.6 限定规模（>1 处接线或 >10 行）——按变更单开放项预授权路径延期上报。iCode 拒绝帧现只发
+   `QUEUE_TIMEOUT`；FULL 耗尽表现为普通错误（与现状一致），规范对两 reason 均已定义供其他引擎。
+2. **拒绝帧不带最后已知 position/queueSize**（规范标可选，选择省略）：拒绝通知 position=-1 复用
+   TUI/CLI 既有放行清屏路径，避免为此改上游 handler。
+
+```text
+uv run pytest aixcoding/tests/llm/ -n0 -q
+81 passed（新增 4 用例：ACP 拒绝载荷不去重 / TIMEOUT 通知先于抛出（含 message+traceId 提取）/
+    CANCELLED 不通知 / tracker 视拒绝为已出队；既有 4 组 ACP 断言改方法名+相位布尔对）
+
+uv run pytest tests/architecture/test_trajectory_wait_inventory.py -n0 -q
+57 passed
+
+uv run pytest tests/app/acp -n0 -q -m "not integration and not gc_calibration"
+683 passed, 2 skipped, 1 deselected
+
+uv run python -m tests.support.trajectory_wait_inventory
+2922 waits, 5 reopened（queue_progress publish 重锚、guard 新增第 4 个 wait——转译点拒绝通知；
+    均默认 unresolved，无需重套规则）
+
+uv run ruff check …（EDITS 面）/ ruff format --check …
+All checks passed!（1 处 RUF002 en-dash 修为 "to"）；2765 files already formatted
+
+uv run ty check --error-on-warning --python-platform linux|darwin|win32 src/chrys
+All checks passed!（×3）
+
+uv run python aixcoding/tools/gen_customizations.py --strict
+check OK — 133 registration row(s) / 198 marker(s)（frontend-api-doc 锚随方法名改写后同步：
+    `document chrys/queue_status` → `document queue_status`）
+
+uv run python aixcoding/tools/check_docs.py
+check_docs: OK
+```
+
+**未跑**：真实网关 + 桌面端联调（桌面端需先双注册 `_queue_status`/`_chrys/queue_status`，再上含
+v1.5 的 iCode 构建；拒绝帧联调用网关小 `max_wait_time` 复现）；CI 待 PR。
+
+---
+
+## 2026-11-25（三）：design v1.7（相位布尔对 → 单字段 status 三态中文枚举）
+
+同事反馈 + 责任人裁决（中文值「排队中」/「放行」/「拒绝」）。仅 `queue_notify.py` 载荷构造 +
+测试断言 + frontend-api.md 契约行；**server.py 零改动**（v1.6 整体传 event 的红利），内部模型与
+wait 清单不动。
+
+```text
+uv run pytest aixcoding/tests/llm/ -n0 -q        → 81 passed
+uv run ruff check …/format --check …             → All checks passed! / already formatted
+uv run ty check ×3 平台                           → All checks passed!
+uv run python aixcoding/tools/check_docs.py      → OK
+uv run python aixcoding/tools/gen_customizations.py --strict → OK（133 行 / 198 marker）
+```
+
+---
+
+## 2026-11-26：design v1.8（重试后再排队可见 + TUI 取消排队按钮）
+
+责任人签认（同日；签认时裁定按钮语义=复用中断链路 + toast「用户已取消排队」）。
+
+**本机（无 uv/textual 环境）已做的验证**：
+
+- `py_compile` 语法级自检：6 个改动/新增文件全部通过；
+- marker 计数核对（相对 design v1.8 修订记录口径）：`waiting_row.py` 3、`panel.py` 2、
+  `screen.py` queue-progress 2（该文件另有其他批次 6 个非本批 marker）、`event_handlers.py` 3（不变）、
+  `view_adapter.py` 1（不变）；`event_handlers.py` 已核对还原为零 diff。
+
+**待有环境机器/CI 执行后回填**：
+
+```text
+uv run python scripts/chrys_test.py --smart --paths src/chrys/app/tui/widgets/chat/waiting_row.py src/chrys/app/tui/widgets/chat/panel.py src/chrys/app/tui/screens/main/screen.py src/chrys/app/aixcoding/tui/queue_cancel_button.py tests/app/tui/widgets/chat/test_queue_note_row.py tests/app/tui/screens/main/test_queue_cancel_button.py
+uv run ruff check src/ tests/ scripts/chrys_test.py …   # 及 ruff format --check
+uv run ty check --error-on-warning …×3 平台
+uv run python aixcoding/tools/check_docs.py
+uv run python aixcoding/tools/gen_customizations.py --strict   # 登记表已按 v1.8 更新，计数待核
+uv run pytest tests/app/tui/screens/test_editor_dialog.py tests/app/tui/widgets/chat/test_waiting_row.py tests/app/tui/widgets/chat/test_retry_countdown.py   # 邻域回归
+```
+
+风险敞口（design v1.8 假设 15/16，本地无法运行 TUI）：绝对定位子控件与
+`WaitingRow._size_updated(layout=False)` 的相互作用、命中测试层级——由
+`test_queue_note_row.py` / `test_queue_cancel_button.py` 锚定；若红，回退 B4
+（文案并入 render 文本 + 记录区域手工命中）。
+
+## 2026-11-26 v1.9（PR #154 评审修复批：文档与落位）追加
+
+- 纯文档/文件移动（B3/R5/B5/清扫），无代码行为变化；R2 门禁复刻脚本（本地 3.13 等效实现
+  `_common.r2_approved_upstream_files` 解析）确认回填后 panel.py 与两个 v1.8 新测试文件入池、
+  unauthorized 清零。
+- 待跑（与 v1.8 清单同批执行）：`check_r2_diff` / `check_r3_markers`（以 merge-base 为基准）、
+  `check_docs --closure`（新 ADR 为草案状态、两 design 正文待重签后复跑）、
+  `gen_customizations --strict`（登记表未动，预期不变）。
+- 结果回填：CI（PR #154 推送后）。
+
+**2026-11-26 AI 复评轮补记**：修复 v1.8 登记行两处 strict 红点（斜杠多选锚拆两行、非整数计数
+改纯数字）——详见 self-review 同日复评轮节。
+
+## 2026-11-26 v1.10（PR #154 CI 红修复）追加
+
+CI 证据（PR #154，head `af30f7f4`，run 45768855657 / 45768855718）：
+
+- `ci / Unix shard (linux|macos/*)` 与 `ci / Windows shard (windows/*)`：312–368 failed，全部为
+  `textual.css.stylesheet.StylesheetParseError`，指向 `src/chrys/app/aixcoding/tui/queue_cancel_button.py`
+  ——`Invalid CSS property 'bottom'` / `'right'`（两次挂载期抛错，`textual/widget.py::mount_all → app._register
+  → apply_stylesheet`）；linux/1、windows/1 两个 TUI 分片卡到 `Run tests` 20 分钟步超时。
+- `ci / Unix shard (linux|macos/core)` 与 `ci / Windows shard (windows/core)`：唯一失败用例
+  `tests/integration/engine/test_pipeline_tool_calls.py::TestThreeWayConsistency::test_replay_groups_match_batch_ids`
+  ——55s faulthandler dump 后 `worker 'gwN' crashed`，同一 CSS 错误杀死 `run_test()` 应用循环所致。
+- `ci / Architecture`：`chrys.service.aixcoding.llm_queue.queue_cancel:QueueRequestTracker._post_cancel:1:
+  expression drifted`。
+- `govern`：`ruff format --check` 命中 `aixcoding/tests/llm/test_model_queue_cancel.py`（两处可单行签名，107/116 列）。
+
+修复后本地校验（本机无 uv / 无 3.14；用 3.13 + 临时 venv 装 `ruff==0.17.1`、`textual==8.2.7`
+（均与 pyproject 同版本）做等效核对）：
+
+```
+# 1) 四文件语法
+/c/Python313/python -c "import ast; [ast.parse(open(p, encoding='utf-8').read()) for p in [...]]"
+→ ok（queue_cancel_button.py / waiting_row.py / queue_cancel.py / test_model_queue_cancel.py）
+
+# 2) 等待清单全量对账（stub tests.support.paths，3.14 专属 except 语法就地加括号后扫描；不写文件）
+scan_wait_nodes() → 2922 waits；manifest_errors(manifest_text, nodes) → []（含 layout 往返）
+→ `_post_cancel:1` 新表达式：async with _cancel_client(timeout=CANCEL_TIMEOUT_SECONDS, transport=self._transport, **http_kwargs)
+
+# 3) ruff（0.17.1，仓库根 + 相对路径，与 CI 两道门同口径）
+ruff format --check aixcoding/ src/chrys/kernel/aixcoding src/chrys/service/aixcoding src/chrys/app/aixcoding
+→ 494 files already formatted（govern 范围）
+ruff check --no-fix <同范围>                                   → All checks passed!
+ruff format --check src/ tests/ scripts/...（ci.yml Lint 范围） → 2768 files already formatted
+ruff check --no-fix <同范围>                                   → All checks passed!
+
+# 4) Textual 8.2.7 真实复现（临时 venv，同版本控件 CSS + 同构行 arrange + 真实 pin_fixed_placement）
+旧 CSS（bottom/right）→ StylesheetParseError: Invalid CSS property 'bottom' / 'right'（与 CI 报错逐字一致）
+新 CSS + 行内钉位 → 1 行行高：button.region=(x=49,y=0,w=10,h=1)，2 行（fold gap）：y=1（末行），
+                    右侧贴内容区右沿；get_widget_at(按钮首格) → QueueCancelButton（命中层级正确）
+```
+
+仍未本地执行（待推送后由 CI 覆盖）：上游 Smart Test/全量分片、`ty check` 三平台；TUI 钉位与命中层级另由
+`test_queue_note_row.py` / `test_queue_cancel_button.py` 在 CI 分片锚定（design v1.10 风险节）。
+
+## 2026-11-26 v1.10 第二轮（推送 4fa1e7e0 后）
+
+CI 证据（run 45777547767 / 45777547781，head `4fa1e7e0`）：
+
+- `govern` → `check_docs --closure`：`model-queue-client--gateway-cancel-required.md` 为草案（6 条错误，
+  含其自身与两个引用方）。责任人本人签认后本地复跑 OK。
+- 同一作业后续步骤（被 format 失败挡住的）暴露 `gen_customizations --strict`
+  `factory-passthrough` 计数 4≠5、`check_r3_markers` 两个 v1.8 新测试文件缺 marker。
+- `ci / Unix shard (linux/1/tui)`、`ci / Windows shard (windows/1/tui)`：各 1 failed（其余 3476 / 3459 passed）——
+  `test_queue_cancel_button.py::test_clicking_cancel_queue_toasts_and_interrupts_the_turn` 的
+  `wait_for(interrupt.called, …)` 谓词位传了 bool。
+
+修复与本地校验（Python 3.14.10 embeddable，与 CI 同版本；ruff 0.17.1）：
+
+```
+check_docs.py --closure                          → OK（30 ADR / 49 design / 48 self-review）
+gen_customizations.py --strict                   → OK — 138 registration row(s) / 207 marker(s), 0 warning
+check_r3_markers.py --base <merge-base>          → OK（upstream_changed=107 marker_checked=104 exempt=3）
+check_r2_diff.py --base <merge-base>             → OK
+ruff check/format --check <改动文件>              → All checks passed / already formatted
+```
+
+注：本地扫描计数（49/48）小于 CI（51/50），因 PR 分支落后基线 35 个提交，CI 在 merge commit 上检查；
+新增的两条登记行属 §5 的 R10 重签范围，待责任人复核。
+

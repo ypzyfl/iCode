@@ -419,6 +419,11 @@
         ["awaitable", "await self._make_client().fetch_user_info(token)", "unresolved"]
       ]
     },
+    "chrys.kernel.aixcoding.queue_progress": {
+      "make_queue_status_publisher.publish": [
+        ["awaitable", "await bus.publish(GatewayQueueStatus(session_id=session_id, position=status.position, queue_size=status.queue_size, request_id=status.request_id, rejected=status.rejected, reject_message=status.reject_message, trace_id=status.trace_id))", "unresolved"]
+      ]
+    },
     "chrys.kernel.client": {
       "BaseChatClient._prepare_messages_for_model_call": [
         ["wrapper", "await apply_compaction(working_messages, strategy=compaction_strategy, tokenizer=tokenizer, context=context)", "unresolved", "chrys.kernel.compaction.apply_compaction"]
@@ -646,7 +651,7 @@
         ["awaitable", "await _progress(AGENT_LOAD_PHASE_MODEL, 'Resolving model profile', status=AGENT_LOAD_STATUS_RUNNING)", "unresolved"],
         ["awaitable", "await _progress(AGENT_LOAD_PHASE_RUNTIME, 'Capturing workspace context', status=AGENT_LOAD_STATUS_RUNNING)", "unresolved"],
         ["awaitable", "await bus.publish(Warning(code='protected_chat_options_stripped', message=protected_options_warning.message, display_message=_BUILDER_PROTECTED_CHAT_OPTIONS_STRIPPED.bind(keys=', '.join(protected_options_warning.keys)), session_id=session_id))", "unresolved"],
-        ["wrapper", "await create_client(active_profile, on_intermediate_text=on_intermediate, session_id=session_id, session_dir=effective_session_dir, tool_result_ceiling_tokens=settings.tool_result_ceiling_tokens)", "unresolved", "chrys.service.llm.clients.create_client"],
+        ["wrapper", "await create_client(active_profile, on_intermediate_text=on_intermediate, on_queue_status=on_queue_status, session_id=session_id, session_dir=effective_session_dir, tool_result_ceiling_tokens=settings.tool_result_ceiling_tokens)", "unresolved", "chrys.service.llm.clients.create_client"],
         ["awaitable", "await prepared.own_or_release(client.aclose)", "unresolved"],
         ["awaitable", "await _progress(AGENT_LOAD_PHASE_TOOLS, 'Loading built-in tools', status=AGENT_LOAD_STATUS_RUNNING)", "unresolved"],
         ["wrapper", "await import_off_loop(*tool_packs.IMPLEMENTATION_MODULES)", "unresolved", "chrys.foundation.util.imports.import_off_loop"],
@@ -693,7 +698,7 @@
         ["thread_pool", "await asyncio.get_running_loop().run_in_executor(None, coordinator.close)", "unresolved"]
       ],
       "build_agent": [
-        ["awaitable", "await build_agent_fn(profile=profile, settings=staged.loaded.settings, model_registry=model_registry, workspace=staged.workspace, session_id=session.session_id, bus=bus, agent_registry=agent_registry, injection=injection, batch_counter=batch_counter, on_intermediate=_on_intermediate, on_usage=usage_publisher.publish_usage, on_sub_agent_usage=usage_publisher.accumulate_invocation_usage, on_side_call_usage=usage_publisher.accumulate_side_call_usage, drain_parent_usage_publishes=usage_publisher.drain, on_compaction=usage_publisher.publish_compaction, on_pre_compact=fire_pre_compact, on_compress=usage_publisher.publish_compress, on_load_progress=publish_load_progress, mutation_tracker=mutation_tracker, mutation_coordinator=staged.mutation_coordinator, todo_tracker=todo_tracker, file_change_provider=workspace_change_tracker.take_pending_notice, approval_mode=session.approval_mode, approval_judge=approval_judge, session_dir=session_dir, mcp_cache=mcp_cache, hook_manager=staged.hook_manager, spill_quota=session.spill_quota, background_tasks=session.background_tasks, persist_recovery_now=checkpoints.persist_now, turn_context=turn_context, allow_user_interaction=allow_user_interaction, shows_answer_text=session.surface is not SessionSurface.CLI, sub_agent_shows_answer_text=session.surface not in (SessionSurface.CLI, SessionSurface.ACP), pause_failed_sub_agents=session.pause_failed_sub_agents)", "unresolved"],
+        ["awaitable", "await build_agent_fn(profile=profile, settings=staged.loaded.settings, model_registry=model_registry, workspace=staged.workspace, session_id=session.session_id, bus=bus, agent_registry=agent_registry, injection=injection, batch_counter=batch_counter, on_intermediate=_on_intermediate, on_queue_status=make_queue_status_publisher(bus, session.session_id), on_usage=usage_publisher.publish_usage, on_sub_agent_usage=usage_publisher.accumulate_invocation_usage, on_side_call_usage=usage_publisher.accumulate_side_call_usage, drain_parent_usage_publishes=usage_publisher.drain, on_compaction=usage_publisher.publish_compaction, on_pre_compact=fire_pre_compact, on_compress=usage_publisher.publish_compress, on_load_progress=publish_load_progress, mutation_tracker=mutation_tracker, mutation_coordinator=staged.mutation_coordinator, todo_tracker=todo_tracker, file_change_provider=workspace_change_tracker.take_pending_notice, approval_mode=session.approval_mode, approval_judge=approval_judge, session_dir=session_dir, mcp_cache=mcp_cache, hook_manager=staged.hook_manager, spill_quota=session.spill_quota, background_tasks=session.background_tasks, persist_recovery_now=checkpoints.persist_now, turn_context=turn_context, allow_user_interaction=allow_user_interaction, shows_answer_text=session.surface is not SessionSurface.CLI, sub_agent_shows_answer_text=session.surface not in (SessionSurface.CLI, SessionSurface.ACP), pause_failed_sub_agents=session.pause_failed_sub_agents)", "unresolved"],
         ["wrapper", "await _close_coordinator(staged.mutation_coordinator, reason='failed build')", "unresolved", "chrys.orchestration.engine.build.construction._close_coordinator"],
         ["wrapper", "await rollback_resources(result.prepared)", "unresolved", "chrys.orchestration.invoker.resources.rollback_resources"]
       ],
@@ -4053,6 +4058,33 @@
         ["awaitable", "await self._sources.extension_context.collect(prompt)", "unresolved"]
       ]
     },
+    "chrys.service.aixcoding.llm_queue.queue_cancel": {
+      "QueueRequestTracker._post_cancel": [
+        ["async_context", "async with _cancel_client(timeout=CANCEL_TIMEOUT_SECONDS, transport=self._transport, **http_kwargs)", "unresolved"],
+        ["awaitable", "await client.post(endpoint, json=payload, headers={'token': self._token})", "unresolved"]
+      ],
+      "QueueRequestTracker.cancel_on_close": [
+        ["shield", "await asyncio.shield(task)", "unresolved"]
+      ],
+      "QueueRequestTracker.observing.observe": [
+        ["awaitable", "await on_status(replace(status, request_id=self._request_id))", "unresolved"]
+      ],
+      "close_stream_and_cancel": [
+        ["awaitable", "await sdk_stream.close()", "unresolved"],
+        ["awaitable", "await queue_request.cancel_on_close()", "unresolved"]
+      ]
+    },
+    "chrys.service.aixcoding.llm_queue.queue_frames": {
+      "_notify": [
+        ["awaitable", "await on_status(status)", "unresolved"]
+      ],
+      "guard_queue_frames": [
+        ["awaitable", "await anext(iterator)", "unresolved"],
+        ["wrapper", "await _notify(on_status, QueueStatus(position=RELEASED_POSITION, queue_size=0, rejected=terminal.code, reject_message=_string_field(exc, 'message'), trace_id=_trace_id(exc)))", "unresolved", "chrys.service.aixcoding.llm_queue.queue_frames._notify"],
+        ["wrapper", "await _notify(on_status, QueueStatus(position=RELEASED_POSITION, queue_size=0))", "unresolved", "chrys.service.aixcoding.llm_queue.queue_frames._notify"],
+        ["wrapper", "await _notify(on_status, status)", "unresolved", "chrys.service.aixcoding.llm_queue.queue_frames._notify"]
+      ]
+    },
     "chrys.service.aixcoding.models.catalog": {
       "fetch_catalog": [
         ["awaitable", "await get_login_session().verify_live_credential()", "unresolved"],
@@ -4509,6 +4541,7 @@
         ["wrapper", "await validate_stream_response(raw)", "unresolved", "chrys.service.llm.chat_completions.validation.validate_stream_response"],
         ["async_iteration", "async for chunk in chunks", "unresolved"],
         ["wrapper", "async for update in _read_after_ending(chunks, state)", "unresolved", "chrys.service.llm.chat_completions.client._read_after_ending"],
+        ["awaitable", "await close_stream_and_cancel(sdk_stream, queue_request)", "unresolved"],
         ["awaitable", "await sdk_stream.close()", "unresolved"]
       ],
       "ChatCompletionsClient.aclose": [

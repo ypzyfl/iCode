@@ -15,6 +15,9 @@ from chrys.foundation.events.types import (
 )
 from chrys.foundation.models.session_surface import SessionSurface
 from chrys.foundation.models.workspace import Workspace
+
+# AIxCoding queue-progress: publish queue status (factory lives in the customization package)
+from chrys.kernel.aixcoding.queue_progress import make_queue_status_publisher
 from chrys.orchestration.engine.build.builder import AgentBuildResult
 from chrys.orchestration.engine.build.loaded import AgentManifest, CompletedBuild, LoadedAgent
 from chrys.orchestration.invoker.resources import rollback_resources
@@ -311,6 +314,8 @@ async def build_agent(
             injection=injection,
             batch_counter=batch_counter,
             on_intermediate=_on_intermediate,
+            # AIxCoding queue-progress: publish queue status
+            on_queue_status=make_queue_status_publisher(bus, session.session_id),
             on_usage=usage_publisher.publish_usage,
             on_sub_agent_usage=usage_publisher.accumulate_invocation_usage,
             on_side_call_usage=usage_publisher.accumulate_side_call_usage,

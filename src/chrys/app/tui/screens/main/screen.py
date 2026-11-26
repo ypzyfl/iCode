@@ -31,6 +31,8 @@ from textual.timer import Timer
 from textual.widget import Widget
 from textual.widgets.text_area import Document
 
+# AIxCoding queue-progress: cancel-queue button handler (message and toast text)
+from chrys.app.aixcoding.tui.queue_cancel_button import QUEUE_CANCELLED_NOTICE, QueueCancelRequested
 from chrys.app.tui.behaviors.right_click_copy import RightClickScreenCopyMixin
 from chrys.app.tui.binding_display import QUIT_BINDING, localized_binding
 from chrys.app.tui.i18n import render_content, render_str, widget_localizer
@@ -2739,6 +2741,14 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
             self._workflow.run_control.stop()
             return
         await self._input_flow.publish_interrupt()
+
+    # AIxCoding queue-progress: cancel-queue button handler
+    @on(QueueCancelRequested)
+    def _cancel_queue(self, event: QueueCancelRequested) -> None:
+        """The user gave up the queue wait: say so, then interrupt, which also leaves the gateway queue."""
+        event.stop()
+        self.notify(QUEUE_CANCELLED_NOTICE, markup=False)
+        self.action_interrupt()
 
     def action_shell_to_background(self) -> None:
         last = self._state.runtime.background_tasks

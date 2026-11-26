@@ -34,6 +34,9 @@ from chrys.app.acp.history import replay_session_history, session_history_payloa
 from chrys.app.acp.hook_confirmations import AcpSessionHookConfirmations
 from chrys.app.acp.json_values import JsonValue, to_json_object
 from chrys.app.acp.session_manager import AcpSessionError, AcpSessionManager, ManagedSession, jsonable_dataclass
+
+# AIxCoding queue-progress: ACP notification (the dedupe lives in the customization package)
+from chrys.app.aixcoding.acp.queue_notify import confirm_queue_status, queue_status_payload, reset_queue_session
 from chrys.foundation.branding import APP_DISPLAY_NAME
 from chrys.foundation.config.settings import DEFAULT_APPROVAL_TIMEOUT_SECONDS
 from chrys.foundation.events.types import (
@@ -86,6 +89,9 @@ from chrys.foundation.events.types import (
 )
 from chrys.foundation.models.ask_user import AskUserQuestion, validate_request_input_response
 from chrys.foundation.text.encoding import EncodingDetector, decode_bytes
+
+# AIxCoding queue-progress: ACP notification (the event class lives in the customization package)
+from chrys.kernel.aixcoding.queue_progress import GatewayQueueStatus
 from chrys.orchestration.session_host import Cancelled, EndTurn, Errored, Refused, TurnOutcome
 from chrys.service.mutations.types import FileMutationTextSnapshot
 
@@ -155,6 +161,8 @@ ACP_EXTENSION_NOTIFICATIONS: tuple[str, ...] = (
     "chrys/turn_started",
     "chrys/user_messages_dropped",
     "chrys/retry_attempt",
+    # AIxCoding queue-progress: ACP notification
+    "queue_status",
     "chrys/messages_retracted",
     "chrys/user_inject_result",
     "chrys/usage_update",
@@ -1255,6 +1263,8 @@ class ChrysAcpServer:
         standard update the event may also project.
         """
         if isinstance(event, TurnStarted):
+            # AIxCoding queue-progress: ACP notification (new turn: the queue dedupe restarts)
+            reset_queue_session(self, _event_session_id(event, session_id))
             await self._client_or_error().ext_notification(
                 "chrys/turn_started",
                 {
@@ -1280,6 +1290,14 @@ class ChrysAcpServer:
                         "retiredTurnId": event.retired_turn_id,
                     },
                 )
+            return True
+        # AIxCoding queue-progress: ACP notification (dedupe in src/chrys/app/aixcoding/acp/queue_notify)
+        if isinstance(event, GatewayQueueStatus):
+            session_key = _event_session_id(event, session_id)
+            payload = queue_status_payload(self, session_key, event)
+            if payload is not None:
+                await self._client_or_error().ext_notification("queue_status", payload)
+                confirm_queue_status(self, session_key, event)
             return True
         if isinstance(event, InvocationRetryAttempt) and event.origin.kind == "turn":
             await self._client_or_error().ext_notification(

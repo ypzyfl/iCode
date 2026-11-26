@@ -232,16 +232,45 @@ class ChatCompletionsClient(WireClient):
         request = self._build_request(messages, options)
         request["stream_options"] = {"include_usage": True}
         requires_finish_reason = options.get(STREAM_REQUIRES_FINISH_REASON_OPTION) is True
+        # AIxCoding llm-queue: guard gateway queue frames (src/chrys/service/aixcoding/llm_queue)
+        guard_queue_frames: Any = None
+        track_queue_request: Any = None
+        close_stream_and_cancel: Any = None
+        try:
+            from chrys.service.aixcoding.llm_queue import (
+                close_stream_and_cancel,
+                guard_queue_frames,
+                track_queue_request,
+                wire_queue_callback,
+            )
+        except Exception:
+            logger.warning("aixcoding llm-queue 网关排队帧将导致流失败", exc_info=True)
 
         async def updates() -> AsyncIterable[ChatResponseUpdate]:
             state = StreamState(self.VARIANT, origin=self.reasoning_origin())
             sdk_stream: Any = None
+            queue_request: Any = None
             try:
                 # The same raw wrapper as the blocking path, for the same reason.
                 raw: Any = await self.sdk_client.chat.completions.with_raw_response.create(stream=True, **request)
+                # AIxCoding llm-queue: cancel queued request on abort
+                if track_queue_request is not None:
+                    try:
+                        queue_request = track_queue_request(
+                            raw.http_response.request,
+                            model=self.model,
+                            sdk=self.sdk_client,
+                            http_kwargs=self._observer.queue_cancel_http if self._observer is not None else None,
+                        )
+                    except Exception:
+                        logger.debug("aixcoding llm-queue 取消排队不可用", exc_info=True)
                 replay = await validate_stream_response(raw)
                 sdk_stream = raw.parse()
                 chunks = aiter(sdk_stream)
+                # AIxCoding llm-queue: guard gateway queue frames (src/chrys/service/aixcoding/llm_queue)
+                if guard_queue_frames is not None:
+                    on_status = wire_queue_callback(self._observer, queue_request)
+                    chunks = guard_queue_frames(chunks, on_status=on_status)
                 received = False
                 async for chunk in chunks:
                     received = True
@@ -278,7 +307,10 @@ class ChatCompletionsClient(WireClient):
                     raise
                 raise _service_error(ex) from ex
             finally:
-                if sdk_stream is not None:
+                # AIxCoding llm-queue: cancel queued request on abort
+                if close_stream_and_cancel is not None:
+                    await close_stream_and_cancel(sdk_stream, queue_request)
+                elif sdk_stream is not None:
                     try:
                         await sdk_stream.close()
                     except Exception:

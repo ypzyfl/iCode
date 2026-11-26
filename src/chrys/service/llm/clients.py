@@ -409,6 +409,8 @@ async def create_client(
     use_route_session_context: bool = False,
     session_dir: Path | None = None,
     tool_result_ceiling_tokens: int | None = None,
+    # AIxCoding queue-progress: client factory passthrough
+    on_queue_status: Callable[[Any], Awaitable[None]] | None = None,
 ) -> Any:
     """Create a chat client stack based on the configured ``ModelProfile``.
 
@@ -490,6 +492,12 @@ async def create_client(
         auth=auth,
     )
     close_http_client = OnceClose(http_client.aclose)
+    # AIxCoding queue-progress: client factory passthrough
+    # The queue-cancel side call shares the profile's TLS/proxy posture with the
+    # requests it may have to cancel (design model-queue-client v1.6).
+    queue_cancel_http: dict[str, Any] = {"verify": profile.verify_ssl}
+    if profile.bypass_proxy:
+        queue_cancel_http["mounts"] = dict(BYPASS_PROXY_MOUNTS)
     stack_kwargs.update(
         model_id=profile.model_id,
         session_id=session_id,
@@ -497,6 +505,9 @@ async def create_client(
         use_route_session_context=use_route_session_context,
         max_iterations=7777,
         max_consecutive_errors=10,
+        # AIxCoding queue-progress: client factory passthrough
+        on_queue_status=on_queue_status,
+        queue_cancel_http=queue_cancel_http,
     )
     try:
         return await _build_client_stack(
@@ -609,6 +620,9 @@ def _assemble_stack(
     parent_session_id: str | None,
     use_route_session_context: bool,
     on_intermediate_text: Callable[[str], None] | None,
+    # AIxCoding queue-progress: client factory passthrough
+    on_queue_status: Callable[[Any], Awaitable[None]] | None = None,
+    queue_cancel_http: Mapping[str, Any] | None = None,
     connection: Mapping[str, str],
     max_iterations: int,
     max_consecutive_errors: int,
@@ -629,7 +643,13 @@ def _assemble_stack(
     wire_client: Any = client_cls.from_sdk_client(
         sdk_client,
         model=model_id,
-        observer=WireCallObserver(on_intermediate_text=on_intermediate_text, connection=connection),
+        observer=WireCallObserver(
+            on_intermediate_text=on_intermediate_text,
+            # AIxCoding queue-progress: client factory passthrough
+            on_queue_status=on_queue_status,
+            queue_cancel_http=queue_cancel_http,
+            connection=connection,
+        ),
         request_headers=RequestHeaders(
             session_id=session_id,
             parent_session_id=parent_session_id,
