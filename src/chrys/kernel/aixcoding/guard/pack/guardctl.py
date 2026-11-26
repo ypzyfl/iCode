@@ -11,11 +11,11 @@ macOS / Linux 有对应的 ``guardctl.sh``（现找 ``python3`` / ``python``）�
     guardctl.py status              # 看当前开关
     guardctl.py off                 # 关掉整个护栏
     guardctl.py on                  # 打开（默认就是开）
-    guardctl.py disable IN-07        # 关掉一条规则
-    guardctl.py enable IN-07         # 再打开
+    guardctl.py disable IN-05        # 关掉一条规则
+    guardctl.py enable IN-05         # 再打开
     guardctl.py disable 'T-SHELL-03-*'   # 通配符
     guardctl.py list                 # 规则清单与开关
-    guardctl.py show IN-07           # 看一条规则的完整定义
+    guardctl.py show IN-05           # 看一条规则的完整定义
     guardctl.py workspace allow      # 不限制写入工作区外（出厂）
     guardctl.py workspace restrict   # 只允许写工作区内
     guardctl.py reset                # 回到出厂状态

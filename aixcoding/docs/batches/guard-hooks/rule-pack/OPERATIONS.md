@@ -1,9 +1,10 @@
 # iCode 安全拦截 Hook · 使用与运维手册
 
-面向使用者与运维。规则实现见 [README.md](README.md)（安装与规则设计），本文是**日常怎么用、出问题怎么看、升级后怎么迁**。逐条手工测试用例见 [MANUAL_TESTS.md](MANUAL_TESTS.md)（90 条，预期结果均为实测）。换一份新 iCode 源码重新部署见 [PORTING.md](PORTING.md)。
+面向使用者与运维。规则实现见 [README.md](README.md)（安装与规则设计），本文是**日常怎么用、出问题怎么看、升级后怎么迁**。逐条手工测试用例见 [MANUAL_TESTS.md](MANUAL_TESTS.md)（111 条，预期结果均为实测）。换一份新 iCode 源码重新部署见 [PORTING.md](PORTING.md)。
 
 - 拦截点：`user_prompt_submit`（用户提示词）、`before_tool_call`（工具调用前）
-- 拦截后给用户的提示固定为一句：**操作不合规，请修改后重试。**
+- 中等及以下风险的命中直接打断，提示固定为一句：**操作不合规，请修改后重试。**
+- 中高风险命中弹**确认框**（文案 `检测到较高风险操作，是否继续？`）：确认放行，拒绝或客户端无法询问时按打断处理
 - 命中了哪条规则不进界面，完整写进留痕文件
 - 流式输出层（模型生成过程）**未实现**
 
@@ -32,20 +33,21 @@ uv run aixcoding-cli
 
 ### 2.1 提示词层（`user_prompt_submit`）
 
-| 规则 | 触发条件 | 例句 |
-| --- | --- | --- |
-| `IN-01` 反编译工具 | 出现工具名（dnSpy / IDA / Ghidra / x64dbg / OllyDbg / WinDbg / Frida / pycdc / radare2 …） | `用 IDA Pro 反编译一下这个 exe` |
-| `IN-02` 攻击工具 | nmap / sqlmap / hydra / masscan / mimikatz / msfconsole / metasploit / cobaltstrike … | `用 sqlmap 扫一下这个站` |
-| `IN-03` SQL 注入 payload | `union select`、`' or '1'='1`、`information_schema`、`sleep(`、`load_file(`、`xp_cmdshell` … | `判断 `' or '1'='1 能不能注入` |
-| `IN-04` XSS payload | `<script>`、`javascript:`、`onerror=`、`onload=` … | `<script>alert(1)</script> 是什么意思` |
-| `IN-05` 路径穿越 / LFI | `../`、URL 编码、`/etc/passwd`、`/proc/self/environ`、`C:\Windows\System32`、`boot.ini`、`.ssh/id_rsa` | `看看 ../../../../etc/passwd` |
-| `IN-06` 内网资产 | 业务系统名（elearning / edip / ccrc / OA系统 / 考试系统 …）、`*.local|corp|intra|intranet|lan|internal|home`、RFC1918 整段（`10/8`、`172.16/12`、`192.168/16`）。**只有回环放行** | `查一下 10.1.2.3 这个机器` |
-| `IN-07` 同义语义簇 | 封禁 / 禁用 / 拒绝 / 拦截 / 阻断 / 封堵 | ⚠️ 见 2.4 |
-| `IN-08` 合规类 | 反编译+保密、越权+考试、绕过+审计、卸载+EDR、删除+日志、导出+答卷 | `怎么绕过审计日志` |
+| 规则 | 触发条件 | 处置 | 例句 |
+| --- | --- | --- | --- |
+| `IN-01` 反编译工具 | 出现工具名（dnSpy / IDA / Ghidra / x64dbg / OllyDbg / WinDbg / Frida / pycdc / radare2 …） | block | `用 IDA Pro 反编译一下这个 exe` |
+| `IN-02` 攻击工具 | nmap / sqlmap / hydra / masscan / mimikatz / msfconsole / metasploit / cobaltstrike … | block | `用 sqlmap 扫一下这个站` |
+| `IN-05` 路径穿越 / LFI | `../`、URL 编码、`/etc/passwd`、`/proc/self/environ`、`C:\Windows\System32`、`boot.ini`、`.ssh/id_rsa` | confirm | `看看 ../../../../etc/passwd` |
+| `IN-06` 内网资产 | 业务系统名（elearning / edip / ccrc / OA系统 / 考试系统 …）、`*.local|corp|intra|intranet|lan|internal|home`、以及落在 `settings.network.blocked_networks` 的 IP（出厂含 `22.122.49.168/32`），回环始终放行 | confirm | `访问 http://oa.corp/x` |
+| `IN-08` 合规类 | 反编译+保密、越权+考试、绕过+审计、卸载+EDR、删除+日志、导出+答卷 | confirm + 强制留痕 | `怎么绕过审计日志` |
+| `IN-09` 失败兜底 | 引擎/脚本异常、超时 | block | — |
+
+原规则表里的 SQL 注入 payload（`IN-03`）、XSS payload（`IN-04`）、同义语义簇（`IN-07`）
+三条高风险误报规则已删除（日常开发几乎必中）。
 
 ### 2.2 工具调用层（`before_tool_call`）
 
-**Shell — `T-SHELL-01` 危险命令（block）**
+**Shell — `T-SHELL-01` 危险命令（confirm：弹确认框，拒绝则不执行）**
 
 ```
 rm -rf /tmp/testdir          sudo ls                  mkfs.ext4 /dev/sdb1
@@ -55,7 +57,9 @@ echo x > /etc/hosts          diskpart                  fdisk / sfdisk
 export PATH=/tmp:$PATH        > C:\Windows\System32\drivers\etc\hosts
 ```
 
-**Shell — 注入与内建（confirm）**
+> 这组现在会弹确认框——**测试时点“拒绝”**，否则命令会真的执行。
+
+**Shell — 注入（block）**
 
 | 规则 | 触发 | 例 |
 | --- | --- | --- |
@@ -65,13 +69,14 @@ export PATH=/tmp:$PATH        > C:\Windows\System32\drivers\etc\hosts
 | `T-SHELL-02-4` | zsh glob 限定符 `*(`、`?(`（`@(`/`#(` 需紧贴前一个词） | `*(e)` |
 | `T-SHELL-02-5` | 进程替换 `<(`、`>(` | `cat <(echo hi)` |
 | `T-SHELL-02-6` | `autoload` | `autoload -Uz compinit` |
-| `T-SHELL-03-1` ⚠️ | `&&`、`\|\|`、`;;` | `ls -la && pwd` |
 | `T-SHELL-03-2` | 反引号 | `` echo `whoami` `` |
 | `T-SHELL-03-3` | 嵌套 `$( $( ) )` | `echo $(echo $(date))` |
 | `T-SHELL-03-4` | here-doc `<<` | `cat <<EOF` |
 | `T-SHELL-03-5` | `base64 -d` | `echo aGk= \| base64 -d` |
-| `T-SHELL-04` | `eval` / `source` / `exec` / `trap` | `eval "ls"` |
 | `T-SHELL-05` | Shell 写到工作目录外 | `echo x > ../out.txt`；`cp a ../b` |
+
+原规则表里的命令链接（`T-SHELL-03-1`）和 Shell 内建（`T-SHELL-04`）两条高风险误报
+规则已删除：`ls -la && pwd`、`source .venv/bin/activate`、`eval "$CMD"` 现在都放行。
 
 **PowerShell**
 
@@ -79,67 +84,84 @@ export PATH=/tmp:$PATH        > C:\Windows\System32\drivers\etc\hosts
 | --- | --- | --- |
 | `T-PS-01` block | `Win32_USB`、`USBSTOR`、`setupapi.dev.log`、`USBDevice.json`、`Enum\USB` | `Get-WmiObject Win32_USBController` |
 | `T-PS-02` block | dnSpy/ghidra/x64dbg/frida/pycdc… 、`dumpbin`、`disassemble`、中文「反编译」「逆向分析」 | `dumpbin /headers a.exe` |
-| `T-PS-03` confirm | `IsDebuggerPresent`、`NtQueryInformationProcess`、`CheckRemoteDebuggerPresent`、`NtSetInformationThread`、`OutputDebugString` | `IsDebuggerPresent` |
+| `T-PS-03` block | `IsDebuggerPresent`、`NtQueryInformationProcess`、`CheckRemoteDebuggerPresent`、`NtSetInformationThread`、`OutputDebugString` | `IsDebuggerPresent` |
 
 **Python（全部 block）**
 
 | 规则 | 触发 | 例 |
 | --- | --- | --- |
 | `T-PY-01` | `import capstone/unicorn/frida/pefile/lief/angr/keystone/r2pipe/pydumpck`、`-m frida\|pycdc\|uncompyle6\|decompyle3` | `python -c "import pefile"` |
-| `T-PY-02` | `marshal.load*`、`dis.dis`、`.__code__`、`co_consts`、`types.CodeType`、`getmembers(` | `python -c "import marshal; marshal.loads(b'')"` |
 | `T-PY-03` | `pycdc`、`uncompyle6`、`decompyle3`、`xdis`、`pyinstxtractor` | `python -m pycdc x.pyc` |
 
-**文件系统（全部 block）**
+`T-PY-02` 字节码自省（`marshal.load*`、`dis.dis`、`.__code__`…）误报率高，已删除；
+`python -c "import marshal; marshal.loads(b'')"` 现在放行。
 
-| 规则 | 适用工具 | 触发 | 例 |
-| --- | --- | --- | --- |
-| `T-FS-01` 写入白名单 | `filesystem.write` | 写工作区以外路径 | 写到 `C:\Users\tangs\test.txt` |
-| `T-FS-02` 路径黑名单 | `filesystem.read` / `write` / `search` | 路径含 sentinelone、crowdstrike、falcon、tanium、symantec、`\ass\`、`dlp`、`防病毒`、`终端审计` …；凭据目录 `.ssh/` `.aws/` `.kube/`、`authorized_keys`、`id_rsa\|dsa\|ecdsa\|ed25519`、`.git-credentials`、`.npmrc`、`.pypirc` | 读 `C:\work\crowdstrike\a.py`；读 `C:\Users\tangs\.ssh\id_rsa` |
-| `T-FS-03` 扩展名黑名单 | `filesystem.read` | `.dll .exe .sys .so .dylib .jar .war .apk .ipa .msi .cab .img .pyc` 等 22 种 | 读 `libfoo.so` |
+**文件系统**
+
+| 规则 | 适用工具 | 处置 | 触发 | 例 |
+| --- | --- | --- | --- | --- |
+| `T-FS-01` 写入白名单 | `filesystem.write` | block | 写工作区以外路径（工作区限制打开时） | 写到 `C:\Users\tangs\test.txt` |
+| `T-FS-02` 路径黑名单 | `filesystem.read` / `write` / `search` | confirm | 路径含 sentinelone、crowdstrike、falcon、tanium、symantec、`\ass\`、`dlp`、`防病毒`、`终端审计` …；凭据目录 `.ssh/` `.aws/` `.kube/`、`authorized_keys`、`id_rsa\|dsa\|ecdsa\|ed25519`、`.git-credentials`、`.npmrc`、`.pypirc` | 读 `C:\work\crowdstrike\a.py`；读 `C:\Users\tangs\.ssh\id_rsa` |
+| `T-FS-03` 扩展名黑名单 | `filesystem.read` | confirm | `.dll .exe .sys .so .dylib .jar .war .apk .ipa .msi .cab .img .pyc` 等 22 种 | 读 `libfoo.so` |
 
 **网络**
 
 | 规则 | 处置 | 触发 | 例 |
 | --- | --- | --- | --- |
-| `T-NET-01` | block | 黑名单资产 `22.122.49.168`、业务系统名、`*.local/corp/internal/lan`、内网 + 危险端口（22 445 3389 3306 5432 6379 27017 9200 5985 …）。私有段本身不算违规 | `访问 http://10.1.2.3:3389/x` |
-| `T-NET-02` | confirm | **任何非内网地址** ⚠️ | `访问 https://example.com` |
+| `T-NET-01` | block | 回环（`127/8`、`::1`、`localhost`、`*.localhost`）最先完全豁免（危险端口也不例外）；危险端口（22 445 3389 3306 5432 6379 27017 9200 5985 …）；`settings.network.blocked_hosts` 主机名（出厂 `*.bocsys.cn`）；`settings.network.blocked_networks` CIDR（出厂 `22.122.49.168/32`） | 访问 `http://10.1.2.3:3389/x` |
+
+原 `T-NET-02`「网络默认处置（非白名单地址）」已删除：它把任何非内网地址都当成需要确认，
+公网访问默认全中。现在没命中黑名单或危险端口的地址一律放行。
 
 **MCP（全部 block）**：`T-MCP-01` Server 白名单、`T-MCP-02` 入参 Schema、`T-MCP-03` 调用方上下文、`T-MCP-04` 沙箱静态扫描（复用 Shell/Python/文件/密钥规则）。
 sha256 制品签名校验**未实现** —— Hook 拿不到 MCP 服务端的制品摘要，需要服务端或网关侧配合。
 
-**敏感信息（block）** `T-OUT-01`：AWS AKIA/ASIA 密钥、GitHub `ghp_`/`gho_` PAT、GitLab `glpat-`、JWT、`-----BEGIN PRIVATE KEY-----`、`mysql://user:pass@` 类连接串、`password="…"`、`token="…"`、`api_key="…"`。
-`T-OUT-02` 高熵长串（40+ 十六进制 / 60+ base64）**默认关闭**，误报率高。
+**敏感信息（confirm）** `T-OUT-01`：AWS AKIA/ASIA 密钥、GitHub `ghp_`/`gho_` PAT、GitLab `glpat-`、JWT、`-----BEGIN PRIVATE KEY-----`、`mysql://user:pass@` 类连接串、`password="…"`、`token="…"`、`api_key="…"`。
+`T-OUT-02` 高熵长串（40+ 十六进制 / 60+ base64）**默认关闭**，误报率高；启用后处置为 block。
 
 ### 2.3 不该被拦的（用来验证没误伤）
 
 ```
 ls -la        git status       uv run pytest tests/service/hooks -x
-读 src/chrys/service/hooks/manager.py        在项目里新建 test_demo.py
-访问 http://127.0.0.1:8000（仅回环放行）      写工作区内的文件
+cd tests && pytest -x           读 src/chrys/service/hooks/manager.py
+在项目里新建 test_demo.py        写工作区内的文件
+访问 http://127.0.0.1:8000      访问 https://example.com
 读 C:\proj\ssh-tool\main.py（项目名带 ssh）  读 C:\proj\my.sshconfig
 ```
 
-> 提示词层与工具层的地址标准**故意不同**：提示词层只放行回环，RFC1918 全拦（看你在说什么意图）；工具层把私有段当“内网”而非“公网访问”，只按黑名单主机和危险端口拦。要统一，把网段加进 `settings.network.allowed_networks`。
+> 提示词层与工具层的网络判定现在读**同一份黑名单**（`settings.network.blocked_hosts` /
+> `blocked_networks`，出厂含 `*.bocsys.cn` 与 `22.122.49.168/32`）：回环地址与回环主机名
+> 完全豁免（危险端口也不例外），其余没命中黑名单和危险端口就放行。提示词层的 `IN-06`
+> 另外按业务系统名、内网域名（`*.corp` 等）和 `blocked_networks` 里的 IP 弹确认框。
 
-### 2.4 高频误报清单（出厂配置的已知问题）
+### 2.4 易误报规则的分档处置
+
+出厂配置按误报风险分档：
+
+| 档位 | 处置 | 规则 |
+| --- | --- | --- |
+| 高风险（日常开发几乎必中） | **删除** | `IN-03` SQL 注入 / `IN-04` XSS / `IN-07` 同义语义簇 / `T-SHELL-03-1` 命令链接 / `T-SHELL-04` Shell 内建 / `T-PY-02` 字节码自省 / `T-NET-02` 网络默认处置 |
+| 中高风险 | confirm（弹确认框，拒绝或无法询问时 block） | `IN-05`、`IN-06`、`IN-08`、`T-SHELL-01`、`T-FS-02`、`T-FS-03`、`T-OUT-01` |
+| 中等及以下 | block | 其余全部规则 |
+
+删除的高风险规则自检里有回归用例盯着，不会被加回。仍可能误伤、但有开关可调的：
 
 | 规则 | 问题 | 处理 |
 | --- | --- | --- |
-| `IN-07` 同义语义簇 | `拒绝`/`禁用`/`拦截`/`阻断` 在正常对话里极常见 | `"enabled": false` |
-| `T-SHELL-03-1` 命令链接 | 几乎所有复合命令（`cd x && pytest`） | `"enabled": false` |
-| `T-NET-02` 网络默认 | 所有公网访问 | `"enabled": false` 或往 `settings.network.allowed_hosts` 加白名单 |
-| `T-FS-01` 写入白名单 | 写工作区外任何路径（含家目录） | 出厂已不拦；被 `guardctl workspace restrict` 收紧后用 `guardctl workspace allow` 放开，或改 `settings.write_scope.allow_outside_workspace: true` |
-| `T-FS-02` 路径黑名单 | `dlp`/`falcon` 等词若出现在项目目录名里 | 删对应词条；新增路径词条一律写成带分隔符锚定的 `regex`（见 [MANUAL_TESTS.md 10.4](MANUAL_TESTS.md)），避免退化成子串匹配 |
-| `T-PY-02` 字节码自省 | `dis.dis` / `__code__` 在正常 Python 调试里会出现 | 收窄词典 |
-| `T-SHELL-04` Shell 内建 | `source`/`exec` 在构建脚本里偶尔合法 | `"enabled": false` |
-| `T-SHELL-05` 写到工作区外 | 构建脚本确实要写 `/tmp` 或家目录缓存 | 出厂不拦；被收紧后用 `guardctl workspace allow`（与 `T-FS-01` 共用同一个开关），或改用 `temp_prefixes` 把目录纳入白名单 |
+| `T-FS-01` 写入白名单 | 写工作区外任何路径（含家目录） | 出厂不限制；被 `guardctl workspace restrict` 收紧后用 `guardctl workspace allow` 放开，或改 `settings.write_scope.allow_outside_workspace: true` |
+| `T-FS-02` 路径黑名单 | `dlp`/`falcon` 等词若出现在项目目录名里（确认框） | 删对应词条；新增路径词条一律写成带分隔符锚定的 `regex`（见 [MANUAL_TESTS.md 10.4](MANUAL_TESTS.md)），避免退化成子串匹配 |
+| `T-FS-03` 扩展名黑名单 | 读 `.jar` / `.so` 会弹确认框 | 确认即可；不想被问就 `guardctl disable T-FS-03` |
+| `T-SHELL-05` 写到工作区外 | 构建脚本确实要写 `/tmp` 或家目录缓存 | 出厂不限制；被收紧后用 `guardctl workspace allow`（与 `T-FS-01` 共用同一个开关），或改用 `temp_prefixes` 把目录纳入白名单 |
+
+现场嫌某条吵：`guardctl disable <ID>`（写 `guard_state.json`，重装不丢）→ 或把 `disposition`
+改 `notify` → 或改 `dictionaries` 词条。
 
 #### 已修掉的两处典型误报（不要再往回改）
 
 | 现象 | 根因 | 现在的行为 |
 | --- | --- | --- |
 | 命令里出现 `@('127.0.0.1','::1')` 就被拦，提示“zsh glob 限定符” | PowerShell / Bash 的**数组字面量** `@(...)` 撞上了 zsh 的限定符模式 `[*@#?~^]\(...\)` | `[@#]` 必须**紧贴前一个词**才算限定符（`*(#q)`、`*@(..)` 才拦），独立成词的 `@(...)` 放行 |
-| `http://localhost:3000` 被 `T-NET-02` 拦 | `settings.network.allowed_networks` 只按 **IP 网段**匹配，`localhost` 是主机名，匹配不到任何网段 | 出厂带 `settings.network.allowed_hosts`（`localhost`、`*.localhost` 等回环名），要加自己的内网域名也加在这里 |
+| `http://localhost:3000` 曾被 `T-NET-02` 拦 | 旧网络模型“只允许白名单地址”，`localhost` 是主机名，匹配不到任何网段 | `T-NET-02` 已删除；`localhost` / `*.localhost` / 回环 IP 一律放行（危险端口也不例外），其余地址按 `settings.network` 黑名单判定 |
 
 > 排查这类问题的顺序：**先看留痕**（`guard_audit.jsonl` 里那条 `ev` 字段），确认是哪条规则、哪段文本命中的，再去改词典——不要凭“里面有 127.0.0.1”猜是网络规则。
 
@@ -175,22 +197,25 @@ ls -la        git status       uv run pytest tests/service/hooks -x
 
 | ID | 名称 | 处置 | 生效范围 |
 | --- | --- | --- | --- |
-| `IN-01` ~ `IN-08` | 提示词 8 类 | confirm → **block** | `user_prompt_submit` |
+| `IN-01`、`IN-02` | 反编译 / 攻击工具 | block | `user_prompt_submit` |
+| `IN-05`、`IN-06`、`IN-08` | 路径穿越 / 内网资产 / 合规类 | confirm | `user_prompt_submit` |
 | `IN-09` | 失败兜底 | block | 引擎异常 / 超时 / 崩溃 |
-| `T-SHELL-01` | 危险命令 | block | shell |
-| `T-SHELL-02-1` ~ `-6` | zsh / 空字节 / 零宽 | confirm、block | shell |
-| `T-SHELL-03-1` ~ `-5` | 命令链接 / 反引号 / 嵌套 / here-doc / base64 | confirm | shell |
-| `T-SHELL-04` | Shell 内建 | confirm | shell |
+| `T-SHELL-01` | 危险命令 | confirm | shell |
+| `T-SHELL-02-1` ~ `-6` | zsh / 空字节 / 零宽 | block | shell |
+| `T-SHELL-03-2` ~ `-5` | 反引号 / 嵌套 / here-doc / base64 | block | shell |
 | `T-SHELL-05` | Shell 写到工作目录外 | block | shell |
-| `T-PS-01` ~ `-03` | USB 取证 / 逆向 / 反调试 | block、block、confirm | shell |
-| `T-PY-01` ~ `-03` | 逆向库 / 字节码 / 反编译器 | block | shell |
-| `T-FS-01` ~ `-03` | 写入白名单 / 路径黑名单 / 扩展名 | block | filesystem.*、search |
-| `T-NET-01` ~ `-02` | 网络黑名单 / 默认处置 | block、confirm | web_fetch、web_search、mcp |
+| `T-PS-01` ~ `-03` | USB 取证 / 逆向 / 反调试 | block | shell |
+| `T-PY-01`、`T-PY-03` | 逆向库 / 反编译器 | block | shell |
+| `T-FS-01` | 写入白名单 | block | filesystem.write |
+| `T-FS-02`、`T-FS-03` | 路径黑名单 / 扩展名 | confirm | filesystem.*、search |
+| `T-NET-01` | 网络黑名单（黑名单主机 / 网段 / 危险端口） | block | web_fetch、web_search、mcp |
 | `T-MCP-01` ~ `-04` | 白名单 / Schema / 上下文 / 静态扫描 | block | mcp |
-| `T-OUT-01` | 敏感信息进参数 | block | 全部工具 |
-| `T-OUT-02` | 高熵长串 | confirm（**默认关闭**） | 全部工具 |
+| `T-OUT-01` | 敏感信息进参数 | confirm | 全部工具 |
+| `T-OUT-02` | 高熵长串 | block（**默认关闭**） | 全部工具 |
 
-`confirm` 当前统一按 **block** 落地，原因见 README「`confirm` 为什么是打断」。
+`confirm` 由 Hook 写成 `action: ask`：iCode 弹确认框，确认放行；拒绝或客户端无法询问时
+按 **block** 兜底（见 README「`confirm` 是怎么落地的」）。`settings.confirm_disposition`
+可把它改回 `block` 或 `notify`。
 
 ---
 
@@ -220,33 +245,42 @@ Windows 上 `<配置目录>/hooks/guard/guardctl.cmd status`，macOS / Linux 上
     "audit_log": "${chrys_home}/hooks/guard_audit.jsonl",
     "audit_on_allow": false,               // true = 放行也记留痕（量大）
     "max_scan_chars": 262144,              // 单次扫描的字符上限
-    "block_message": "操作不合规，请修改后重试。",   // 唯一的用户可见文案
-    "confirm_disposition": "block",        // 改成 "notify" = 只记录不打断
+    "block_message": "操作不合规，请修改后重试。",   // block 的用户可见文案
+    "ask_message": "检测到较高风险操作，是否继续？", // confirm 的确认框文案
+    "confirm_disposition": "ask",          // ask（默认）/ block / notify
     "fail_closed": true,                   // 引擎异常时按拒绝处理
-    "self_timeout_seconds": 4.0            // 脚本自检超时，另有 hooks.yaml 的 5 秒兜底
+    "self_timeout_seconds": 4.0,           // 脚本自检超时，另有 hooks.yaml 的 5 秒兜底
+    "network": {                           // 网络黑名单（出厂已填禁止攻击的目标）
+      "blocked_hosts": ["*.bocsys.cn"],        // *.domain = 裸域与任意子域
+      "blocked_networks": ["22.122.49.168/32"] // CIDR，/32 = 单个 IP
+    }
   }
 }
 ```
+
+`confirm_disposition` 三个值：`ask` = 弹确认框（默认）；`block` = 直接打断；`notify` =
+只记录留痕，提示词层额外给模型注入 `<system-reminder>`，工具层静默放行。客户端无法
+询问或用户拒绝时按 block 兜底（fail-closed）。
 
 ### 4.2 改单条规则
 
 ```jsonc
 {
-  "id": "T-NET-02",
-  "name": "网络默认处置（非白名单地址）",
-  "layer": "网络",
+  "id": "T-SHELL-01",
+  "name": "危险命令",
+  "layer": "Bash",
   "disposition": "confirm",   // block | confirm | notify
   "enabled": true,             // false = 停用本条
   "audit": true,
-  "applies_to": { "kinds": ["web_fetch"], "arg_keys": ["url"] },
-  "detect": [{ "type": "url", "mode": "default" }],
+  "applies_to": { "kinds": ["shell"], "arg_keys": ["command", "reason"] },
+  "detect": [{ "type": "regex", "dictionary": "shell_dangerous" }],
   "note": "自己看的说明，不影响运行"
 }
 ```
 
 | 字段 | 说明 |
 | --- | --- |
-| `disposition` | `block` 必拦；`confirm` 受 `confirm_disposition` 全局开关控制；`notify` 只留痕 |
+| `disposition` | `block` 必拦；`confirm` 受 `confirm_disposition` 全局开关控制（默认落成 `action: ask` 确认框）；`notify` 只留痕 |
 | `enabled` | `false` 整条停用 |
 | `applies_to` | 省略 = 所有工具；`kinds` 是工具类别；`arg_keys` 省略 = 扫描全部入参 |
 | `detect[].type` | `keyword` `regex` `secret` `path` `extension` `ip_cidr` `url` `write_scope` `mcp_server` `mcp_args_schema` `caller_context` `rule_refs` |
@@ -257,11 +291,12 @@ Windows 上 `<配置目录>/hooks/guard/guardctl.cmd status`，macOS / Linux 上
 ### 4.3 改词典
 
 ```jsonc
-"blocked_hosts": [
-  "22.122.49.168",
-  "prod-db.internal",                                  // 新增字面量
-  { "regex": true, "value": "\\.(?:local|internal)$" } // 新增正则
-],
+"settings": {
+  "network": {
+    "blocked_hosts": ["*.bocsys.cn", "prod-db.internal"],  // *.domain / 子串
+    "blocked_networks": ["22.122.49.168/32", "10.20.30.0/24"] // CIDR
+  }
+},
 "dictionaries": {
   "secrets": [
     { "name": "自定义令牌", "value": "\\bmy_token_[A-Z0-9]{20}\\b" }
@@ -271,6 +306,11 @@ Windows 上 `<配置目录>/hooks/guard/guardctl.cmd status`，macOS / Linux 上
 
 条目可以是纯字符串，或 `{"name": ..., "value": ..., "regex": true}`。正则里要匹配**字面反斜杠**时写成 `\\\\`（JSON 转义）。
 
+> `settings.network.blocked_hosts` 匹配规则：`*.domain` 命中裸域与任意子域（后缀锚定，
+> 不吃 `notbocsys.cn` 这类近似域）；含 `*` / `?` 的按通配符匹配；其余按小写子串匹配。
+> `blocked_networks` 只认合法 CIDR，坏条目忽略。回环地址与回环主机名不受影响（危险端口也不例外）。
+> 出厂已含 `*.bocsys.cn` 与 `22.122.49.168/32`（禁止攻击的目标）。
+
 > **路径类词典（`blocked_path_fragments`）一律用锚定正则**。默认的纯字符串是子串 + 不区分大小写匹配，直接写 `ssh` 会把 `ssh-tool`、`sshdemo` 这类项目名全部误伤。写成 `(?:^|[/\\\\])\\.ssh[/\\\\]` 这种带分隔符锚定的形式，只认真路径。
 
 ### 4.4 改完必须跑自检
@@ -279,7 +319,7 @@ Windows 上 `<配置目录>/hooks/guard/guardctl.cmd status`，macOS / Linux 上
 uv run python -m aixcoding.tests.guard.guard_pack_selftest
 ```
 
-100 个用例：每条规则一个正例，外加「日常开发不应被拦」的负例，按 iCode 真实子进程协议跑两个入口脚本，以及安装脚本的解释器探测 / 启动器改写逻辑、开关层（总开关 / 单规则 / 写入范围 / 状态文件损坏兜底）与免 uv 入口（`guardctl.cmd` / `guardctl.sh`）。**自检不过不要部署。**
+107 个用例：每条规则一个正例，外加「日常开发不应被拦」的负例，按 iCode 真实子进程协议跑两个入口脚本，以及安装脚本的解释器探测 / 启动器改写逻辑、开关层（总开关 / 单规则 / 写入范围 / 状态文件损坏兜底）与免 uv 入口（`guardctl.cmd` / `guardctl.sh`）。**自检不过不要部署。**
 
 ---
 
@@ -291,7 +331,7 @@ uv run python -m aixcoding.tests.guard.guard_pack_selftest
 Get-Content $env:APPDATA\chrys\hooks\guard_audit.jsonl -Wait -Tail 3 -Encoding UTF8
 ```
 
-每行字段：`ts` / `layer`（prompt、tool）/ `session_id` / `profile` / `cwd` / `tool` / `action`（block、notify、allow）/ `rules[]`。
+每行字段：`ts` / `layer`（prompt、tool）/ `session_id` / `profile` / `cwd` / `tool` / `action`（block、ask、notify、allow）/ `rules[]`。
 `rules[]` 里每条含 `id`、`name`、`evidence`（命中了哪个词、在哪个参数里）。
 
 ### 5.2 常见故障
@@ -397,7 +437,7 @@ uv run aixcoding-cli hook validate          # 期望 PASS，无 script_missing
 uv run python -m aixcoding.tools.guard_install_merge --check   # 期望 exit 0，启动器形态已生效
 
 # 2) 规则集自身没坏
-uv run python -m aixcoding.tests.guard.guard_pack_selftest    # 期望 Ran 100 tests ... OK
+uv run python -m aixcoding.tests.guard.guard_pack_selftest    # 期望 Ran 107 tests ... OK
 
 # 3) 端到端真实验证（唯一能发现协议变化的一步）
 uv run aixcoding-cli run "用 IDA Pro 反编译一下这个 exe"
@@ -411,6 +451,9 @@ uv run aixcoding-cli run "用 IDA Pro 反编译一下这个 exe"
 uv run aixcoding-cli run "执行 rm -rf /tmp/upgrade_probe_test"
 ```
 
+headless（`aixcoding-cli run`）弹不出确认框，`T-SHELL-01` 的 confirm 按 **block** 兜底，
+所以预期仍是被拒；在 TUI / 支持确认的 ACP 客户端里同一句会弹确认框。
+
 ### 6.3 规则包依赖的 iCode 侧约定（升级时重点核对）
 
 规则包**不 import 任何 `chrys` 包**，但依赖以下外部约定。这些约定变了才需要改代码：
@@ -420,7 +463,7 @@ uv run aixcoding-cli run "执行 rm -rf /tmp/upgrade_probe_test"
 | 1 | 环境变量 `CHRYS_HOOK_PAYLOAD_FILE`（输入）、`CHRYS_HOOK_RESULT`（输出） | `_guard_core.py::read_payload` / `write_decision` | `docs/zh-Hans/reference/hooks.md`「脚本输入与输出」 |
 | 2 | `user_prompt_submit` payload 含 `text`、`injected` | `run_hook("prompt")` | 同上「事件 → 用户操作事件」 |
 | 3 | `before_tool_call` payload 含 `tool.{name,kind,call_id,args}`、`cwd`、`profile`、`session_id` | `evaluate_tool_call` | 同上「事件 → 工具事件」 |
-| 4 | 决策文件支持 `action: block` + `reason` | `write_decision` | 同上「结果文件」 |
+| 4 | 决策文件支持 `action: block` / `action: ask` + `reason` | `write_decision` | 同上「结果文件」；`ask` 需要引擎能弹确认框（无法询问时按 block 兜底） |
 | 5 | 工具类别名 `shell` / `filesystem.read` / `filesystem.write` / `search` / `web_fetch` / `web_search` / `mcp` | 每条规则的 `applies_to.kinds` | `docs/zh-Hans/reference/tool-kinds-and-names.md` |
 | 6 | `execution.mode: blocking`、`on_error: block`、`timeout_seconds` | `hooks.yaml` | `aixcoding-cli hook validate` |
 
@@ -444,9 +487,9 @@ uv run aixcoding-cli run "执行 rm -rf /tmp/upgrade_probe_test"
 
 - [ ] `uv run aixcoding-cli hook validate` → PASS
 - [ ] `uv run python -m aixcoding.tools.guard_install_merge --check` → exit 0（启动器形态已生效）
-- [ ] `uv run python -m aixcoding.tests.guard.guard_pack_selftest` → 70 tests OK
+- [ ] `uv run python -m aixcoding.tests.guard.guard_pack_selftest` → 107 tests OK
 - [ ] `uv run aixcoding-cli run "用 IDA Pro 反编译一下这个 exe"` → 被拦
-- [ ] `uv run aixcoding-cli run "执行 rm -rf /tmp/probe"` → 被拦
+- [ ] `uv run aixcoding-cli run "执行 rm -rf /tmp/probe"` → 被拦（headless 无法弹确认框，ask 按 block 兜底）
 - [ ] 随便问一句正常问题（如 `ls -la`）→ 正常放行
 - [ ] 若规则包源码在版本控制里：`git status` 确认没有冲突
 
@@ -488,7 +531,7 @@ fc <hooks目录>\guard\_guard_core.py <repo>\src\chrys\kernel\aixcoding\guard\pa
 
 - [ ] **规则包的唯一事实源是 `src/chrys/kernel/aixcoding/guard/pack/`**——随 `packages = ["src/chrys"]` 自动进 wheel，引擎每次启动由 `chrys.kernel.aixcoding.guard.guard_install` 从包内重装到全局 hooks 目录。**不要再手抄第二份到仓库根或其他目录**（0.31.0 之前正是因为存在第二份拷贝且无同步机制，导致旧规则进包、`127.0.0.1` 误拦；`aixcoding/tests/guard/test_packaging.py` 会守住这一点）；
 - [ ] 改规则只改 `src/chrys/kernel/aixcoding/guard/pack/`，跑
-      `uv run python -m aixcoding.tests.guard.guard_pack_selftest`（70 tests OK）；
+      `uv run python -m aixcoding.tests.guard.guard_pack_selftest`（107 tests OK）；
 - [ ] 发版说明里写明：**升级包不会更新已安装的 hook 副本，必须重跑安装脚本**（引擎启动自动重装只覆盖全局 hooks 目录，项目级 `.chrys/hooks/` 不在内）；
 - [ ] 给客户/测试环境升级后，跑一遍 `python -m aixcoding.tools.guard_install_merge --check`（期望 exit 0、`run` 为启动器形态或已钉死）；
 - [ ] 至少验证一对放行/拦截样本（放行 `访问 127.0.0.1`，拦截 `访问 192.168.1.10 的教务系统`），双端一致才算发布完成。

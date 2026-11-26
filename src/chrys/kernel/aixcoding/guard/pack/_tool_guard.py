@@ -3,11 +3,12 @@
 """工具调用前拦截 Hook（``before_tool_call``）。
 
 对应《拦截规则一览表》的 T-* 规则：Shell 危险命令 / Zsh 攻击 / 命令注入 /
-Shell 内建、PowerShell USB 审计与逆向工具、Python 反编译、文件写入白名单、
-路径与扩展名黑名单、网络黑白名单、MCP 校验、敏感信息入参。
+PowerShell USB 审计与逆向工具、Python 反编译、文件写入白名单、
+路径与扩展名黑名单、网络黑名单、MCP 校验、敏感信息入参。
 
-命中后通过 ``$CHRYS_HOOK_RESULT`` 写 ``{"action": "block", "reason": ...}``，
-iCode 会拒绝本次工具调用，并把 ``reason`` 展示给用户和模型。
+命中后通过 ``$CHRYS_HOOK_RESULT`` 写 ``{"action": "block", "reason": ...}``
+或 ``{"action": "ask", "reason": ...}``：block 直接拒绝本次调用；ask 弹
+确认框，确认后执行，拒绝 / 无法询问时按 block 兜底。
 
 用法见同目录 ``README.md``；规则与词典在 ``rules.json``。
 """

@@ -35,22 +35,19 @@ settings:
   max_parallel_hooks: 4
 
 hooks:
-  # Prompt-layer interception: IN-01 ~ IN-09.
+  # Prompt-layer interception: IN-01 / IN-02 / IN-05 / IN-06 / IN-08 / IN-09.
   # on_error: block + timeout_seconds: 120 is the rule table's "failure fallback": a
   # child-process timeout, a crash or an engine error blocks this turn's request outright
   # instead of letting it through silently.
-  # Released disabled in this version (temporary shutdown: field reports of false
-  # positives blocking normal work): enabled stays false, and the hook engine filters
-  # disabled entries at load time, so no child process starts, nothing is intercepted and
-  # nothing is recorded (guardctl's engine switch is not consulted while this lasts). The
-  # installer overwrites same-id managed entries wholesale from this template on every
-  # start, so machines still carrying the old guard are disabled on their first start
-  # after upgrading, and a local hand edit is pulled back as well;
-  # To restore: flip both enabled values below back to true and cut a release.
+  # Dispositions follow the false-positive review: rules that almost always misfire were
+  # removed, medium-high ones return action: ask (iCode shows a confirmation card; a
+  # client that cannot ask, or a declined card, falls back to block), the rest block.
+  # The installer overwrites same-id managed entries wholesale from this template on every
+  # start, so a local hand edit to enabled is pulled back as well.
   - id: security-prompt-guard
     event: user_prompt_submit
-    enabled: false
-    description: 提示词层安全拦截（反编译/攻击工具、注入 payload、任意 IP 与内网资产、合规类，命中即打断并提示）
+    enabled: true
+    description: 提示词层安全拦截（反编译/攻击工具、路径穿越、内网资产、合规类；高风险项确认后放行，其余命中即打断）
     run:
       type: command
       cwd: ${chrys_home}/hooks
@@ -69,10 +66,10 @@ hooks:
       timeout_seconds: 120
       on_error: block
 
-  # Pre-tool-call interception: the full T-* rule set.
+  # Pre-tool-call interception: the full T-* rule set (confirm rules ask, the rest block).
   - id: security-tool-guard
     event: before_tool_call
-    enabled: false
+    enabled: true
     description: 工具调用前安全拦截（Shell/PowerShell/Python、文件系统、网络、MCP、敏感信息）
     run:
       type: command

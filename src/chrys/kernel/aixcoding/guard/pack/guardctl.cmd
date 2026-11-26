@@ -7,7 +7,7 @@ rem the store) and falls back to the interpreter the packaged iCode unpacks
 rem under LOCALAPPDATA\pyapp.  So this works on machines that have no uv and
 rem no python on PATH.
 rem
-rem Usage:  guardctl.cmd status | list | show IN-07 | disable IN-07 | on | off
+rem Usage:  guardctl.cmd status | list | show IN-05 | disable IN-05 | on | off
 rem         guardctl.cmd workspace restrict | workspace allow | reset
 rem
 rem Without arguments it prints the status and waits for a key (double-click

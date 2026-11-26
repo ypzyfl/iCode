@@ -5,9 +5,9 @@
 
 * 与主程序零耦合：不 import 任何 `chrys` 包，只用标准库，不改动 `src/chrys` 任何文件。
 * 规则与词典全部外置在 `rules.json`，改词典不需要改代码，下次 Hook 触发即生效。
-* 命中即**打断 + 一句话提示**：Hook 写 `{"action": "block", "reason": ...}`，
-  iCode 把 `reason` 推给用户。提示固定为 `操作不合规，请修改后重试。`——命中了哪几条
-  规则、证据是什么不往界面里塞，那些明细完整写在留痕里。
+* 命中后**一句话提示**：中等及以下风险写 `{"action": "block", "reason": ...}` 直接打断；
+  中高风险写 `{"action": "ask", ...}`，iCode 弹确认框——确认后放行，拒绝或客户端无法询问
+  时按 block 兜底。命中了哪几条规则、证据是什么不往界面里塞，那些明细完整写在留痕里。
 
 ## 目录内容
 
@@ -15,17 +15,17 @@
 | --- | --- |
 | `aixcoding/tools/guard_install_merge.py` | 特殊环境手工安装：复制 payload 到 `hooks/guard/`，把两个 hook **合并**进已有 `hooks.yaml`（正常升级由启动自装器完成） |
 | `hooks.yaml` | Hook 配置片段（安装脚本从这里取 `hooks` 列表） |
-| `_prompt_guard.py` | `user_prompt_submit` 入口（规则 IN-01 ~ IN-09） |
+| `_prompt_guard.py` | `user_prompt_submit` 入口（规则 IN-01 / IN-02 / IN-05 / IN-06 / IN-08 / IN-09） |
 | `_tool_guard.py` | `before_tool_call` 入口（规则 T-*） |
 | `_guard_core.py` | 共享引擎：加载规则与开关状态、匹配、留痕、写决策 |
 | `rules.json` | **唯一需要维护的文件**：词典 + 规则 + 全局设置（出厂值） |
 | `guardctl.py` | 开关管理：总开关 / 单条规则 / 写入范围，见 [SWITCHES.md](SWITCHES.md) |
 | `guardctl.cmd` | `guardctl.py` 的 Windows 免 uv 入口（借 `_launcher.ps1` 现找解释器） |
 | `guardctl.sh` | `guardctl.py` 的 POSIX 免 uv 入口（现找 `python3` / `python`，安装时带执行位） |
-| `aixcoding/tests/guard/guard_pack_selftest.py` | 标准库自检（100 条，每条规则一个正例，含若干"日常开发不应被拦"的负例与开关层用例） |
+| `aixcoding/tests/guard/guard_pack_selftest.py` | 标准库自检（107 条，每条规则一个正例，含若干"日常开发不应被拦"的负例与开关层用例） |
 | [OPERATIONS.md](OPERATIONS.md) | 使用与运维手册：拦截清单、配置、排查、**版本升级迁移** |
 | [PORTING.md](PORTING.md) | **新拉一份 iCode 源码怎么复现拦截**：文件放哪、hook 配什么、怎么生效 |
-| [MANUAL_TESTS.md](MANUAL_TESTS.md) | 106 条手工测试用例与预期结果（预期均为实测） |
+| [MANUAL_TESTS.md](MANUAL_TESTS.md) | 111 条手工测试用例与预期结果（预期均为实测） |
 
 > 日常使用、排查与版本升级迁移见 [OPERATIONS.md](OPERATIONS.md)。
 
@@ -119,7 +119,7 @@ uv run python -m aixcoding.tools.guard_install_merge --check   # 只看安装状
 uv run python -m aixcoding.tests.guard.guard_pack_selftest -v
 ```
 
-100 个用例：每条规则各一个正例，外加 `ls -la` / `git status` / `uv run pytest ...` / 读写工作区内 `.py`、访问 `127.0.0.1` 等**必须放行**的负例，
+107 个用例：每条规则各一个正例，外加 `ls -la` / `git status` / `uv run pytest ...` / 读写工作区内 `.py`、访问 `127.0.0.1` 等**必须放行**的负例，
 按 iCode 的真实子进程协议（`CHRYS_HOOK_PAYLOAD_FILE` /
 `CHRYS_HOOK_RESULT`）跑一遍两个入口脚本，另有一组用例盯安装脚本的解释器探测与启动器改写、
 开关层（总开关 / 单规则 / 写入范围 / 状态文件损坏兜底）与免 uv 入口。
@@ -132,15 +132,16 @@ uv run python -m aixcoding.tests.guard.guard_pack_selftest -v
 
 | 规则表行 | 规则 ID | 处置 |
 | --- | --- | --- |
-| 反编译工具 | `IN-01` | confirm |
-| 攻击工具 | `IN-02` | confirm |
-| SQL 注入 payload | `IN-03` | confirm |
-| XSS payload | `IN-04` | confirm |
-| 路径穿越 / LFI | `IN-05` | confirm |
-| 内网资产 | `IN-06` | confirm |
-| 同义语义簇 | `IN-07` | confirm |
-| 合规类 | `IN-08` | confirm + 强制留痕 |
+| 反编译工具 | `IN-01` | block |
+| 攻击工具 | `IN-02` | block |
+| 路径穿越 / LFI | `IN-05` | confirm（确认框） |
+| 内网资产 | `IN-06` | confirm（确认框） |
+| 合规类 | `IN-08` | confirm（确认框）+ 强制留痕 |
 | 失败兜底 | `IN-09` | block |
+
+原《规则表》里的 SQL 注入 payload（`IN-03`）、XSS payload（`IN-04`）、同义语义簇
+（`IN-07`）三条高风险误报规则**已删除**：它们在日常开发对话里几乎必中。自检里有
+回归用例盯着它们不被加回。
 
 `IN-09` 没有检测项：它由两层机制落地——脚本内部异常时走 `_fail_closed()`，
 子进程超时 / 崩溃由 `hooks.yaml` 的 `timeout_seconds: 5` + `on_error: block` 兜住。
@@ -149,25 +150,30 @@ uv run python -m aixcoding.tests.guard.guard_pack_selftest -v
 
 | 规则表行 | 规则 ID | 处置 |
 | --- | --- | --- |
-| 危险命令（rm -rf / mkfs / dd / sudo / 反弹 shell / 覆写系统文件 …） | `T-SHELL-01` | block |
-| Zsh 攻击（等号扩展 / Null byte / 零宽字符 / glob / 进程替换 / autoload） | `T-SHELL-02-1` ~ `-6` | confirm / block |
-| 命令链接 / 反引号 / 嵌套 / here-doc / base64 -d | `T-SHELL-03-1` ~ `-5` | confirm |
-| Shell 内建（eval / source / exec / trap） | `T-SHELL-04` | confirm |
+| 危险命令（rm -rf / mkfs / dd / sudo / 反弹 shell / 覆写系统文件 …） | `T-SHELL-01` | confirm（确认框） |
+| Zsh 攻击（等号扩展 / Null byte / 零宽字符 / glob / 进程替换 / autoload） | `T-SHELL-02-1` ~ `-6` | block |
+| 命令注入（反引号 / 嵌套 `$()` / here-doc / base64 -d） | `T-SHELL-03-2` ~ `-5` | block |
+| Shell 写到工作目录外 | `T-SHELL-05` | block |
 | USB 审计取证 | `T-PS-01` | block |
 | 逆向工具 | `T-PS-02` | block |
-| 反调试 API | `T-PS-03` | confirm |
-| Python 逆向库 / 字节码自省 / 反编译器 | `T-PY-01` ~ `-03` | block |
+| 反调试 API | `T-PS-03` | block |
+| Python 逆向库 / 反编译器 | `T-PY-01`、`T-PY-03` | block |
 | 写入白名单 | `T-FS-01` | block |
-| 文件路径黑名单 | `T-FS-02` | block |
-| 扩展名黑名单（拒打开） | `T-FS-03` | block |
-| 网络黑名单（内网资产 / 业务系统 / 危险端口） | `T-NET-01` | block |
-| 网络默认处置（非白名单地址） | `T-NET-02` | confirm |
+| 文件路径黑名单 | `T-FS-02` | confirm（确认框） |
+| 扩展名黑名单（拒打开） | `T-FS-03` | confirm（确认框） |
+| 网络黑名单（黑名单主机 / 网段 / 危险端口） | `T-NET-01` | block |
 | MCP Server 白名单 / Schema / 调用方上下文 / 沙箱静态扫描 | `T-MCP-01` ~ `-04` | block |
-| 敏感信息进入调用参数 | `T-OUT-01` | block |
-| 高熵长串 | `T-OUT-02` | confirm（**默认关闭**） |
+| 敏感信息进入调用参数 | `T-OUT-01` | confirm（确认框） |
+| 高熵长串 | `T-OUT-02` | block（**默认关闭**） |
 
-网络两条规则的求值顺序：**黑名单先判**（命中即 block），命中内网子网白名单
-（`127/8`、`::1`、`10/8`、`172.16/12`、`192.168/16`）放行，其余地址走"默认处置"。
+原《规则表》里的命令链接（`T-SHELL-03-1`）、Shell 内建（`T-SHELL-04`）、字节码自省
+（`T-PY-02`）、网络默认处置（`T-NET-02`）四条高风险误报规则**已删除**。
+
+网络规则（`T-NET-01`）的求值顺序：**回环最先豁免**（`127.0.0.0/8`、`::1`、
+`localhost` 与 `*.localhost`，危险端口也不例外），再判**危险端口**（命中即 block），
+最后看 `settings.network.blocked_hosts`（主机名：`*.domain` 含裸域与子域，含 `*`/`?`
+按通配符，其余子串）与 `settings.network.blocked_networks`（CIDR）。出厂已含
+`*.bocsys.cn` 与 `22.122.49.168/32`（禁止攻击的目标）；其余地址放行。
 
 MCP 的 5 道校验里，**sha256 签名校验没有在 Hook 层实现**：Hook 只能看到 iCode 转发
 出来的工具名和入参，拿不到 MCP 服务端的制品摘要。这一项需要 MCP 服务端或网关侧配合，
@@ -190,36 +196,57 @@ MCP 的 5 道校验里，**sha256 签名校验没有在 Hook 层实现**：Hook 
 工具层被拒时，模型会收到 `Error: 操作不合规，请修改后重试。`，因此它能知道要改，
 但同样看不到规则明细。
 
-### `confirm` 为什么是"打断"
-
-iCode 以子进程方式运行 Hook，子进程的 `stdin` 是 `DEVNULL`，**Hook 里弹不出确认框**。
-所以规则表里的 `confirm` 目前统一按"打断 + 中文提示"落地，用户看到提示后自行调整请求
-或联系管理员放行。
-
-想改成"只提示不打断"，改 `rules.json` 里的一个开关即可：
+命中 `confirm` 类规则时 iCode 弹确认框，文案在 `settings.ask_message` 里改：
 
 ```json
-"confirm_disposition": "notify"
+"ask_message": "检测到较高风险操作，是否继续？"
 ```
 
-`block`（默认）= 打断；`notify` = 记录留痕，提示词层额外给模型注入一条
-`<system-reminder>`，工具层静默放行。
+确认框被拒绝（或当前客户端无法询问）时操作同样被拦下，但文案由 iCode 的 hook 引擎
+组合，**不是** `block_message`：提示词层用户看到的是如
+`hook 'security-prompt-guard' asked for confirmation (检测到较高风险操作，是否继续？); the user declined`
+（无法询问时结尾是 `; no one can confirm it in this session`），工具层模型收到的是
+`Error: hook 'security-tool-guard' asked for confirmation (…); the user declined, so the tool call did not run. Do not call it again unless the user asks you to.`
+这样的中英混排文本。护栏侧改不了这段文案（`block_message` 只作用于 `action: block` 的直接命中）。
 
-### 高频误报的处理顺序
+### `confirm` 是怎么落地的
 
-1. 先把对应规则的 `"enabled": false` 关掉；
-2. 或把它的 `"disposition"` 改成 `"notify"`（配合上面的全局开关）；
+iCode 以子进程方式运行 Hook，子进程的 `stdin` 是 `DEVNULL`，**Hook 里弹不出确认框**。
+但 Hook 可以写 `{"action": "ask", "reason": ...}`：iCode 的 hook 引擎收到后由前端
+（TUI / 声明支持该能力的 ACP 客户端）弹确认框，用户确认则本轮放行，拒绝则按
+**block** 处理；客户端无法询问时同样按 block 兜底（fail-closed）。
+
+全局开关 `settings.confirm_disposition` 控制这一档的落地方式：
+
+```json
+"confirm_disposition": "ask"
+```
+
+`ask`（默认）= 弹确认框；`block` = 直接打断；`notify` = 只记录留痕，提示词层额外
+给模型注入一条 `<system-reminder>`，工具层静默放行。
+
+### 易误报规则的分档处置
+
+出厂配置按误报风险分档，不再把"常误报"和"真危险"混在同一个处置里：
+
+1. **高风险（日常开发几乎必中）——删除**：`IN-03`、`IN-04`、`IN-07`、
+   `T-SHELL-03-1`、`T-SHELL-04`、`T-PY-02`、`T-NET-02` 已从规则表移除；
+   自检里有回归用例盯着它们不被加回。
+2. **中高风险——confirm**：`IN-05`、`IN-06`、`IN-08`、`T-SHELL-01`、`T-FS-02`、
+   `T-FS-03`、`T-OUT-01`。用户确认后放行，客户端无法询问或用户拒绝时按 block 兜底。
+3. **中等及以下——block**：其余规则（见上表）。
+
+现场仍嫌某条吵时，按顺序处理：
+
+1. 先 `guardctl disable <ID>`（写 `guard_state.json`，重装不丢）；
+2. 或把它的 `"disposition"` 改成 `"notify"`（配合全局开关）；
 3. 或直接改 `dictionaries` 里的词条。
 
-出厂配置里最容易误伤的几条，README 与 `rules.json` 的 `note` 字段都已标注：
+剩余需要留意的：
 
-* `IN-07` 同义语义簇：`拒绝` / `禁用` / `拦截` 在日常对话里很常见。
-* `T-SHELL-03-1` 命令链接：`&&`、`;`、`||` 会命中几乎所有复合命令。
-* `T-SHELL-04` Shell 内建：`source` / `exec` 在构建脚本里偶尔合法。
-* `T-NET-02` 网络默认处置：任何**非内网**地址都要确认，公网访问默认全中。
-* `T-FS-01` 写入白名单：写工作区以外的路径（含用户目录）都会被拦。
-* `T-FS-02` 路径黑名单：`crowdstrike` / `falcon` / `dlp` 等词若出现在项目目录名里会误伤。
-* `T-FS-03` 扩展名黑名单：`grep`/`glob` 不受影响，但 `read_file` 读 `.jar` / `.so` 会中。
+* `T-FS-01` 写入白名单：工作区限制打开后，写工作区以外的路径（含用户目录）都会被拦。
+* `T-FS-02` 路径黑名单：`crowdstrike` / `falcon` / `dlp` 等词若出现在项目目录名里会误伤（确认框）。
+* `T-FS-03` 扩展名黑名单：`grep`/`glob` 不受影响，但 `read_file` 读 `.jar` / `.so` 会弹确认框。
 
 `T-OUT-02`（高熵长串）**默认关闭**：正常代码里的 sha256、base64 资源会大量命中。
 
@@ -227,7 +254,7 @@ iCode 以子进程方式运行 Hook，子进程的 `stdin` 是 `DEVNULL`，**Hoo
 
 ```jsonc
 {
-  "settings":  { /* 全局开关：留痕路径、confirm 处置、失败兜底、扫描上限、写入/网络/MCP 白名单 */ },
+  "settings":  { /* 全局开关：留痕路径、confirm 处置、失败兜底、扫描上限、写入范围、网络黑名单、MCP 白名单 */ },
   "dictionaries": { /* 所有词条：关键词、正则、端口、CIDR、扩展名…… */ },
   "prompt_rules": [ /* IN-* */ ],
   "tool_rules":   [ /* T-* */ ]
@@ -241,7 +268,7 @@ iCode 以子进程方式运行 Hook，子进程的 `stdin` 是 `DEVNULL`，**Hoo
   "id": "T-SHELL-01",
   "name": "危险命令",              // 出现在用户提示里
   "layer": "Bash",                // 分组标签，仅用于阅读
-  "disposition": "block",         // block | confirm
+  "disposition": "block",         // block | confirm | notify
   "enabled": true,
   "audit": true,                  // 命中写留痕
   "applies_to": { "kinds": ["shell"], "arg_keys": ["command", "reason"] },
@@ -287,15 +314,17 @@ iCode 以子进程方式运行 Hook，子进程的 `stdin` 是 `DEVNULL`，**Hoo
 
 ## 自定义示例
 
-给自研项目加一条"禁止操作生产库"的规则：
+要拦某个具体资产，往 `settings.network` 的黑名单里追加（出厂已有禁止攻击的条目）：
 
 ```jsonc
-// dictionaries
-"blocked_hosts": [
-  "22.122.49.168",
-  "prod-db.internal",              // 新增
-  { "regex": true, "value": "\\.(?:local|internal|corp|intra|lan)$" }
-]
+"network": {
+  "blocked_hosts": ["*.bocsys.cn", "prod-db.internal"],  // *.domain / 通配 / 子串
+  "blocked_networks": ["22.122.49.168/32", "10.20.30.0/24"] // CIDR
+}
 ```
+
+`blocked_hosts` 匹配规则：`*.domain` 命中裸域与任意子域（后缀锚定，不吃
+`notbocsys.cn` 这类近似域）；含 `*` / `?` 的按通配符匹配；其余按小写子串。
+`blocked_networks` 只认合法 CIDR，坏条目忽略；回环地址与回环主机名不受影响（危险端口也不例外）。
 
 改完跑 `uv run python -m aixcoding.tests.guard.guard_pack_selftest`，再 `uv run aixcoding-cli hook validate`。

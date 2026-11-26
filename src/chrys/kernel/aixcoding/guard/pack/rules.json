@@ -4,6 +4,7 @@
     "name": "iCode 安全拦截规则集",
     "source": "拦截规则一览表.xlsx",
     "scope": "提示词层（user_prompt_submit）+ 工具调用前（before_tool_call）；流式输出层暂未实现",
+    "disposition_policy": "易误报的规则按误报风险分档：高风险（日常开发几乎必中）已删除；中高风险走 confirm——Hook 写 action: ask，由 iCode 弹确认框，客户端无法询问时按 block 兜底；中等及以下走 block。",
     "maintainer_note": "本文件是唯一需要按客户环境维护的文件。脚本不硬编码任何规则，改完下次 Hook 触发即生效。"
   },
   "settings": {
@@ -12,7 +13,8 @@
     "audit_on_allow": false,
     "max_scan_chars": 262144,
     "block_message": "操作不合规，请修改后重试。",
-    "confirm_disposition": "block",
+    "ask_message": "检测到较高风险操作，是否继续？",
+    "confirm_disposition": "ask",
     "fail_closed": true,
     "self_timeout_seconds": 4.0,
     "write_scope": {
@@ -21,9 +23,8 @@
       "readonly_globs": ["**/docs/**", "**/help/**"]
     },
     "network": {
-      "allowed_networks": ["127.0.0.0/8", "::1/128"],
-      "allowed_hosts": ["localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback"],
-      "default_disposition": "confirm"
+      "blocked_hosts": ["*.bocsys.cn"],
+      "blocked_networks": ["22.122.49.168/32"]
     },
     "mcp": {
       "allowed_servers": [],
@@ -66,25 +67,6 @@
       "cobaltstrike",
       "nikto"
     ],
-    "sql_injection_payloads": [
-      { "name": "union_select", "value": "\\bunion\\s+(?:all\\s+)?select\\b" },
-      { "name": "tautology", "value": "\\b(?:or|and)\\s+['\"]?\\d+['\"]?\\s*=\\s*['\"]?\\d+" },
-      { "name": "always_true", "value": "'\\s*or\\s*'?1'?'\\s*=\\s*'?1" },
-      { "name": "catalog", "value": "\\b(?:information_schema|sysobjects|syscolumns|pg_catalog)\\b" },
-      { "name": "ddl", "value": "\\b(?:drop|truncate|alter)\\s+table\\b" },
-      { "name": "time_based", "value": "\\b(?:sleep|benchmark|pg_sleep|waitfor\\s+delay)\\s*\\(" },
-      { "name": "load_file", "value": "\\bload_file\\s*\\(" },
-      { "name": "cmdshell", "value": "\\bexec(?:ute)?\\s+(?:xp_)?cmdshell\\b" }
-    ],
-    "xss_payloads": [
-      { "name": "script_open", "value": "<\\s*script\\b[^>]*>" },
-      { "name": "script_close", "value": "<\\s*/\\s*script\\s*>" },
-      { "name": "event_handler", "value": "\\bon(?:error|load|mouseover|click|focus|blur|submit)\\s*=" },
-      { "name": "javascript_uri", "value": "javascript\\s*:" },
-      { "name": "remote_tag", "value": "<\\s*(?:iframe|img|svg|object|embed)\\b[^>]*\\bsrc\\s*=" },
-      { "name": "dom_sink", "value": "document\\.(?:cookie|domain|location|write)" },
-      { "name": "charcode_obfuscation", "value": "String\\.fromCharCode\\s*\\(" }
-    ],
     "path_traversal_payloads": [
       { "name": "double_dot", "value": "\\.\\.[\\\\/]\\.\\.[\\\\/]" },
       { "name": "url_encoded", "value": "%2e%2e%2f|%2e%2e%5c|\\.\\.%2f" },
@@ -109,7 +91,6 @@
       "阅卷系统",
       "教务系统"
     ],
-    "blocked_synonyms": ["封禁", "禁用", "拒绝", "拦截", "阻断", "封堵"],
     "compliance_phrases": [
       { "name": "decompile_confidential", "value": "(?:反编译|逆向|脱壳).{0,24}(?:保密|机密|涉密|秘密)" },
       { "name": "asset_confidential", "value": "(?:终端|资产|源代码|代码).{0,12}(?:保密|涉密)" },
@@ -145,13 +126,11 @@
       { "name": "autoload", "value": "\\bautoload\\b" }
     ],
     "command_injection": [
-      { "name": "chaining", "value": ";;|&&|\\|\\|" },
       { "name": "backtick", "value": "`" },
       { "name": "nested_substitution", "value": "\\$\\([^()]*\\$\\(" },
       { "name": "heredoc", "value": "<<-?\\s*['\"]?\\w+" },
       { "name": "base64_decode", "value": "\\bbase64\\s+(?:-d|-D|--decode)\\b" }
     ],
-    "shell_builtins": ["eval", "source", "exec", "trap"],
     "ps_usb_audit": [
       { "name": "wmi_usb", "value": "Get-(?:WmiObject|CimInstance)[^\\n]*Win32_USB" },
       { "name": "usb_class", "value": "Win32_USB(?:Hub|Controller)" },
@@ -178,14 +157,6 @@
       { "name": "reverse_import", "value": "\\b(?:import|from)\\s+(?:capstone|unicorn|frida|pefile|lief|angr|keystone|r2pipe|pydumpck)\\b" },
       { "name": "reverse_module_use", "value": "\\b(?:capstone|unicorn|frida|pefile|lief|angr|keystone)\\." },
       { "name": "reverse_module_flag", "value": "-m\\s+(?:frida|pycdc|uncompyle6|decompyle3)" }
-    ],
-    "python_bytecode_introspection": [
-      { "name": "marshal", "value": "\\bmarshal\\.(?:loads|load|dump|dumps)\\b" },
-      { "name": "dis_module", "value": "\\bdis\\.dis(?:assemble)?\\b" },
-      { "name": "code_object", "value": "\\.__code__\\b" },
-      { "name": "code_consts", "value": "\\bco_(?:consts|names|code|filename)\\b" },
-      { "name": "code_type", "value": "\\btypes\\.CodeType\\b" },
-      { "name": "reflection", "value": "\\bgetmembers\\s*\\(" }
     ],
     "python_decompilers": ["pycdc", "uncompyle6", "decompyle3", "xdis", "pyinstxtractor"],
     "blocked_path_fragments": [
@@ -240,13 +211,6 @@
       ".img",
       ".pyc"
     ],
-    "blocked_hosts": [
-      "22.122.49.168",
-      "elearning",
-      "edip",
-      "ccrc",
-      { "regex": true, "value": "\\.(?:local|internal|corp|intra|lan)$" }
-    ],
     "secrets": [
       { "name": "AWS AccessKey", "value": "\\b(?:AKIA|ASIA|ABIA|ACCA|A3T[A-Z0-9])[A-Z0-9]{16}\\b" },
       { "name": "AWS SecretKey", "value": "\\baws[a-z0-9_]{0,20}['\"][0-9a-zA-Z/+]{40}['\"]" },
@@ -267,38 +231,22 @@
     ],
     "dangerous_ports": [
       21, 22, 23, 25, 110, 135, 139, 143, 389, 445, 636, 1433, 1521, 3306, 3389, 4444, 5432, 5555, 5985, 5986, 6379, 9200, 11211, 27017
-    ],
-    "internal_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "::1/128"],
-    "blocked_networks": ["0.0.0.0/0", "::/0"]
+    ]
   },
   "prompt_rules": [
     {
       "id": "IN-01",
       "name": "反编译工具",
-      "disposition": "confirm",
+      "disposition": "block",
       "audit": true,
       "detect": [{ "type": "keyword", "dictionary": "reverse_engineering_tools" }]
     },
     {
       "id": "IN-02",
       "name": "攻击工具",
-      "disposition": "confirm",
+      "disposition": "block",
       "audit": true,
       "detect": [{ "type": "keyword", "dictionary": "attack_tools" }]
-    },
-    {
-      "id": "IN-03",
-      "name": "SQL 注入 payload",
-      "disposition": "confirm",
-      "audit": true,
-      "detect": [{ "type": "regex", "dictionary": "sql_injection_payloads" }]
-    },
-    {
-      "id": "IN-04",
-      "name": "XSS payload",
-      "disposition": "confirm",
-      "audit": true,
-      "detect": [{ "type": "regex", "dictionary": "xss_payloads" }]
     },
     {
       "id": "IN-05",
@@ -309,21 +257,15 @@
     },
     {
       "id": "IN-06",
-      "name": "非回环 IP / 内网资产",
+      "name": "内网资产",
       "disposition": "confirm",
       "audit": true,
       "detect": [
         { "type": "keyword", "dictionary": "business_systems" },
         { "type": "regex", "dictionary": "intranet_hostnames" },
-        { "type": "ip_cidr", "dictionary": "blocked_networks" }
-      ]
-    },
-    {
-      "id": "IN-07",
-      "name": "同义语义簇",
-      "disposition": "confirm",
-      "audit": true,
-      "detect": [{ "type": "keyword", "dictionary": "blocked_synonyms" }]
+        { "type": "ip_cidr" }
+      ],
+      "note": "IP 网段取自 settings.network.blocked_networks（出厂含 22.122.49.168/32，回环始终放行）；业务系统名与 *.local/corp 等内网域名命中即确认。"
     },
     {
       "id": "IN-08",
@@ -346,7 +288,7 @@
       "id": "T-SHELL-01",
       "name": "危险命令",
       "layer": "Bash",
-      "disposition": "block",
+      "disposition": "confirm",
       "audit": true,
       "applies_to": { "kinds": ["shell"], "arg_keys": ["command", "reason"] },
       "detect": [{ "type": "regex", "dictionary": "shell_dangerous" }]
@@ -355,7 +297,7 @@
       "id": "T-SHELL-02-1",
       "name": "Zsh 等号扩展",
       "layer": "Bash",
-      "disposition": "confirm",
+      "disposition": "block",
       "audit": true,
       "applies_to": { "kinds": ["shell"], "arg_keys": ["command"] },
       "detect": [{ "type": "regex", "dictionary": "zsh_attacks", "names": ["zsh_equals_expansion"] }]
@@ -382,7 +324,7 @@
       "id": "T-SHELL-02-4",
       "name": "Zsh glob 限定符",
       "layer": "Bash",
-      "disposition": "confirm",
+      "disposition": "block",
       "audit": true,
       "applies_to": { "kinds": ["shell"], "arg_keys": ["command"] },
       "detect": [{ "type": "regex", "dictionary": "zsh_attacks", "names": ["zsh_glob"] }]
@@ -391,7 +333,7 @@
       "id": "T-SHELL-02-5",
       "name": "进程替换",
       "layer": "Bash",
-      "disposition": "confirm",
+      "disposition": "block",
       "audit": true,
       "applies_to": { "kinds": ["shell"], "arg_keys": ["command"] },
       "detect": [{ "type": "regex", "dictionary": "zsh_attacks", "names": ["process_substitution"] }]
@@ -400,26 +342,16 @@
       "id": "T-SHELL-02-6",
       "name": "autoload",
       "layer": "Bash",
-      "disposition": "confirm",
+      "disposition": "block",
       "audit": true,
       "applies_to": { "kinds": ["shell"], "arg_keys": ["command"] },
       "detect": [{ "type": "regex", "dictionary": "zsh_attacks", "names": ["autoload"] }]
     },
     {
-      "id": "T-SHELL-03-1",
-      "name": "命令链接（;; / && / ||）",
-      "layer": "Bash",
-      "disposition": "confirm",
-      "audit": true,
-      "applies_to": { "kinds": ["shell"], "arg_keys": ["command"] },
-      "detect": [{ "type": "regex", "dictionary": "command_injection", "names": ["chaining"] }],
-      "note": "命中面极广（几乎所有复合命令）。误伤过多时把本规则 enabled 置为 false。"
-    },
-    {
       "id": "T-SHELL-03-2",
       "name": "反引号命令替换",
       "layer": "Bash",
-      "disposition": "confirm",
+      "disposition": "block",
       "audit": true,
       "applies_to": { "kinds": ["shell"], "arg_keys": ["command"] },
       "detect": [{ "type": "regex", "dictionary": "command_injection", "names": ["backtick"] }]
@@ -428,7 +360,7 @@
       "id": "T-SHELL-03-3",
       "name": "嵌套命令替换",
       "layer": "Bash",
-      "disposition": "confirm",
+      "disposition": "block",
       "audit": true,
       "applies_to": { "kinds": ["shell"], "arg_keys": ["command"] },
       "detect": [{ "type": "regex", "dictionary": "command_injection", "names": ["nested_substitution"] }]
@@ -437,7 +369,7 @@
       "id": "T-SHELL-03-4",
       "name": "here-doc",
       "layer": "Bash",
-      "disposition": "confirm",
+      "disposition": "block",
       "audit": true,
       "applies_to": { "kinds": ["shell"], "arg_keys": ["command"] },
       "detect": [{ "type": "regex", "dictionary": "command_injection", "names": ["heredoc"] }]
@@ -446,19 +378,10 @@
       "id": "T-SHELL-03-5",
       "name": "base64 解码执行",
       "layer": "Bash",
-      "disposition": "confirm",
+      "disposition": "block",
       "audit": true,
       "applies_to": { "kinds": ["shell"], "arg_keys": ["command"] },
       "detect": [{ "type": "regex", "dictionary": "command_injection", "names": ["base64_decode"] }]
-    },
-    {
-      "id": "T-SHELL-04",
-      "name": "Shell 内建（eval / source / exec / trap）",
-      "layer": "Bash",
-      "disposition": "confirm",
-      "audit": true,
-      "applies_to": { "kinds": ["shell"], "arg_keys": ["command"] },
-      "detect": [{ "type": "keyword", "dictionary": "shell_builtins" }]
     },
     {
       "id": "T-SHELL-05",
@@ -491,7 +414,7 @@
       "id": "T-PS-03",
       "name": "反调试 API",
       "layer": "PowerShell",
-      "disposition": "confirm",
+      "disposition": "block",
       "audit": true,
       "applies_to": { "kinds": ["shell"], "arg_keys": ["command", "reason"] },
       "detect": [{ "type": "regex", "dictionary": "ps_antidebug" }]
@@ -504,15 +427,6 @@
       "audit": true,
       "applies_to": { "kinds": ["shell"], "arg_keys": ["command", "reason"] },
       "detect": [{ "type": "regex", "dictionary": "python_reverse_imports" }]
-    },
-    {
-      "id": "T-PY-02",
-      "name": "Python 字节码自省",
-      "layer": "Python",
-      "disposition": "block",
-      "audit": true,
-      "applies_to": { "kinds": ["shell"], "arg_keys": ["command", "reason"] },
-      "detect": [{ "type": "regex", "dictionary": "python_bytecode_introspection" }]
     },
     {
       "id": "T-PY-03",
@@ -536,7 +450,7 @@
       "id": "T-FS-02",
       "name": "文件路径黑名单",
       "layer": "文件系统",
-      "disposition": "block",
+      "disposition": "confirm",
       "audit": true,
       "applies_to": { "kinds": ["filesystem.read", "filesystem.write", "search"] },
       "detect": [{ "type": "path", "dictionary": "blocked_path_fragments" }]
@@ -545,29 +459,20 @@
       "id": "T-FS-03",
       "name": "扩展名黑名单（拒打开）",
       "layer": "文件系统",
-      "disposition": "block",
+      "disposition": "confirm",
       "audit": true,
       "applies_to": { "kinds": ["filesystem.read"] },
       "detect": [{ "type": "extension", "dictionary": "blocked_extensions" }]
     },
     {
       "id": "T-NET-01",
-      "name": "网络黑名单（内网资产 / 业务系统 / 危险端口）",
+      "name": "网络黑名单（黑名单主机 / 网段 / 危险端口）",
       "layer": "网络",
       "disposition": "block",
       "audit": true,
       "applies_to": { "kinds": ["web_fetch", "web_search", "mcp"] },
-      "detect": [{ "type": "url", "mode": "blocked" }]
-    },
-    {
-      "id": "T-NET-02",
-      "name": "网络默认处置（非白名单地址）",
-      "layer": "网络",
-      "disposition": "confirm",
-      "audit": true,
-      "applies_to": { "kinds": ["web_fetch", "web_search", "mcp"] },
-      "detect": [{ "type": "url", "mode": "default" }],
-      "note": "白名单（loopback / 10 / 172.16 / 192.168）不命中本规则。"
+      "detect": [{ "type": "url" }],
+      "note": "黑名单是 settings.network.blocked_hosts / blocked_networks，出厂含 *.bocsys.cn 与 22.122.49.168/32；危险端口（22/445/3389/3306…）对非回环目标始终生效（回环完全豁免，含 localhost / *.localhost）。"
     },
     {
       "id": "T-MCP-01",
@@ -612,7 +517,7 @@
       "id": "T-OUT-01",
       "name": "敏感信息进入调用参数",
       "layer": "输出",
-      "disposition": "block",
+      "disposition": "confirm",
       "audit": true,
       "detect": [{ "type": "secret", "dictionary": "secrets" }],
       "note": "Hook 只能看到入参，看不到工具返回值；输出侧扫描属于流式输出层，本次未实现。"
@@ -621,7 +526,7 @@
       "id": "T-OUT-02",
       "name": "高熵长串",
       "layer": "输出",
-      "disposition": "confirm",
+      "disposition": "block",
       "audit": true,
       "enabled": false,
       "detect": [{ "type": "secret", "dictionary": "high_entropy_strings" }],
