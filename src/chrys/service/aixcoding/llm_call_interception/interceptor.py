@@ -23,7 +23,18 @@ _policy: HttpPolicy | None = None
 
 
 class HttpPolicy(Protocol):
-    """Optional async callbacks; normal documents use body and SSE uses event callbacks."""
+    """Optional async callbacks; normal documents use body and SSE uses event callbacks.
+
+    ``before_sse_event`` gets one complete event, ending with the blank line that terminates
+    it (two LFs or two CRLFs); a replacement body must keep that terminator or it will stick
+    to the next event.
+
+    ``headers`` is an ``httpx.Headers`` mapping with lower-case keys. Replace an existing
+    header by assigning it on an ``httpx.Headers`` copy: adding a differently cased key to a
+    ``dict`` sends that header twice. Response body and SSE callbacks only run on identity
+    responses, so a policy that must read or rewrite a response body negotiates
+    ``Accept-Encoding: identity`` in ``before_request``.
+    """
 
     async def before_request(
         self, context: HttpCallContext, headers: httpx.Headers, body: bytes

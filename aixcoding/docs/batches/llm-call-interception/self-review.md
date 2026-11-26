@@ -68,6 +68,98 @@
 - 签认事实：design/ADR 在 B1/B2 修订后已由周彬于 2026-11-25 重签。manifest 当前为 28 节点/+64 行，待责任人在
   本记录签认时一并确认知悉。
 
+## 2026-11-25 PR #153 独立评审结论与处置
+
+- PR #153 独立评审**通过（Approve），无阻塞项**：评审对象 head `1bb01be3`（单提交，base `baddb7f5`）；Block 不被
+  SDK/Chrys 重试、httpx 0.28.1 流语义、hook 顺序与 raw log、空策略零开销、R2/R11/分层、containment 边界与降级日志
+  核对均通过。评审方标识以 PR #153 评审记录为准。
+- CI 交叉核对（开发 AI 经 GitHub API 复核 head `1bb01be3`）：check-runs 28 项 = **27 success + 1 skipped**
+  （`Guard hooks`，未触及 guard 路径的设计内跳过）；`AIxCoding Tests`、`AIxCoding Upstream CI` 均 success。评审所述
+  “28/28 全绿”按此校正。
+- **方案与实现评估**：实现与已签认 design/ADR 一致，B1/B2 修复彻底；7 条建议均为非阻塞，事实前提经开发 AI 逐条
+  只读核实属实。评审措辞有三处与实测不符，已校正：CI 数字；冒号启发式不要求空行分隔，前 512 字节内不以
+  `{`/`[`/`<` 打头且含 `:` 即判 SSE；SSE 终结符为 `\n\n` 或 `\r\n\r\n` 两种，design 仅隐含提及，“替换体须自带
+  终结符”此前只由测试断言体现。
+
+### 建议逐项处置（责任人裁决采纳方案 B）
+
+| # | 评审级别 | 位置 | 处置 | 结果 |
+|---|---|---|---|---|
+| 1 | 建议关注 | `hooks.py` 压缩响应整体直通 | 维持 S6 裁决不修；核实中实证默认 `Accept-Encoding: gzip, deflate`，且协商 identity 须在 `httpx.Headers` 副本上赋值（`dict` 加驼峰键会发重复头并静默失败），均写入 `HttpPolicy` docstring；补 2 个用例锚定两种写法 | 已登记，docstring 与测试已补 |
+| 2 | Low | `hooks.py` `_classify_prefix` | 不修：合法 SSE 字段行与注释行均含 `:`，现规则只误判不漏判，收紧须另行设计 | 不修 |
+| 3 | Low | `hooks.py` `_NormalBodyStream` | 不修：整体替换语义的固有代价，design 已声明 | 不修 |
+| 4 | Nit | `interceptor.py` `_sdk_block_type` | 不修：当前仅 `anthropic` 一个 provider id 属 anthropic 族，两套口径等价，分叉时两族 Block 仍均非重试 | 不修 |
+| 5 | Nit | wait manifest 28 节点 | 补逐节点复核留痕（根 `AGENTS.md` 要求逐个复核），结论均保持 `unresolved` | 已补，见 verification.md |
+| 6 | Nit | `HttpPolicy` docstring | 补 SSE 事件终结符契约：事件自带空行终结符，替换体必须保留 | 已修 |
+| 7 | Nit | `hooks.py` `getattr(policy, ...)` | 不修：policy 实例属外边界，评审自评可接受 | 不修 |
+
+- 核实证据：探针输出见 verification.md “HttpPolicy docstring 补充与 Accept-Encoding 协商探针”一节。
+- 新发现跟进（核实 #1 时发现）：(a) 协商 identity 的两种写法补专门用例——责任人裁决**补测试**（2026-11-26），
+  `test_request.py` 新增 2 例；(b) `HttpChange.headers` 出现同名多值时是否在框架层检测并告警——责任人裁决**本 PR
+  不做，登记为后续候选**（2026-11-26），见下表。
+- manifest 28 节点/+64 行已随本记录签认（2026-11-25）知悉。
+- 本节为签认后追加的评审记录，按头部规则不触发重签。
+
+### 未修项（次要问题，责任人拍板不修）
+
+| 位置 | 说明 | 不修理由 |
+|---|---|---|
+| `hooks.py` 非 identity Content-Encoding | 压缩普通/SSE body 不做内容处理，原样直通并记录 detail | 责任人维持 S6 裁决：框架不隐式修改 Accept-Encoding；后续业务批次接入文档须置顶此条 |
+| `hooks.py` `_classify_prefix` 冒号启发式 | 非 `{`/`[`/`<` 打头且含 `:` 的纯文本会被判为 SSE，`before_sse_event` 可能收到非 SSE 字节 | 低影响、只误判不漏判；收紧须另行设计 |
+| `interceptor.py` `_sdk_block_type` | provider 判族与 `clients.py` 的 `PROVIDERS[...].sdk` 为两套口径 | 当前等价，无功能危害 |
+| `HttpChange.headers` 同名多值 | 策略用 `dict` 加不同大小写的键替换已有头时会发送重复头；框架原样转发，不合并、不告警 | 责任人裁决本 PR 不做，登记为后续候选（2026-11-26）：默认空策略不触发；正确写法已写入 docstring 并有 2 例测试锚定；框架层检测属行为变更，待首个业务策略接入时评估 |
+
+## 2026-11-26 对原有流程的影响与性能评估（责任人要求）
+
+- **评估范围**：本方案对上游流程的全部改动点、默认（空策略）与启用策略两条路径的功能与性能影响、必要性。实测为本机
+  开发环境、隔离进程、`MockTransport`，一次性内联探针未入库，方法与输出见 verification.md “对原有流程的性能影响实测”。
+- **对上游流程的改动点**（上游手写文件 0 改动）：
+  1. 启动：`aixcoding_startup()` 的 `_TASKS` 增加一个任务，在 `chrys.app.cli.app:main()` 首行执行，因此每次
+     `aixcoding-cli` 调用（含 `--version`、`--help` 与所有子命令）都会运行；
+  2. 启动：进程内把上游模块属性 `chrys.service.llm.clients._build_profile_http_client` 替换为包装函数（上游唯一调用点
+     在 `create_client`；`update_wrapper` 保留 `__wrapped__`，兼容上游 `inspect.unwrap` 与各 `monkeypatch.setattr`
+     patch 点）；无卸载路径；
+  3. 创建 Client：经包装层；策略非空时向共享 `httpx.AsyncClient` 追加 request/response hook；
+  4. 每请求：仅在 hook 已附加时执行读、改、拦与 SSE 逐事件处理；
+  5. 生成物 `tests/architecture/trajectory_wait_manifest.json` +64 行，无运行时影响。
+- **功能影响**：默认空策略下第 3、4 项不执行，hook 清单与上游一致（有精确清单测试与上游 core shard 37256 passed
+  为证），模型请求/响应路径不被触碰，原有流程不受破坏。设计已声明的边界不变：不经该工厂的模型路径不被拦截；
+  fail-open 意味着不是安全硬阻断。
+- **性能影响（实测）**：
+
+| 路径 | 默认空策略 | 启用空操作策略 |
+|---|---|---|
+| 启动，每次 CLI 调用 | **+200–215 ms、+383 模块**（`--version` 脚本总耗时约 48 → 250–270 ms） | 同左 |
+| 创建 Client | +0.49 µs | +0.49 µs |
+| 每请求，非流式 2 KB / 512 KB | 不执行 | +15 µs / +37 µs |
+| SSE 每事件 | 不执行 | 约 1.4–1.7 µs（5000 事件合计约 +7 ms） |
+
+- **方案与实现评估**：
+  1. **启动期无条件安装是默认路径上的纯成本，建议去除。** `install_http_interception()` 不判断策略是否为空，启动即
+     导入 httpx、上游 `clients` 及其依赖树并替换工厂；空策略下该包装只做透传，没有功能收益，却让每次
+     `aixcoding-cli` 调用多约 200 ms。此前记录的“+12.9 ms / 16 模块”是 pytest 热进程数字，低估 15 倍以上，按本节
+     实测更正。建议把安装点从启动期改为策略注册时（`set_http_policy` 触发安装）并移除启动任务。仅“空策略时跳过
+     安装”不够：包的 `__init__` 会连带导入上下文与 trajectory 子系统，实测仍需 85–95 ms / 196 模块，启动路径必须
+     完全不导入本包。该改法变更已签认 ADR 的核心决策，需修订 design/ADR 并重签。
+  2. **运行期热路径开销很小，建议保留，不另做优化。** 按事件数逐级翻倍实测，单 chunk 多事件时每事件耗时稳定，
+     未观察到 SSE 缓冲前移的平方级增长。
+  3. **必要性：当前没有业务策略使用本框架。** 默认状态收益为零；惰性化后默认路径成本趋近于零，剩余代价是源码与
+     测试的长期维护（上游 httpx/SDK 升级时需跟随验证）。是否现在合入取决于业务策略需求是否明确。
+- **惰性化（安装点由启动期改为策略注册时）的代价与风险**：
+  - 代价——文档：ADR 决策 1（启动期安装）、6（启动安装失败语义）、8（真实 startup 回归）及理由、四场景矩阵需修订，
+    文件名含 `http-startup-runtime-wrapping`，原地修订还是新建 ADR 待责任人定；design 约 12 处、requirements 2 条
+    验收标准、test-plan 3 行同步；design/ADR 重签。代码：startup 两文件移除任务，`set_http_policy` 增加安装触发与
+    失败处理；`hooks.py`、`context.py` 不动。测试：startup 清单与安装失败用例回退或改写，安装器用例按注册时序改写，
+    估计涉及 10–15 例。流程：全量回归、外部增量评审、CI 一轮。
+  - 风险——功能风险低：hook 核心逻辑与时序语义（先注册后建 Client、不追溯既有 Client）不变，默认路径由“透传包装”
+    变为“不接触”，暴露面缩小。新增三个设计点需定：安装触发 API 的形态；注册期安装失败是抛出还是降级；注册策略的
+    单元测试不应触发安装或改动全局工厂（当前约 9 个测试文件直接调用 `set_http_policy`）。
+  - 不做的后果：每次 `aixcoding-cli` 调用约 +200 ms 随 PR 合入主干。
+  - 开发 AI 意见：需要做。
+- **裁决跟进**：(2) 已完成的评审处置改动先作为独立提交推送——责任人采纳（2026-11-26）；(1) PR #153 的处理方式——
+  责任人方向上认同在本 PR 内完成惰性化后再合并，是否实施待上述评估后裁决（2026-11-26）。
+- 本节为签认后追加的评审记录，按头部规则不触发重签。
+
 ## 2026-11-25 内部评审结论：代码审查与交付验证通过，已被后续外部评审推翻
 
 - 轮次：2 轮（首轮评审 + 修复 + 独立复审）。

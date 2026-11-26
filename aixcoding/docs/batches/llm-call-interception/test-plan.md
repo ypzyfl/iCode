@@ -56,6 +56,7 @@
 | 真实 `create_client()` 契约不 mock `_build_profile_http_client` | `test_provider_contracts.py::test_create_client_uses_installed_http_client` | 契约、行为锚定 |
 | raw log 记录修改后请求和网络原始响应 | `test_raw_log_composition.py::test_raw_log_sees_mutated_request_and_original_response` | 契约、行为锚定 |
 | 非 identity 压缩报文不能安全处理时原样直通并记录 detail | `test_response.py::test_encoded_response_passes_through`；`test_sse.py::test_encoded_stream_passes_through` | 单元 |
+| 替换已有请求头的写法契约：在 `httpx.Headers` 副本上赋值可协商 `Accept-Encoding: identity`；`dict` 加不同大小写的键会发送重复头（现状锚定，框架层若加检测需同步修改） | `test_request.py::test_replacing_accept_encoding_on_headers_copy_negotiates_identity`；`test_request.py::test_dict_with_differently_cased_key_sends_accept_encoding_twice` | 契约 |
 | 单组合策略原子替换、并发调用不串扰，hooks 不持锁等待 | `test_context.py::test_concurrent_contexts_and_profiles_do_not_cross_talk`；`test_installer.py::test_policy_snapshot_is_atomic` | 单元、契约 |
 | 零上游手写行为文件、仅官方 wait manifest 生成物例外、零新增依赖，全部定制测试与质量门通过 | `verification.md` 记录 `git diff --name-only`、生成器输出、依赖清单复核及本文件末节命令结果 | 静态检查、质量门 |
 

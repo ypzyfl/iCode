@@ -136,3 +136,181 @@ Summary: PASSED (exit 0)
 - 官方 wait 生成器最终报告 **2937 waits、0 reopened**，wait inventory **57 passed**；本批登记 28 节点、+64 行。
 - 责任人周彬已于 2026-11-25 签认 self-review（确认意见：无特别意见）；签认后运行
   `uv run python aixcoding/tools/check_docs.py --closure`：**check_docs: OK，exit 0**，无其他闭环阻塞。
+
+## 2026-11-25 PR #153 CI 交叉核对与 wait manifest 节点逐条复核
+
+CI（GitHub API，head `1bb01be3`）：check-runs 28 项 = **27 success + 1 skipped**（`Guard hooks`，仅在触及 guard 路径时
+运行，本 PR 未触及，设计内跳过）；`AIxCoding Tests`、`AIxCoding Upstream CI` 两个 workflow 均 success。
+
+wait 节点逐条复核（PR #153 评审 Nit #5）：根 `AGENTS.md` “Refresh generated artifacts” 条要求对刷新列出的每个 reopened
+wait 逐个复核，并重新套用仍适用的原有规则；CI 接受 `unresolved` 行。此前只留了生成器计数（2937 waits / 0 reopened），
+本节补齐逐条记录。本批 28 个节点全部为新增，reopened 输出中均无原有规则（无可重套项），均非 `sleep(0)`（不适用
+`event-loop-yield`）。开发 AI 逐节点对照 `hooks.py` 源码分为三类，**28 行结论均为保持默认 `unresolved`（fail-closed）**，
+随评审处置提交呈报责任人确认：
+
+- **A 策略回调路径**：直接或经模块内函数执行策略传入的 handler，等待时长由任意业务代码决定，没有机器可证的
+  trajectory 区间。
+- **B 底层 I/O**：直接读取、迭代或关闭 httpx 提供的请求体/响应流，与 manifest 中 `chrys.service.llm.raw_http_log` 的
+  `await request.aread()`、`async for chunk in self._stream`、`await self._stream.aclose()` 同形态，上游同类节点同为
+  `unresolved`。
+- **C 模块内转发**：在本模块内部流对象之间转发迭代与关闭，自身无 I/O，等待时长完全取决于下游（A 或 B），无独立可证
+  的更窄分类。
+
+| # | 函数 | await 表达式（manifest 原文，长参数以 ... 省略） | 类别 |
+|---|---|---|---|
+| 1 | `_AdaptiveResponseStream.__aiter__` | `await self._read_prefix()` | C |
+| 2 | `_AdaptiveResponseStream.__aiter__` | `async for chunk in prefixed` | C |
+| 3 | `_AdaptiveResponseStream.__aiter__` | `async for chunk in processor` | C |
+| 4 | `_AdaptiveResponseStream.__aiter__` | `await self.aclose()` | C |
+| 5 | `_AdaptiveResponseStream._read_prefix` | `async for chunk in iterator` | B |
+| 6 | `_AdaptiveResponseStream.aclose` | `await self._prefixed.aclose()` | C |
+| 7 | `_AdaptiveResponseStream.aclose` | `await self._stream.aclose()` | B |
+| 8 | `_NormalBodyStream.__aiter__` | `async comprehension for chunk in self._stream` | C |
+| 9 | `_NormalBodyStream.__aiter__` | `await self._handler(self._context, ...)` | A |
+| 10 | `_NormalBodyStream.__aiter__` | `await self.aclose()` | C |
+| 11 | `_NormalBodyStream.aclose` | `await self._stream.aclose()` | C |
+| 12 | `_PrefixedStream.__aiter__` | `async for chunk in self._iterator` | B |
+| 13 | `_PrefixedStream.aclose` | `await self._stream.aclose()` | B |
+| 14 | `_SSEEventStream.__aiter__` | `async for chunk in self._stream` | C |
+| 15 | `_SSEEventStream.__aiter__` | `await _process_sse_event(self._response, ...)` | A |
+| 16 | `_SSEEventStream.__aiter__` | `await self.aclose()` | C |
+| 17 | `_SSEEventStream.aclose` | `await self._stream.aclose()` | C |
+| 18 | `_handle_buffered_body` | `await handler(context, ...)` | A |
+| 19 | `_handle_buffered_sse` | `await _process_sse_event(response, ...)` | A |
+| 20 | `_handle_request` | `await request.aread()` | B |
+| 21 | `_handle_request` | `await handler(context, ...)` | A |
+| 22 | `_handle_response` | `await _handle_response_headers(response, context, header_handler)` | C |
+| 23 | `_handle_response` | `await _handle_buffered_sse(response, context, handler)` | C |
+| 24 | `_handle_response` | `await _handle_buffered_body(response, context, handler)` | C |
+| 25 | `_handle_response_headers` | `await handler(context, ...)` | A |
+| 26 | `_process_sse_event` | `await handler(context, ...)` | A |
+| 27 | `build_http_hooks.request_hook` | `await _handle_request(request, ...)` | C |
+| 28 | `build_http_hooks.response_hook` | `await _handle_response(response, ...)` | C |
+
+合计 A 7 / B 5 / C 16 = 28。
+
+## 2026-11-25 HttpPolicy docstring 补充与 Accept-Encoding 协商探针
+
+PR #153 评审 Nit #6（SSE 事件终结符契约）与建议 #1（压缩响应直通）处置：在 `HttpPolicy` docstring 补充事件终结符
+契约、响应体回调的 identity 前提及 identity 协商写法，零行为变更。落笔前用一次性内联探针核对指引是否成立（未入库；
+`httpx` 0.28.1；`MockTransport` + 真实 `build_http_hooks`；策略只改 `before_request`）：
+
+```text
+default-accept-encoding: gzip, deflate
+negotiated-accept-encoding: gzip, deflate, identity    # dict(headers) 后加驼峰键 Accept-Encoding
+
+keys-seen-by-policy: [accept, accept-encoding, connection, content-length, content-type, host, user-agent]
+dict-camel   [gzip, deflate | identity]    # 同名头发送两次
+headers-set  [identity]                    # httpx.Headers(headers) 副本上赋值
+dict-lower   [identity]                    # dict(headers) 后加小写键 accept-encoding
+```
+
+结论：(1) 本环境 httpx 默认 `Accept-Encoding: gzip, deflate`（未装 brotli/zstd 时不追加 `br`/`zstd`），`clients.py`
+未覆盖，评审 #1 的事实前提成立；(2) 策略在 `before_request` 协商 identity 可达 wire，但 `headers` 参数的键为小写，
+`dict(headers)` 后追加不同大小写的同名键会发送重复头并静默协商失败，须在 `httpx.Headers` 副本上赋值或使用小写键。
+两点均写入 docstring。该协商路径目前没有专门测试用例；通用机制由
+`test_request.py::test_request_header_and_body_mutation_reaches_transport` 锚定，但该用例只新增头，不覆盖替换已有头。
+
+### 评审处置改动复验（docstring + 文档）
+
+```text
+本批 + diagnostics                129 passed
+完整 aixcoding/tests               1006 passed / 56 skipped
+wait 生成器                        2937 waits / 0 reopened（节点未变）
+wait inventory                     57 passed
+ruff check                         All checks passed
+ruff format --check                500 files already formatted
+ty linux / darwin / win32          All checks passed x3
+check_docs --closure               OK
+gen_customizations --strict        108 rows / 159 markers / 0 warnings
+check_import_boundaries            OK
+check_r2_diff / check_r3_markers   OK
+git diff --check                   通过
+```
+
+变更范围 4 文件：`interceptor.py` 仅 docstring（+12/-1），以及 `plan.md`、`self-review.md`、`verification.md`；wait manifest 无
+diff。Smart Test 待责任人对 self-review.md 所列待裁决项定稿后执行。
+
+## 2026-11-26 协商 identity 写法补测试（责任人裁决）
+
+责任人裁决核实 #1 时的新发现 (a) 补测试：`test_request.py` 新增 2 例，零产品代码改动。Client 显式指定默认头
+`Accept-Encoding: gzip, deflate`，使断言不随环境（是否安装 brotli/zstd）变化；transport 端用 `get_list` 读取全部同名头。
+
+- `test_replacing_accept_encoding_on_headers_copy_negotiates_identity`：策略在 `httpx.Headers` 副本上赋值，wire 仅含
+  `identity`。
+- `test_dict_with_differently_cased_key_sends_accept_encoding_twice`：策略 `dict(headers)` 后加驼峰键，wire 含两个同名头
+  `gzip, deflate` 与 `identity`。此例锚定现状（框架原样转发，不合并，不报告重复头），框架层若加检测需同步修改。
+
+复验：
+
+```text
+本批 + diagnostics                131 passed
+完整 aixcoding/tests               1008 passed / 56 skipped
+wait 生成器                        2937 waits / 0 reopened
+ruff check                         All checks passed
+ruff format --check                500 files already formatted
+ty linux / darwin / win32          All checks passed x3
+check_docs --closure               OK
+gen_customizations --strict        108 rows / 159 markers / 0 warnings
+check_import_boundaries            OK
+check_r2_diff / check_r3_markers   OK
+git diff --check                   通过
+```
+
+变更范围累计 6 文件：`interceptor.py`（仅 docstring）、`test_request.py`（+42）、`plan.md`、`self-review.md`、`test-plan.md`、
+`verification.md`。新发现 (b)（框架层是否检测重复头）由责任人裁决本 PR 不做、登记为后续候选（2026-11-26）。
+
+## 2026-11-26 对原有流程的性能影响实测（责任人要求评估）
+
+均为一次性内联探针（未入库），本机开发环境，隔离进程，`time.perf_counter` 计时；对照差值即本方案净增量。评估意见见
+self-review.md “对原有流程的影响与性能评估”。
+
+**启动成本（真实 `main()` 入口，`--version`）**：前导把 `chrys.app.aixcoding.startup._TASKS` 设为空元组（对照）或只含
+第三个任务（实验），不执行前两个任务，不读写用户配置与日志；预热 1 次后各跑 5 次。
+
+```text
+A 无启动任务   main() 0.0 ms          脚本总耗时 48.1–50.7 ms     已加载模块 167
+B 仅第三任务   main() 200.5–214.9 ms  脚本总耗时 249.2–270.3 ms   已加载模块 550
+```
+
+**冷态分段**：导入安装器约 213 ms / 333 模块（含 httpx 及依赖）；`install_http_interception()` 约 146 ms / 171 模块
+（含上游 `chrys.service.llm.clients`、`chrys.kernel.*` 等）；未拉入 openai/anthropic SDK。
+
+**只导入策略持有者**（包 `__init__` 连带导入 `context` 与 `chrys.foundation.trajectory.*`）：85–95 ms / 196 模块，未拉入
+httpx 与 `clients`。
+
+**包装层透传**（默认空策略，每次创建 Client）：进程内以上游工厂的空替身安装包装后循环调用 20 万次，0.49 µs。
+
+**运行期热路径**（启用各阶段均返回 `None` 的策略，对比无 event hooks 基线；3 轮取最小；每请求耗时）：
+
+```text
+场景                           基线      启用策略    增量
+非流式 JSON 2 KB               73 us     88 us      +15 us
+非流式 JSON 512 KB             247 us    284 us     +37 us
+SSE 5000 事件，每事件一 chunk   2448 us   9494 us    +7046 us
+SSE 5000 事件，同一 chunk       121 us    9970 us    +9848 us
+```
+
+**单 chunk 多事件按事件数翻倍**（验证 SSE 缓冲前移是否平方级；3 次取平均；每事件耗时）：
+
+```text
+5000 事件    240 KB    8.82 us   （首次运行的预热噪音；上一探针同场景取最小为每请求约 10 ms）
+10000 事件   480 KB    1.54 us
+20000 事件   960 KB    1.49 us
+40000 事件  1920 KB    1.70 us
+```
+
+结论：每事件耗时稳定，未观察到平方级增长。
+
+### 评审处置改动的最终 Smart Test
+
+对应待提交代码状态（`interceptor.py` docstring、`test_request.py` 新增 2 例）；`--paths` 为本批全部源码、startup、测试与
+wait manifest 路径：
+
+```text
+Summary: PASSED (exit 0)
+  tests         11040 passed, 349 skipped (exit 0)
+  architecture  600 passed, 2 skipped (exit 0)
+```
+
+文档门禁：`check_docs --closure` OK；`ruff format --check aixcoding/` 452 files already formatted；`git diff --check` 通过。
