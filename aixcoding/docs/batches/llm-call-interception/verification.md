@@ -314,3 +314,61 @@ Summary: PASSED (exit 0)
 ```
 
 文档门禁：`check_docs --closure` OK；`ruff format --check aixcoding/` 452 files already formatted；`git diff --check` 通过。
+
+## 2026-11-26 启动成本测量更正（真实启动路径）
+
+**更正**：上文“启动成本（真实 `main()` 入口，`--version`）”一节的探针把 `_TASKS` 设为空元组或只含第三任务，未执行前两个
+启动任务，第三任务于是独自承担了本应由它们分摊的公共依赖（httpx、`chrys.kernel.*` 等）导入。由此得出的“净增 200–215 ms /
+383 模块”不代表真实启动路径，“对照差值即本方案净增量”的说明对该项不成立。“只导入策略持有者 85–95 ms / 196 模块”同样是
+冷态数字。外部评审最初记录的“+12.9 ms / 16 模块”与此处真实路径结果吻合，此前判其“低估 15 倍”是错的。旧记录按活文档
+规则保留不删。
+
+**真实路径复测**：子进程内把 `get_platform()` 的配置目录指向临时目录（跑完即删，不读写用户配置与日志），经真实
+`chrys.app.cli.app:main()`（`--version`）执行全部启动任务。`three` 把原安装任务加回为第三任务（惰性化前的等价物），
+`check` 加回一个只导入策略持有者并判空的任务。每种 5 次。
+
+```text
+模式     main() 范围        最小值      已加载模块   相对现状
+two      372.0–435.5 ms    372.0 ms    576         现状（惰性化后，两个任务）
+three    390.5–478.1 ms    390.5 ms    594         +18 模块，约 +18–20 ms
+check    401.1–474.0 ms    401.1 ms    579         +3 模块，耗时增量在噪音内
+```
+
+`main()` 约 370–480 ms 的主体是既有的前两个启动任务（配置加载、日志 sink），波动约 ±40 ms。另两次独立补测（仅导入前两个
+任务的依赖模块后再执行原安装）给出 16–21 ms / 19 模块，与 `three` 一致。
+
+**结论**：惰性化前，原启动安装任务在真实启动路径上的净增量约为 **18–20 ms、18 个模块**，不是 200 ms / 383 模块。
+“启动期判空”方案在真实路径上只多 3 个模块，此前以其导入成本为由否决不成立；不采用它的正当理由是启动期策略必为空、
+该任务恒为空转。
+
+**惰性化后默认启动路径不触碰拦截模块**（此探针把前两个任务替换为空操作，只用于验证 `main()` 分发路径的导入集合，不是
+真实启动的绝对耗时）：`main()` 0.0–0.2 ms，已加载模块 167，拦截模块、上游 `clients`、httpx 均未导入。同一冷态进程内首次
+注册策略耗时 272–354 ms，同为冷态数字；真实启动路径（前两个任务真实执行后注册，5 次）上首次注册为 **10.8–17.8 ms、
++18 模块**，与原启动安装任务的成本一致。惰性化把这笔成本从“每次启动”挪到“首次注册策略时”：默认（无策略）部署不再
+支付，启用策略的部署总成本不变。
+
+**惰性化实施复验**（责任人在更正后裁决保留，2026-11-26）：
+
+```text
+本批 + 启动接线          133 passed（131 - 1 个删除的启动安装失败用例 + 3 个新增）
+完整 aixcoding/tests     1010 passed / 56 skipped
+真实 startup 组合        50 passed
+上游 core shard          37256 passed / 699 skipped（12 分 06 秒，exit 0；与惰性化前一致）
+Smart Test               Summary: PASSED (exit 0)
+                         tests 11040 passed / 349 skipped；architecture 600 passed / 2 skipped
+wait 生成器              2937 waits / 0 reopened，manifest 无 diff
+ruff check / format      通过
+ty linux/darwin/win32    All checks passed x3
+check_docs --closure     OK；gen_customizations --strict 108 rows / 159 markers / 0 warnings
+导入边界 / R2 / R3       OK（R2：相对主干变更 26 文件，upstream_changed=1 即 manifest）
+回退文件相对主干         tasks.py、startup/__init__.py、test_entry_wiring.py 净零
+```
+
+实施中修正两处：`tasks.py` 回退时多出的一个末尾空行；`test_block.py::test_final_block_classification_and_exception_hygiene`
+原在替换工厂之后才注册策略，注册触发的安装把测试替身又包了一层，导致 `transport` 参数重复，已把注册挪到替换工厂之前
+（与同文件另一用例顺序一致）。全部 12 处替换工厂的测试中仅此一处顺序相反。
+
+增量评审 #3 采纳后（守卫由 `glob("*.py")` 改为 `rglob("*.py")`）复跑：`ruff format` 1 file left unchanged、
+`ruff check` All checks passed、完整 `aixcoding/tests` 1010 passed / 56 skipped、`check_docs --closure` OK。
+Smart Test 不收集 `aixcoding/tests`（此前新增用例后其计数不变），对该改动无覆盖价值，未重跑；上游 core shard
+不涉及该文件。上文列出的 Smart Test 与 core shard 结果均在此次改动之前运行。

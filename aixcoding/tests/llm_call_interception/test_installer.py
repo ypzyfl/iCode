@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
 
 import httpx
 import pytest
@@ -149,3 +150,45 @@ def test_tracking_extension_drift_fails_during_installation(monkeypatch: pytest.
     with pytest.raises(ImportError):
         install_http_interception()
     assert clients._build_profile_http_client is original
+
+
+def test_registering_a_policy_installs_the_factory_once() -> None:
+    original = clients._build_profile_http_client
+
+    set_http_policy(None)
+    assert clients._build_profile_http_client is original
+
+    set_http_policy(object())  # type: ignore[arg-type]
+    wrapped = clients._build_profile_http_client
+    assert wrapped is not original
+    assert inspect.unwrap(wrapped) is original
+    set_http_policy(object())  # type: ignore[arg-type]
+    assert clients._build_profile_http_client is wrapped
+
+
+def test_registration_install_failure_is_logged_and_not_raised(monkeypatch: pytest.MonkeyPatch, capsys, caplog) -> None:
+    from chrys.service.llm import request_tracking
+
+    original = clients._build_profile_http_client
+    monkeypatch.delattr(request_tracking, "_CONTEXT_EXTENSION")
+    policy = object()
+    caplog.set_level("WARNING")
+
+    set_http_policy(policy)  # type: ignore[arg-type]
+
+    assert get_http_policy() is policy
+    assert clients._build_profile_http_client is original
+    assert capsys.readouterr().err == ""
+    assert "HTTP interception installation failed (ImportError)" in caplog.text
+    assert any(record.name == "aixcoding.llm_call_interception" and record.levelno == 30 for record in caplog.records)
+    detail = [record for record in caplog.records if record.name == "aixcoding.detail.llm_call_interception"]
+    assert any("stage=registration_install" in record.getMessage() for record in detail)
+    assert "cannot import name" not in caplog.text
+
+
+def test_startup_never_references_http_interception() -> None:
+    from chrys.app.aixcoding import startup
+
+    assert (startup._configure_environment, startup._ensure_file_sink) == startup._TASKS
+    package_dir = Path(startup.__file__).parent
+    assert not any("llm_call_interception" in path.read_text(encoding="utf-8") for path in package_dir.rglob("*.py"))

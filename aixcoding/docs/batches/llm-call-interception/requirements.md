@@ -15,9 +15,10 @@ AIxCoding 需要在进程内对每个实际模型 HTTP 请求和响应进行读�
 ## 目标与非目标
 
 - 目标：
-  1. 实现通用 HTTP 读取、修改和阻断能力，但**默认定制策略为空，不写任何业务处理逻辑**；默认在每次
-     `aixcoding-cli` 启动时幂等安装工厂包装。`_policy is None` 时不向 Client 附加定制 hooks，保留上游原始
-     hooks 和零报文处理开销；非空策略必须在目标 Client 创建前注册，既有未附 hooks 的 Client 不做追溯安装。
+  1. 实现通用 HTTP 读取、修改和阻断能力，但**默认定制策略为空，不写任何业务处理逻辑**；注册非空策略时幂等
+     安装工厂包装，未注册策略的默认启动路径不导入本模块、不改动上游模块属性。`_policy is None` 时不向 Client
+     附加定制 hooks，保留上游原始 hooks 和零报文处理开销；非空策略必须在目标 Client 创建前注册，既有未附
+     hooks 的 Client 不做追溯安装。
   2. 请求发送前可读取最终请求 headers 和序列化 body，可替换 headers/body，也可阻断且网络层收不到
      当前请求。
   3. 响应进入 SDK 解析前可读取、修改 status 对应的 headers；普通响应 body 可完整读取、替换或阻断。
@@ -39,11 +40,11 @@ AIxCoding 需要在进程内对每个实际模型 HTTP 请求和响应进行读�
   10. **默认开启、允许失效降级，定制异常绝不外溢**：安装失败、策略不可用或任意策略业务异常均不得
       影响宿主正常工作流或导致进程出错；原始请求/响应继续。主动 `Block` 是受控的单次模型调用终止结果，
       由上层正常呈现，不得导致 TUI/CLI 崩溃，不属于意外异常。
-  11. 失效必须留日志：启动安装失败写 startup stderr、主通道 WARNING 与 detail；运行期单个 Client 安装失败
-      写主通道 WARNING 与 detail、不写 stderr；运行期策略异常及实际响应类型/回调不匹配写
-      `aixcoding.detail.llm_call_interception`，不记录认证头、prompt、工具参数或响应正文。
-  12. 零上游手写行为文件改动；产品逻辑位于 `src/chrys/service/aixcoding/llm_call_interception/`，启动组合只修改
-      AIxCoding 自有 `src/chrys/app/aixcoding/startup/`。唯一例外是用上游生成器刷新架构门禁要求的
+  11. 失效必须留日志：注册期安装失败与运行期单个 Client 安装失败均写主通道 WARNING 与 detail、不写 stderr、
+      不抛出；运行期策略异常及实际响应类型/回调不匹配写 `aixcoding.detail.llm_call_interception`，不记录认证头、
+      prompt、工具参数或响应正文。
+  12. 零上游手写行为文件改动；产品逻辑位于 `src/chrys/service/aixcoding/llm_call_interception/`，不修改启动组合
+      `src/chrys/app/aixcoding/startup/`。唯一例外是用上游生成器刷新架构门禁要求的
       `tests/architecture/trajectory_wait_manifest.json`。不新增第三方依赖。
   13. hook 在事件循环上执行，策略不得包含阻塞调用；阻塞工作不得卡住 TUI 或其他模型流量。
 - 非目标：
@@ -71,11 +72,14 @@ AIxCoding 需要在进程内对每个实际模型 HTTP 请求和响应进行读�
 
 ### 安装、上下文与覆盖
 
-- [ ] 默认启动路径在首次模型 Client 创建前完成安装；多次启动或安装不重复包装。空策略不附加定制 hooks，
-      不调用 `request.aread()`、不复制 headers、不解析 JSON/SSE、不替换 `response.stream`，请求和响应内容
-      与原行为一致且无固定 hook 开销。
-- [ ] 真实 `cli_app.main()` 执行 startup 后，同进程 route/default hook 精确清单保持上游原值；外部评审的
-      50 项串行组合和上游 core shard 均通过，不能只以 Smart Test 选择结果作为证据。
+- [ ] 注册非空策略时完成安装，重复注册或重复安装不重复包装，`set_http_policy(None)` 不安装。空策略不附加
+      定制 hooks，不调用 `request.aread()`、不复制 headers、不解析 JSON/SSE、不替换 `response.stream`，请求
+      和响应内容与原行为一致且无固定 hook 开销。
+- [ ] 真实 `cli_app.main()` 执行 startup 后，上游工厂未被包装、本模块未被导入，同进程 route/default hook
+      精确清单保持上游原值；注册策略后创建的 Client 才带定制 hooks。真实 startup 串行组合和上游 core shard
+      均通过，不能只以 Smart Test 选择结果作为证据。
+- [ ] 注册策略的定制测试在每个测试前后清空策略并把上游工厂恢复为未包装状态，依赖“工厂未包装”的用例不受
+      执行顺序影响。
 - [ ] 策略在 Client 创建前注册时，OpenAI Chat Completions、OpenAI Responses（含 retrieve/poll）和
       Anthropic Messages 的普通及流式调用均经过拦截器；外部 ACP 进程和 `mock` provider 按非目标排除。
 - [ ] 请求和响应两侧均可读取真实 `session_id`、可空 `turn_id`、cycle/exchange/attempt IDs 和 actor
@@ -110,8 +114,8 @@ AIxCoding 需要在进程内对每个实际模型 HTTP 请求和响应进行读�
       均不逃逸到 SDK/Chrys/TUI，原始工作流和进程继续，原始报文保持一致且有 detail 日志。
 - [ ] 最终阻断异常经公开 `classify_error()` 验证 `retryable=False`、`transient=False`，并控制
       `__cause__`、未抑制 `__context__` 和 `args`；Block 对外使用固定文本，reason 仅进 detail。
-- [ ] 启动安装失败可由 startup stderr、主通道和 detail 观察；单个 Client 运行期安装失败写主通道 WARNING
-      与脱敏 detail、不写 stderr。运行期策略异常和回调不匹配有 detail，正文和认证信息不落日志。
+- [ ] 注册期安装失败不抛出，不影响注册调用方与宿主，写主通道 WARNING 与脱敏 detail、不写 stderr；单个
+      Client 运行期安装失败同通道。运行期策略异常和回调不匹配有 detail，正文和认证信息不落日志。
 - [ ] 真实 `create_client()` 契约测试不 mock `_build_profile_http_client`。
 - [ ] raw HTTP 日志与拦截器组合启用时，请求日志记录实际发送的修改后请求，响应日志记录网络原始响应。
 - [ ] 本批 diff 不含上游手写行为文件；唯一上游生成物变更是官方刷新的 wait manifest。不新增第三方依赖，

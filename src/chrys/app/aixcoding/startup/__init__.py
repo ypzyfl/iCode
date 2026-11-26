@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 import sys
 
-from .tasks import _configure_environment, _ensure_file_sink, _install_llm_http_interception
+from .tasks import _configure_environment, _ensure_file_sink
 
 # AIxCoding logging (batches/logging-coverage): a failed startup task is a
 # user-facing degrade -- stderr stays (the sink task itself may be the one
@@ -33,7 +33,7 @@ _detail_log = logging.getLogger("aixcoding.detail.startup")
 _DETAIL_LEVEL = 5  # mirrors diagnostics.logging_support (session.py precedent)
 
 # Startup tasks in order; each must stay idempotent + individually fail-safe.
-_TASKS = (_configure_environment, _ensure_file_sink, _install_llm_http_interception)
+_TASKS = (_configure_environment, _ensure_file_sink)
 
 
 def aixcoding_startup() -> None:

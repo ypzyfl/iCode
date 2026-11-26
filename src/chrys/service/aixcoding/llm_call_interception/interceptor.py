@@ -58,10 +58,31 @@ class HttpStreamBlockError(Exception):
 
 
 def set_http_policy(policy: HttpPolicy | None) -> None:
-    """Replace the policy; only subsequently created clients gain hooks if none were attached."""
+    """Replace the policy; registering a non-empty policy installs the factory wrapper once."""
 
     global _policy
+    if policy is not None:
+        _ensure_factory_wrapped()
     _policy = policy
+
+
+def _ensure_factory_wrapped() -> None:
+    try:
+        from .installer import install_http_interception
+
+        install_http_interception()
+    except Exception:
+        report_install_failure()
+
+
+def report_install_failure() -> None:
+    """Fail open with public WARNING and sanitized detail; registration and the host continue."""
+
+    exc = sys.exc_info()[1]
+    message = f"HTTP interception installation failed ({type(exc).__name__}); continuing without hooks."
+    with suppress(Exception):
+        _public_log.warning("%s", message)
+    log_failure("registration_install")
 
 
 def get_http_policy() -> HttpPolicy | None:

@@ -111,6 +111,7 @@ async def test_final_block_classification_and_exception_hygiene(
     monkeypatch.setattr(clients, "_build_profile_http_client", original)
     install_http_interception()
     installed = clients._build_profile_http_client
+    set_http_policy(BlockStage("before_request"))
     calls = 0
 
     async def handle(request: httpx.Request) -> httpx.Response:
@@ -122,7 +123,6 @@ async def test_final_block_classification_and_exception_hygiene(
         return installed(profile_value, timeout, **kwargs, transport=httpx.MockTransport(handle))
 
     monkeypatch.setattr(clients, "_build_profile_http_client", with_transport)
-    set_http_policy(BlockStage("before_request"))
     provider = "anthropic" if protocol == "anthropic" else "openai"
     api_style = "responses" if protocol == "responses" else "chat_completions"
     stack = await clients.create_client(profile(provider, api_style=api_style))
