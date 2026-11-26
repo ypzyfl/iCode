@@ -113,7 +113,8 @@ jobs:
           name: telemetry-wheel
           path: telemetry-dist/
           if-no-files-found: error
-          retention-days: 1
+          # Preserve validated inputs across queued builds and later failed-job reruns.
+          retention-days: 14
 
   # ── Run CI checks first ─────────────────────────────────────────────
   ci:
@@ -631,4 +632,5 @@ jobs:
           path: release/
           if-no-files-found: error
           retention-days: 14
+
 
