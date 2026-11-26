@@ -608,7 +608,7 @@ FULL 耗尽通知——破坏实验锚定挂点）。
 **修复 2（B1 骨架 + 同行布局）**：
 
 ```text
-WaitingRow.compose() 挂 QueueCancelButton(ClickAffordance)      ← 绝对定位子控件，bottom:0 右锚（同行）
+WaitingRow.compose() 挂 QueueCancelButton(ClickAffordance)      ← 绝对定位子控件，行 arrange 钉到末行右端（v1.10）
   └─ set_queue_note 联动显隐（非空显示 / 清空隐藏）
        └─ 点击 → prevent_default + stop → post QueueCancelRequested（命名处理器风格，先例
             ChatPanel.on_scroll_to_bottom_requested）
@@ -658,7 +658,7 @@ R1 自查（必答）：
 
 | 文件 | 改什么 |
 |---|---|
-| `src/chrys/app/aixcoding/tui/queue_cancel_button.py`（新） | `QueueCancelButton(ClickAffordance)`（DEFAULT_CSS：`position: absolute; bottom: 0` 右锚、hover、`pointer`；`ALLOW_SELECT = False`）+ `QueueCancelRequested(Message)` + 标签常量「取消排队」 |
+| `src/chrys/app/aixcoding/tui/queue_cancel_button.py`（新） | `QueueCancelButton(ClickAffordance)`（DEFAULT_CSS：`position: absolute` + hover/`pointer`；位置由 `pin_queue_cancel_button` 在 `WaitingRow.arrange` 钉到末行右端——Textual 无 `right`/`bottom` CSS 属性，v1.10 更正；`ALLOW_SELECT = False`）+ `QueueCancelRequested(Message)` + 标签常量「取消排队」 |
 
 ### 对上游隐式行为的假设（增量）
 
@@ -759,3 +759,45 @@ post `QueueNoteChanged`、由 panel 处理并 sync（`waiting-row-visibility` �
 ### ADR 判定（增量）
 
 四问均否，不出 ADR：本单全部为既签决策的记录更正与资产归位，无新取舍、无新契约、无新依赖。
+
+---
+
+## 变更单 v1.10（2026-11-26，责任人指令）：PR #154 CI 红修复（CSS 机制更正 + 清单/格式）
+
+> 决策来源：责任人指令（2026-11-26，"CI 失败了帮我修复"）。本单修 v1.8 落地后 CI 的三处红点，
+> 不扩功能面；R2 对象与定制点登记不变（无新文件、无新 marker、计数不变）。
+
+### 红点与修复
+
+1. **TUI 全分片 StylesheetParseError（根因）**：v1.8 的 `QueueCancelButton.DEFAULT_CSS` 写了
+   `bottom: 0; right: 1;`——**Textual 8.2.7 没有这两个 CSS 属性**（绝对定位只认 `position: absolute`
+   与 `offset`），样式表在首次挂载该控件时解析失败，`run_test()` 内应用消息循环随之死亡：
+   TUI 分片报 `textual.css.stylesheet.StylesheetParseError`，core 分片的聊天面板回放用例
+   （`test_pipeline_tool_calls.py::test_replay_groups_match_batch_ids`）与两个 TUI 分片卡到 20 分钟步超时。
+   修复：CSS 只留 `position: absolute`（去 `bottom`/`right`）；新增定制包内
+   `pin_queue_cancel_button()`，由 `WaitingRow.arrange` 用上游既有 `app/tui/util/placement.py::pin_fixed_placement`
+   把按钮钉到「末行右端」（1 行=dot 行；2 行=dot 行，fold gap 在上）——这正是该工具 docstring 的分工：
+   CSS 只管脱流，区域由容器 arrange 定。上游接触面：`waiting_row.py` 的既有 marker 块内 +1 import 名、
+   类体 +`_cancel_button` 字段、`compose` 赋引用、新增 `arrange` 4 行（marker 计数仍为 2）。
+2. **govern ruff format**：`aixcoding/tests/llm/test_model_queue_cancel.py` 两个函数签名被折行但可单行
+   放下（107/116 列），`ruff format --check` 红 → 按 formatter 口径合并为单行。
+3. **Architecture 等待清单漂移**：`chrys.service.aixcoding.llm_queue.queue_cancel:QueueRequestTracker._post_cancel:1`
+   的 `async_context` 表达式仍是 M1 修复前的 `httpx.AsyncClient(...)`。修复时把 `**` 实参先绑定到局部
+   `http_kwargs`（`**http_kwargs`），使 `ast.unparse` 输出与解释器版本无关；manifest 行同步为
+   `async with _cancel_client(timeout=CANCEL_TIMEOUT_SECONDS, transport=self._transport, **http_kwargs)`。
+   全量扫描对账（2922 个 wait）经 `tests/support/trajectory_wait_inventory.py` 复核为 0 error。
+
+### 上游改动清单（R2，相对 v1.9 的增量）
+
+无新增对象。`waiting_row.py` 在上述既有 R2 行内更正（`compose` 赋引用 + `arrange` 钉位，+约 12 行）；
+`queue_cancel.py` 属定制包（非 R2）。
+
+### 风险与回滚
+
+钉位依赖上游 `pin_fixed_placement` 的固定区域语义（ChatPanel 滚动按钮同源用法）——失效表现为按钮
+位置错行（不抛错）；回滚即删 `arrange` 与 `pin_queue_cancel_button`、恢复 `_queue_cancel_button()`
+查询式取子控件，并删本行 CSS 说明。`http_kwargs` 局部化与原行为等价。
+
+### ADR 判定（增量）
+
+四问均否：修复的是实现与平台能力不符的落地错误，无新取舍、无新契约、无新依赖。

@@ -87,9 +87,7 @@ async def _drain(client: Any) -> BaseException | None:
     return None
 
 
-def _with_transport(
-    transport: httpx.AsyncBaseTransport, http_kwargs_seen: list[Any] | None = None
-) -> Any:
+def _with_transport(transport: httpx.AsyncBaseTransport, http_kwargs_seen: list[Any] | None = None) -> Any:
     """The production tracker factory, with the cancel call routed to *transport*.
 
     *http_kwargs_seen*, when given, records what the production call passed for
@@ -107,9 +105,7 @@ def _with_transport(
     return tracked
 
 
-async def _queued_tracker(
-    transport: httpx.AsyncBaseTransport, *, token: str = "k", http_kwargs: Any = None
-) -> Any:
+async def _queued_tracker(transport: httpx.AsyncBaseTransport, *, token: str = "k", http_kwargs: Any = None) -> Any:
     from chrys.service.aixcoding.llm_queue import QueueRequestTracker, QueueStatus
 
     tracker = QueueRequestTracker(

@@ -431,3 +431,47 @@ uv run pytest tests/app/tui/screens/test_editor_dialog.py tests/app/tui/widgets/
 
 **2026-11-26 AI 复评轮补记**：修复 v1.8 登记行两处 strict 红点（斜杠多选锚拆两行、非整数计数
 改纯数字）——详见 self-review 同日复评轮节。
+
+## 2026-11-26 v1.10（PR #154 CI 红修复）追加
+
+CI 证据（PR #154，head `af30f7f4`，run 45768855657 / 45768855718）：
+
+- `ci / Unix shard (linux|macos/*)` 与 `ci / Windows shard (windows/*)`：312–368 failed，全部为
+  `textual.css.stylesheet.StylesheetParseError`，指向 `src/chrys/app/aixcoding/tui/queue_cancel_button.py`
+  ——`Invalid CSS property 'bottom'` / `'right'`（两次挂载期抛错，`textual/widget.py::mount_all → app._register
+  → apply_stylesheet`）；linux/1、windows/1 两个 TUI 分片卡到 `Run tests` 20 分钟步超时。
+- `ci / Unix shard (linux|macos/core)` 与 `ci / Windows shard (windows/core)`：唯一失败用例
+  `tests/integration/engine/test_pipeline_tool_calls.py::TestThreeWayConsistency::test_replay_groups_match_batch_ids`
+  ——55s faulthandler dump 后 `worker 'gwN' crashed`，同一 CSS 错误杀死 `run_test()` 应用循环所致。
+- `ci / Architecture`：`chrys.service.aixcoding.llm_queue.queue_cancel:QueueRequestTracker._post_cancel:1:
+  expression drifted`。
+- `govern`：`ruff format --check` 命中 `aixcoding/tests/llm/test_model_queue_cancel.py`（两处可单行签名，107/116 列）。
+
+修复后本地校验（本机无 uv / 无 3.14；用 3.13 + 临时 venv 装 `ruff==0.17.1`、`textual==8.2.7`
+（均与 pyproject 同版本）做等效核对）：
+
+```
+# 1) 四文件语法
+/c/Python313/python -c "import ast; [ast.parse(open(p, encoding='utf-8').read()) for p in [...]]"
+→ ok（queue_cancel_button.py / waiting_row.py / queue_cancel.py / test_model_queue_cancel.py）
+
+# 2) 等待清单全量对账（stub tests.support.paths，3.14 专属 except 语法就地加括号后扫描；不写文件）
+scan_wait_nodes() → 2922 waits；manifest_errors(manifest_text, nodes) → []（含 layout 往返）
+→ `_post_cancel:1` 新表达式：async with _cancel_client(timeout=CANCEL_TIMEOUT_SECONDS, transport=self._transport, **http_kwargs)
+
+# 3) ruff（0.17.1，仓库根 + 相对路径，与 CI 两道门同口径）
+ruff format --check aixcoding/ src/chrys/kernel/aixcoding src/chrys/service/aixcoding src/chrys/app/aixcoding
+→ 494 files already formatted（govern 范围）
+ruff check --no-fix <同范围>                                   → All checks passed!
+ruff format --check src/ tests/ scripts/...（ci.yml Lint 范围） → 2768 files already formatted
+ruff check --no-fix <同范围>                                   → All checks passed!
+
+# 4) Textual 8.2.7 真实复现（临时 venv，同版本控件 CSS + 同构行 arrange + 真实 pin_fixed_placement）
+旧 CSS（bottom/right）→ StylesheetParseError: Invalid CSS property 'bottom' / 'right'（与 CI 报错逐字一致）
+新 CSS + 行内钉位 → 1 行行高：button.region=(x=49,y=0,w=10,h=1)，2 行（fold gap）：y=1（末行），
+                    右侧贴内容区右沿；get_widget_at(按钮首格) → QueueCancelButton（命中层级正确）
+```
+
+仍未本地执行（待推送后由 CI 覆盖）：上游 Smart Test/全量分片、`ty check` 三平台、
+`gen_customizations --strict`、`check_r2_diff`、`check_docs --closure`；TUI 钉位与命中层级另由
+`test_queue_note_row.py` / `test_queue_cancel_button.py` 在 CI 分片锚定（design v1.10 风险节）。

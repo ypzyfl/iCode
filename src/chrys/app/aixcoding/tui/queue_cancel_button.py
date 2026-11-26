@@ -18,12 +18,17 @@ Design: ``aixcoding/docs/batches/model-queue-progress/design.md`` (v1.8).
 
 from __future__ import annotations
 
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 from textual.content import Content
+from textual.geometry import Region, Size
 from textual.message import Message
 
+from chrys.app.tui.util.placement import pin_fixed_placement
 from chrys.app.tui.widgets.click_affordance import ClickAffordance
+
+if TYPE_CHECKING:
+    from textual._arrange import DockArrangeResult
 
 QUEUE_CANCEL_LABEL: Final = "取消排队"
 """The affordance's label, shown beside the queue note."""
@@ -44,11 +49,12 @@ class QueueCancelButton(ClickAffordance):
 
     CLICK_MESSAGE = QueueCancelRequested
 
+    # Textual has no ``right``/``bottom`` CSS: ``position: absolute`` only keeps
+    # the button out of the row's flow, and the row's arrange pins its region to
+    # the note line's right edge (``pin_queue_cancel_button``).
     DEFAULT_CSS = """
     QueueCancelButton {
         position: absolute;
-        bottom: 0;
-        right: 1;
         height: 1;
         width: auto;
         min-width: 10;
@@ -68,3 +74,21 @@ class QueueCancelButton(ClickAffordance):
         super().__init__(Content.from_text(QUEUE_CANCEL_LABEL, markup=False))
         # Hidden beside the bare dot; ``WaitingRow.set_queue_note`` shows it with a note.
         self.display = False
+
+
+def pin_queue_cancel_button(result: DockArrangeResult, button: QueueCancelButton | None, size: Size) -> None:
+    """Show *button* on the row's trailing line, right-aligned, whatever the row's height.
+
+    The row's last content line is the dot's, where the queue note sits; the row
+    is one line tall, or two under a fold gap. Runs on every arrange, so it
+    leaves an already-pinned placement untouched (``pin_fixed_placement``).
+    """
+    if button is None:
+        return
+
+    def trailing_line(arranged: Region) -> Region:
+        width = min(max(1, arranged.width), max(1, size.width))
+        height = min(max(1, arranged.height), max(1, size.height))
+        return Region(max(0, size.width - width), max(0, size.height - height), width, height)
+
+    pin_fixed_placement(result, button, trailing_line)

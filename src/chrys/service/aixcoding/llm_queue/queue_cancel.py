@@ -191,9 +191,11 @@ class QueueRequestTracker:
             _preview(payload),
             "已携带" if self._token else "空",
         )
+        # One mapping for the call: an unrecorded posture and an empty one both mean httpx defaults.
+        http_kwargs = self._http_kwargs or {}
         try:
             async with _cancel_client(
-                timeout=CANCEL_TIMEOUT_SECONDS, transport=self._transport, **(self._http_kwargs or {})
+                timeout=CANCEL_TIMEOUT_SECONDS, transport=self._transport, **http_kwargs
             ) as client:
                 response = await client.post(endpoint, json=payload, headers={"token": self._token})
         except httpx.TransportError:

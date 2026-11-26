@@ -18,7 +18,7 @@ from textual.message import Message
 from textual.widget import Widget
 
 # AIxCoding queue-progress: waiting row cancel button (floated over the queue note's line)
-from chrys.app.aixcoding.tui.queue_cancel_button import QueueCancelButton
+from chrys.app.aixcoding.tui.queue_cancel_button import QueueCancelButton, pin_queue_cancel_button
 from chrys.app.tui.util.shimmer import FRAME_SECONDS, breathing_dot
 from chrys.app.tui.widgets.chat.compaction_card import CompactionCard
 from chrys.app.tui.widgets.chat.context_fold import ContextFoldWidget
@@ -28,6 +28,7 @@ from chrys.app.tui.widgets.chat.tool_call import ToolGroup
 from chrys.app.tui.widgets.loading import GatedAnimation
 
 if TYPE_CHECKING:
+    from textual._arrange import DockArrangeResult
     from textual.geometry import Size
 
 
@@ -81,8 +82,18 @@ class WaitingRow(GatedAnimation, FoldGap, Widget):
         return super()._size_updated(size, virtual_size, container_size, layout=False)
 
     # AIxCoding queue-progress: waiting row cancel button (floated over the note line)
+    _cancel_button: QueueCancelButton | None = None
+    """The affordance over the note line; ``compose`` sets it, ``None`` before the row mounts."""
+
     def compose(self) -> ComposeResult:
-        yield QueueCancelButton()
+        self._cancel_button = QueueCancelButton()
+        yield self._cancel_button
+
+    def arrange(self, size: Size, optimal: bool = False) -> DockArrangeResult:
+        """Pin the cancel affordance to the note line's right edge, out of the row's flow."""
+        result = super().arrange(size, optimal=optimal)
+        pin_queue_cancel_button(result, self._cancel_button, size)
+        return result
 
     @property
     def queue_note(self) -> str:
@@ -99,16 +110,11 @@ class WaitingRow(GatedAnimation, FoldGap, Widget):
         if note == self._queue_note:
             return
         self._queue_note = note
-        button = self._queue_cancel_button()
-        if button is not None:
-            button.display = bool(note)
+        if self._cancel_button is not None:
+            self._cancel_button.display = bool(note)
         self.refresh()
         # The note changes outside any transcript move the panel already syncs on, so it hears.
         self.post_message(QueueNoteChanged())
-
-    def _queue_cancel_button(self) -> QueueCancelButton | None:
-        """The cancel affordance over the note line, once composed; absent while the row is unmounted."""
-        return next(iter(self.query(QueueCancelButton)), None)
 
     def render(self) -> Text:
         if self.app.animation_level == "none":

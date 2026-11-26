@@ -64,6 +64,9 @@ panel.py + 两个 v1.8 新测试文件、frontend-api.md QUEUE_FULL 口径更正
 - [x] 2026-11-20 回填 R2 实测行数 + manifest 行（C1/C7，待重签）
 - [x] 2026-11-24 归位改造（design v1.3）：A 事件类出 types.py / B construction 工厂化 / C ACP 判重入包+TurnStarted 重置 / D CLI 体入包；`queue_notify.py`、`cli/queue_line.py` 落位；实测回填净表
 - [x] 2026-11-25 v1.4（requestId 透传）：签认（D1带/D2加/D3补）→ 实施 → 验证（77+57+683 passed）→ 文档同步；待联调与双 AI 自审
+- [x] 2026-11-26 v1.8（重试后再排队可见 + TUI 取消排队按钮）→ v1.9（PR #154 评审修复批）
+- [x] 2026-11-26 v1.10（PR #154 CI 红修复）：Textual 无 `right`/`bottom` CSS → `pin_fixed_placement` 行内钉位；
+      取消测试文件 ruff format；`_post_cancel` 等待清单行重生成；CI 复跑待推送后确认
 
 ## 挂起与备忘
 
