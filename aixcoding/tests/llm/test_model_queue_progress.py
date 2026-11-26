@@ -408,8 +408,12 @@ async def test_acp_payload_carries_the_request_id() -> None:
     server = ChrysAcpServer(manager=object(), initial_vision=False)  # type: ignore[arg-type]
     server.on_connect(client)  # type: ignore[arg-type]
 
-    await server._handle_turn_event("fb", GatewayQueueStatus(session_id="s1", position=2, queue_size=5, request_id="rid-1"), None)  # type: ignore[arg-type]
-    await server._handle_turn_event("fb", GatewayQueueStatus(session_id="s1", position=-1, queue_size=0, request_id="rid-1"), None)  # type: ignore[arg-type]
+    await server._handle_turn_event(
+        "fb", GatewayQueueStatus(session_id="s1", position=2, queue_size=5, request_id="rid-1"), None
+    )  # type: ignore[arg-type]
+    await server._handle_turn_event(
+        "fb", GatewayQueueStatus(session_id="s1", position=-1, queue_size=0, request_id="rid-1"), None
+    )  # type: ignore[arg-type]
     await server._handle_turn_event("fb", GatewayQueueStatus(session_id="s1", position=1, queue_size=3), None)  # type: ignore[arg-type]
 
     assert client.sent == [
@@ -435,9 +439,15 @@ async def test_acp_new_request_same_position_is_not_deduped() -> None:
     server = ChrysAcpServer(manager=object(), initial_vision=False)  # type: ignore[arg-type]
     server.on_connect(client)  # type: ignore[arg-type]
 
-    await server._handle_turn_event("fb", GatewayQueueStatus(session_id="s1", position=2, queue_size=5, request_id="rid-a"), None)  # type: ignore[arg-type]
-    await server._handle_turn_event("fb", GatewayQueueStatus(session_id="s1", position=2, queue_size=5, request_id="rid-a"), None)  # type: ignore[arg-type]
-    await server._handle_turn_event("fb", GatewayQueueStatus(session_id="s1", position=2, queue_size=5, request_id="rid-b"), None)  # type: ignore[arg-type]
+    await server._handle_turn_event(
+        "fb", GatewayQueueStatus(session_id="s1", position=2, queue_size=5, request_id="rid-a"), None
+    )  # type: ignore[arg-type]
+    await server._handle_turn_event(
+        "fb", GatewayQueueStatus(session_id="s1", position=2, queue_size=5, request_id="rid-a"), None
+    )  # type: ignore[arg-type]
+    await server._handle_turn_event(
+        "fb", GatewayQueueStatus(session_id="s1", position=2, queue_size=5, request_id="rid-b"), None
+    )  # type: ignore[arg-type]
 
     queue_sends = [params for method, params in client.sent if method == "queue_status"]
     assert queue_sends == [
