@@ -7,9 +7,9 @@
 -->
 
 - 责任人：李海潮
-- 状态：草案（签认时：状态→已确认、填日期；并将 `model-queue-client--queue-frame-interception.md` 状态行改为：被取代（被 ADR-model-queue-client--gateway-cancel-required 取代））
-- 确认日期：
-- 确认意见：
+- 状态：已确认（签认时：状态→已确认、填日期；并将 `model-queue-client--queue-frame-interception.md` 状态行改为：被取代（被 ADR-model-queue-client--gateway-cancel-required 取代））
+- 确认日期：2026-11-26
+- 确认意见：无特殊意见
 
 > 起草说明（2026-11-26，PR #154 独立评审 B2）：决策 6（"不接 cancel 接口……断连即出队"）自
 > v1.1 起被实施反转、v1.4 认定根因不成立，但 ADR 未走取代流程。本文按 §6 补流程；所记录的
