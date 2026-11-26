@@ -111,7 +111,7 @@ R1 自查（逐行归属）：上游每处均为"挂点 + 一行调用/一个字
 | id | 落点 | marker 锚 | 预期计数 | anchor | risk | removal_condition |
 |---|---|---|---|---|---|---|
 | model-queue-progress:observer-callback | src/chrys/service/llm/observer.py | AIxCoding queue-progress: observer callback | 1 | `WireCallObserver.__init__` | 低 | 〔上游等价〕上游提供通用 wire 层回调注册机制 |
-| model-queue-progress:factory-passthrough | src/chrys/service/llm/clients.py | AIxCoding queue-progress: client factory passthrough | 4 | `create_client` / `_assemble_stack` | 低 | 随 observer-callback |
+| model-queue-progress:factory-passthrough | src/chrys/service/llm/clients.py | AIxCoding queue-progress: client factory passthrough | 5 | `create_client` / `_assemble_stack` / `WireCallObserver` 构造（第 5 处为 client 批 v1.6 的 `queue_cancel_http` 透传，v1.10 更正计数） | 低 | 随 observer-callback |
 | model-queue-progress:build-passthrough | src/chrys/orchestration/engine/build/builder.py | AIxCoding queue-progress: build passthrough | 2 | `build_agent` | 低 | 随 observer-callback |
 | model-queue-progress:publish | src/chrys/orchestration/engine/build/construction.py | AIxCoding queue-progress: publish queue status | 2 | `make_queue_status_publisher` 工厂调用（`bus.publish` 内联 await 移入定制包，v1.3） | 中（内联 await 订阅者） | 〔上游等价〕事件总线原生支持 wire 层进度事件 |
 | model-queue-progress:headless-event-type | src/chrys/orchestration/session_host.py | AIxCoding queue-progress: headless event type | 2 | `_HEADLESS_RUN_EVENT_TYPES` / `allows_headless_event`（事件类现居 `kernel/aixcoding/queue_progress.py`，v1.3） | 高（漏加即两前端静默失效） | 〔上游等价〕headless 白名单改为按事件基类放行 |
@@ -127,6 +127,8 @@ R1 自查（逐行归属）：上游每处均为"挂点 + 一行调用/一个字
 | model-queue-progress:cli-line | src/chrys/app/cli/progress.py | AIxCoding queue-progress: CLI line | 6 | `TurnProgress.handle`（含 `TurnStarted` 重置；去重与写行逻辑居 `app/aixcoding/cli/queue_line.py::QueueLineNote`，v1.3） | 中（锚点错即静默） | 〔上游等价〕CLI 提供实时状态行机制 |
 | model-queue-progress:acp-notification | src/chrys/app/acp/server.py | AIxCoding queue-progress: ACP notification | 5 | `ext_notification` 白名单 + `_handle_chrys_extension_event`（`TurnStarted` 重置，v1.3；去重与载荷居 `app/aixcoding/acp/queue_notify.py`；计数 5 = import×2/白名单/分支/重置） | 低 | 〔协议变更〕ACP 协议原生提供排队/背压通知 |
 | model-queue-progress:test-double | tests/app/tui/screens/test_prompt_shortcut_send.py | AIxCoding queue-progress: test double accepts the callback | 1 | `Builds.create_client` | 低 | 随 factory-passthrough |
+| model-queue-progress:queue-note-row-tests | tests/app/tui/widgets/chat/test_queue_note_row.py | AIxCoding queue-progress: queue note row tests | 1 | `WaitingRow.set_queue_note` / `QueueNoteChanged`（v1.8 新文件，v1.10 补 marker） | 低 | 随 waiting-row-cancel |
+| model-queue-progress:queue-cancel-button-tests | tests/app/tui/screens/main/test_queue_cancel_button.py | AIxCoding queue-progress: queue cancel button tests | 1 | `MainScreen.on_queue_cancel_requested`（v1.8 新文件，v1.10 补 marker） | 低 | 随 waiting-row-cancel |
 | model-queue-progress:frontend-api-doc | src/chrys/app/acp/doc/frontend-api.md | AIxCoding queue-progress: document queue_status | 1 | Extension notifications 分组列表与 Notes 的 `queue_status` 三帧契约（marker 为渲染不可见的 HTML 注释，v1.4 D3 落地、v1.5 随方法名改锚） | 低（纯文档） | 〔上游等价〕上游文档原生收录该通知契约 |
 
 ## 风险与最坏情况
@@ -786,6 +788,23 @@ post `QueueNoteChanged`、由 panel 处理并 sync（`waiting-row-visibility` �
    `http_kwargs`（`**http_kwargs`），使 `ast.unparse` 输出与解释器版本无关；manifest 行同步为
    `async with _cancel_client(timeout=CANCEL_TIMEOUT_SECONDS, transport=self._transport, **http_kwargs)`。
    全量扫描对账（2922 个 wait）经 `tests/support/trajectory_wait_inventory.py` 复核为 0 error。
+
+### 追加（2026-11-26 第二轮，推送 4fa1e7e0 后暴露的红点）
+
+4. **`check_docs --closure`**：`model-queue-client--gateway-cancel-required.md` 为草案 → 责任人本人签认
+   （状态→已确认、2026-11-26、确认意见已填）。签认后本地 `check_docs --closure` OK。
+5. **`gen_customizations --strict` 计数漂移**：client 批 M1 修复在 `src/chrys/service/llm/clients.py`
+   的 `WireCallObserver` 构造处新增了第 5 个同锚 marker，登记行仍写 4 → 更正
+   `factory-passthrough` 预期计数为 5（新增处已在 anchor 栏注明）。属登记行更正（§5 的 R10 重签范围，
+   责任人已就本文件当日签认，本轮再改请复核是否需要重签）。
+6. **`check_r3_markers`**：v1.8 的两个新测试文件（`tests/app/tui/widgets/chat/test_queue_note_row.py`、
+   `tests/app/tui/screens/main/test_queue_cancel_button.py`）在 tests/ 树内同属上游面对象，缺 marker
+   → 各补一行 `# AIxCoding queue-progress: …` 并新增两条登记行（`queue-note-row-tests`、
+   `queue-cancel-button-tests`，计数各 1）。v1.9「测试为新文件、无 marker」的口径按 R3 实测更正。
+7. **新测试自身缺陷**（CI 首次真正执行到，head `4fa1e7e0` 的 linux/1 与 windows/1 分片）：
+   `test_clicking_cancel_queue_toasts_and_interrupts_the_turn` 把 `interrupt.called`（bool）直传
+   `wait_for` 的谓词位 → `TypeError: 'bool' object is not callable`；改为 `lambda: interrupt.called`。
+   同分片 3476/3459 passed 证明钉位、显隐联动与点击命中均正常，失败仅在断言写法。
 
 ### 上游改动清单（R2，相对 v1.9 的增量）
 

@@ -2,6 +2,8 @@
 
 """The waiting row shows the gateway's queue note behind a status card, with a cancel affordance beside it."""
 
+# AIxCoding queue-progress: queue note row tests (src/chrys/app/aixcoding/tui/queue_cancel_button)
+
 from __future__ import annotations
 
 from chrys.app.aixcoding.tui.queue_cancel_button import QueueCancelButton, QueueCancelRequested

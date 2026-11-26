@@ -2,6 +2,8 @@
 
 """Clicking the waiting row's cancel-queue affordance toasts the user and interrupts the turn."""
 
+# AIxCoding queue-progress: queue cancel button tests (src/chrys/app/aixcoding/tui/queue_cancel_button)
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -37,7 +39,7 @@ async def test_clicking_cancel_queue_toasts_and_interrupts_the_turn(tmp_path: Pa
             patch.object(screen, "notify") as notify,
         ):
             await click_when_settled(pilot, button)
-            await wait_for(interrupt.called, pilot=pilot, description="the click interrupted the turn")
+            await wait_for(lambda: interrupt.called, pilot=pilot, description="the click interrupted the turn")
         # The toast says the user left the queue; the interrupt is what leaves it (design v1.8).
         interrupt.assert_called_once_with()
         notify.assert_called_once_with(QUEUE_CANCELLED_NOTICE, markup=False)

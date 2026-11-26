@@ -472,6 +472,31 @@ ruff check --no-fix <同范围>                                   → All checks
                     右侧贴内容区右沿；get_widget_at(按钮首格) → QueueCancelButton（命中层级正确）
 ```
 
-仍未本地执行（待推送后由 CI 覆盖）：上游 Smart Test/全量分片、`ty check` 三平台、
-`gen_customizations --strict`、`check_r2_diff`、`check_docs --closure`；TUI 钉位与命中层级另由
+仍未本地执行（待推送后由 CI 覆盖）：上游 Smart Test/全量分片、`ty check` 三平台；TUI 钉位与命中层级另由
 `test_queue_note_row.py` / `test_queue_cancel_button.py` 在 CI 分片锚定（design v1.10 风险节）。
+
+## 2026-11-26 v1.10 第二轮（推送 4fa1e7e0 后）
+
+CI 证据（run 45777547767 / 45777547781，head `4fa1e7e0`）：
+
+- `govern` → `check_docs --closure`：`model-queue-client--gateway-cancel-required.md` 为草案（6 条错误，
+  含其自身与两个引用方）。责任人本人签认后本地复跑 OK。
+- 同一作业后续步骤（被 format 失败挡住的）暴露 `gen_customizations --strict`
+  `factory-passthrough` 计数 4≠5、`check_r3_markers` 两个 v1.8 新测试文件缺 marker。
+- `ci / Unix shard (linux/1/tui)`、`ci / Windows shard (windows/1/tui)`：各 1 failed（其余 3476 / 3459 passed）——
+  `test_queue_cancel_button.py::test_clicking_cancel_queue_toasts_and_interrupts_the_turn` 的
+  `wait_for(interrupt.called, …)` 谓词位传了 bool。
+
+修复与本地校验（Python 3.14.10 embeddable，与 CI 同版本；ruff 0.17.1）：
+
+```
+check_docs.py --closure                          → OK（30 ADR / 49 design / 48 self-review）
+gen_customizations.py --strict                   → OK — 138 registration row(s) / 207 marker(s), 0 warning
+check_r3_markers.py --base <merge-base>          → OK（upstream_changed=107 marker_checked=104 exempt=3）
+check_r2_diff.py --base <merge-base>             → OK
+ruff check/format --check <改动文件>              → All checks passed / already formatted
+```
+
+注：本地扫描计数（49/48）小于 CI（51/50），因 PR 分支落后基线 35 个提交，CI 在 merge commit 上检查；
+新增的两条登记行属 §5 的 R10 重签范围，待责任人复核。
+
