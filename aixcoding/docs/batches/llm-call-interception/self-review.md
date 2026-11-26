@@ -219,3 +219,41 @@
 - 未修项（次要问题，责任人拍板不修）：无。
 - 交付证据：Smart Test 普通套件 11040 passed / 349 skipped、architecture 600 passed / 2 skipped；完整定制套件 988 passed / 56 skipped；三平台 ty、ruff/format、导入边界、定制清单、编译和 R2/R3 均通过，详见 verification.md。
 - 交付限制：仅余 design 的 ID 来源澄清重签、本记录签认及 `check_docs --closure`；不涉及未修复代码问题。
+
+## 2026-11-26 PR #153 二次评审结论与处置
+
+- 评审结论：**Request changes（暂不 Approve）**。评审对象 head `089f52cc`，base 快照 `baddb7f5`，主干 `b2385928`。
+  阻塞项 B1（与主干冲突不可合并）、B2（PR 描述仍是惰性化之前的版本）；主要发现 F1–F6。评审方标识以 PR #153
+  评审记录为准。开发 AI 逐项只读复核（`git merge-tree`、GitHub API、源码与文档行号），全部属实。
+- 轮次：1 轮（二次评审 → 处置；复审由评审人按 PR 流程进行）。
+- 责任人裁决（2026-11-26）：F1 取扩展方案、F4 确认为 §6 批准例外并留痕、F5 仅澄清 docstring，其余按呈报处置；
+  合并主干采用 merge（仓库惯例，保留评审引用的提交号）。
+- 方案与实现评估（技术评审摘要）：
+  - 大方向表态：同意评审结论——代码主体无阻塞性缺陷，缺口在合并态、交付报告与三处守卫/文档一致性，处置均为
+    小改动。
+  - 关键决策逐条意见：
+    - F1 扩展支持 CR | 同意：两个 pinned SDK 的解码器都接受 `\r\r`，不支持等于对这类流静默失效且 `Block` 拦不住。
+    - F4 确认为批准例外 | 有保留并留痕：与 §6 字面有张力，依据是该 ADR 修订时未合入主干且决策主体未变。
+    - F5 仅澄清 docstring | 同意：当前无生产调用方，no-op 基类是未被要求的功能。
+  - T1-T4 要点：F1 的边界定义已写入 design「SSE 事件」与「隐式行为假设」第 6 条；F2 的守卫写入「新增定制
+    测试」；F5 的类型契约写入「HTTP 策略契约」；R2 行随 F1 更新为 30 节点 / +68 行。
+  - 临时项与例外：F4 为流程例外，留痕于 ADR 修订记录；是否为 §6 补通用条款另立规范议题，不在本批决定。
+- blocker 处置：
+  - B1 → 已处置：merge `origin/main_aixcoding_cli`，唯一冲突文件 `tests/architecture/trajectory_wait_manifest.json`
+    先落为主干版本再用官方生成器重写（2950 waits / 28 reopened，相对主干 +64 行）；合并后回归见 verification.md。
+  - B2 → 处置安排：全部处置定稿后把 PR 描述重写到最终态，由责任人在 GitHub 更新；PR 描述为 §7 交付报告，
+    以最终提交为准。
+  - F1 → 已处置：`hooks.py` 事件边界改为两个行结束符（LF/CRLF/CR），单个 CRLF 不拆；流式路径在边界落在缓冲
+    末尾且以 CR 结尾时推迟到下一 chunk，流结束后定案。新增 19 个用例实例，变异验证见 verification.md。
+  - F2 → 已处置：`test_installer.py` 新增子进程用例，隔离 HOME/APPDATA 并经真实 `main()` 执行全部启动任务，
+    断言 startup 已执行、本模块未导入、上游工厂无 `__wrapped__` 与 marker。
+  - F3 → 已处置：plan、research、test-plan 同步，design 补「定制点登记预告（不适用）」，本记录与 verification
+    追加处置记录。
+  - F4 → 已处置：ADR 修订记录追加责任人确认，slug 注明为历史名。
+  - F5 → 已处置：`HttpPolicy` docstring 澄清协议声明与运行期可省略阶段的关系。
+- 顺带发现：
+  - `verification.md` 的“上游 core shard”口径 | 此前把 CI core shard（24146 / 652）与 `tests` 全量含 TUI
+    （37256 / 699）都称作 core shard | 已在 verification.md 处置记录中更正，旧记录保留。
+  - `plan.md` 签认日期 | design/ADR 的签认日期停留在 2026-11-25，未随 2026-11-26 重签更新 | 已随 F3 更正。
+- 未修项（次要问题，责任人拍板不修）：无新增；评审 F6 的观察与既有未修项表一致，维持不修。
+- 本节为签认后追加的评审记录，按头部规则不触发重签。

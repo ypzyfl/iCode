@@ -23,8 +23,8 @@ AIxCoding 需要在进程内对每个实际模型 HTTP 请求和响应进行读�
      当前请求。
   3. 响应进入 SDK 解析前可读取、修改 status 对应的 headers；普通响应 body 可完整读取、替换或阻断。
      普通/SSE 分派必须依据实际 identity body 的有限前缀与回放，不信任可能双向误标的 Content-Type。
-  4. 流式响应可读取、修改响应 headers，并按完整 SSE 事件读取、替换或阻断 body；正确处理一个事件
-     跨多个网络 chunk、一个 chunk 包含多个事件及流提前结束。
+  4. 流式响应可读取、修改响应 headers，并按完整 SSE 事件读取、替换或阻断 body；事件边界按 LF、CRLF、CR
+     三种行结束符识别，正确处理一个事件跨多个网络 chunk、一个 chunk 包含多个事件及流提前结束。
   5. 每个实际 HTTP attempt 都可处理，包括 SDK 重试和 HTTP 重定向；同一逻辑调用下的多个 attempts
      通过既有 ID 关联，不额外承诺逻辑调用级恰好一次 hook。
   6. 请求和响应两侧均可从 `request.extensions` 获取调用归属：
@@ -77,7 +77,8 @@ AIxCoding 需要在进程内对每个实际模型 HTTP 请求和响应进行读�
       和响应内容与原行为一致且无固定 hook 开销。
 - [ ] 真实 `cli_app.main()` 执行 startup 后，上游工厂未被包装、本模块未被导入，同进程 route/default hook
       精确清单保持上游原值；注册策略后创建的 Client 才带定制 hooks。真实 startup 串行组合和上游 core shard
-      均通过，不能只以 Smart Test 选择结果作为证据。
+      均通过，不能只以 Smart Test 选择结果作为证据。该默认路径由子进程用例持久守卫（测试模块顶层已导入本模块，
+      父进程无法自证），覆盖启动依赖在 startup 包之外的间接导入。
 - [ ] 注册策略的定制测试在每个测试前后清空策略并把上游工厂恢复为未包装状态，依赖“工厂未包装”的用例不受
       执行顺序影响。
 - [ ] 策略在 Client 创建前注册时，OpenAI Chat Completions、OpenAI Responses（含 retrieve/poll）和
@@ -100,6 +101,8 @@ AIxCoding 需要在进程内对每个实际模型 HTTP 请求和响应进行读�
 
 - [ ] 测试证明网络 chunk 不等于完整响应：跨 chunk SSE 事件可完整读取、修改或阻断，一个 chunk 中的
       多个事件不会混淆。
+- [ ] 事件以 CR（`\r\r`）终结或混用 LF/CRLF/CR 的流同样按完整事件读取、修改或阻断；单个 CRLF 是一个行结束符
+      而非事件边界，跨网络 chunk 的 CRLF 不被拆开。
 - [ ] 策略内部异常只回退当前原始事件；已转发事件不撤回，后续事件仍按契约处理。
 - [ ] 流结束、异常、取消和提前关闭均正确关闭原始流，不重复提交缓冲事件。
 - [ ] 已输出内容后的阻断不重放请求，不重复输出已交付文本。

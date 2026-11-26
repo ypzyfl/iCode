@@ -80,6 +80,8 @@ src/chrys/service/aixcoding/llm_call_interception/
 
 - `aixcoding/tests/llm_call_interception/`：覆盖注册触发安装与安装幂等、注册期安装失败降级、真实工厂契约、
   调用归属、请求/响应读写改拦、普通与 SSE、缓冲响应、重试分类、降级日志、并发隔离和资源关闭。
+- 默认启动路径由子进程用例守卫：测试模块顶层已导入本模块，父进程无法自证；子进程在隔离的配置目录下经真实
+  `main()` 执行全部启动任务后，本模块未被导入、上游工厂未被包装。
 - 不修改上游手写测试，不 import 上游 `tests/support/`。
 
 **R1/R2 自查**：全部业务逻辑均在定制模块；运行时只包装一个统一 HTTP 工厂，上游手写源码、测试、构建和打包
@@ -89,7 +91,7 @@ src/chrys/service/aixcoding/llm_call_interception/
 
 | 文件 | 改动 | 审批依据 |
 |---|---|---|
-| `tests/architecture/trajectory_wait_manifest.json` | 官方生成器新增本模块 **28 个 wait 节点（+64 行）**；不改手写测试和运行时行为 | 2026-11-25 生成物范围专项裁决及 design/ADR 重签；增量复审呈报行数 |
+| `tests/architecture/trajectory_wait_manifest.json` | 官方生成器新增本模块 **30 个 wait 节点（相对主干 `b2385928` 为 +68 行）**；不改手写测试和运行时行为 | 2026-11-25 生成物范围专项裁决及 design/ADR 重签；2026-11-26 二次评审处置随 SSE 事件边界修订，由 28 节点/+64 行更新为 30 节点/+68 行 |
 
 除上述生成物外，本批不得修改其他上游文件；不得依赖其他批次的 R2 存量登记替代本行。
 
@@ -145,6 +147,9 @@ AIxCoding request hook 排在 tracking 之后；response hook 通过 `response.r
 hook 在策略成功返回后才一次性应用修改；策略内部异常不应用部分结果，回退当前原始请求、响应或 SSE
 事件并记录 detail。`Block` 走独立控制路径，不得被 fail-open 吞掉。
 
+`HttpPolicy` 协议把四个阶段全部声明为必需，类型契约面向实现全部阶段的组合策略；运行期按阶段判空，策略未
+定义的阶段不执行。只实现部分阶段的策略运行期可用，但不满足该协议类型。
+
 ### 定制异常隔离边界
 
 - 策略调用、结果归一化、headers/body 修改应用和自定义 SSE 调度均置于 AIxCoding containment 内；任何
@@ -190,10 +195,13 @@ response hook 先处理 status/headers，再按**实际 body 内容**选择普�
 
 ### SSE 事件
 
-实际内容为 SSE 且存在 `before_sse_event` 时，累积至完整 CRLF/LF 事件边界后逐事件处理：`None` 原样转发，
-修改结果替换当前事件，`Block` 终止剩余流；策略异常只回退当前事件，已转发事件不撤回。网络 chunk 可能拆分或
-合并事件，不得视为完整响应。缓冲 SSE 也按相同事件契约处理，不得因存在 `_content` 而跳过。结束、提前关闭、
-取消和底层异常均关闭原始流，不重复提交缓冲事件；尾部不完整事件原始字节仅直通一次。
+实际内容为 SSE 且存在 `before_sse_event` 时，累积至完整事件边界后逐事件处理。事件边界是空行，即两个连续的
+行结束符；行结束符可以是 LF、CRLF 或 CR，与两个 pinned SDK 的 SSE 解码器口径一致，单个 CRLF 是一个行结束符，
+不得拆成两个。缓冲区末尾的 CR 可能是跨网络 chunk 的 CRLF 的前半字节：该边界须推迟到下一 chunk 到达后再判定，
+流结束时才按 CR 定案。处理契约：`None` 原样转发，修改结果替换当前事件，`Block` 终止剩余流；策略异常只回退
+当前事件，已转发事件不撤回。网络 chunk 可能拆分或合并事件，不得视为完整响应。缓冲 SSE 也按相同事件契约处理，
+不得因存在 `_content` 而跳过。结束、提前关闭、取消和底层异常均关闭原始流，不重复提交缓冲事件；尾部不完整
+事件原始字节仅直通一次。
 
 ### 回调不匹配与范围
 
@@ -277,7 +285,9 @@ SSE 转换器已离开 SDK 请求重试循环，可使用 AIxCoding 自有非重
 4. **HTTPX hook 时序**：request 在 auth 后、redirect 循环内，response 在普通 body 预读前；变化可能使
    普通 body 修改失效，需行为测试。
 5. **Client hooks 可调整**：`AsyncClient.event_hooks` 当前可读、可整体赋值；变化时安装失败并告警降级。
-6. **流式 chunk 边界**：HTTPX 不保证 chunk 等于 SSE 事件，SDK 另行做 SSE 解码；本批自行缓冲事件边界。
+6. **流式 chunk 边界**：HTTPX 不保证 chunk 等于 SSE 事件，SDK 另行做 SSE 解码；本批自行缓冲事件边界，行
+   结束符口径（LF、CRLF、CR）与两个 pinned SDK 的 SSE 解码器对齐。SDK 升级若改变可接受的行结束符，事件
+   边界须同步复核。
 7. **缓冲响应**：MockTransport 等可预置 `_content`，真实网络通常走 stream；两种形态分别适配。
 8. **SDK 异常透传**：基础 SDK 错误可透传，普通异常可能重试并包装；每 provider 的调用次数断言锚定。
 9. **Chrys 分类器**：读取完整异常链、内置类型、状态码和短语；最终 Block 分类自检和契约测试锚定。
@@ -292,6 +302,12 @@ SSE 转换器已离开 SDK 请求重试循环，可使用 AIxCoding 自有非重
     kwargs 转发另做非 vacuous 断言。
 15. **扩展字段漂移**：trajectory context extension key 应复用上游定义，使重命名成为显式导入失败或契约失败，
     不得静默退化为全 `None`。
+
+## 定制点登记预告
+
+不适用：本批零上游 marker，点级登记无对象。HTTP 拦截不修改上游手写源码、测试、构建或打包文件，私有工厂与
+行为锚点由 ADR、上文假设和契约测试承载；唯一上游生成物 `tests/architecture/trajectory_wait_manifest.json`
+已登记于「上游改动清单（R2）」。
 
 ## 风险与回滚
 
@@ -313,6 +329,10 @@ SSE 转换器已离开 SDK 请求重试循环，可使用 AIxCoding 自有非重
 安装，修订缘由见该 ADR 的“修订记录”）：
 
 - `aixcoding/docs/standards/adr/llm-call-interception--http-startup-runtime-wrapping.md`
+
+原地修订属 `DEVELOPMENT.md` §6「决策更新的处理」的批准例外，责任人于 2026-11-26 确认，留痕于该 ADR 的修订
+记录。文件名中的 `http-startup-runtime-wrapping` 为创建时的历史 slug，为 ID 稳定保留；现行决策是策略注册时
+安装。
 
 已撤回的“草案”仅指逻辑层显式接线 ADR；当前 HTTP ADR 已确认。未来重新出现完整语义响应或逻辑级 hook
 需求时再立项。

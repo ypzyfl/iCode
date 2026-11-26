@@ -4088,8 +4088,12 @@
       ],
       "_SSEEventStream.__aiter__": [
         ["async_iteration", "async for chunk in self._stream", "unresolved"],
-        ["wrapper", "await _process_sse_event(self._response, self._context, self._handler, event, stream=True)", "unresolved", "chrys.service.aixcoding.llm_call_interception.hooks._process_sse_event"],
+        ["wrapper", "async for event in self._take_events(buffer, final=False)", "unresolved", "chrys.service.aixcoding.llm_call_interception.hooks._SSEEventStream._take_events"],
+        ["wrapper", "async for event in self._take_events(buffer, final=True)", "unresolved", "chrys.service.aixcoding.llm_call_interception.hooks._SSEEventStream._take_events"],
         ["wrapper", "await self.aclose()", "unresolved", "chrys.service.aixcoding.llm_call_interception.hooks._SSEEventStream.aclose"]
+      ],
+      "_SSEEventStream._take_events": [
+        ["wrapper", "await _process_sse_event(self._response, self._context, self._handler, event, stream=True)", "unresolved", "chrys.service.aixcoding.llm_call_interception.hooks._process_sse_event"]
       ],
       "_SSEEventStream.aclose": [
         ["awaitable", "await self._stream.aclose()", "unresolved"]

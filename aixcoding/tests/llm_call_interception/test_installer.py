@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import inspect
+import os
+import subprocess
+import sys
+import textwrap
 from pathlib import Path
 
 import httpx
@@ -192,3 +196,39 @@ def test_startup_never_references_http_interception() -> None:
     assert (startup._configure_environment, startup._ensure_file_sink) == startup._TASKS
     package_dir = Path(startup.__file__).parent
     assert not any("llm_call_interception" in path.read_text(encoding="utf-8") for path in package_dir.rglob("*.py"))
+
+
+def test_default_startup_in_a_fresh_process_never_touches_interception(tmp_path: Path) -> None:
+    """The imports above already load the package into this process, so the default path
+    is only observable in a fresh interpreter that runs the real ``main()``."""
+    home = tmp_path / "home"
+    (home / "AppData" / "Roaming" / "chrys").mkdir(parents=True)
+    env = {name: value for name, value in os.environ.items() if name.upper() != "PYTHONPATH"}
+    env.update(HOME=str(home), USERPROFILE=str(home), APPDATA=str(home / "AppData" / "Roaming"))
+    probe = textwrap.dedent(
+        """\
+        import sys
+        sys.argv = ["aixcoding-cli", "--version"]
+        from chrys.app.cli import app as cli_app
+        code = cli_app.main()
+        startup_ran = "chrys.service.aixcoding.config" in sys.modules
+        prefix = "chrys.service.aixcoding.llm_call_interception"
+        loaded = sorted(m for m in sys.modules if m == prefix or m.startswith(prefix + "."))
+        from chrys.service.llm import clients
+        factory = clients._build_profile_http_client
+        marker = getattr(factory, "_aixcoding_http_interception_factory", False)
+        print(code, startup_ran, loaded, hasattr(factory, "__wrapped__"), marker)
+        """
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", probe],
+        check=False,
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.splitlines()[-1] == "0 True [] False False"

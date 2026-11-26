@@ -372,3 +372,97 @@ check_docs --closure     OK；gen_customizations --strict 108 rows / 159 markers
 `ruff check` All checks passed、完整 `aixcoding/tests` 1010 passed / 56 skipped、`check_docs --closure` OK。
 Smart Test 不收集 `aixcoding/tests`（此前新增用例后其计数不变），对该改动无覆盖价值，未重跑；上游 core shard
 不涉及该文件。上文列出的 Smart Test 与 core shard 结果均在此次改动之前运行。
+
+## 2026-11-26 合并主干与合并后回归（PR #153 二次评审 B1）
+
+命令：`git merge --no-edit origin/main_aixcoding_cli`（责任人逐条授权）；唯一冲突文件
+`tests/architecture/trajectory_wait_manifest.json` 先以 `git show origin/main_aixcoding_cli:<path>` 的输出覆盖，再用官方
+生成器重写，然后：
+
+```cmd
+set "PYTHONPATH=" && set "PYTHONUTF8=1"
+uv run python -m tests.support.trajectory_wait_inventory
+D:\Tech\Github\huawei\iCode\fork\iCode-fork_2\.venv\Scripts\python.exe -m pytest tests/architecture/test_trajectory_wait_inventory.py -n 0
+D:\Tech\Github\huawei\iCode\fork\iCode-fork_2\.venv\Scripts\python.exe -m pytest aixcoding/tests/llm_call_interception aixcoding/tests/diagnostics/test_entry_wiring.py -n 0
+D:\Tech\Github\huawei\iCode\fork\iCode-fork_2\.venv\Scripts\python.exe -m pytest tests/app/cli/test_app.py tests/service/llm/test_route_extension_wire.py tests/service/llm/test_default_http_client_parity.py -n 0
+D:\Tech\Github\huawei\iCode\fork\iCode-fork_2\.venv\Scripts\python.exe -m pytest aixcoding/tests -m "not integration and not gc_calibration"
+D:\Tech\Github\huawei\iCode\fork\iCode-fork_2\.venv\Scripts\python.exe -m pytest -q --tb=short --dist=worksteal -n 4 -m "not integration and not gc_calibration" tests --ignore=tests/architecture --deselect tests/app/test_install_scripts.py
+```
+
+结果（均 exit 0；合并对象为主干 `b2385928`，合并提交 `b1d1a732`）：
+
+```text
+wait 生成器              2950 waits / 28 reopened（全部为本模块节点，默认 unresolved）
+manifest 相对主干        +64 行（28 节点），与合并前 R2 行一致
+wait inventory           57 passed
+本批 + diagnostics       133 passed
+上游 50 项组合           50 passed
+完整 aixcoding/tests     1094 passed / 56 skipped（合并前 1010；新增 84 项来自主干 aixcoding/tests/llm/）
+上游 tests 全量含 TUI     37499 passed / 701 skipped，27 分 42 秒
+```
+
+- “上游 tests 全量含 TUI”即最后一条命令（`tests --ignore=tests/architecture --deselect tests/app/test_install_scripts.py`），
+  也就是本文件此前各节写作“37256 passed / 699 skipped”的口径；合并后多出的 243 passed / 2 skipped 来自主干 #154
+  新增的 TUI 测试。本文件 2026-11-25 一节的“24146 / 652”则是 CI core shard 口径
+  （`--ignore=tests/architecture --ignore=tests/app/tui`）。两者范围不同，此前都被称作“上游 core shard”，特此更正
+  口径；旧记录按活文档规则保留。
+- 环境性说明：本轮曾以 `-W ignore` 与 `-qq` 误跑两组（前者压掉“警告即失败”的严格性，后者使 pytest 省略计数行），
+  上表数字均为不带这两个参数的重跑结果。
+
+## 2026-11-26 二次评审处置验证（F1 / F2 / F4 / F5）
+
+**做法**：为使 design R2 行的节点数与最终实现一致（只签认一次），先在仓库外的临时副本（`git archive HEAD` 导出
+`src`/`tests`/`aixcoding`/`scripts`/`pyproject.toml`）完成实现与验证，取生成器的确切数字写入 design 修订稿；责任人
+确认签认后把同样的编辑应用到工作区，并与副本逐文件比对。
+
+```text
+工作区 vs 已验证副本      hooks.py / interceptor.py / test_sse.py / test_installer.py / manifest 均零差异
+```
+
+**wait manifest 重生成**：`2952 waits, 5 reopened`；manifest 相对主干 +68 行（30 节点）。5 个 reopened 节点逐条
+复核（根 `AGENTS.md` “Refresh generated artifacts” 要求）：
+
+| 节点 | 表达式 | 结论 |
+|---|---|---|
+| `_SSEEventStream.__aiter__:1` | `async for chunk in self._stream` | 底层网络流读取；因所在函数 wait 数变化而 reopened，保持 `unresolved` |
+| `_SSEEventStream.__aiter__:2` | `async for event in self._take_events(buffer, final=False)` | 事件切分（间接等待策略回调），保持 `unresolved` |
+| `_SSEEventStream.__aiter__:3` | `async for event in self._take_events(buffer, final=True)` | 流结束后的定案切分，保持 `unresolved` |
+| `_SSEEventStream.__aiter__:4` | `await self.aclose()` | 关闭原始流，保持 `unresolved` |
+| `_SSEEventStream._take_events:1` | `await _process_sse_event(...)` | 策略回调（原 `__aiter__:2` 迁入），保持 `unresolved` |
+
+5 个节点均非 `sleep(0)`，不适用 `event-loop-yield`，也无原有规则可重套。
+
+**变异验证**（临时副本内进行，验证后恢复）：
+
+```text
+回退为旧边界正则       test_sse.py  11 failed / 26 passed（失败项恰为全部含 CR 的用例，LF/CRLF 既有用例不受影响）
+去掉“末尾 CR 推迟”      test_sse.py  2 failed / 35 passed（恰为两个跨 chunk 的 CR|LF 用例）
+startup 目录之外间接导入  test_startup_never_references_http_interception 通过；
+                       test_default_startup_in_a_fresh_process_never_touches_interception 失败并点名被导入的模块
+```
+
+**工作区回归**（均 exit 0，不带 `-W ignore`）：
+
+```text
+本批 + diagnostics        153 passed（原 133：test_sse.py +19，test_installer.py +1）
+wait inventory            57 passed
+上游 50 项组合            50 passed
+完整 aixcoding/tests      1114 passed / 56 skipped（1094 + 20）
+ruff check                All checks passed（aixcoding/ 与三个定制源码目录）
+ruff format --check       535 files already formatted
+ty linux/darwin/win32     All checks passed x3
+compileall / 导入边界      OK
+gen_customizations --strict  130 rows / 205 markers / 0 warnings
+check_docs --closure      OK
+check_r2_diff / check_r3_markers  OK（base = 上游 fork 点 2fd777f6）
+Smart Test                Summary: PASSED (exit 0)
+                          tests 10719 passed / 332 skipped；architecture 598 passed / 2 skipped
+```
+
+Smart Test 的 `--paths` 为本次全部 11 个改动文件，选择 17 个目标（`tests/service` 全目录、TUI 启动导入集合测试及
+15 个架构测试文件/用例）。与此前记录的 11040 / 600 的差异来自路径范围：本次不再包含零改动的
+`src/chrys/app/aixcoding/startup` 与 `aixcoding/tests/diagnostics/test_entry_wiring.py`。定制测试与上游 50 项不在
+Smart Test 的范围内，由上面的单列命令覆盖。
+
+**环境性说明**：临时副本上 `tests/app/cli/test_app.py` 有 7 个读取仓库构建文件（`.github/workflows/*.yml`、
+`uv.lock`）的静态扫描用例失败，原因是这些文件未导出到副本；同一组用例在完整仓库中为 50 passed。

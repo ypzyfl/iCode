@@ -25,9 +25,12 @@ _policy: HttpPolicy | None = None
 class HttpPolicy(Protocol):
     """Optional async callbacks; normal documents use body and SSE uses event callbacks.
 
+    The protocol declares all four stages, so only a policy that defines every stage satisfies
+    its type; a policy that leaves stages out still works, and those stages are not run.
+
     ``before_sse_event`` gets one complete event, ending with the blank line that terminates
-    it (two LFs or two CRLFs); a replacement body must keep that terminator or it will stick
-    to the next event.
+    it (two line endings, each LF, CRLF or CR); a replacement body must keep that terminator
+    or it will stick to the next event.
 
     ``headers`` is an ``httpx.Headers`` mapping with lower-case keys. Replace an existing
     header by assigning it on an ``httpx.Headers`` copy: adding a differently cased key to a

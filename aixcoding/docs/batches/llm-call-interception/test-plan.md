@@ -4,8 +4,9 @@
 
 ## 测试范围与策略
 
-- 测试全部落在 `aixcoding/tests/llm_call_interception/`；既有的 `aixcoding/tests/diagnostics/test_entry_wiring.py`
-  相对主干净零改动。不修改上游手写测试，不 import `tests/support/`。唯一例外是官方生成器刷新
+- 测试全部落在 `aixcoding/tests/llm_call_interception/`。`src/chrys/app/aixcoding/startup/` 与既有的
+  `aixcoding/tests/diagnostics/test_entry_wiring.py` 均不在本批改动内（相对主干净零改动），后者仅作为启动接线的
+  回归对象与本批一起运行。不修改上游手写测试，不 import `tests/support/`。唯一例外是官方生成器刷新
   `tests/architecture/trajectory_wait_manifest.json`，该生成物不是手写测试。
 - 单元测试覆盖策略调度、结果归一化、报文替换、SSE 分帧、异常 containment 和流关闭；契约测试使用真实
   HTTPX、OpenAI/Anthropic SDK、Chrys `create_client()` 与 `classify_error()`，传输端仅使用 `httpx.MockTransport`
@@ -28,7 +29,7 @@
 |---|---|---|
 | 注册非空策略时安装且只装一次，`set_http_policy(None)` 不安装；重复安装不重复包装；extension 漂移在安装期失败 | `test_installer.py::test_registering_a_policy_installs_the_factory_once`；`test_installer.py::test_install_is_idempotent_and_preserves_factory_signature`；`test_installer.py::test_tracking_extension_drift_fails_during_installation` | 单元、行为锚定 |
 | 空策略保持上游原始 hooks、不读 body、不换流、无固定 hook 开销 | `test_installer.py::test_empty_policy_factory_preserves_upstream_hooks`；`test_empty_policy.py::test_request_fast_path_never_reads_or_copies`；`test_empty_policy.py::test_response_fast_path_preserves_stream_identity` | 单元、契约 |
-| 默认启动不触碰拦截模块与上游工厂；注册策略后创建的 Client 才带定制 hooks | `test_installer.py::test_startup_never_references_http_interception`；`test_installer.py::test_empty_policy_factory_preserves_upstream_hooks` + `verification.md` 中真实 `cli_app.main()` 串行组合、启动路径探针及上游 core shard | 静态守卫、契约、上游回归 |
+| 默认启动不触碰拦截模块与上游工厂；注册策略后创建的 Client 才带定制 hooks | `test_installer.py::test_startup_never_references_http_interception`；`test_installer.py::test_default_startup_in_a_fresh_process_never_touches_interception`；`test_installer.py::test_empty_policy_factory_preserves_upstream_hooks` + `verification.md` 中真实 `cli_app.main()` 串行组合及上游 core shard | 静态守卫、子进程行为锚定、契约、上游回归 |
 | 非空策略仅影响其后创建的 Client；既有未附 hooks Client 不追溯覆盖 | `test_installer.py::test_nonempty_policy_only_applies_to_clients_created_after_registration` | 契约 |
 | OpenAI Chat、Responses（含 retrieve/poll）和 Anthropic 普通/流式均经过拦截器 | `test_provider_contracts.py::test_create_client_uses_installed_http_client`；`test_provider_contracts.py::test_provider_wire_calls_pass_through_interceptor` | 契约、行为锚定 |
 | 请求/响应获得真实 session、可空 turn、cycle/exchange/attempt、actor、provider/model | `test_context.py::test_request_and_response_context_from_real_tracking_extensions` | 契约、行为锚定 |
@@ -41,10 +42,11 @@
 | 响应 Block 不进入正常解析且不发生重试 | `test_block.py::test_block_does_not_retry_and_has_clean_classification` | 契约、行为锚定 |
 | 真实网络流与带 `_content` 的缓冲响应均覆盖，异常重放原 body | `test_response.py::test_buffered_and_stream_responses_fail_open_with_original_body` | 单元、契约、行为锚定 |
 | 双向 Content-Type 误标按实际内容分派，512 字节前缀回放且 SSE 保持增量 | `test_response.py::test_content_sniff_dispatches_mislabelled_json_to_body_policy`；`test_sse.py::test_content_sniff_dispatches_mislabelled_sse_incrementally` | 单元、真实 SDK 契约 |
-| 缓冲 SSE 按事件处理，不因 `_content` 跳过 | `test_sse.py::test_buffered_sse_events_are_processed` | 单元、契约 |
+| 缓冲 SSE 按事件处理，不因 `_content` 跳过（含 CR-only 终结符） | `test_sse.py::test_buffered_sse_events_are_processed` | 单元、契约 |
 | 实际响应与唯一内容回调不匹配时直通并记录一次 detail，不全缓冲 SSE | `test_sse.py::test_handler_mismatch_logs_and_preserves_incremental_stream` | 单元、契约 |
-| 跨 chunk SSE、单 chunk 多事件可完整读取和修改 | `test_sse.py::test_split_and_coalesced_events_are_processed_as_complete_events` | 单元、契约 |
-| 跨 chunk SSE 可阻断，已转发内容不撤回、不重放 | `test_sse.py::test_event_block_stops_remaining_stream_without_replay` | 单元、契约 |
+| 跨 chunk SSE、单 chunk 多事件可完整读取和修改（含 CR-only 及切在 CR 与 LF 之间的 CRLF） | `test_sse.py::test_split_and_coalesced_events_are_processed_as_complete_events`；`test_sse.py::test_event_boundaries_survive_chunk_splits` | 单元、契约 |
+| 跨 chunk SSE 可阻断，已转发内容不撤回、不重放（含 CR-only 终结符） | `test_sse.py::test_event_block_stops_remaining_stream_without_replay` | 单元、契约 |
+| 事件以 CR 终结或混用 LF/CRLF/CR 时仍按完整事件处理；单个行结束符不是边界 | `test_sse.py::test_blank_line_may_mix_line_endings`；`test_sse.py::test_multiline_event_stays_one_event_when_split` | 单元、契约 |
 | 当前事件策略异常只回退当前事件，后续事件继续处理 | `test_sse.py::test_event_failure_passes_current_event_through_and_continues` | 单元 |
 | 正常结束、底层异常、取消、提前关闭均关闭原始流且不重复提交，含 sniff 未判定阶段 | `test_sse.py::test_underlying_stream_error_is_not_swallowed`；`test_sse.py::test_early_close_closes_original_stream`；`test_sse.py::test_cancellation_is_not_contained_and_closes_original_stream`；`test_sse.py::test_cancellation_during_sniff_closes_original_stream`；`test_sse.py::test_underlying_error_during_sniff_closes_original_stream`；`test_sse.py::test_early_close_during_sniff_closes_original_stream`；正常结束由事件读写用例覆盖 | 单元、契约 |
 | 各阶段 ValueError、RuntimeError、自定义异常均不外溢，原报文继续 | `test_failure_containment.py::test_business_exceptions_fail_open_at_every_stage` | 单元、契约 |
@@ -70,8 +72,9 @@
    下均只发生一次实际 HTTP 请求。SDK 直接透传的阻断异常断言固定 `args`、`__cause__ is None` 和
    `__suppress_context__ is True`；wire 重包装后的最终异常另行沿链调用 `classify_error()`，不得错误要求最终
    包装异常也没有 cause。
-3. **SSE 边界**：覆盖 LF/CRLF、事件分隔符跨界、UTF-8 多字节字符和 JSON 任意位置拆分、单 chunk 多事件、
-   结尾不完整事件原始字节仅转发一次；解析器无法继续时关闭自定义处理并直通剩余原始字节。
+3. **SSE 边界**：覆盖 LF/CRLF/CR 与混合行结束符、事件分隔符跨界（含 CRLF 被切在 CR 与 LF 之间）、UTF-8 多字节
+   字符和 JSON 任意位置拆分、单 chunk 多事件、结尾不完整事件原始字节仅转发一次；解析器无法继续时关闭自定义
+   处理并直通剩余原始字节。
 4. **流资源**：正常耗尽、底层读取异常、任务取消、提前 `aclose()`、事件 Block 均只关闭底层流一次语义所需的
    关闭路径，不重复 yield 缓冲事件，不重复提交 raw log 结束记录。
 5. **注册与 Client 降级**：注册期安装失败不抛出，注册调用方与宿主继续，只写主通道 WARNING + detail，不写
@@ -88,9 +91,9 @@
 set "PYTHONPATH="
 set "PYTHONUTF8=1"
 uv run pytest aixcoding/tests/llm_call_interception aixcoding/tests/diagnostics/test_entry_wiring.py -n 0
-uv run ruff check src/chrys/service/aixcoding/llm_call_interception src/chrys/app/aixcoding/startup aixcoding/tests/llm_call_interception aixcoding/tests/diagnostics/test_entry_wiring.py
-uv run ruff format --check src/chrys/service/aixcoding/llm_call_interception src/chrys/app/aixcoding/startup aixcoding/tests/llm_call_interception aixcoding/tests/diagnostics/test_entry_wiring.py
-uv run python scripts/chrys_test.py --smart --paths src/chrys/service/aixcoding/llm_call_interception src/chrys/app/aixcoding/startup aixcoding/tests/llm_call_interception aixcoding/tests/diagnostics/test_entry_wiring.py tests/architecture/trajectory_wait_manifest.json
+uv run ruff check src/chrys/service/aixcoding/llm_call_interception aixcoding/tests/llm_call_interception
+uv run ruff format --check src/chrys/service/aixcoding/llm_call_interception aixcoding/tests/llm_call_interception
+uv run python scripts/chrys_test.py --smart --paths src/chrys/service/aixcoding/llm_call_interception aixcoding/tests/llm_call_interception tests/architecture/trajectory_wait_manifest.json
 uv run pytest tests/app/cli/test_app.py tests/service/llm/test_route_extension_wire.py tests/service/llm/test_default_http_client_parity.py -n 0
 uv run pytest -q --tb=short --dist=worksteal -n 4 -m "not integration and not gc_calibration" tests --ignore=tests/architecture --ignore=tests/app/tui
 uv run python aixcoding/tools/gen_customizations.py --strict

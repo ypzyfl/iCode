@@ -13,7 +13,9 @@ import httpx
 from .context import Block, HttpCallContext, HttpChange
 from .interceptor import get_http_policy, log_failure, log_passthrough, raise_http_block
 
-_EVENT_BOUNDARY = re.compile(rb"\r?\n\r?\n")
+# An event ends with a blank line: two line endings, each LF, CRLF or CR. The alternatives
+# cannot overlap, so one CRLF never counts as two line endings.
+_EVENT_BOUNDARY = re.compile(rb"(?:\r\n|\r(?!\n)|\n){2}")
 _SNIFF_LIMIT = 512
 _SNIFF_SKIPPED = b" \t\r\n\xef\xbb\xbf"
 _DOCUMENT_LEADING_BYTES = b"{[<"
@@ -406,15 +408,24 @@ class _SSEEventStream(httpx.AsyncByteStream):
         try:
             async for chunk in self._stream:
                 buffer.extend(chunk)
-                while match := _EVENT_BOUNDARY.search(buffer):
-                    end = match.end()
-                    event = bytes(buffer[:end])
-                    del buffer[:end]
-                    yield await _process_sse_event(self._response, self._context, self._handler, event, stream=True)
+                async for event in self._take_events(buffer, final=False):
+                    yield event
+            async for event in self._take_events(buffer, final=True):
+                yield event
             if buffer:
                 yield bytes(buffer)
         finally:
             await self.aclose()
+
+    async def _take_events(self, buffer: bytearray, *, final: bool) -> AsyncIterator[bytes]:
+        while (match := _EVENT_BOUNDARY.search(buffer)) is not None:
+            # A CR that ends the buffered bytes may be the first half of a CRLF the next chunk completes.
+            if not final and match.end() == len(buffer) and buffer[-1:] == b"\r":
+                return
+            end = match.end()
+            event = bytes(buffer[:end])
+            del buffer[:end]
+            yield await _process_sse_event(self._response, self._context, self._handler, event, stream=True)
 
     async def aclose(self) -> None:
         if not self._closed:
