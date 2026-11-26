@@ -76,6 +76,7 @@ R1 自查（必答）：
 | `src/chrys/app/acp/server.py` | `chrys/queue_status` 通知 + 白名单注册 + 同 position 不重发 | +16 | +28/−0 | `# AIxCoding queue-progress: ACP notification` |
 | `tests/app/tui/screens/test_prompt_shortcut_send.py` | 共享测试替身 `Builds.create_client` 接受并忽略新参数（被 ACP/TUI 多层测试复用） | +1 | +2/−0 | `# AIxCoding queue-progress: test double accepts the callback` |
 | `tests/architecture/trajectory_wait_manifest.json` | progress 批刷新 wait 清单（生成产物，`MARKER_EXEMPTIONS`） | 未列 | +10/−2（progress 增量；文件总计 +29/−3，含 client 两表） | — |
+| `src/chrys/app/acp/doc/frontend-api.md` | Extension notifications 分组列表加 `queue_status`；Notes 补三帧契约（v1.4 D3 落地；v1.5 改方法名、v1.6 补拒绝帧、v1.7 合并为 status 三态） | +10 | +15/−1 | HTML 注释 `<!-- AIxCoding queue-progress: document queue_status (v1.4 D3, v1.5 to v1.7) -->`（`#` 行在 .md 会渲染成标题，故用渲染不可见的 HTML 注释） |
 
 合计 **17 文件**；首版预估约 123 行，实测（numstat）约 **+191/−7**：
 15 个专属文件 +179/−4、`client.py` 内 progress 部分 +2/−1、manifest progress 增量约 +10/−2。
@@ -87,6 +88,7 @@ R1 自查（必答）：
 
 **R2 追加记录（2026-11-18 实施中）**：`ports.py` 与 `main_screen_presenter.py` 不在首版清单内，是 TUI 分层（handler → `MainScreenPresenter` → `MainScreenPresentationView` 协议 → `ViewAdapter`）的必然接触面；跳过 facade 直连 `_view` 属穿透私有成员。追加经责任人批准（对 AI「R2 从 13 文件 114 行变为 15 文件 122 行」申请的答复为「design.md 为已确认」），共 +8 行。
 **2026-11-20 回填（C1/C7）**：`tests/architecture/trajectory_wait_manifest.json` 为第 17 个文件（progress 批增量），实测行数已入上表；本行为正文变更，需责任人重签。
+**2026-11-26 回填（CI R2 门禁）**：v1.4 D3 裁决的 `src/chrys/app/acp/doc/frontend-api.md` 此前只登记在 v1.4–v1.7 变更单各自的 R2 增量表里，而 `check_r2_diff` 只解析本节顶层表，govern 门禁判其 unauthorized；现按已签变更单回填为第 18 个文件。本行为正文变更，需责任人重签，AI 未改头部签认行。
 
 R1 自查（逐行归属）：上游每处均为"挂点 + 一行调用/一个字段/一个元组条目"，无既有逻辑搬动。
 
