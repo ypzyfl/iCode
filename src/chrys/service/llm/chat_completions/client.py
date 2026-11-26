@@ -257,7 +257,10 @@ class ChatCompletionsClient(WireClient):
                 if track_queue_request is not None:
                     try:
                         queue_request = track_queue_request(
-                            raw.http_response.request, model=self.model, sdk=self.sdk_client
+                            raw.http_response.request,
+                            model=self.model,
+                            sdk=self.sdk_client,
+                            http_kwargs=self._observer.queue_cancel_http if self._observer is not None else None,
                         )
                     except Exception:
                         logger.debug("aixcoding llm-queue 取消排队不可用", exc_info=True)

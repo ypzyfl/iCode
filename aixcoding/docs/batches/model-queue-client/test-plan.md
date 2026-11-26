@@ -40,16 +40,16 @@
 
 | 验收标准 | 测试用例 | 层次 |
 |---|---|---|
-| 流式请求带 `request_id` | 假 SSE 服务记录首帧前的请求体，断言 `request_id` 存在、长度固定、两次请求不同 | 端到端（真 SDK + 假服务） |
-| 排队中中断发 cancel | 假服务持续推 `queue_status`；消费 2 帧后 `aclose()` 流 → 断言收到 cancel，`model`/`request_id`/`token` 与主请求一致 | 端到端 |
+| 流式请求带尝试头 | 假 SSE 服务记录首帧前的请求，断言 `Chrys-Request-Attempt-Id` 头存在、长度固定、两次请求不同，请求体**不带** `request_id`（v1.3 口径） | 端到端（真 SDK + 假服务） |
+| 排队中中断发 cancel | 假服务持续推 `queue_status`；消费 2 帧后 `aclose()` 流 → 断言收到 cancel，`model`/`request_id`（取尝试头值）/`token` 与主请求一致，cancel 客户端构造继承 verify/代理旁路（v1.6） | 端到端 |
 | 已放行后中断不发 cancel | 假服务推 `queue_status` → 数据帧；收到首帧后再 `aclose()` → 断言 cancel 计数为 0 | 端到端 |
 | 未排队中断不发 cancel | 假服务直接数据帧；`aclose()` → cancel 计数为 0 | 端到端 |
 | cancel 失败不阻断 | 假服务对 cancel 返 500 / 连接重置 / 挂起超过 2s → 流关闭与异常语义不变，仅日志 | 端到端 + 单元 |
 | `409`/`404` 静默 | 假服务返 `409 REQUEST_ALREADY_RUNNING`、`404 REQUEST_NOT_FOUND` → 不上抛、不重试 | 单元 + 端到端 |
 | URL 推导 | 单测覆盖 `http://h:1/v1/`、`http://h:1/v1`、`http://h:1`、`http://h/aicoding/v1`、含路径 `http://h/aicoding/v1/` 五种形态 → 均为 `<root>/api/v3/chat/completions/cancel` | 单元 |
-| profile 已带 `request_id` | profile `extra_body` 显式配置 → 不覆盖、直接复用 | 单元 |
+| ~~profile 已带 `request_id`~~ | v1.3 已撤销请求体 `request_id`：队列键改为逐尝试请求头，本行口径作废留档 | — |
 | 定制缺失回退 | monkeypatch import 失败 → 请求体无 `request_id`、不发 cancel、流式照常 | 单元 |
-| 非流式无影响 | 非流式请求 → 无 `request_id`、无 cancel、行为与 v1.0 一致 | 端到端 |
+| 非流式无影响 | 非流式请求 → 无排队帧、无 cancel、行为与 v1.0 一致（v1.2 曾给非流式 attach 请求体 id，v1.3 随口径撤销） | 端到端 |
 
 ### 异常与降级路径（增量）
 

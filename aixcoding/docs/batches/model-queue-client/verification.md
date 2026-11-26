@@ -373,3 +373,15 @@ gen_customizations.py --strict：check OK — 133 行 / 198 标记
 ```
 
 **待重签**：design.md 头部（v1.5 为正文追加，R10 需责任人重签；本变更无 R2 上游改动）。
+
+## 2026-11-26 v1.6（cancel 传输同源，PR #154 评审 M1）
+
+- 本机（无 uv）仅 `py_compile`：`observer.py` / `clients.py` / `queue_cancel.py` 通过；
+  `chat_completions/client.py` 为 PEP 758 语法（3.14），本机 3.13 不可编译，交 CI。
+- 新用例 2 条（构造参数继承、观察者→工厂通路）+ 替身签名更新（`_with_transport`/
+  `_queued_tracker`/`_client`）——**均未在任何环境执行**，以下待跑：
+  `uv run pytest aixcoding/tests/llm -n0`；`uv run ruff check/format`（scope 同前）；
+  `uv run ty check --error-on-warning --python-platform {linux,darwin,win32} src/chrys`；
+  `uv run python aixcoding/tools/gen_customizations.py --strict`；
+  `uv run python scripts/chrys_test.py --smart --paths src/chrys/service/llm/observer.py src/chrys/service/llm/clients.py src/chrys/service/llm/chat_completions/client.py src/chrys/service/aixcoding/llm_queue/queue_cancel.py aixcoding/tests/llm/test_model_queue_cancel.py`
+- 结果回填：CI（PR #154 推送后）。

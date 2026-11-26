@@ -46,6 +46,7 @@ async def _client(
     requests: list[httpx.Request] | None = None,
     *,
     default_headers: dict[str, str] | None = None,
+    observer: Any = None,
 ) -> Any:
     from chrys.service.llm.chat_completions.client import ChatCompletionsClient
     from chrys.service.llm.clients import _build_openai_sdk_client, _build_profile_http_client
@@ -70,7 +71,7 @@ async def _client(
         default_headers=default_headers,
         http_client=http,
     )
-    return ChatCompletionsClient(model="m", sdk_client=sdk)
+    return ChatCompletionsClient(model="m", sdk_client=sdk, observer=observer)
 
 
 async def _drain(client: Any) -> BaseException | None:
@@ -86,22 +87,34 @@ async def _drain(client: Any) -> BaseException | None:
     return None
 
 
-def _with_transport(transport: httpx.AsyncBaseTransport) -> Any:
-    """The production tracker factory, with the cancel call routed to *transport*."""
+def _with_transport(
+    transport: httpx.AsyncBaseTransport, http_kwargs_seen: list[Any] | None = None
+) -> Any:
+    """The production tracker factory, with the cancel call routed to *transport*.
+
+    *http_kwargs_seen*, when given, records what the production call passed for
+    the cancel's transport posture (design v1.6).
+    """
     import chrys.service.aixcoding.llm_queue as package
 
     real = package.track_queue_request
 
-    def tracked(request: httpx.Request, *, model: str, sdk: Any) -> Any:
-        return real(request, model=model, sdk=sdk, transport=transport)
+    def tracked(request: httpx.Request, *, model: str, sdk: Any, http_kwargs: Any = None) -> Any:
+        if http_kwargs_seen is not None:
+            http_kwargs_seen.append(http_kwargs)
+        return real(request, model=model, sdk=sdk, transport=transport, http_kwargs=http_kwargs)
 
     return tracked
 
 
-async def _queued_tracker(transport: httpx.AsyncBaseTransport, *, token: str = "k") -> Any:
+async def _queued_tracker(
+    transport: httpx.AsyncBaseTransport, *, token: str = "k", http_kwargs: Any = None
+) -> Any:
     from chrys.service.aixcoding.llm_queue import QueueRequestTracker, QueueStatus
 
-    tracker = QueueRequestTracker(request_id="rid", model="m", endpoint=CANCEL_URL, token=token, transport=transport)
+    tracker = QueueRequestTracker(
+        request_id="rid", model="m", endpoint=CANCEL_URL, token=token, transport=transport, http_kwargs=http_kwargs
+    )
     await tracker.observing(None)(QueueStatus(position=1, queue_size=2))
     return tracker
 
@@ -160,6 +173,62 @@ async def test_interrupt_while_queued_cancels_with_the_login_token_header(
     assert len(cancels) == 1
     # The header wins over the SDK api_key ("test-key"): what queued it is what cancels it.
     assert cancels[0].headers["token"] == "login-token"
+
+
+async def test_cancel_shares_the_profile_transport_posture(monkeypatch: pytest.MonkeyPatch) -> None:
+    """v1.6: the cancel client inherits verify and proxy-bypass from the armed tracker."""
+    from chrys.service.aixcoding.llm_queue.queue_cancel import CANCEL_TIMEOUT_SECONDS, _cancel_client
+
+    seen: dict[str, Any] = {}
+    sent: list[httpx.Request] = []
+
+    async def cancel_handler(request: httpx.Request) -> httpx.Response:
+        sent.append(request)
+        return httpx.Response(204)
+
+    def recorder(**kwargs: Any) -> Any:
+        seen.update(kwargs)
+        return _cancel_client(**kwargs)
+
+    import chrys.service.aixcoding.llm_queue.queue_cancel as queue_cancel
+
+    monkeypatch.setattr(queue_cancel, "_cancel_client", recorder)
+    tracker = await _queued_tracker(
+        httpx.MockTransport(cancel_handler),
+        http_kwargs={"verify": False, "mounts": {"all://": None}},
+    )
+    await tracker.cancel_on_close()
+
+    assert seen["verify"] is False
+    assert seen["mounts"] == {"all://": None}
+    assert seen["timeout"] == CANCEL_TIMEOUT_SECONDS
+    assert len(sent) == 1  # the posture kwargs never stop the cancel itself
+
+
+async def test_cancel_transport_posture_flows_from_the_observer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """v1.6 wiring: the stream client hands the observer's posture kwargs to the tracker factory."""
+    from chrys.service.llm.observer import WireCallObserver
+
+    http_kwargs_seen: list[Any] = []
+    cancels: list[httpx.Request] = []
+
+    async def cancel_handler(request: httpx.Request) -> httpx.Response:
+        cancels.append(request)
+        return httpx.Response(204)
+
+    monkeypatch.setattr(
+        "chrys.service.aixcoding.llm_queue.track_queue_request",
+        _with_transport(httpx.MockTransport(cancel_handler), http_kwargs_seen),
+    )
+    observer = WireCallObserver(queue_cancel_http={"verify": False, "mounts": {"all://": None}})
+    client = await _client(_sse(QUEUE_STATUS % (2, 5), "data: {oops"), observer=observer)
+    try:
+        assert await _drain(client) is not None
+    finally:
+        await client.aclose()
+
+    assert http_kwargs_seen == [{"verify": False, "mounts": {"all://": None}}]
+    assert len(cancels) == 1
 
 
 async def test_interrupt_after_release_sends_nothing(monkeypatch: pytest.MonkeyPatch) -> None:

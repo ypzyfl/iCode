@@ -368,7 +368,7 @@ class WireCallObserver:
     share no state.
     """
 
-    __slots__ = ("_connection", "_on_intermediate_text", "_on_queue_status")
+    __slots__ = ("_connection", "_on_intermediate_text", "_on_queue_status", "_queue_cancel_http")
 
     def __init__(
         self,
@@ -376,16 +376,28 @@ class WireCallObserver:
         on_intermediate_text: Callable[[str], None] | None = None,
         # AIxCoding queue-progress: observer callback
         on_queue_status: Callable[[Any], Awaitable[None]] | None = None,
+        queue_cancel_http: Mapping[str, Any] | None = None,
         connection: Mapping[str, str] | None = None,
     ) -> None:
         self._on_intermediate_text = on_intermediate_text
         self._on_queue_status = on_queue_status
+        self._queue_cancel_http = queue_cancel_http
         self._connection = connection
 
     @property
     def on_queue_status(self) -> Callable[[Any], Awaitable[None]] | None:
         """Report a gateway queue position, when the endpoint may queue this client's requests."""
         return self._on_queue_status
+
+    @property
+    def queue_cancel_http(self) -> Mapping[str, Any] | None:
+        """httpx kwargs the queue-cancel side call shares with this client's requests.
+
+        Carries the profile's TLS ``verify`` posture and proxy bypass, so the
+        cancel reaches the gateway the way the queued request did (design
+        model-queue-client v1.6). ``None`` leaves the cancel on httpx defaults.
+        """
+        return self._queue_cancel_http
 
     def begin(
         self,

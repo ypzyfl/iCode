@@ -4,7 +4,10 @@
 
 ## 状态
 
-首稿经独立评审后已修订（E' 方案 + stall 续活），**待责任人签认**（design.md 头部即 R2 批准记录）。签认后进入 N1 实现。
+**已签认并实施至 v1.6**（2026-11-26 更正，原行停留在首稿口径）：design 与 ADR 签认于 2026-11-18，v1.1 主动取消（11-19 重签）、
+v1.2 请求体 request_id、v1.3 改用 `Chrys-Request-Attempt-Id` 请求头（回退 v1.2 上游测试改动）、v1.4 接线归位、v1.5 cancel 凭据同源、
+v1.6 cancel 传输同源（verify/代理旁路，PR #154 评审 M1）。逐单验证见 verification.md 与 design 各变更单；2026-11-26 起 PR #154
+独立评审 + 推送后 AI 复评作为本批第二评审来源。
 
 ## 待办
 
@@ -12,16 +15,16 @@
 - [x] 起草 requirements.md / design.md / test-plan.md / plan.md
 - [x] 起草 ADR（`model-queue-client--queue-frame-interception`）
 - [x] 按独立评审修订：改 E' 方案（撤销 `_legacy.py` 改动）、补 stall 看门狗续活、补 kernel 档死路论证、测试改走生产入口
-- [ ] 责任人签认 design.md 与 ADR
-- [ ] 实现定制包 `src/chrys/service/aixcoding/llm_queue/`
-- [ ] 一处上游接线（`chat_completions/client.py`）+ AIxCoding 标记（E' 已撤销 `_legacy.py`）
+- [x] 责任人签认 design.md 与 ADR（2026-11-18）
+- [x] 实现定制包 `src/chrys/service/aixcoding/llm_queue/`（v1.0 起，至 v1.6）
+- [x] 一处上游接线（`chat_completions/client.py`）+ AIxCoding 标记（E' 已撤销 `_legacy.py`）
 - [x] 定制测试 `aixcoding/tests/llm/`（8 条，含心跳与回退锚定）
 - [x] verification.md 记录命令与输出
 - [x] self-review.md（独立子代理评审：2 blocker 已修，复审通过）
 - [x] 本地提交（7a33a816）+ 自审修复提交
-- [ ] 责任人重签 design.md 与 ADR（R2 增列 manifest、行数改 +10/−0）
-- [ ] 责任人签认 self-review.md
-- [ ] 第二批 UI 批次（另行设计，见挂起）
+- [x] 责任人重签 design.md（R2 增列 manifest、行数改 +10/−0；后续 v1.1–v1.6 逐单重签）
+- [x] 责任人签认 self-review.md（2026-11-18 首轮；v1.2–v1.6 补轮见 self-review 2026-11-26 节）
+- [x] 第二批 UI 批次（`model-queue-progress`，已独立成批）
 
 ## 挂起与备忘
 

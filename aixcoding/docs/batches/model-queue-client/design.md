@@ -64,7 +64,7 @@ R1 自查（必答）：
 | 文件 | 改什么 | 实际行数 | 标记注释位置 |
 |---|---|---|---|
 | `src/chrys/service/llm/chat_completions/client.py` | `updates()` 内把 `chunks` 换成 `guard_queue_frames(chunks)`：函数内 lazy import 定制包，任何异常回退原迭代器（全吞错）；v1.2 在 `_complete` 增加非流式 attach | +19/−0 | `# AIxCoding llm-queue: guard gateway queue frames`、`# AIxCoding llm-queue: a blocking completion carries a request_id too` |
-| `tests/orchestration/engine/test_settings_reload.py` | v1.2 重载等价比较前移除并校验两个不同的合法 `request_id`，其余请求体仍全字段相等 | +5/−1 | `# AIxCoding llm-queue: reload equivalence excludes the per-request correlation id` |
+| `tests/orchestration/engine/test_settings_reload.py` | v1.2 重载等价比较前移除并校验两个不同的合法 `request_id`，其余请求体仍全字段相等——**v1.3 已回退**上游原样（相对 base 归零，见 v1.3 变更单） | +5/−1（v1.3 后 0/0） | `# AIxCoding llm-queue: reload equivalence excludes the per-request correlation id` |
 | `tests/architecture/trajectory_wait_manifest.json` | 生成产物：新增 1 条 wait 节点 `chrys.service.aixcoding.llm_queue.queue_frames:guard_queue_frames:1`（`await anext(iterator)`，规则 `unresolved`），刷新命令 `uv run python -m tests.support.trajectory_wait_inventory` | +5 | 无（`MARKER_EXEMPTIONS` 生成产物，见 `aixcoding/tools/_common.py`） |
 
 > 上表为 v1.0 首版快照；现行口径以 v1.1–v1.4 变更单为准，相对 base 的净表见 v1.4。
@@ -417,3 +417,73 @@ token = 原请求的 token 请求头（登录态注入，网关实际认证的�
 - 新增端到端：经生产 profile 客户端、请求带 `token` 头（模拟登录态注入）中断 → cancel 以该
   token 发出（断言不等于 SDK `api_key`，证明优先级）。
 - 既有 29 条取消链路用例（api_key 环境）不变全绿。
+
+---
+
+## 变更单 v1.6（2026-11-26，责任人裁决）：cancel 继承主请求的传输配置（verify / 代理旁路）
+
+> 决策来源：责任人会话裁决（2026-11-26，"根据评审结果帮我把问题修复"——PR #154 独立评审 M1）。
+> 动因：主请求按 profile 设 `verify`（`verify_ssl`）与 `bypass_proxy`（`clients.py::
+> _build_profile_http_client`），cancel 却新建默认 `httpx.AsyncClient`：自签证书环境 cancel 校验
+> 失败、请求滞留队列占槽直到超时；`bypass_proxy` 环境带 `token` 的 cancel 反走环境代理。与 v1.5
+> 同一根因家族——cancel 未与主请求同源（v1.5 修凭据，本单修传输）。
+
+### 方案
+
+cancel 的 httpx 构造参数与主请求同源，沿 v1.5 的数据通路送达 tracker：
+
+```text
+create_client（持有 profile）派生 queue_cancel_http = {verify: profile.verify_ssl}
+  └─ bypass_proxy 时加 mounts=dict(BYPASS_PROXY_MOUNTS)
+       └─ stack_kwargs → _assemble_stack → WireCallObserver.queue_cancel_http（新只读属性）
+            └─ _open_stream 装配 tracker：track_queue_request(..., http_kwargs=observer.queue_cancel_http)
+                 └─ QueueRequestTracker._post_cancel：_cancel_client(timeout, transport, **http_kwargs)
+```
+
+- **观察者承载，不开新构造参数链**：`WireCallObserver` 已是 wire 层横切配置的既有通道（v1.0 的
+  `on_queue_status` 同路）；不扩 `from_sdk_client` 签名面；`builder.py` 零改动（值在 clients.py
+  内部从 profile 派生，不经 build 透传）。
+- `_cancel_client` 提为模块级工厂：cancel 客户端唯一构造点，测试替换它即可观测构造参数（与
+  `_with_transport` 观测请求同一手法）。
+- `http_kwargs=None`（无观察者/未传）保持 httpx 默认——verify=True、信环境代理，恰与主请求的
+  默认 profile 姿态一致，行为不回退。
+- 顺带修（评审建议项）：`_preview` 双定义去重（本模块改用 `queue_frames` 的同一实现）；
+  `cancel_on_close` 的 `endpoint is None` 分支不可达（`track_queue_request` 推不出地址时返回
+  `None`、不产 tracker）——移除；`_post_cancel` 内的收窄判断保留（直构防御，checker 也需要）。
+
+### 上游改动清单（R2，相对 v1.5 的增量）
+
+既有 marker 块扩容，**计数不变、登记表无变化**：
+
+| 文件 | 改什么 | 行数 | 标记注释位置 |
+|---|---|---|---|
+| `src/chrys/service/llm/observer.py` | `WireCallObserver` 增 `queue_cancel_http` 字段与只读属性 | +13 | 既有 `# AIxCoding queue-progress: observer callback`（progress 批登记点，计数 1 不变） |
+| `src/chrys/service/llm/clients.py` | `create_client` 从 profile 派生 cancel 传输配置并入 stack_kwargs；`_assemble_stack` 透传给观察者 | +9 | 既有 `# AIxCoding queue-progress: client factory passthrough` ×4（计数不变） |
+| `src/chrys/service/llm/chat_completions/client.py` | tracker 装增添 `http_kwargs=observer.queue_cancel_http` | +3 | 既有 `# AIxCoding llm-queue: cancel queued request on abort`（计数 2 不变） |
+
+定制包（非 R2）：`queue_cancel.py`（`http_kwargs` 参数/存储/使用、`_cancel_client` 工厂、
+`_preview` 去重、不可达分支移除）；`aixcoding/tests/llm/test_model_queue_cancel.py`
+（`_with_transport`/`_queued_tracker`/`_client` 替身签名跟新参数；两条新用例：构造参数继承、
+观察者→工厂通路）。
+
+### 假设与风险（增量）
+
+- 假设：`WireCallObserver` 新字段默认 `None`，上游既有构造点零改动（grep 过 tests/ 全部
+  `WireCallObserver(...)` 均不传新参）。失效表现：无（默认即旧行为）。
+- 风险：测试注入 `transport` 与 `mounts` 并存——httpx `_transport_for_url` 对显式 transport
+  优先、mounts 不作用于该请求（上游 bypass 契约测试同组合先例）。
+- 回滚：撤 `http_kwargs` 传递即回 v1.5 行为（cancel 回 httpx 默认姿态）。
+
+### 验证
+
+本机仅 py_compile（无 uv，见 verification 记录）；全量门禁与用例在 CI：aixcoding-tests
+（ruff/format、ty 三平台、gen_customizations --strict、定制套件）与 upstream CI。
+新用例：① tracker 持 `http_kwargs` → `_cancel_client` 收到 `verify=False`/`mounts`/超时且
+cancel 仍发出；② 生产流客户端把观察者的 `queue_cancel_http` 原样交给 tracker 工厂。
+
+### ADR 判定（增量）
+
+四问均否，不出 ADR：① 与 v1.5 同构的取值来源修正，无同等份量备选（唯一方案问题只是承载通道，
+观察者先例即答案）；② 行为面只影响 cancel 单请求，桌面端无感知；③ 不约束后续工作模式；
+④ 依赖均为公开面（httpx 构造参数、既有观察者）。ADR-model-queue-client--gateway-cancel-required
+（本日新立，见 B2）覆盖 cancel 链路存续本身，本单其内。

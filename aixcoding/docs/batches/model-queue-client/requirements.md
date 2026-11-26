@@ -68,7 +68,8 @@ iCode 作为客户端，现状与网关契约冲突两处（均已实测确认�
 - [ ] 请求头 `Chrys-Request-Attempt-Id` 为 32 位小写 hex；每个 HTTP 尝试一个新值（SDK 重试/重定向各算一次）；
       请求体不带 `request_id`。
 - [ ] 排队中中断 → 发出 cancel 请求，`model` 与主请求一致、`request_id` 等于该次尝试的头值，
-      `token` 头为 profile 的 `api_key`。
+      `token` 头与主请求同源：原请求 `token` 头优先，回退 profile `api_key`（v1.5）；cancel 的 TLS 校验与代理旁路继承
+      profile 的 `verify_ssl` / `bypass_proxy`（v1.6）。
 - [ ] 已收到首个数据帧后中断 → **不**发 cancel。
 - [ ] 未排队（直通、从未收到 `queue_status`）时中断 → **不**发 cancel。
 - [ ] cancel 返回 `204` / `409` / `404` 时静默通过；`500` / 网络错误 / 超时（2s）只记 warning，

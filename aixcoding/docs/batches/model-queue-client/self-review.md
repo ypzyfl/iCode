@@ -56,3 +56,26 @@
 - 复审证据：`verification.md` 的「独立评审后的修复」「破坏实验」「收尾」三节；最终 `aixcoding/tests/llm` 49 passed、
   `ruff` 通过、`ty` 三平台通过、`gen_customizations --strict` OK、`check_docs --closure` OK。
 - 声明：两轮评审均为独立子代理（只读、独立会话），同一模型族仍可能共盲，终裁在责任人。
+
+## 2026-11-26 补轮（PR #154 独立评审处置）：覆盖 v1.2–v1.6 断档 + 本日修复
+
+- 缘起：PR #154 独立评审 B1 指出本文件最后记录停在 2026-11-19（v1.1），其后 v1.2（请求体
+  request_id）→ v1.3（改 `Chrys-Request-Attempt-Id` 请求头、回退上游测试改动）→ v1.4（接线归位
+  压缩）→ v1.5（cancel 凭据同源，修纯登录态生产故障）→ v1.6（cancel 传输同源，评审 M1）共
+  5 个变更单无自审记录，违反 DEVELOPMENT.md §4.2 步骤 5。本节补档。
+- 断档期的第二评审来源如实声明：v1.2–v1.5 的独立评审缺位（各变更单的验证记录与责任人裁决在
+  design 变更单内，但无第二 AI 评审）；**PR #154 独立评审（2026-11-26）是这 5 单的第一份独立
+  复核**，其上游接触面逐行表、R2/R3 门禁复跑、`aixcoding/tests/llm` 84 passed 复验即本补轮的
+  外部证据。
+- 该评审对本批的 blocker 裁定：作者自报的 2 项"已修"复核属实（wait 清单含 llm_queue 条目；
+  回退用例锚定内层异常）；5 项"责任人不修"同意 reject。
+- 本日新增（v1.6，评审 M1 裁决"修"）：`http_kwargs` 通道（observer/clients/chat_client 三处
+  既有 marker 块扩容、计数不变）+ `_cancel_client` 构造点提取 + `_preview` 去重 + 不可达分支
+  移除；新用例 2 条（构造参数继承、观察者→工厂通路）。**本机无 uv 仅 py_compile；测试与门禁
+  以推送后 CI 为准，结果回填 verification.md；推送后另有 AI 复评轮（见 PR 流程），发现将追记本节。**
+- 文档面同步（评审 B2/B4/建议项）：新 ADR `model-queue-client--gateway-cancel-required`
+  起草（待责任人签认 + 旧 ADR 状态行改被取代）；design 顶层 R2 表 `test_settings_reload.py`
+  行标注 v1.3 已回退归零；requirements/test-plan/plan 旧口径更正（token 来源、请求体 request_id
+  撤销、状态推进）。
+- 声明：本节为开发 AI 补档 + 外部评审引用，非独立子代理评审；独立复核以 PR #154 评审与本 PR
+  推送后的 AI 复评为准，终裁在责任人。

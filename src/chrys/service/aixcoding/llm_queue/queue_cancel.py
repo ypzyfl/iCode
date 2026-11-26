@@ -12,8 +12,11 @@ the response. A released request cannot be cancelled (``409``) and an unknown
 one is a no-op (``404``), so this only fires while the guard has seen a position
 and no release. The cancel carries the queued request's own ``token``
 credential — the login ``token`` header the wire layer put on it, falling back
-to the profile ``api_key`` (design v1.5) — so the gateway is asked to cancel
-with the very credential that queued the request.
+to the profile ``api_key`` (design v1.5) — and shares the profile's transport
+posture, ``verify`` and proxy bypass (design v1.6), so the gateway is asked to
+cancel the way the request was queued: a self-signed profile must not strand
+its request in the queue over a TLS failure, and a proxy-bypassing profile must
+not leak the cancel through an environment proxy.
 
 Wired from ``chrys.service.llm.chat_completions.client`` (registered as
 ``model-queue-client:queue-cancel``).
@@ -24,14 +27,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import replace
 from typing import Any, Final
 
 import httpx
 
 from chrys.foundation.util.chrys_headers import REQUEST_ATTEMPT_ID_HEADER
-from chrys.service.aixcoding.llm_queue.queue_frames import RELEASED_POSITION, QueueStatus
+from chrys.service.aixcoding.llm_queue.queue_frames import RELEASED_POSITION, QueueStatus, _preview
 
 logger = logging.getLogger(__name__)
 _detail_logger = logging.getLogger("aixcoding.detail.llm_queue")
@@ -67,7 +70,16 @@ def cancel_endpoint(base_url: str) -> str | None:
 class QueueRequestTracker:
     """Ties one wire request to the gateway queue so an interrupt can leave it."""
 
-    __slots__ = ("_endpoint", "_model", "_position_seen", "_released", "_request_id", "_token", "_transport")
+    __slots__ = (
+        "_endpoint",
+        "_http_kwargs",
+        "_model",
+        "_position_seen",
+        "_released",
+        "_request_id",
+        "_token",
+        "_transport",
+    )
 
     def __init__(
         self,
@@ -77,6 +89,7 @@ class QueueRequestTracker:
         endpoint: str | None,
         token: str,
         transport: httpx.AsyncBaseTransport | None = None,
+        http_kwargs: Mapping[str, Any] | None = None,
     ) -> None:
         self._request_id = request_id
         self._model = model
@@ -85,6 +98,9 @@ class QueueRequestTracker:
         # request's own ``token`` header when it had one, else the profile key.
         self._token = token
         self._transport = transport
+        # The cancel shares the queued request's transport posture (verify,
+        # proxy bypass) — design v1.6; ``None`` leaves httpx defaults.
+        self._http_kwargs = dict(http_kwargs) if http_kwargs else None
         self._position_seen = False
         self._released = False
 
@@ -144,9 +160,6 @@ class QueueRequestTracker:
                     self._request_id,
                 )
             return
-        if self._endpoint is None:
-            _detail_logger.warning("网关排队取消跳过：没有可用的取消地址（request_id=%s）", self._request_id)
-            return
         if not self._token:
             message = "网关排队取消跳过：没有可用 token，请求将留在队列中（request_id=%s）"
             logger.warning(message, self._request_id)
@@ -166,7 +179,10 @@ class QueueRequestTracker:
 
     async def _post_cancel(self) -> None:
         endpoint = self._endpoint
-        if endpoint is None:  # narrowed here too: the checker does not follow cancel_on_close's guard
+        if endpoint is None:
+            # Only a hand-built tracker can get here: track_queue_request returns None
+            # when the cancel endpoint cannot be derived. The checker does not follow
+            # that factory guard, so the narrowing stays here.
             return
         payload = {"model": self._model, "request_id": self._request_id}
         _detail_logger.info(
@@ -176,7 +192,9 @@ class QueueRequestTracker:
             "已携带" if self._token else "空",
         )
         try:
-            async with httpx.AsyncClient(timeout=CANCEL_TIMEOUT_SECONDS, transport=self._transport) as client:
+            async with _cancel_client(
+                timeout=CANCEL_TIMEOUT_SECONDS, transport=self._transport, **(self._http_kwargs or {})
+            ) as client:
                 response = await client.post(endpoint, json=payload, headers={"token": self._token})
         except httpx.TransportError:
             # Also the symptom of a cancel URL derived from an unexpected base_url: loud on purpose.
@@ -227,12 +245,22 @@ class QueueRequestTracker:
             )
 
 
+def _cancel_client(**kwargs: Any) -> httpx.AsyncClient:
+    """Build the cancel call's client; the one construction site tests can observe.
+
+    Carries the profile-posture kwargs (``verify``, ``mounts``) the tracker
+    holds beside the cancel's own timeout and test transport.
+    """
+    return httpx.AsyncClient(**kwargs)
+
+
 def track_queue_request(
     request: httpx.Request,
     *,
     model: str,
     sdk: Any,
     transport: httpx.AsyncBaseTransport | None = None,
+    http_kwargs: Mapping[str, Any] | None = None,
 ) -> QueueRequestTracker | None:
     """Tie the queue entry of *request* to the id the gateway saw, when a cancel can be sent.
 
@@ -243,7 +271,9 @@ def track_queue_request(
     OpenAI SDK client the attempt ran on: the cancel URL derives from its
     ``base_url``. The cancel credential is the attempt's own ``token`` header —
     what the gateway just authenticated — falling back to the SDK client's
-    ``api_key`` (design v1.5). ``None`` means
+    ``api_key`` (design v1.5). *http_kwargs* carries the profile's transport
+    posture (``verify`` and, on proxy bypass, ``mounts``) so the cancel shares
+    it with the queued request (design v1.6). ``None`` means
     no tracker is armed: no model, no such header on the attempt (a client
     built without the upstream tracking hooks), or a cancel endpoint that
     cannot be derived. The stream works either way; only the leave-the-queue
@@ -287,6 +317,7 @@ def track_queue_request(
         endpoint=endpoint,
         token=request_token or api_key,
         transport=transport,
+        http_kwargs=http_kwargs,
     )
 
 
@@ -322,9 +353,3 @@ async def close_stream_and_cancel(sdk_stream: Any, queue_request: QueueRequestTr
     finally:
         if queue_request is not None:
             await queue_request.cancel_on_close()
-
-
-def _preview(value: object, limit: int = 500) -> str:
-    """A bounded ``repr`` for a cancel body: enough to identify it, never a whole payload."""
-    text = repr(value)
-    return text if len(text) <= limit else f"{text[:limit]}…"
