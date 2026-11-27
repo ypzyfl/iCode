@@ -74,6 +74,79 @@ def test_failure_uses_structured_metadata_and_preserves_missing_fields() -> None
     assert code_save(start, metadata, common={}) is None
 
 
+@pytest.mark.parametrize("has_snapshot", [False, True])
+async def test_interrupted_tool_keeps_pending_and_next_execution_reports_normally(has_snapshot: bool) -> None:
+    from chrys.foundation.events.bus import EventBus
+    from chrys.foundation.events.types import InvocationToolCallResult, InvocationToolCallStart
+    from chrys.foundation.models.invocations import InvocationOrigin
+    from chrys.service.aixcoding.telemetry.context import TelemetrySettings
+    from chrys.service.aixcoding.telemetry.delivery import TelemetryDelivery
+    from chrys.service.aixcoding.telemetry.events import TelemetryEvents
+
+    reports = []
+
+    def receive(request: httpx.Request) -> httpx.Response:
+        reports.append((request.url.path.rsplit("/api/v1/", 1)[-1], json.loads(request.content)))
+        return httpx.Response(204)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(receive))
+    delivery = TelemetryDelivery("https://telemetry.invalid", token_provider=lambda: None, client=client)
+    events = TelemetryEvents(delivery, TelemetrySettings("https://telemetry.invalid", True, True, None, None))
+    bus = EventBus()
+    await bus.subscribe(InvocationToolCallStart, events.tool_start)
+    await bus.subscribe(InvocationToolCallResult, events.tool_result)
+    origin = InvocationOrigin("turn", "session", "turn", None)
+    snapshot = {"file_snapshot": ("old\n", "new\n"), "file_mutation_op": "modify"}
+
+    def start(operation_id: str) -> InvocationToolCallStart:
+        return InvocationToolCallStart(
+            origin=origin,
+            tool_name="edit_file",
+            tool_kind="filesystem.write",
+            call_id="provider",
+            tool_operation_id=operation_id,
+            args={"path": "example.py", "old_string": "old", "new_string": "new"},
+        )
+
+    interrupted = InvocationToolCallResult(
+        origin=origin,
+        tool_name="edit_file",
+        call_id="provider",
+        tool_operation_id="cancelled-op",
+        result="Error: Tool execution was interrupted.",
+        metadata={"interrupted": True, **(snapshot if has_snapshot else {})},
+    )
+    try:
+        await bus.publish(start("cancelled-op"), raise_handler_errors=True)
+        await bus.publish(interrupted, raise_handler_errors=True)
+        await bus.publish(interrupted, raise_handler_errors=True)
+        await bus.publish(start("next-op"), raise_handler_errors=True)
+        await bus.publish(
+            InvocationToolCallResult(
+                origin=origin,
+                tool_name="edit_file",
+                call_id="provider",
+                tool_operation_id="next-op",
+                result="Updated.",
+                metadata=snapshot,
+            ),
+            raise_handler_errors=True,
+        )
+    finally:
+        await delivery.aclose()
+
+    assert [path for path, _ in reports] == [
+        "tool-detail/save",
+        "tool-detail/update",
+        "tool-detail/save",
+        "tool-detail/update",
+        "tool-detail/update",
+        "ai-code/save",
+    ]
+    assert [body["codeStatus"] for path, body in reports if path == "tool-detail/update"] == [3, 3, 1]
+    assert client.is_closed
+
+
 def test_replace_all_tracks_each_range_and_manual_approval() -> None:
     from chrys.service.aixcoding.telemetry.reporters import ToolStart, code_save
 

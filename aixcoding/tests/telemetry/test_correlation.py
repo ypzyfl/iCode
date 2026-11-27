@@ -175,7 +175,7 @@ async def test_workflow_retry_does_not_re_report_the_tool_from_the_recovered_att
     from chrys.service.profiles.models.registry import ModelProfileRegistry
     from chrys.service.profiles.models.schema import API_STYLE_RESPONSES
     from chrys.service.state.store import JsonFileStateStore
-    from chrys.service.workflows.discovery import project_workflows_dir
+    from chrys.service.workflows.discovery import workdir_workflows_dir
 
     reports = []
     requests = []
@@ -211,7 +211,7 @@ async def test_workflow_retry_does_not_re_report_the_tool_from_the_recovered_att
         return original_delivery(url, client=client, **kwargs)
 
     project = tmp_path / "project"
-    workflow_file = project_workflows_dir(project) / "review.py"
+    workflow_file = workdir_workflows_dir(project) / "review.py"
     atomic_write_owner_only_bytes(
         workflow_file,
         (

@@ -21,7 +21,7 @@ While a task is running, the "Model Configuration" window opens in read-only mod
 1. Click "New".
 2. Enter a "Profile Name" of your choice, such as `My Model`.
 3. In the "Model Options" section, select the "Provider" and "API Style". Only OpenAI and DeepSeek (OpenAI) provide an API Style option. Before configuring it, check the model service's documentation for supported APIs and follow its recommendation when choosing "Chat Completions" or "Responses". If the service supports only one API, select its corresponding style; if it supports both, choose according to the service's recommendation or your needs. DeepSeek's Responses style is also used for the server-side `web_search`; see DeepSeek's documentation for supported models.
-4. Enter the model ID in "Model" and, as required by the model service, fill in "Base URL" and "API Key".
+4. Fill in "Base URL" and "API Key" as needed (leave them blank to use the address and environment variable shown in gray), then enter the model ID; click "Fetch" next to the "Model" input to choose from the service's model list; it lists every model, with those containing the text you entered shown first. If the service address is incorrect, iCode tries to correct it and shows what changed.
 5. Set "Max Context Window" and the "Max Output Tokens" field according to the provider's documentation.
 6. Adjust "Streaming", "Vision Model", and "Connection Options" as needed. "Streaming" is on for a new profile.
 7. Click "Save".
@@ -147,6 +147,8 @@ If the model profile name in the status bar is grayed out, the current agent is 
 
 ### Verify a model profile
 
+Click "Test" in the "Model Configuration" window to check the current form values before saving; this sends a short request and uses a small number of tokens.
+
 After switching models, submit the following in the input field:
 
 ```text
@@ -186,3 +188,24 @@ When iCode can tell why a model request failed, it says so in plain words, with 
 | The model profile's maximum context window is larger than the server's limit | Set "Max Context Window" in the model profile to the server's limit that the message names, or less, and save. |
 
 iCode takes its proxy from the `HTTP_PROXY`, `HTTPS_PROXY` and `ALL_PROXY` environment variables, in upper or lower case, and supports `http://`, `https://`, `socks5://` and `socks5h://` proxies. If one of these variables holds an address iCode can't use, such as a `socks://` address that some Linux desktops set, iCode ignores that variable and shows a warning when it starts, then connects as if the variable were not set. The same goes for a `NO_PROXY` list iCode can't read. To use the proxy, change the variable to an address iCode supports, for example `socks5h://127.0.0.1:7897` for a SOCKS5 proxy, and restart iCode.
+
+## Route model requests by purpose
+
+iCode sends `Chrys-Request-Role` on model calls it makes. A gateway can match this header together with `Chrys-Model-Id` to choose an upstream within the configured service.
+
+| `Chrys-Request-Role` | Request |
+| --- | --- |
+| `main_agent` | Main chat agent or workflow node agent |
+| `sub_agent` | A delegated sub-agent |
+| `compaction` | A model-generated summary for context compaction |
+| `approval_judge` | Automatic tool approval review |
+| `pet` | The pet's reply |
+| `context_recall` | A query against compressed conversation history |
+| `session_title` | Session title generation |
+| `side_question` | A side question |
+| `rsi_optimizer` | A self-improvement optimizer request |
+| `model_test` | The model profile's **Test** action |
+
+Calls made on behalf of a workflow also carry `Chrys-Request-Scope: workflow`. Match both headers to route a workflow node agent (`main_agent` and `workflow`), or match the scope alone to cover its sub-agents, compaction and approval reviews. Other calls omit the scope header. iCode sets both headers automatically. Requests made directly by external ACP agents use the headers set by those agents.
+
+Keep the default gateway route for missing or unfamiliar values. For stateful Responses calls, send polls and requests with continuation handles to the upstream that holds their state. A compaction request can share the session ID and cached prompt prefix of the agent it serves, so route it without rebinding that agent's session.

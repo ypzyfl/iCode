@@ -165,7 +165,7 @@ def test_manual_pages_render_english_byte_identically_and_translate_at_display(
         "  /fork         - Fork the current session\n"
         "  /btw          - Ask a side question without changing the main task\n"
         "  /rename       - Set or clear a custom session title\n"
-        "  /sessions     - Browse saved sessions\n"
+        "  /sessions     - Browse saved sessions or open one by ID\n"
         "  /login        - 用 AIxCoding 账号登录\n"
         "  /logout       - 登出并清除已存储的凭据\n"
         "  /theme        - Set color theme\n"

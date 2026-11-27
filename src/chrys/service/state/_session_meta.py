@@ -35,7 +35,14 @@ def resolve_session_kind(meta: dict[str, Any]) -> Literal["chat", "workflow"]:
 
 @dataclass(kw_only=True)
 class SessionMetadata:
-    """Identity and storage facts shared by Chat and Workflow sessions."""
+    """Identity and storage facts shared by Chat and Workflow sessions.
+
+    ``created_at`` and ``updated_at`` are always aware UTC. Envelope metadata —
+    a session file, its recovery sidecar, a legacy flat file — is normalized by
+    :meth:`SessionMetaMixin._session_meta_from_envelope`; the listing catalog
+    records and replays only values that reader derived, and rejects an
+    offset-free stamp instead of serving it.
+    """
 
     session_id: str
     created_at: datetime
@@ -78,6 +85,7 @@ class ChatSessionMeta(SessionMetadata):
     model_base_url: str = ""
     model_profile_fingerprint: str = ""
     service_session_id: str = ""
+    service_session_workspace_fingerprint: str = ""
     parent_session_id: str = ""
     # Bounded head/tail excerpts of user prompts, never full transcript text.
     user_prompt_search_text: str = ""
@@ -339,8 +347,8 @@ class SessionMetaMixin:
         ``None`` means the message is not a user-typed prompt: wrong role,
         synthetic history (turn/status markers, ``continue`` nudges), or no
         text content.  Legacy sessions store ``contents`` as plain strings;
-        those count as text under the same rule replay's
-        ``_load_session_raw_sync`` uses (a ``Content(type=`` repr blob is
+        those count as text under the same rule
+        ``normalize_transcript_message`` uses (a ``Content(type=`` repr blob is
         not text).  Capping each block to its collapsed head+tail before
         joining yields the same final excerpt as capping the full joined
         collapse — the message-level windows only ever read a block's
@@ -383,7 +391,7 @@ class SessionMetaMixin:
         the live list — keeping ``role == "user"`` text while skipping
         synthetic history (turn/status markers, ``continue`` nudges).
         Legacy sessions store ``contents`` as plain strings; those count as
-        text under the same rule replay's ``_load_session_raw_sync`` uses
+        text under the same rule ``normalize_transcript_message`` uses
         (a ``Content(type=`` repr blob is not text).
         Compaction can leave a message in both places; such twins dedup by
         their capped TEXT, never by ``message_id`` — ids restart across
@@ -505,13 +513,35 @@ class SessionMetaMixin:
         return total if isinstance(total, int) and total > 0 else 0
 
     @staticmethod
-    def _session_meta_from_envelope(envelope: dict[str, Any], *, size_bytes: int) -> SessionMeta:
+    def _session_meta_from_envelope(envelope: object, *, size_bytes: int) -> SessionMeta:
         """Build the purpose-specific metadata without reading any run artifacts."""
-        meta = envelope["meta"]
+        if not isinstance(envelope, dict):
+            raise ValueError("Session checkpoint is not an object.")
+        meta = envelope.get("meta")
+        if not isinstance(meta, dict):
+            # A hand-edited or truncated file can put anything here. Refuse it
+            # on the same path as an unreadable stamp — the caller skips this
+            # session — rather than let an AttributeError take down the page.
+            raise ValueError("Session meta is not an object.")
+        session_id = meta.get("session_id")
+        if not isinstance(session_id, str) or not session_id:
+            raise ValueError("Session meta has no valid session ID.")
+        # The one place persisted stamps become datetimes, so it is the one
+        # place they are normalized: consumers (relative-time rendering, MRU
+        # ordering, ACP session/list) compare them with aware UTC values.
+        # A stamp without an offset is read as UTC rather than local time:
+        # every writer stamps ``datetime.now(UTC)``, so an offset-free one
+        # came from a legacy or hand-edited file, and local time would shift
+        # it again on every machine that read it. ``_parse_session_timestamp``
+        # applies both that rule and the aware-UTC conversion.
+        created_at = _parse_session_timestamp(meta.get("created_at"))
+        updated_at = _parse_session_timestamp(meta.get("updated_at"))
+        if created_at is None or updated_at is None:
+            raise ValueError("Session meta carries no readable creation or update timestamp.")
         common: dict[str, Any] = {
-            "session_id": meta["session_id"],
-            "created_at": datetime.fromisoformat(meta["created_at"]),
-            "updated_at": datetime.fromisoformat(meta["updated_at"]),
+            "session_id": session_id,
+            "created_at": created_at,
+            "updated_at": updated_at,
             "total_tokens": SessionMetaMixin._envelope_total_tokens(envelope),
             "primary_cwd": meta.get("primary_cwd") or "",
             "working_dirs": meta.get("working_dirs") or [],
@@ -550,6 +580,7 @@ class SessionMetaMixin:
             model_base_url=meta.get("model_base_url", ""),
             model_profile_fingerprint=meta.get("model_profile_fingerprint", ""),
             service_session_id=meta.get("service_session_id", ""),
+            service_session_workspace_fingerprint=meta.get("service_session_workspace_fingerprint", ""),
             parent_session_id=meta.get("parent_session_id", ""),
             user_prompt_search_text=SessionMetaMixin._envelope_user_prompt_search_text(envelope),
         )

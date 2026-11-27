@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+from chrys.foundation.tool_result_metadata import TOOL_INTERRUPTED_METADATA_KEY
 from chrys.kernel.aixcoding.telemetry.provenance import operation_source
 from chrys.service.aixcoding.telemetry.context import (
     GitInfo,
@@ -164,6 +165,9 @@ class TelemetryEvents:
         approved = event.call_id in self._manual_approvals
         self._manual_approvals.pop(event.call_id, None)
         started = self._starts.pop(key, None)
+        if event.metadata.get(TOOL_INTERRUPTED_METADATA_KEY) is True:
+            logger.debug("Interrupted tool telemetry keeps its pending state.")
+            return
         tool = (
             started.tool
             if started is not None

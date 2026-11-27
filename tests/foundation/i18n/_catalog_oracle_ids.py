@@ -17,6 +17,7 @@ from tests.foundation.i18n._trajectory_catalog_oracle_ids import TRAJECTORY_MESS
 from tests.foundation.i18n._usage_catalog_oracle_ids import USAGE_MESSAGE_IDS
 from tests.foundation.i18n._web_catalog_oracle_ids import WEB_MESSAGE_IDS
 from tests.foundation.i18n._workflow_catalog_oracle_ids import WORKFLOW_MESSAGE_IDS
+from tests.foundation.i18n._workspace_catalog_oracle_ids import WORKSPACE_MESSAGE_IDS
 
 # Adding or removing a msg() definition means editing this set, or an area file
 # imported above, in the SAME commit: the oracle test compares the POT and PO
@@ -89,7 +90,7 @@ _message_ids: set[str | tuple[str, str]] = {
     "builder.extension_unavailable",
     "construction.global_hooks_invalid",
     "construction.hook_skipped",
-    "construction.project_hooks_invalid",
+    "construction.workdir_hooks_invalid",
     "construction.service_session_incompatible",
     "construction.trajectory_activation_failed",
     "controls.model_profile_not_found",
@@ -206,7 +207,10 @@ _message_ids: set[str | tuple[str, str]] = {
     "session_host.no_final_response",
     "session_host.session_id_ambiguous",
     "session_host.session_not_found",
-    "session_host.session_not_found_with_recent",
+    "startup.workdir_data_migrated",
+    ("startup.workdir_data_migration_failed", "startup.workdir_data_migration_failed#plural"),
+    ("startup.workdir_grants_unmigrated", "startup.workdir_grants_unmigrated#plural"),
+    "startup.workdir_trust_conflict",
     "startup.invalid_no_proxy_env",
     "startup.invalid_proxy_env",
     "startup.notifications_migration_failed",
@@ -219,14 +223,11 @@ _message_ids: set[str | tuple[str, str]] = {
     "transcript.interrupted.retry_action",
     "transcript.interrupted.warning_header",
     "tui.acp.connection_test.subject",
-    "tui.agent_config.already_default",
     "tui.agent_config.deleted",
     "tui.agent_config.last_agent",
     "tui.agent_config.last_main_agent",
     "tui.agent_config.more_suffix",
     "tui.agent_config.removed",
-    "tui.agent_config.reset_complete",
-    "tui.agent_config.reset_pending",
     "tui.agent_config.saved",
     "tui.agent_config.still_referenced",
     "tui.agent_config.title.agent",
@@ -276,6 +277,12 @@ _message_ids: set[str | tuple[str, str]] = {
     "tui.agent_load.stage.skipped_sub_agent",
     "tui.agent_load.stage.skipped_sub_agent_reason",
     "tui.agent_load.stage.sub_agents_loaded",
+    "tui.agent_load.stage.sub_agent_mcp_connecting",
+    "tui.agent_load.stage.sub_agent_mcp_connected",
+    "tui.agent_load.stage.sub_agent_mcp_failed",
+    "tui.agent_load.stage.sub_agent_skills_loading",
+    "tui.agent_load.stage.sub_agent_skills_loaded",
+    "tui.agent_load.stage.sub_agent_skills_failed",
     "tui.agent_load.status.count_failed",
     "tui.agent_load.title.initializing",
     "tui.agent_load.title.loading",
@@ -415,8 +422,8 @@ _message_ids: set[str | tuple[str, str]] = {
     "tui.btw.save_failed",
     "tui.btw.send",
     "tui.btw.title",
-    "tui.btw.tab.output",
-    "tui.btw.tab.question",
+    "tui.btw.answer",
+    "tui.btw.question",
     "tui.btw.thinking",
     "tui.btw.unavailable",
     "tui.commands.description.btw",
@@ -438,6 +445,7 @@ _message_ids: set[str | tuple[str, str]] = {
     "tui.commands.unavailable_while_running",
     "tui.commands.unknown_agents_target",
     "tui.commands.unknown_command",
+    "tui.clipboard.copy_failed",
     "tui.compaction.copy.summary",
     "tui.compaction.copy.summary_unavailable",
     "tui.config.agent.loading",
@@ -611,6 +619,12 @@ _message_ids: set[str | tuple[str, str]] = {
     "tui.input.placeholder.shell",
     ("tui.input.prompt_fields_pending", "tui.input.prompt_fields_pending#plural"),
     "tui.input.queued",
+    "tui.input.steer",
+    "tui.input.cancel_queue",
+    "tui.input.queued_hint",
+    "tui.input.steering",
+    "tui.input.steer_description",
+    "tui.input.cancel_description",
     "tui.input.title.prompt_fields_pending",
     "tui.input.title.quote_in_command",
     "tui.draft.label.image",
@@ -814,7 +828,7 @@ _message_ids: set[str | tuple[str, str]] = {
     "tui.runtime_details.section.inline_skills",
     "tui.runtime_details.section.mcp_servers",
     "tui.runtime_details.section.model_profile",
-    "tui.runtime_details.section.project_hooks",
+    "tui.runtime_details.section.workdir_hooks",
     "tui.runtime_details.section.sub_agent_tools",
     "tui.runtime_details.section.unavailable_extensions",
     "tui.runtime_details.skills",
@@ -937,12 +951,18 @@ _message_ids: set[str | tuple[str, str]] = {
     "tui.sidebar.tasks.title",
     "tui.sidebar.toc.empty",
     "tui.sidebar.toc.title",
+    "tui.startup.session.in_use",
+    "tui.startup.session.workspace_restore_declined",
+    "tui.startup.session.workspace_restore_restart",
     "tui.startup.session.not_found",
     "tui.startup.session.read_failed",
     "tui.startup.session.restore_failed",
     "tui.startup.session.restore_fallback",
+    "tui.startup.session.retry",
+    "tui.startup.session.start_new",
     "tui.startup.title.agent_failed",
     "tui.startup.title.session",
+    "tui.startup.workspace.restart",
     "tui.status.agent_load_failed",
     "tui.status.agent_selector_label",
     "tui.status.agent_startup_failed",
@@ -1018,6 +1038,7 @@ _message_ids: set[str | tuple[str, str]] = {
     "tui.workspace.missing.message",
     "tui.workspace.missing.message_restore",
     "tui.workspace.missing.message_submit",
+    "tui.workspace.missing.workspace_restore",
     "tui.workspace.missing.title",
     "tui.workspace.title.busy",
     "tui.workspace.title.invalid_path",
@@ -1097,6 +1118,7 @@ _message_ids.update(
         "tui.mcp.connection_test.error.request_failed",
         "tui.mcp.connection_test.error.timed_out",
         "tui.mcp.connection_test.error.unreachable",
+        "tui.mcp.connection_test.error.working_directory",
         "tui.mcp.connection_test.successful",
         "tui.model_config.api_style.chat_completions",
         "tui.model_config.api_style.responses",
@@ -1165,6 +1187,7 @@ _message_ids.update(
         ("tui.chat.thinking_speed", "tui.chat.thinking_speed#plural"),
         "tui.chat.thought_label",
         "tui.chat.fold_row.folded_label",
+        "tui.chat.message_timestamp",
         "tui.chat.process.activity",
         ("tui.chat.process.tool_calls", "tui.chat.process.tool_calls#plural"),
         "tui.chat.thinking_summary_label",
@@ -1239,6 +1262,23 @@ _message_ids.update(
     }
 )
 
+_message_ids.update(
+    {
+        "tui.diff_quote.placeholder",
+        "tui.diff_quote.added",
+        "tui.diff_quote.before",
+        "tui.diff_quote.after",
+        "tui.diff_quote.keys",
+        "tui.diff_quote.keys_compact",
+        "tui.diff_quote.changed",
+        "tui.diff_quote.bubble_add",
+        "tui.diff_quote.bubble_edit",
+        "tui.diff_quote.source.turn",
+        "tui.diff_quote.source.session",
+        "tui.diff_quote.context_omitted",
+    }
+)
+
 EXPECTED_MESSAGE_IDS: frozenset[str | tuple[str, str]] = (
     frozenset(_message_ids)
     | APPROVAL_MESSAGE_IDS
@@ -1251,6 +1291,7 @@ EXPECTED_MESSAGE_IDS: frozenset[str | tuple[str, str]] = (
     | SETTINGS_MESSAGE_IDS
     | TOOL_CARD_MESSAGE_IDS
     | PROMPT_MESSAGE_IDS
+    | WORKSPACE_MESSAGE_IDS
     | USAGE_MESSAGE_IDS
     | PROFILE_CONFIG_MESSAGE_IDS
     | TRAJECTORY_MESSAGE_IDS

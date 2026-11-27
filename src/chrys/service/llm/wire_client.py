@@ -14,8 +14,8 @@ factory composes the production stack::
 for every protocol: it drops the loop's trajectory handle from the call
 keywords, lets its :class:`~chrys.service.llm.observer.WireCallObserver`
 report the request, and dispatches to the protocol's ``_send`` or
-``_open_stream``. :class:`RequestHeaders` holds the Chrys metadata each
-protocol stamps on the request it builds.
+``_open_stream``. :class:`RequestHeaders` supplies session headers during
+request building and default routing metadata for the per-attempt HTTP hook.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Self, final, override
 
+from chrys.foundation.text.wire_text import surrogate_safe_value
 from chrys.foundation.trajectory.context import TRAJECTORY_EXCHANGE_KWARG
 from chrys.foundation.util.chrys_headers import (
     MODEL_ID_HEADER,
@@ -32,6 +33,7 @@ from chrys.foundation.util.chrys_headers import (
     SESSION_ID_HEADER,
     X_PARENT_SESSION_ID_HEADER,
     X_SESSION_ID_HEADER,
+    RequestRole,
     is_chrys_managed_header_name,
 )
 from chrys.foundation.util.header_charset import (
@@ -45,6 +47,7 @@ from chrys.service.llm.route_sessions import llm_parent_session_id, llm_route_se
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Sequence
 
+    from chrys.foundation.util.chrys_headers import RequestScope
     from chrys.kernel.compaction import CompactionStrategy, TokenizerProtocol
     from chrys.kernel.types import ChatResponse, ChatResponseUpdate, Message, ResponseStream
     from chrys.service.llm.observer import WireCallObserver
@@ -86,7 +89,7 @@ def _reject_wire_unsafe_request_values(model_id: Any, headers: Mapping[Any, Any]
 
 @dataclass(frozen=True, slots=True)
 class RequestHeaders:
-    """The Chrys metadata headers one client stamps on every request it builds.
+    """Session and routing metadata bound to one wire client.
 
     *use_route_session_context* makes the per-invocation route-session
     ContextVars win over the client's own session ids, for clients that
@@ -96,6 +99,8 @@ class RequestHeaders:
     session_id: str | None = None
     parent_session_id: str | None = None
     use_route_session_context: bool = False
+    request_role: RequestRole | None = None
+    request_scope: RequestScope | None = None
 
     def route_session_id(self) -> str | None:
         """The session the request being built belongs to, as the session headers name it."""
@@ -166,7 +171,7 @@ class WireClient(ChatTelemetryLayer, BaseChatClient):
     itself, after the observer reported the request as started.
     ``_open_stream`` returns its stream without consuming any of it. Every
     protocol builds its request through one method that ends with
-    :meth:`_stamp_request_headers`.
+    :meth:`_finalize_request`.
 
     The observer and request headers are optional: a client built without
     them is the bare codec, which the codec tests drive directly.
@@ -213,9 +218,9 @@ class WireClient(ChatTelemetryLayer, BaseChatClient):
         options: Mapping[str, Any],
         **kwargs: Any,
     ) -> Awaitable[ChatResponse[Any]] | ResponseStream[ChatResponseUpdate, ChatResponse[Any]]:
-        # The trajectory exchange trace is a loop-to-client handle, never a
-        # provider request parameter: drop it before any kwargs are forwarded.
+        # Internal request metadata is consumed here before kwargs reach the codec.
         forwarded_trace = kwargs.pop(TRAJECTORY_EXCHANGE_KWARG, None)
+        role_override = kwargs.pop("_chrys_request_role", None)
         from chrys.service.llm.observer import WireCall
 
         # Options name a model only to override the client's, so the client's goes on the record otherwise.
@@ -230,7 +235,13 @@ class WireClient(ChatTelemetryLayer, BaseChatClient):
         except BaseException as exc:
             call.failed(exc)
             raise
-        return call.observe(result)
+        metadata = self._request_headers
+        default_role = metadata.request_role if metadata is not None else None
+        return call.observe(
+            result,
+            request_role=role_override if isinstance(role_override, RequestRole) else default_role,
+            request_scope=metadata.request_scope if metadata is not None else None,
+        )
 
     def _dispatch(
         self,
@@ -264,8 +275,25 @@ class WireClient(ChatTelemetryLayer, BaseChatClient):
     ) -> ResponseStream[ChatResponseUpdate, ChatResponse[Any]]:
         """Return the stream of one request; nothing is sent until it is consumed."""
 
-    def _stamp_request_headers(self, request: dict[str, Any]) -> None:
-        """Last step of building a request: add this client's Chrys metadata headers.
+    def _finalize_request(self, request: dict[str, Any]) -> None:
+        """Last step of building a request: add the Chrys metadata headers, then make the body encodable.
+
+        The headers go on first, so their charset gate judges the value the
+        caller asked for: a model id or an ``extra_headers`` value carrying an
+        undecodable byte still fails locally with the error naming the field,
+        instead of being rewritten and reaching the provider as a wrong model
+        or a mangled header.
+
+        The body then leaves as JSON with ``ensure_ascii=False`` encoded as
+        UTF-8, so a lone surrogate anywhere in it — an MCP server's decoded JSON
+        text, an undecodable argv prompt, a file read with
+        ``surrogateescape`` — would fail the whole request before a byte of it
+        was sent.
+        :func:`~chrys.foundation.text.wire_text.surrogate_safe_value` spells it as
+        its ``\\udcXX`` escape in this copy alone, leaving the conversation's own
+        text as it was. The repair replaces the built body rather than mutating
+        anything another holder may share, and keeps this dict's identity, which
+        Anthropic's ``BuiltRequest`` relies on.
 
         ``Chrys-Request-Attempt-Id`` is not added here: SDK retries and redirects
         resend this one request, so the profile HTTP client's request hook
@@ -273,3 +301,7 @@ class WireClient(ChatTelemetryLayer, BaseChatClient):
         """
         if self._request_headers is not None:
             self._request_headers.stamp(request)
+        safe = surrogate_safe_value(request)
+        if safe is not request:
+            request.clear()
+            request.update(safe)

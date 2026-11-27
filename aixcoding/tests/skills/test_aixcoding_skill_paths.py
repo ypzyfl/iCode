@@ -155,7 +155,7 @@ def test_cwd_aixcoding_skills_load_despite_project_gate_off(tmp_path: Path, monk
     _place_skill(cwd / ".aixcoding" / "skills")
     _fake_home(monkeypatch, home)
 
-    paths = _collect_skill_paths(SkillsConfig(), runtime=_make_runtime(cwd), project_skills_enabled=False)
+    paths = _collect_skill_paths(SkillsConfig(), runtime=_make_runtime(cwd), workdir_skills_enabled=False)
 
     assert str((cwd / ".aixcoding" / "skills").resolve()) in paths
 
@@ -194,7 +194,7 @@ def test_scan_order_matches_desktop(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     _fake_home(monkeypatch, home)
     monkeypatch.setattr("chrys.service.skills.adapter.user_agents_dir", lambda: home / ".agents")
 
-    paths = _collect_skill_paths(SkillsConfig(), runtime=_make_runtime(cwd), project_skills_enabled=True)
+    paths = _collect_skill_paths(SkillsConfig(), runtime=_make_runtime(cwd), workdir_skills_enabled=True)
 
     cwd_aix_index = paths.index(str((cwd / ".aixcoding" / "skills").resolve()))
     user_aix_index = paths.index(str((home / ".aixcoding" / "skills").resolve()))

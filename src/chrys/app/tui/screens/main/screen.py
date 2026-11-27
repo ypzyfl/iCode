@@ -32,7 +32,7 @@ from textual.widget import Widget
 from textual.widgets.text_area import Document
 
 from chrys.app.tui.behaviors.right_click_copy import RightClickScreenCopyMixin
-from chrys.app.tui.binding_display import QUIT_BINDING, localized_binding
+from chrys.app.tui.binding_display import BACK_BINDING, QUIT_BINDING, localized_binding
 from chrys.app.tui.i18n import render_content, render_str, widget_localizer
 from chrys.app.tui.language import LANGUAGE_OPTIONS, LANGUAGE_UNKNOWN_LOCALE
 from chrys.app.tui.screens.dialogs.background_task import ROLLBACK_NOTE, BackgroundTaskModal, confirm_stopping
@@ -100,7 +100,7 @@ from chrys.app.tui.util.diff_entries import DiffFocus
 from chrys.app.tui.util.liveness import composed_live
 from chrys.app.tui.util.placement import pin_fixed_placement
 from chrys.app.tui.util.visibility import is_widget_shown_on_active_screen
-from chrys.app.tui.widgets.btw import BtwPanel, ChatColumn
+from chrys.app.tui.widgets.btw import BtwPage, BtwPanel, ChatColumn
 from chrys.app.tui.widgets.chat.messages import (
     ConversationStatusAction,
     InterruptedMessage,
@@ -109,7 +109,7 @@ from chrys.app.tui.widgets.chat.messages import (
 )
 from chrys.app.tui.widgets.chat.panel import ChatPanel
 from chrys.app.tui.widgets.chat.ports import TranscriptLocalizationPort
-from chrys.app.tui.widgets.chat.quote_popup import QuoteSelectionPopup
+from chrys.app.tui.widgets.chat.quote_popup import QUOTE_INPUT_UNAVAILABLE, QuoteSelectionPopup
 from chrys.app.tui.widgets.chat.renderers.ask_user import AskUserInlineSubmitted
 from chrys.app.tui.widgets.chat.renderers.sleep import SleepSkipClicked
 from chrys.app.tui.widgets.chat.renderers.sub_agent import SubAgentAbortClicked, SubAgentRetryClicked
@@ -151,7 +151,6 @@ from chrys.foundation.config.settings import (
     DEFAULT_TRAJECTORY_VERIFY_COMMANDS,
     DEFAULT_WORKSPACE_MRU_MAX_ENTRIES,
     persist_editor_keymap,
-    persist_tool_groups_expanded,
 )
 from chrys.foundation.events.types import (
     ApprovalModeUpdated,
@@ -198,11 +197,12 @@ if TYPE_CHECKING:
     from chrys.service.prompt_shortcuts import PromptShortcut
     from chrys.service.session.sub_agent_transcript import PersistedSubAgentTranscript
     from chrys.service.state.store import StateStore
+    from chrys.service.workspaces.registry import RegistrySnapshot
 
 
 logger = logging.getLogger(__name__)
 
-type StartupRestore = Literal["restored", "declined", "failed"]
+type StartupRestore = Literal["restored", "declined", "failed"] | Error
 """Startup restore result; ``declined`` means the user chose no folder for a session whose folder is gone."""
 
 _SHORTCUTS_LOADING = msg(
@@ -212,10 +212,6 @@ _SHORTCUTS_LOADING = msg(
 _SHORTCUTS_LOADING_TAB = msg(
     "tui.prompt_shortcuts.loading_tab",
     fallback="Prompt shortcuts are still being read; press Tab again in a moment.",
-)
-_QUOTE_INPUT_UNAVAILABLE = msg(
-    "tui.quote.input_unavailable",
-    fallback="The message input cannot take a quote right now.",
 )
 _SESSIONS_BINDING = msg("tui.binding.sessions", fallback="Sessions")
 _AGENTS_BINDING = msg("tui.binding.agents", fallback="Agents")
@@ -288,6 +284,15 @@ def _describe_work(work: Callable[[], Awaitable[object]]) -> tuple[str, str]:
     return name, f"{name}({', '.join(arguments)})"
 
 
+def _quote_transcript(widget: Widget) -> ChatPanel | BtwPage | None:
+    """The transcript a quote of *widget*'s text comes from: the main chat or the side question's page."""
+    return next((node for node in widget.ancestors_with_self if isinstance(node, ChatPanel | BtwPage)), None)
+
+
+def _folded() -> bool:
+    return False
+
+
 class MainScreen(RightClickScreenCopyMixin, Screen):
     """Primary chat screen with header, chat panel, side panel, input bar, and footer."""
 
@@ -313,6 +318,8 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
             show=False,
             priority=True,
         ),
+        # Shown only while a surface other than the chat (F12 trajectory) fills the main area.
+        localized_binding("escape", "go_back", BACK_BINDING, priority=True),
         Binding("escape", "escape", show=False, priority=True),
         localized_binding("ctrl+q", "quit", QUIT_BINDING, show=False, priority=True),
     ]
@@ -352,12 +359,11 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         localization: TranscriptLocalizationPort | None = None,
         locale_controller: LocaleController | None = None,
         on_editor_keymap_changed: Callable[[str], None] | None = None,
-        tool_groups_expanded: Callable[[], bool] | None = None,
-        thinking_expanded: Callable[[], bool] | None = None,
-        fold_finished_turns: Callable[[], bool] | None = None,
         approval_mode: ApprovalMode = ApprovalMode.MANUAL,
         reset_program_status: Callable[[], None] | None = None,
     ) -> None:
+        self._startup_restore_target: str | None = None
+        self._startup_restore_error: Error | None = None
         self._services = MainScreenServices(
             bus=event_bus,
             settings_handle=settings_handle,
@@ -374,9 +380,6 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         self._editor_mode = EditorMode.parse(editor_keymap)
         self._trajectory_verify_commands = trajectory_verify_commands
         self._on_editor_keymap_changed = on_editor_keymap_changed
-        self._tool_groups_expanded = tool_groups_expanded or (lambda: True)
-        self._thinking_expanded = thinking_expanded
-        self._fold_finished_turns = fold_finished_turns
         self._localization = localization
         self._locale_controller = locale_controller
         self._gc_freeze_participants: tuple[GcFreezeParticipant, ...] = ()
@@ -454,19 +457,22 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
                 start_worker=self._start_worker,
                 debug=self._debug,
                 allow_change=lambda: self._workflow.browser.request_workspace_change(),  # noqa: PLW0108 — constructed later
-                selected_cwd=lambda: self._workflow.project_cwd if self._workflow.workflow_mode else "",
+                selected_cwd=lambda: self._workflow.workdir if self._workflow.workflow_mode else "",
                 apply_workflow_cwd=self._apply_workflow_cwd,
                 workflow_mode=lambda: self._workflow.workflow_mode,
+                start_new_session=lambda event, check: self._sessions.create_new_session(
+                    event, confirmation_is_current=check
+                ),
             ),
             locale_controller=self._locale_controller,
         )
         self._copy_actions = CopyActionController(view=self._view_adapter, debug=self._debug)
         self._chat_selection = ChatSelectionController(self)
         # The text the pill offers to quote, snapshotted when its drag ended.
-        self._pending_quote_pick: str | None = None
-        # Where the drag is and the leaf it started on, recorded on every selection update.
+        self._pending_quote_pick: tuple[str, ChatPanel | BtwPage, int | None, tuple[Widget, ...]] | None = None
+        # Where the drag is and the transcript it quotes, recorded on every selection update.
         self._quote_pointer: Offset | None = None
-        self._quote_source_leaf: Widget | None = None
+        self._quote_area: ChatPanel | BtwPage | None = None
         # The pill itself: ``arrange`` reads it every frame, so no query.
         self._quote_pill: QuoteSelectionPopup | None = None
         self._diff_controller = self._new_diff_controller()
@@ -550,7 +556,9 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
                 refresh_diff_preview=self._refresh_diff_preview,
                 reset_rollback_request=self._rollback_controller.reset_pending,
                 choose_missing_working_dir=partial(self._workspace_actions.choose_replacement_dir, reason="restore"),
+                confirm_workspace_leave=self._workspace_actions.confirm_workspace_leave,
                 confirm_stopping_background_tasks=self._confirm_stopping_background_tasks,
+                workflow_mode=lambda: self._workflow.workflow_mode,
             ),
             agent_load=self._events,
             runtime_info=self._runtime_info,
@@ -680,27 +688,9 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         self._trajectory_verify_commands = value
         self.query_one(TrajectoryDashboard).set_verify_commands(value)
 
-    def _apply_tool_groups_expanded(self, value: bool) -> None:
-        """Persist the live choice; existing groups deliberately keep their state."""
-        handle = cast("ChrysApp", self.app).settings_handle
-        handle.override(tool_groups_expanded=value)
-        error = persist_tool_groups_expanded(value)
-        if error is None:
-            handle.confirm_written({"ui.chat.tool_groups_expanded": value})
-        else:
-            self._notify_settings_failure(error)
-
     def _apply_approval_defer_while_judging(self, value: bool) -> None:
         """Put the choice in force; requests already waiting keep the choice they arrived under."""
         cast("ChrysApp", self.app).settings_handle.override(approval_defer_while_judging=value)
-
-    def _apply_thinking_expanded(self, value: bool) -> None:
-        """Put the choice in force; thinking already in the chat keeps its state."""
-        cast("ChrysApp", self.app).settings_handle.override(chat_thinking_expanded=value)
-
-    def _apply_fold_finished_turns(self, value: bool) -> None:
-        """Existing process headers keep the user's choice."""
-        cast("ChrysApp", self.app).settings_handle.override(chat_fold_finished_turns=value)
 
     def _approval_timeout_seconds(self) -> int:
         return cast("ChrysApp", self.app).settings_handle.settings.approval_timeout_seconds
@@ -734,10 +724,7 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
                 apply_theme=app.apply_theme_setting,
                 switch_locale=self._switch_locale_for_panel,
                 apply_trajectory_verify_commands=self._apply_trajectory_verify_commands,
-                apply_tool_groups_expanded=self._apply_tool_groups_expanded,
                 apply_approval_defer_while_judging=self._apply_approval_defer_while_judging,
-                apply_thinking_expanded=self._apply_thinking_expanded,
-                apply_fold_finished_turns=self._apply_fold_finished_turns,
                 list_themes=lambda: sorted(app.available_themes),
                 save_notifications=self._schedule_notification_settings_save,
                 notification_service=self._notification_service,
@@ -928,7 +915,7 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
             new_session=self._create_new_session,
             clear_session=self._clear_current_session,
             quit_app=self.action_quit,
-            resume_session=self._resume_last_session,
+            resume_session=self._resume_session,
             fork_session=self._fork_current_session,
             ask_side_question=self.action_btw,
             browse_session_list=self.action_sessions,
@@ -985,6 +972,12 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         event.stop()
         await self._btw.navigate(event.delta)
 
+    @on(BtwPanel.Scrolled)
+    def _on_btw_scrolled(self, event: BtwPanel.Scrolled) -> None:
+        """The side answer's text moved away from a quote offer for it; its selection stays, as the chat's does."""
+        event.stop()
+        self._withdraw_quote_offer_from(event.page)
+
     def _diff_preview_visible(self) -> bool:
         if not self.is_mounted:
             return False
@@ -996,6 +989,7 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
             self._diff_preview.request_refresh(reread=reread)
 
     def watch_chat_session_id(self) -> None:
+        self._diff_controller.chat_session_changed(self.chat_session_id)
         self._refresh_diff_preview()
 
     @on(DiffPreview.RefreshRequested)
@@ -1170,7 +1164,15 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
             except Exception:
                 logger.exception("Failed to restore GC-freeze participant %s", type(participant).__name__)
 
-    async def restore_startup_session(self, session_id: str) -> StartupRestore:
+    async def restore_startup_session(
+        self,
+        session_id: str,
+        *,
+        saved_cwd: str,
+        workspace_id: str | None = None,
+        workspace_snapshot: RegistrySnapshot | None = None,
+        primary_cwd: str = "",
+    ) -> StartupRestore:
         """Restore at startup and confirm the matching backend success event."""
         restored = False
 
@@ -1179,13 +1181,29 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
             if event.session_id == session_id:
                 restored = True
 
+        self._startup_restore_target = session_id
+        self._startup_restore_error = None
         await self._services.bus.subscribe(SessionRestored, observe_restored)
         try:
-            request = await self._sessions.do_session_restore(session_id, allow_while_loading=True)
+            request = (
+                await self._sessions.do_session_restore(
+                    session_id,
+                    allow_while_loading=True,
+                    saved_cwd=saved_cwd,
+                    workspace_id=workspace_id,
+                    workspace_snapshot=workspace_snapshot,
+                    primary_cwd=primary_cwd,
+                )
+                if workspace_id is not None
+                else await self._sessions.do_session_restore(session_id, allow_while_loading=True, saved_cwd=saved_cwd)
+            )
         finally:
+            self._startup_restore_target = None
             await self._services.bus.unsubscribe(SessionRestored, observe_restored)
         if restored:
             return "restored"
+        if self._startup_restore_error is not None:
+            return self._startup_restore_error
         return "declined" if request is RestoreRequest.DECLINED else "failed"
 
     def cancel_startup_session_restore(self) -> None:
@@ -1212,6 +1230,8 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         """Conditionally show/hide bindings."""
         if action == "toggle_trajectory_dashboard" and not self._navigation.can_toggle_trajectory_dashboard():
             return False
+        if action == "go_back":
+            return self._dashboard_visible()
         suggestions_active = (
             self._suggestions_active_for_bindings()
             if action in {"chat_page_up", "chat_page_down", "chat_scroll_bottom"}
@@ -1253,9 +1273,8 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
                     cwd=self._workspace_cwd(),
                     localization=self._localization,
                     locale_controller=self._locale_controller,
-                    tool_groups_expanded=self._tool_groups_expanded,
-                    thinking_expanded=self._thinking_expanded,
-                    fold_finished_turns=self._fold_finished_turns,
+                    # New thinking and tool groups start folded; a click opens one.
+                    thinking_expanded=_folded,
                     sub_agent_transcript_loader=self._load_sub_agent_transcript,
                 ).data_bind(
                     agent_running=MainScreen.agent_running_state,
@@ -1296,10 +1315,9 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
             has_messages=MainScreen.has_messages_state,
             shell_mode=MainScreen.shell_mode_state,
         )
-        footer = ChrysFooter(locale_controller=self._locale_controller)
-        # The command palette slot (Ctrl+Q, quit) gives the right end to the
-        # hook indicator; Ctrl+Q keeps quitting through its hidden binding.
-        footer.show_command_palette = False
+        # The right end shows the hook indicator, or Esc Back while another surface fills
+        # the main area; Ctrl+Q keeps quitting through its hidden binding.
+        footer = ChrysFooter(locale_controller=self._locale_controller, corner_key="escape")
         # A sibling, not a Footer child: the Footer recomposes on binding
         # changes, and the indicator's spinner repaints ten times a second
         # while a hook it shows runs.
@@ -1335,6 +1353,8 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
 
     def on_resize(self, event: Resize) -> None:
         self._set_theme_editor_compact(self.theme_editor is not None and event.size.width < 128)
+        # The quote pill sits where its drag ended; a new layout moves the text away from it. The selection stays.
+        self._hide_quote_popup()
 
     def _set_theme_editor_compact(self, compact: bool) -> None:
         if self.has_class("--theme-editor-compact") == compact:
@@ -1405,18 +1425,22 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         through :class:`ChatSelectionController` instead; anything else
         (single-widget selections, non-chat surfaces) keeps stock behavior.
 
-        The quote offer at the drag's end needs its pointer and starting leaf
-        on both paths, so they are recorded before the routing decision.
+        The quote offer at the drag's end needs its pointer and the transcript
+        it quotes on both paths, so they are recorded before the routing decision.
         """
         if select_state is None or select_state.end is None:
             if select_state is None:
                 self._chat_selection.clear()
                 self._quote_pointer = None
-                self._quote_source_leaf = None
+                self._quote_area = None
             super()._watch__select_state(select_state)
             return
         self._quote_pointer = Offset(select_state.screen_offset.x, select_state.screen_offset.y)
-        self._quote_source_leaf = select_state.start.content_widget
+        start, end = select_state.start, select_state.end
+        start_area = _quote_transcript(start.content_widget or start.container)
+        end_area = _quote_transcript(end.content_widget or end.container)
+        # A drag from one transcript into the other quotes neither: its text mixes both.
+        self._quote_area = start_area if end_area is None or end_area is start_area else None
         if not select_state.is_attached_to_dom() or select_state.is_single_content_widget:
             self._chat_selection.clear()
             super()._watch__select_state(select_state)
@@ -1451,8 +1475,8 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
 
     def schedule_chat_selection_reprojection(self, panel: ChatPanel) -> None:
         """Keep chat selection highlights aligned after the transcript scrolls."""
-        # The quote pill sits at the drag's end; a scroll moves that away.
-        self._hide_quote_popup()
+        # The quote pill sits at the drag's end; a scroll moves that away, unless it quotes the side question.
+        self._withdraw_quote_offer_from(panel)
         self._chat_selection.schedule_reproject(panel)
 
     def _watch__selecting(self, selecting: bool) -> None:
@@ -1461,6 +1485,7 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         if selecting:
             self._hide_quote_popup()
             return
+        self._chat_selection.finish_drag()
         self._offer_quote_for_finished_selection()
 
     # -- quoting the conversation ---------------------------------------------
@@ -1477,14 +1502,29 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         if popup is not None:
             popup.hide()
 
+    def _withdraw_quote_offer_from(self, area: ChatPanel | BtwPage) -> None:
+        """Hide the pill if it offers *area*'s text, which just moved away from it.
+
+        Judged by the offer itself, not the current drag: a scrollbar press ends that without clearing the offer.
+        """
+        pick = self._pending_quote_pick
+        if pick is not None and pick[1] is area:
+            self._hide_quote_popup()
+
     def _offer_quote_for_finished_selection(self) -> None:
         """Show the pill for a finished drag over transcript text."""
-        pointer = self._quote_pointer
-        if pointer is None:
+        pointer, area = self._quote_pointer, self._quote_area
+        if pointer is None or area is None:
             return
-        leaf = self._chat_selection.first_leaf or self._quote_source_leaf
-        panel = next((node for node in leaf.ancestors_with_self if isinstance(node, ChatPanel)), None) if leaf else None
-        if panel is None:
+        # Never text of both transcripts: a drag from the card onto its counter or into the chat mixes theirs in.
+        # Text the sidebar adds is let through, as before the card could be quoted.
+        if any(
+            area not in widget.ancestors_with_self
+            and any(isinstance(node, ChatPanel | BtwPanel) for node in widget.ancestors_with_self)
+            and (picked := widget.get_selection(selection))
+            and picked[0].strip()
+            for widget, selection in self.selections.items()
+        ):
             return
         text = self.get_selected_text()
         if text is None or not text.strip():
@@ -1492,10 +1532,16 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         popup = self._quote_popup()
         if popup is None:
             return
-        # The selected words, not the blank lines a drag across messages picks up around them.
-        self._pending_quote_pick = text.strip()
+        # The selected words, not the blank lines a drag across messages picks up around them. The card's
+        # messages it came from are kept too: a repeated completion replaces the answer within the same page.
+        if isinstance(area, BtwPage):
+            # Only the card's own: the sidebar beside it rebuilds, and its widgets going must not void the quote.
+            sources = tuple(widget for widget in self.selections if area in widget.ancestors_with_self)
+            self._pending_quote_pick = (text.strip(), area, area.content_generation, sources)
+        else:
+            self._pending_quote_pick = (text.strip(), area, None, ())
         # Inside the transcript it quotes from, never over its border or the sidebar.
-        popup.place_near(pointer, within=panel.content_region)
+        popup.place_near(pointer, within=area.content_region)
 
     def on_quote_selection_popup_requested(self, event: QuoteSelectionPopup.Requested) -> None:
         """Put the selection the pill offered into the draft as a ``[Quote #n]`` label."""
@@ -1504,9 +1550,18 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         self.clear_selection()
         if pick is None:
             return
-        if not self.query_one(InputBar).insert_reference("quote", pick):
+        text, area, generation, sources = pick
+        if isinstance(area, BtwPage) and (
+            area.content_generation != generation
+            or not all(composed_live(source) for source in sources)
+            or not area.is_attached
+            or area.parent is None
+            or not area.parent.display
+        ):
+            return
+        if not self.query_one(InputBar).insert_reference("quote", text):
             self.notify(
-                render_str(self._language_localizer(), _QUOTE_INPUT_UNAVAILABLE.bind()),
+                render_str(self._language_localizer(), QUOTE_INPUT_UNAVAILABLE.bind()),
                 severity="warning",
                 markup=False,
             )
@@ -2171,10 +2226,20 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
     # Input bar action buttons
     # ------------------------------------------------------------------ #
 
+    @on(InputBar.SteerRequested)
+    def _on_steer_requested(self, event: InputBar.SteerRequested) -> None:
+        if self.query_one(InputBar).owns_queued_action(event.queue_generation):
+            self._input_flow.steer_pending_injection()
+
+    @on(InputBar.CancelQueueRequested)
+    def _on_cancel_queue_requested(self, event: InputBar.CancelQueueRequested) -> None:
+        if self.query_one(InputBar).owns_queued_action(event.queue_generation):
+            self._input_flow.cancel_pending_injection()
+
     @on(InputBar.InterruptRequested)
-    def _on_interrupt_requested(self, _event: InputBar.InterruptRequested) -> None:
+    def _on_interrupt_requested(self, event: InputBar.InterruptRequested) -> None:
         """Stop button clicked — interrupt the running agent."""
-        self.action_interrupt()
+        self._publish_interrupt(run_generation=event.run_generation)
 
     @on(InputBar.RetryRequested)
     def _on_retry_requested(self, event: InputBar.RetryRequested) -> None:
@@ -2319,10 +2384,10 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         await self._sessions.create_new_session()
 
     @work(thread=False)
-    async def _resume_last_session(self) -> None:
+    async def _resume_session(self, selector: str) -> None:
         if self._state.run.agent_loading:
             return
-        await self._sessions.resume_last_session()
+        await self._sessions.resume_session(selector)
 
     @work(thread=False)
     async def _fork_current_session(self) -> None:
@@ -2620,7 +2685,7 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         """Open the full-screen diff viewer showing file changes per turn."""
         if self._workflow.workflow_mode:
             self._diff_controller.show_workflow_diff(
-                self._workflow.session_id, self._workflow.project_cwd or self._workflow.cwd()
+                self._workflow.session_id, self._workflow.workdir or self._workflow.cwd()
             )
         else:
             self._diff_controller.show_diff()
@@ -2663,8 +2728,13 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
                 self._state.run.turn_end_check_pending = False
                 self._workspace_actions.check_after_turn()
         input_bar = self.query_one(InputBar)
-        if not running and input_bar.locked:
-            input_bar.unlock_and_keep()
+        if not running:
+            # Unlock hands the draft back to the user immediately. A late
+            # injection outcome may still render its bubble, but no longer
+            # owns the composer or blocks the next submit.
+            self._state.pending_injection.clear()
+            if input_bar.locked:
+                input_bar.unlock_and_keep()
         self.refresh_bindings()
         # Auto-dismiss interrupt confirmation when agent stops
         if not running and self._state.overlays.interrupt_confirm_active:
@@ -2681,6 +2751,7 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         self._state.run.agent_loading = loading
         input_bar = self.query_one(InputBar)
         if not loading and input_bar.locked and not self._state.run.agent_running:
+            self._state.pending_injection.clear()
             input_bar.unlock_and_keep()
         # Loading hides the trajectory key; nothing else refreshes the footer when it ends.
         self._sync_main_bindings()
@@ -2734,7 +2805,9 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         self._publish_interrupt()
 
     @work(thread=False)
-    async def _publish_interrupt(self) -> None:
+    async def _publish_interrupt(self, *, run_generation: int | None = None) -> None:
+        if run_generation is not None and not self.query_one(InputBar).owns_running_action(run_generation):
+            return
         if self._services.execution().kind == "workflow":
             self._workflow.run_control.stop()
             return
@@ -2832,7 +2905,7 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         self._navigation.quit()
 
     def action_sessions(self) -> None:
-        """Open the sessions modal (Ctrl+N)."""
+        """Open the sessions modal (F1)."""
         self._navigation.sessions()
 
     def _clear_current_session(self) -> None:
@@ -2948,6 +3021,10 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
     def action_toggle_trajectory_dashboard(self) -> None:
         """Toggle the in-place trajectory dashboard (F12)."""
         self._navigation.toggle_trajectory_dashboard()
+
+    def action_go_back(self) -> None:
+        """Esc Back from a surface that replaces the chat; the same path as the hidden Esc."""
+        self.action_escape()
 
     def action_escape(self) -> None:
         """Unified Esc handler — dismiss overlays, confirm interrupt, or confirm exit."""
@@ -3106,6 +3183,11 @@ class MainScreen(RightClickScreenCopyMixin, Screen):
         return event.session_id is None or event.session_id == self.chat_session_id
 
     def _route_session_error(self, event: Error) -> bool:
+        if self._sessions.capture_missing_explicit_session(event) or self._sessions.capture_restore_missing_cwd(event):
+            return True
+        if event.session_id and event.session_id == self._startup_restore_target:
+            self._startup_restore_error = event
+            return True
         if not event.session_id or event.session_id != self._workflow.session_id:
             return False
         self._workflow.feedback.notify(event.display_message or event.message)

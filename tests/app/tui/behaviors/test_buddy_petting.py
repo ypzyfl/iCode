@@ -18,6 +18,7 @@ from chrys.app.tui.screens.main.view_adapter import MainScreenViewAdapter
 from chrys.app.tui.widgets.sidebar.buddy import BuddyPanel
 from chrys.foundation.events.bus import EventBus
 from tests.support.buddies import HeldPetReply, HeldSaveFile, assert_reply_gate_open
+from tests.support.toasts import shown_toasts
 from tests.support.tui_helpers import discard_worker
 from tests.support.waiting import wait_for, wait_until
 
@@ -43,7 +44,7 @@ class _SuggestionScreen:
     def action_pick_theme(self) -> None:
         return
 
-    def _resume_last_session(self) -> None:
+    def _resume_session(self, selector: str) -> None:
         return
 
     def _create_new_session(self) -> None:
@@ -112,7 +113,7 @@ def _make_handler(screen: _SuggestionScreen) -> SuggestionHandler:
             new_session=screen._create_new_session,
             clear_session=lambda: None,
             quit_app=screen.action_quit,
-            resume_session=screen._resume_last_session,
+            resume_session=screen._resume_session,
             fork_session=lambda: None,
             ask_side_question=lambda _question: None,
             workflow_selection=lambda: None,
@@ -186,8 +187,8 @@ class _PanelApp(App[None]):
         yield BuddyPanel()
 
     def toasts(self) -> list[str]:
-        """Live toast texts, oldest first."""
-        return [notification.message for notification in self._notifications]
+        """Every toast text shown, oldest first."""
+        return [notification.message for notification in shown_toasts(self)]
 
 
 @pytest.mark.asyncio

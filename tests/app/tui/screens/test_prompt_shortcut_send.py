@@ -56,6 +56,8 @@ from chrys.foundation.events.bus import EventBus
 from chrys.foundation.models.session_surface import SessionSurface
 from chrys.foundation.models.workspace import Workspace
 from chrys.foundation.platform import get_platform
+from chrys.foundation.util.chrys_headers import RequestRole, RequestScope
+from chrys.foundation.util.imports import import_off_loop
 from chrys.orchestration.engine.state.lifecycle_permits import RebuildPermitDenied
 from chrys.service.llm.mock import MockChatClient, MockResponse
 from chrys.service.profiles.agents.registry import AgentProfileRegistry
@@ -72,7 +74,10 @@ from chrys.service.profiles.models.schema import ModelProfile
 from chrys.service.profiles.models.serializer import save_profile
 from chrys.service.prompt_shortcuts import load_prompt_shortcuts, prompt_shortcut_folders
 from chrys.service.state.store import JsonFileStateStore
+from chrys.service.tools.packs import IMPLEMENTATION_MODULES
+from tests.service.llm._model_list_support import preload_sdks
 from tests.support.scripted_clients import FrameworkBoom
+from tests.support.toasts import shown_toasts
 from tests.support.tui_app_harness import make_chrys_app
 from tests.support.tui_helpers import click_when_settled, hold_prompt_fields_confirm_window
 from tests.support.waiting import (
@@ -220,6 +225,9 @@ class Builds:
         use_route_session_context: bool = False,
         session_dir: Path | None = None,
         tool_result_ceiling_tokens: int | None = None,
+        *,
+        request_role: RequestRole | None = None,
+        request_scope: RequestScope | None = None,
     ) -> ScriptedModel:
         self.profiles.append(profile.id)
         hold, self.hold = self.hold, None
@@ -354,6 +362,13 @@ async def running_session(
     nothing is waited for. A load's dialog goes through its finished steps and
     closes without pausing on them unless *load_holds* keeps its real pauses.
     """
+    # Builtin profiles also construct sub-agent/approval clients: mocking the
+    # main model does not avoid their SDK imports. A cold worker can spend the
+    # entire UI-ready budget reading bytecode or waiting on those import locks.
+    # Prepare the real dependencies before mounting the app; all engine builds,
+    # progress events and loading-dialog transitions still run normally.
+    await asyncio.to_thread(preload_sdks)
+    await import_off_loop(*IMPLEMENTATION_MODULES)
     if not load_holds:
         monkeypatch.setattr(AgentLoadDialog, "COMPLETE_STEP_HOLD_SECONDS", 0.0)
         monkeypatch.setattr(AgentLoadDialog, "FINISH_HOLD_SECONDS", 0.0)
@@ -460,8 +475,8 @@ def footer_actions(main: MainScreen) -> set[str]:
 
 
 def notices(app: ChrysApp) -> list[tuple[str, str]]:
-    """Every toast on screen, as ``(severity, message)``."""
-    return [(str(notification.severity), str(notification.message)) for notification in app._notifications]
+    """Every toast the App has shown, as ``(severity, message)``."""
+    return [(str(notification.severity), str(notification.message)) for notification in shown_toasts(app)]
 
 
 def user_bubbles(main: MainScreen) -> list[str]:
@@ -915,7 +930,11 @@ async def test_esc_during_the_switch_does_nothing_and_the_message_goes_out_after
 
         await pilot.press("enter")
         await wait_for(build.entered.is_set, pilot=pilot, timeout=ENGINE_TURN_TIMEOUT, description="switch building")
-        await wait_for(lambda: isinstance(app.screen, AgentLoadDialog), pilot=pilot, description="agent-load modal")
+        await wait_for(
+            lambda: isinstance(app.screen, AgentLoadDialog) and app.screen.is_mounted,
+            pilot=pilot,
+            description="agent-load modal",
+        )
 
         await pilot.press("escape")
         assert not await wait_until(
@@ -1239,7 +1258,7 @@ async def test_a_config_dialog_opened_while_a_send_is_in_flight_is_read_only(
         async def opens_read_only() -> bool:
             await pilot.press(key)
             await wait_for(
-                lambda: isinstance(app.screen, dialog) and bool(app.screen.query(notice)),
+                lambda: isinstance(app.screen, dialog) and app.screen.is_mounted and bool(app.screen.query(notice)),
                 pilot=pilot,
                 description="dialog open",
             )
@@ -1328,7 +1347,11 @@ async def test_a_shortcuts_draft_that_names_a_command_runs_it_as_typed_text_woul
 
         await pilot.press("enter")
 
-        await wait_for(lambda: isinstance(app.screen, GuideDialog), pilot=pilot, description="the guide opened")
+        await wait_for(
+            lambda: isinstance(app.screen, GuideDialog) and app.screen.is_mounted,
+            pilot=pilot,
+            description="the guide opened",
+        )
         assert session.seen.of(ev.UserMessage) == []
         assert main.query_one(InputBar).draft_owner is None
 
@@ -1403,7 +1426,9 @@ async def test_a_failed_switch_sends_nothing_and_gives_the_draft_back(
         await pilot.press("enter")
 
         await wait_for(
-            lambda: isinstance(app.screen, AgentLoadDialog) and app.screen.has_class("-error"),
+            lambda: (
+                isinstance(app.screen, AgentLoadDialog) and app.screen.is_mounted and app.screen.has_class("-error")
+            ),
             pilot=pilot,
             timeout=ENGINE_TURN_TIMEOUT,
             description="the load failure shown",
@@ -1639,7 +1664,11 @@ async def test_the_footer_status_bar_and_workflow_entry_follow_the_commands_and_
         await pilot.press("backspace")
         await wait_for(lambda: card_state(main) is None, pilot=pilot, description="draft deleted, card gone")
         await click_when_settled(pilot, "#profile-tag")
-        await wait_for(lambda: isinstance(app.screen, AgentsScreen), pilot=pilot, description="agent picker opens")
+        await wait_for(
+            lambda: isinstance(app.screen, AgentsScreen) and app.screen.is_mounted,
+            pilot=pilot,
+            description="agent picker opens",
+        )
         await pilot.press("escape")
         await wait_for(lambda: app.screen is main, pilot=pilot, description="agent picker closed")
         assert running.count == 1
