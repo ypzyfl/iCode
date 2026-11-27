@@ -19,11 +19,16 @@ on:
           - windows
           - macos
           - linux
-      adapter_ref:
-        description: 'Immutable telemetry adapter commit (40-character SHA)'
+      adapter_release:
+        description: 'Versioned telemetry adapter release'
         type: string
         required: true
-        default: 'ebe9895ff8573d9ef74b8923ef511cbbf33e60e7'
+        default: 'v0.1.0a6'
+      adapter_manifest_sha256:
+        description: 'Reviewed SHA256 of release-manifest.json'
+        type: string
+        required: true
+        default: '85f70b89837e88a42f8c0394368107c623f2b64ae9ddda993f44c95abed73f5a'
 
 concurrency:
   group: otel-business-telemetry-cd-${{ inputs.ref || github.ref }}-${{ github.workflow }}
@@ -54,62 +59,62 @@ jobs:
         shell: bash
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-  # The companion is a private build input. Native builds remain in this repository.
+  # The companion is a versioned private release input. Native builds remain here.
   telemetry-wheel:
-    name: Build pinned telemetry companion
+    name: Fetch and verify pinned telemetry release
     runs-on: ubuntu-latest
     steps:
-      - name: Validate private input and immutable revision
-        shell: bash
-        env:
-          ADAPTER_TOKEN: ${{ secrets.TELEMETRY_ADAPTER_READ_TOKEN }}
-          ADAPTER_REF: ${{ inputs.adapter_ref }}
-        run: |
-          if [ -z "$ADAPTER_TOKEN" ]; then
-            echo "::error::Configure TELEMETRY_ADAPTER_READ_TOKEN with Contents:read on MEDADA/aixcoding-telemetry-adapter. This repository's GITHUB_TOKEN cannot read that private repository."
-            exit 1
-          fi
-          if [[ ! "$ADAPTER_REF" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::adapter_ref must be an immutable 40-character commit SHA"
-            exit 1
-          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: MEDADA/aixcoding-telemetry-adapter
-          ref: ${{ inputs.adapter_ref }}
-          token: ${{ secrets.TELEMETRY_ADAPTER_READ_TOKEN }}
           persist-credentials: false
-          path: telemetry-source
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           version: "0.13.7"
           enable-cache: true
-      - name: Build wheel and preparation tools only
+      - name: Validate private release inputs
         shell: bash
         env:
-          ADAPTER_REF: ${{ inputs.adapter_ref }}
+          ADAPTER_TOKEN: ${{ secrets.TELEMETRY_ADAPTER_READ_TOKEN }}
+          ADAPTER_RELEASE: ${{ inputs.adapter_release }}
+          MANIFEST_SHA256: ${{ inputs.adapter_manifest_sha256 }}
         run: |
-          uv run --no-project --python 3.14.10 python telemetry-source/build_wheel.py
-          mkdir telemetry-dist
-          cp telemetry-source/dist/*.whl telemetry-dist/
-          cp telemetry-source/tools/prepare_distribution.py telemetry-source/tools/build_embedded_binary.py telemetry-source/tools/smoke_embedded_binary.py telemetry-dist/
-          uv run --no-project --python 3.14.10 python - <<'PYCODE'
-          import hashlib, json, os
-          from pathlib import Path
-          root = Path('telemetry-dist')
-          wheels = list(root.glob('*.whl'))
-          if len(wheels) != 1:
-              raise SystemExit('Expected exactly one companion wheel')
-          files = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in root.iterdir() if p.is_file()}
-          (root / 'SHA256SUMS.txt').write_text(''.join(f'{digest}  {name}\n' for name, digest in sorted(files.items())), encoding='utf-8')
-          (root / 'provenance.json').write_text(json.dumps({'repository': 'MEDADA/aixcoding-telemetry-adapter', 'commit': os.environ['ADAPTER_REF'], 'files': files}, indent=2) + '\n', encoding='utf-8')
-          PYCODE
+          if [ -z "$ADAPTER_TOKEN" ]; then
+            echo "::error::Configure TELEMETRY_ADAPTER_READ_TOKEN with Contents:read on MEDADA/aixcoding-telemetry-adapter."
+            exit 1
+          fi
+          if [[ ! "$ADAPTER_RELEASE" =~ ^v[0-9][0-9A-Za-z.+-]*$ ]] || [[ ! "$MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::Select a versioned adapter release and its reviewed manifest SHA256."
+            exit 1
+          fi
+      - name: Download and verify release manifest
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.TELEMETRY_ADAPTER_READ_TOKEN }}
+          ADAPTER_RELEASE: ${{ inputs.adapter_release }}
+          MANIFEST_SHA256: ${{ inputs.adapter_manifest_sha256 }}
+        run: |
+          gh release download "$ADAPTER_RELEASE" --repo MEDADA/aixcoding-telemetry-adapter \
+            --pattern release-manifest.json --dir telemetry-dist
+          uv run --no-project --python 3.14.10 python aixcoding/tools/prepare_telemetry_release.py \
+            --directory telemetry-dist --tag "$ADAPTER_RELEASE" --manifest-sha256 "$MANIFEST_SHA256" --manifest-only
+      - name: Download verified assets and unpack integration tools
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.TELEMETRY_ADAPTER_READ_TOKEN }}
+          ADAPTER_RELEASE: ${{ inputs.adapter_release }}
+          MANIFEST_SHA256: ${{ inputs.adapter_manifest_sha256 }}
+        run: |
+          gh release download "$ADAPTER_RELEASE" --repo MEDADA/aixcoding-telemetry-adapter \
+            --pattern 'aixcoding*' --pattern verification.json --pattern SHA256SUMS.txt --dir telemetry-dist
+          uv run --no-project --python 3.14.10 python aixcoding/tools/prepare_telemetry_release.py \
+            --directory telemetry-dist --tag "$ADAPTER_RELEASE" --manifest-sha256 "$MANIFEST_SHA256"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: telemetry-wheel
           path: telemetry-dist/
           if-no-files-found: error
-          retention-days: 1
+          # Preserve validated inputs across queued builds and later failed-job reruns.
+          retention-days: 14
 
   # ── Run CI checks first ─────────────────────────────────────────────
   ci:
@@ -627,3 +632,5 @@ jobs:
           path: release/
           if-no-files-found: error
           retention-days: 14
+
+
