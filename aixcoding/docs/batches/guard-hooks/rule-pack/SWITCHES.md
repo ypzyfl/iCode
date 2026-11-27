@@ -127,7 +127,7 @@ guardctl.py on       # 再打开
 安全护栏总开关：开
 写入范围：不限工作区
 开关状态：C:\Users\xxx\AppData\Roaming\chrys\hooks\guard\guard_state.json（未创建，用出厂默认）
-规则：40 条 · 开 39 · 关 1
+规则：33 条 · 开 32 · 关 1
 ```
 
 ---
@@ -136,15 +136,15 @@ guardctl.py on       # 再打开
 
 ```bash
 guardctl.py list                   # 清单 + 每条开/关
-guardctl.py disable IN-07          # 关掉一条
-guardctl.py enable  IN-07          # 再打开
+guardctl.py disable IN-05          # 关掉一条
+guardctl.py enable  IN-05          # 再打开
 guardctl.py disable 'T-SHELL-03-*' # 通配符：一次关一族
 guardctl.py reset                  # 清除全部规则与写入范围开关覆盖
 guardctl.py reset --master         # 连总开关一起恢复出厂
 ```
 
-* 规则 ID 大小写不敏感：`in-07` 与 `IN-07` 等价。
-* 通配符按规则 ID 匹配，`T-SHELL-03-*` 会命中 `T-SHELL-03-1` ~ `-5` 五条。
+* 规则 ID 大小写不敏感：`in-05` 与 `IN-05` 等价。
+* 通配符按规则 ID 匹配，`T-SHELL-03-*` 会命中 `T-SHELL-03-2` ~ `-5` 四条。
 * ID 写错会报错并给出相近的候选，不会写坏状态文件。
 * 出厂就是关的规则只有 `T-OUT-02`（其余输出层规则暂未实现），其余默认都开。
 
@@ -154,7 +154,7 @@ guardctl.py reset --master         # 连总开关一起恢复出厂
 {
   "version": 1,
   "enabled": false,                       // 总开关（缺省 = 开）
-  "rules": { "IN-07": false },            // 单条规则覆盖（缺省 = 用 rules.json 的 enabled）
+  "rules": { "IN-05": false },            // 单条规则覆盖（缺省 = 用 rules.json 的 enabled）
   "write_scope": { "allow_outside_workspace": false }  // 写入范围（缺省 = 不限工作区）
 }
 ```
@@ -190,7 +190,7 @@ guardctl.py workspace allow     # 放开（出厂行为）
 ### 5.1 先看清楚一条规则长什么样
 
 ```bash
-guardctl.py show IN-07
+guardctl.py show IN-05
 ```
 
 输出就是 `rules.json` 里那一条的完整 JSON（外加出厂开关 / 现场覆盖 / 当前生效状态），
@@ -235,7 +235,7 @@ guardctl.py show IN-07
 | `id` | 是 | 规则 ID，全局唯一。习惯：`IN-xx` 提示词层，`T-<类别>-<序号>` 工具层 |
 | `name` | 是 | 中文名，`guardctl.py list` 显示的就是它 |
 | `layer` | 是 | 归类标签（`Bash` / `文件系统` / `网络` …），只用于阅读 |
-| `disposition` | 是 | `block`（直接拦）/ `confirm`（要用户确认） |
+| `disposition` | 是 | `block`（直接拦）/ `confirm`（弹确认框，拒绝或无法询问时按 block 兜底）/ `notify`（只留痕） |
 | `audit` | 否 | 是否留痕，缺省 true |
 | `enabled` | 否 | 出厂开关，缺省 true |
 | `applies_to` | 工具层必填 | `kinds`（工具类别，如 `shell` / `filesystem.write`）+ `arg_keys`（要扫的参数名） |
@@ -250,8 +250,8 @@ guardctl.py show IN-07
 | `path` | 按**普通子串**匹配词典条目（大小写不敏感） | `dictionary` |
 | `regex` / `secret` | 按正则匹配词典条目 | `dictionary` |
 | `extension` | 扩展名匹配 | `dictionary` |
-| `ip_cidr` | IP / 网段匹配 | `dictionary` |
-| `url` | URL 匹配 | `dictionary`、`mode` |
+| `ip_cidr` | IP / 网段匹配（读 `settings.network.blocked_networks`，回环豁免；无词典参数） | — |
+| `url` | 网络黑名单：危险端口 + `settings.network` 黑名单（该检测器无词典参数） | — |
 | `write_scope` | 写入是否超出允许范围 | — |
 | `shell_write_target` | shell 命令的写文件目标 | — |
 | `mcp_server` / `mcp_args_schema` | MCP 服务与参数 Schema | — |
@@ -270,8 +270,9 @@ guardctl.py show IN-07
 
 ### 5.4 改一条规则的处置
 
-改 `disposition`：`block` ↔ `confirm`。想临时改行为又不想动文件，用
-`guardctl.py disable <ID>` / `enable <ID>`。
+改 `disposition`：`block` ↔ `confirm` ↔ `notify`。`confirm` 默认落成 `action: ask`（iCode
+弹确认框），全局开关 `settings.confirm_disposition` 可改为 `block` / `notify`。想临时改
+行为又不想动文件，用 `guardctl.py disable <ID>` / `enable <ID>`。
 
 ### 5.5 删除一条规则
 
@@ -316,9 +317,9 @@ guardctl.py show IN-07
 | 看所有开关 | `guardctl.py status` |
 | 关掉 / 打开整个护栏 | `guardctl.py off` / `on` |
 | 看规则清单 | `guardctl.py list`（可加通配符，如 `list 'T-SHELL-03-*'`） |
-| 关掉 / 打开一条规则 | `guardctl.py disable IN-07` / `enable IN-07` |
+| 关掉 / 打开一条规则 | `guardctl.py disable IN-05` / `enable IN-05` |
 | 一次关一族规则 | `guardctl.py disable 'T-SHELL-03-*'` |
-| 看一条规则的完整定义 | `guardctl.py show IN-07` |
+| 看一条规则的完整定义 | `guardctl.py show IN-05` |
 | 限制 / 放开工作区外写入 | `guardctl.py workspace restrict` / `allow` |
 | 清除全部开关覆盖 | `guardctl.py reset`（加 `--master` 连总开关一起清） |
 | 改规则内容 | 改 `rules.json` → 自检 → 重新安装 |

@@ -6,7 +6,7 @@
 #   1. PATH scan for python3 / python;
 #   2. the interpreter the packaged iCode unpacks on first run
 #      (~/.local/share/pyapp/data/chrys/<hash>/<version>/python/bin/python3).
-# Usage:  ./guardctl.sh status | list | show IN-07 | disable IN-07 | on | off
+# Usage:  ./guardctl.sh status | list | show IN-05 | disable IN-05 | on | off
 #         ./guardctl.sh workspace restrict | workspace allow | reset
 # Keep this file ASCII-only.
 set -e

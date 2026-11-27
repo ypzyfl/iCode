@@ -36,11 +36,8 @@ CONSOLE = "C:/ws/demo"
 EXPECTED_RULE_IDS = (
     "IN-01",
     "IN-02",
-    "IN-03",
-    "IN-04",
     "IN-05",
     "IN-06",
-    "IN-07",
     "IN-08",
     "IN-09",
     "T-SHELL-01",
@@ -50,24 +47,20 @@ EXPECTED_RULE_IDS = (
     "T-SHELL-02-4",
     "T-SHELL-02-5",
     "T-SHELL-02-6",
-    "T-SHELL-03-1",
     "T-SHELL-03-2",
     "T-SHELL-03-3",
     "T-SHELL-03-4",
     "T-SHELL-03-5",
-    "T-SHELL-04",
     "T-SHELL-05",
     "T-PS-01",
     "T-PS-02",
     "T-PS-03",
     "T-PY-01",
-    "T-PY-02",
     "T-PY-03",
     "T-FS-01",
     "T-FS-02",
     "T-FS-03",
     "T-NET-01",
-    "T-NET-02",
     "T-MCP-01",
     "T-MCP-02",
     "T-MCP-03",
@@ -121,6 +114,11 @@ class GuardTestCase(unittest.TestCase):
         data["settings"]["mcp"] = {**data["settings"].get("mcp", {}), **settings}
         return guard.GuardConfig(data, path=self.config.path)
 
+    def config_with_network(self, **settings: object) -> guard.GuardConfig:
+        data = copy.deepcopy(self.config.source)
+        data["settings"]["network"] = {**data["settings"].get("network", {}), **settings}
+        return guard.GuardConfig(data, path=self.config.path)
+
     def shell(self, command: str, config: guard.GuardConfig | None = None) -> list[str]:
         return self.tool_ids("shell", "bash", {"command": command, "reason": ""}, config)
 
@@ -155,12 +153,6 @@ class PromptGuardTests(GuardTestCase):
     def test_in02_attack_tools(self) -> None:
         self.assertPrompt("用 sqlmap 跑一下这个站点", "IN-02")
 
-    def test_in03_sql_injection(self) -> None:
-        self.assertPrompt("构造 ' UNION SELECT username,password FROM users-- ", "IN-03")
-
-    def test_in04_xss(self) -> None:
-        self.assertPrompt("测试 <script>alert(document.cookie)</script>", "IN-04")
-
     def test_in05_path_traversal(self) -> None:
         self.assertPrompt("读一下 ../../etc/passwd", "IN-05")
 
@@ -173,25 +165,33 @@ class PromptGuardTests(GuardTestCase):
         for text in ("访问 http://127.0.0.1:8000", "启动本地服务 127.0.0.1:8080", "curl 127.0.0.1"):
             self.assertNotIn("IN-06", self.prompt_ids(text), msg=f"本机地址被误拦：{text!r}")
 
-    def test_in06_blocks_private_ranges(self) -> None:
-        # 只有回环放行；RFC1918 整段仍拦。
-        for text in ("查一下 10.1.2.3 这个机器", "看 http://192.168.1.10/ 的接口", "连 172.16.0.5 交换机"):
-            self.assertIn("IN-06", self.prompt_ids(text), msg=f"私有段未拦：{text!r}")
+    def test_in06_factory_blocked_networks_are_listed(self) -> None:
+        # 出厂黑名单含 22.122.49.168/32：提示词里出现该 IP 时按内网资产确认。
+        self.assertPrompt("分析一下 22.122.49.168 的端口", "IN-06")
 
-    def test_in06_allowed_networks_is_the_switch(self) -> None:
-        # 往 allowed_networks 里加网段 = 提示词层放行它；工具层由internal_networks 决定，不受影响。
-        data = dict(self.config.source)
-        network = dict(data["settings"]["network"])
-        network["allowed_networks"] = [*network["allowed_networks"], "10.0.0.0/8"]
-        data["settings"] = {**data["settings"], "network": network}
-        widened = guard.GuardConfig(data, path=self.config.path)
+    def test_in06_unlisted_addresses_stay_allowed(self) -> None:
+        # 黑名单只含出厂条目：其余地址（含 RFC1918）不命中，更不按“非回环即拦”。
+        for text in (
+            "查一下 10.1.2.3 这个机器",
+            "看 http://192.168.1.10/ 的接口",
+            "连 172.16.0.5 交换机",
+            "访问 https://203.0.113.10/x",
+        ):
+            self.assertNotIn("IN-06", self.prompt_ids(text), msg=f"未列入黑名单的地址被拦：{text!r}")
 
-        self.assertEqual([], [h.rule_id for h in guard.evaluate_prompt(widened, "查一下 10.1.2.3 这个机器")])
+    def test_in06_blocked_networks_is_the_switch(self) -> None:
+        config = self.config_with_network(blocked_networks=["10.0.0.0/8", "127.0.0.0/8"])
+        self.assertIn("IN-06", self.prompt_ids("查一下 10.1.2.3 这个机器", config))
         # 未列入的网段不受影响。
-        self.assertIn("IN-06", [h.rule_id for h in guard.evaluate_prompt(widened, "看 http://192.168.1.10/")])
+        self.assertNotIn("IN-06", self.prompt_ids("看 http://192.168.1.10/", config))
+        # 回环优先于黑名单：条目已列入黑名单也放行（非平凡豁免）。
+        self.assertNotIn("IN-06", self.prompt_ids("访问 http://127.0.0.1:8000", config))
 
-    def test_in07_synonym_cluster(self) -> None:
-        self.assertPrompt("把这个账号封禁掉", "IN-07")
+    def test_removed_high_false_positive_prompt_rules_stay_removed(self) -> None:
+        # SQL 注入 / XSS / 同义语义簇三条高风险误报规则已删除。
+        for text in ("判断 ' or '1'='1 能不能注入", "<script>alert(1)</script> 是什么意思", "把这个账号封禁掉"):
+            with self.subTest(text=text):
+                self.assertEqual([], self.prompt_ids(text), msg=f"已删除规则仍在拦：{text!r}")
 
     def test_in08_compliance(self) -> None:
         self.assertPrompt("怎么绕过终端审计", "IN-08")
@@ -244,13 +244,16 @@ class ShellGuardTests(GuardTestCase):
                 self.assertNotIn("T-SHELL-02-4", self.shell(literal), msg="独立成词的 @() 是数组字面量")
 
     def test_ts03_command_injection(self) -> None:
-        self.assertShell("cd /tmp && ls", "T-SHELL-03-1")
         self.assertShell("echo `whoami`", "T-SHELL-03-2")
+        self.assertShell("echo $(echo $(date))", "T-SHELL-03-3")
         self.assertShell("cat <<EOF", "T-SHELL-03-4")
         self.assertShell("echo aGk= | base64 -d", "T-SHELL-03-5")
 
-    def test_ts04_shell_builtins(self) -> None:
-        self.assertShell('eval "$CMD"', "T-SHELL-04")
+    def test_removed_high_false_positive_shell_rules_stay_removed(self) -> None:
+        # 命令链接 / Shell 内建两条高风险误报规则已删除。
+        for command in ("cd /tmp && ls", "source .venv/bin/activate", 'eval "$CMD"'):
+            with self.subTest(command=command):
+                self.assertEqual([], self.shell(command), msg=f"已删除规则仍在拦：{command!r}")
 
     def test_ts05_redirect_outside_workspace(self) -> None:
         config = self.config_with_write_scope(True)
@@ -354,7 +357,6 @@ class ShellGuardTests(GuardTestCase):
 
     def test_tpy_python_reverse(self) -> None:
         self.assertShell('python -c "import capstone"', "T-PY-01")
-        self.assertShell('python -c "import dis; dis.dis(f)"', "T-PY-02")
         self.assertShell("python -m pycdc a.pyc", "T-PY-03")
 
     def test_benign_shell_passes(self) -> None:
@@ -411,38 +413,78 @@ class FilesystemGuardTests(GuardTestCase):
 
 
 class NetworkGuardTests(GuardTestCase):
-    def test_tnet01_blocked(self) -> None:
-        for url in (
-            "https://22.122.49.168/portal",
-            "http://elearning.corp.local/",
-            "http://10.0.0.5:445/share",
-        ):
+    def test_tnet01_blocks_dangerous_ports(self) -> None:
+        # 危险端口对非回环目标始终生效，与黑名单无关。
+        for url in ("http://10.0.0.5:445/share", "http://203.0.113.9:3389/x", "https://example.com:6379/"):
             hit = self.tool_ids("web_fetch", "web_fetch", {"url": url, "prompt": "read"})
             self.assertIn("T-NET-01", hit, msg=url)
 
-    def test_tnet02_default(self) -> None:
-        hit = self.tool_ids("web_fetch", "web_fetch", {"url": "https://example.com/docs", "prompt": "read"})
-        self.assertIn("T-NET-02", hit)
-
-    def test_network_allowlist_passes(self) -> None:
-        for url in ("http://127.0.0.1:8080/health", "http://192.168.1.10/", "https://[::1]:8443/x"):
-            self.assertEqual([], self.tool_ids("web_fetch", "web_fetch", {"url": url, "prompt": "read"}), msg=url)
-
-    def test_network_loopback_hostnames_pass(self) -> None:
-        """回归：``localhost`` 是名字不是 IP，``allowed_networks`` 匹配不到它。"""
+    def test_tnet01_loopback_exempts_dangerous_ports(self) -> None:
+        # 回环完全豁免：本机服务监听危险端口也不拦（127/8、::1、localhost、*.localhost）。
         for url in (
-            "http://localhost:3000",
-            "http://localhost/api/v1",
-            "http://api.localhost:9000/x",
-            "http://LOCALHOST./x",
+            "http://127.0.0.1:6379/",
+            "https://[::1]:3306/x",
+            "http://localhost:6379/",
+            "http://api.localhost:9200/x",
         ):
             with self.subTest(url=url):
                 self.assertEqual([], self.tool_ids("web_fetch", "web_fetch", {"url": url, "prompt": "read"}), msg=url)
-        for url in ("http://oa.corp/x", "https://example.com/x"):
+
+    def test_tnet01_factory_blacklist_blocks_listed_targets(self) -> None:
+        # 出厂黑名单：*.bocsys.cn（裸域与任意子域）与 22.122.49.168/32。
+        for url in (
+            "https://22.122.49.168/portal",
+            "http://oa.bocsys.cn/x",
+            "https://bocsys.cn/",
+        ):
             with self.subTest(url=url):
-                self.assertIn(
-                    "T-NET-02", self.tool_ids("web_fetch", "web_fetch", {"url": url, "prompt": "read"}), msg=url
-                )
+                hit = self.tool_ids("web_fetch", "web_fetch", {"url": url, "prompt": "read"})
+                self.assertIn("T-NET-01", hit, msg=url)
+
+    def test_tnet01_factory_blacklist_does_not_widen(self) -> None:
+        # 后缀锚定不能退化为子串：相似域名与未列入的地址必须放行。
+        for url in (
+            "https://example.com/docs",
+            "http://oa.corp/x",
+            "http://notbocsys.cn/x",
+            "http://bocsys.cn.example.com/x",
+            "http://192.168.1.10/",
+            "http://localhost:3000",
+            "http://127.0.0.1:8080/health",
+            "https://[::1]:8443/x",
+        ):
+            with self.subTest(url=url):
+                self.assertEqual([], self.tool_ids("web_fetch", "web_fetch", {"url": url, "prompt": "read"}), msg=url)
+
+    def test_tnet01_blocked_hosts_is_the_switch(self) -> None:
+        config = self.config_with_network(blocked_hosts=["prod-db.internal", "203.0.113.9", "localhost", "127.0.0.1"])
+        for url in ("https://203.0.113.9/portal", "http://prod-db.internal:8080/x"):
+            with self.subTest(url=url):
+                hit = self.tool_ids_for(config, "web_fetch", "web_fetch", {"url": url, "prompt": "read"})
+                self.assertIn("T-NET-01", hit, msg=url)
+        # 回环优先于黑名单：条目已列入黑名单也放行（非平凡豁免）。
+        for url in ("http://127.0.0.1/x", "http://localhost:8080/x"):
+            with self.subTest(url=url):
+                loopback = self.tool_ids_for(config, "web_fetch", "web_fetch", {"url": url, "prompt": "read"})
+                self.assertEqual([], loopback, msg=url)
+
+    def test_tnet01_wildcard_host_matches_bare_and_subdomains(self) -> None:
+        config = self.config_with_network(blocked_hosts=["*.blocked.test"])
+        for url in ("https://blocked.test/portal", "http://a.b.blocked.test/x"):
+            with self.subTest(url=url):
+                hit = self.tool_ids_for(config, "web_fetch", "web_fetch", {"url": url, "prompt": "read"})
+                self.assertIn("T-NET-01", hit, msg=url)
+        for url in ("http://notblocked.test/x", "http://blocked.test.example.com/x"):
+            with self.subTest(url=url):
+                allowed = self.tool_ids_for(config, "web_fetch", "web_fetch", {"url": url, "prompt": "read"})
+                self.assertEqual([], allowed, msg=url)
+
+    def test_tnet01_blocked_networks_is_the_switch(self) -> None:
+        config = self.config_with_network(blocked_networks=["10.0.0.0/8"])
+        hit = self.tool_ids_for(config, "web_fetch", "web_fetch", {"url": "http://10.1.2.3/x", "prompt": "read"})
+        self.assertIn("T-NET-01", hit)
+        miss = self.tool_ids_for(config, "web_fetch", "web_fetch", {"url": "http://192.168.1.10/x", "prompt": "read"})
+        self.assertEqual([], miss)
 
 
 class McpGuardTests(GuardTestCase):
@@ -499,7 +541,7 @@ class EngineTests(GuardTestCase):
             {
                 "id": "T-OUT-02",
                 "name": "高熵长串",
-                "disposition": "confirm",
+                "disposition": "block",
                 "audit": True,
                 "enabled": True,
                 "detect": [{"type": "secret", "dictionary": "high_entropy_strings"}],
@@ -509,15 +551,28 @@ class EngineTests(GuardTestCase):
         payload = {"tool": {"kind": "shell", "name": "bash", "args": {"command": "echo " + "a" * 80}}}
         self.assertIn("T-OUT-02", [h.rule_id for h in guard.evaluate_tool_call(enabled, payload)])
 
-    def test_confirm_maps_to_block_by_default(self) -> None:
-        rule = self.config.rule("IN-01")
-        self.assertEqual("block", guard.effective_disposition(rule, self.config))
+    def test_confirm_maps_to_ask_by_default(self) -> None:
+        # 出厂 confirm_disposition=ask：confirm 规则弹确认框，不是直接打断。
+        self.assertEqual("ask", guard.effective_disposition(self.config.rule("IN-05"), self.config))
+        self.assertEqual(guard.DEFAULT_ASK_MESSAGE, guard.format_ask_message(self.config))
+
+    def test_confirm_maps_to_block_when_configured(self) -> None:
+        data = copy.deepcopy(self.config.source)
+        data["settings"] = {**data["settings"], "confirm_disposition": "block"}
+        blocking = guard.GuardConfig(data, path=self.config.path)
+        self.assertEqual("block", guard.effective_disposition(blocking.rule("IN-05"), blocking))
 
     def test_confirm_maps_to_notify_when_configured(self) -> None:
-        data = dict(self.config.source)
+        data = copy.deepcopy(self.config.source)
         data["settings"] = {**data["settings"], "confirm_disposition": "notify"}
         notify = guard.GuardConfig(data, path=self.config.path)
-        self.assertEqual("notify", guard.effective_disposition(notify.rule("IN-01"), notify))
+        self.assertEqual("notify", guard.effective_disposition(notify.rule("IN-05"), notify))
+
+    def test_network_blacklist_settings_are_validated(self) -> None:
+        data = copy.deepcopy(self.config.source)
+        data["settings"]["network"]["blocked_hosts"] = "prod-db.internal"
+        with self.assertRaises(guard.GuardError):
+            guard.GuardConfig(data, path=self.config.path)
 
     def test_every_rule_id_is_unique(self) -> None:
         ids = [rule.get("id") for rule in (*self.config.prompt_rules, *self.config.tool_rules)]
@@ -628,8 +683,8 @@ class SwitchStateTests(GuardTestCase):
         self.assertTrue(mixed.rule("T-OUT-02")["enabled"])
 
     def test_disabled_rule_no_longer_hits(self) -> None:
-        config = self.config_with_state({"rules": {"IN-07": False}})
-        self.assertNotIn("IN-07", [hit.rule_id for hit in guard.evaluate_prompt(config, "把这个账号封禁掉")])
+        config = self.config_with_state({"rules": {"IN-02": False}})
+        self.assertNotIn("IN-02", [hit.rule_id for hit in guard.evaluate_prompt(config, "用 sqlmap 跑一下这个站点")])
         # 别的规则不受影响。
         hits = [hit.rule_id for hit in guard.evaluate_prompt(config, "用 dnSpy 反编译一下这个 exe")]
         self.assertIn("IN-01", hits)
@@ -703,19 +758,18 @@ class SwitchManagerTests(unittest.TestCase):
         self.assertIn("T-OUT-02", output)
 
     def test_disable_and_enable_one_rule(self) -> None:
-        code, _ = self.run_ctl("disable", "IN-07")
+        code, _ = self.run_ctl("disable", "IN-05")
         self.assertEqual(0, code)
-        self.assertEqual({"IN-07": False}, self.state()["rules"])
-        code, _ = self.run_ctl("enable", "IN-07")
+        self.assertEqual({"IN-05": False}, self.state()["rules"])
+        code, _ = self.run_ctl("enable", "IN-05")
         self.assertEqual(0, code)
-        self.assertEqual({"IN-07": True}, self.state()["rules"])
+        self.assertEqual({"IN-05": True}, self.state()["rules"])
 
     def test_glob_selects_a_rule_family(self) -> None:
         code, output = self.run_ctl("disable", "T-SHELL-03-*")
         self.assertEqual(0, code)
         self.assertEqual(
             {
-                "T-SHELL-03-1": False,
                 "T-SHELL-03-2": False,
                 "T-SHELL-03-3": False,
                 "T-SHELL-03-4": False,
@@ -739,7 +793,7 @@ class SwitchManagerTests(unittest.TestCase):
         self.assertTrue(self.state()["enabled"])
 
     def test_reset_clears_the_overrides(self) -> None:
-        self.run_ctl("disable", "IN-07")
+        self.run_ctl("disable", "IN-05")
         code, _ = self.run_ctl("reset")
         self.assertEqual(0, code)
         self.assertEqual({}, self.state()["rules"])
@@ -772,9 +826,9 @@ class SwitchManagerTests(unittest.TestCase):
         self.assertNotIn("write_scope", self.state())
 
     def test_show_prints_the_rule_definition(self) -> None:
-        code, output = self.run_ctl("show", "IN-07")
+        code, output = self.run_ctl("show", "IN-05")
         self.assertEqual(0, code)
-        self.assertIn('"id": "IN-07"', output)
+        self.assertIn('"id": "IN-05"', output)
         self.assertIn("出厂开关：开", output)
 
     def test_show_rejects_an_unknown_rule(self) -> None:
@@ -1085,6 +1139,23 @@ class HookProcessTests(GuardTestCase):
         self.assertEqual("block", decision.get("action"))
         self.assertEqual(guard.DEFAULT_BLOCK_MESSAGE, str(decision.get("reason")))
 
+    def test_prompt_hook_writes_ask(self) -> None:
+        # 路径穿越（IN-05）是 confirm 处置：提示词层写 action: ask。
+        code, decision, _ = self._invoke(
+            "_prompt_guard.py",
+            {
+                "event": "user_prompt_submit",
+                "session_id": "s",
+                "profile": "Code",
+                "cwd": WORKSPACE,
+                "text": "读一下 ../../etc/passwd",
+                "injected": False,
+            },
+        )
+        self.assertEqual(0, code)
+        self.assertEqual("ask", decision.get("action"))
+        self.assertEqual(guard.DEFAULT_ASK_MESSAGE, str(decision.get("reason")))
+
     def test_prompt_hook_returns_nonzero_when_block_decision_cannot_be_written(self) -> None:
         import json
         import os
@@ -1142,6 +1213,7 @@ class HookProcessTests(GuardTestCase):
         self.assertEqual({}, decision)
 
     def test_tool_hook_writes_block(self) -> None:
+        # 零宽字符（T-SHELL-02-3）是 block 处置，不弹确认框。
         code, decision, _ = self._invoke(
             "_tool_guard.py",
             {
@@ -1153,13 +1225,34 @@ class HookProcessTests(GuardTestCase):
                     "name": "bash",
                     "kind": "shell",
                     "call_id": "c",
-                    "args": {"command": "rm -rf /", "reason": "清理"},
+                    "args": {"command": "echo ab\u200bcd", "reason": "测试"},
                 },
             },
         )
         self.assertEqual(0, code)
         self.assertEqual("block", decision.get("action"))
         self.assertEqual(guard.DEFAULT_BLOCK_MESSAGE, str(decision.get("reason")))
+
+    def test_tool_hook_writes_ask(self) -> None:
+        # 危险命令（T-SHELL-01）是 confirm 处置：Hook 写 action: ask。
+        code, decision, _ = self._invoke(
+            "_tool_guard.py",
+            {
+                "event": "before_tool_call",
+                "session_id": "s",
+                "profile": "Code",
+                "cwd": WORKSPACE,
+                "tool": {
+                    "name": "bash",
+                    "kind": "shell",
+                    "call_id": "c",
+                    "args": {"command": "rm -rf /tmp/testdir", "reason": "清理"},
+                },
+            },
+        )
+        self.assertEqual(0, code)
+        self.assertEqual("ask", decision.get("action"))
+        self.assertEqual(guard.DEFAULT_ASK_MESSAGE, str(decision.get("reason")))
 
     def test_tool_hook_fails_closed_on_broken_rules(self) -> None:
         import json

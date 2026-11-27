@@ -5,10 +5,10 @@
 设计约束（决定了这里的写法）：
 
 * Hook 以子进程方式运行，标准输入是 ``DEVNULL``，因此**无法**在 Hook 内做
-  交互式确认。所有"处置"只能表达成 ``action: block`` + ``reason``，由 iCode
-  把 ``reason`` 推给用户（提示词层走 ``Error(code="hook_blocked")``，工具层
-  走被拒绝的工具调用）。这也是 ``settings.confirm_disposition`` 默认取
-  ``block`` 的原因：表里的 ``confirm`` 一律先按"打断 + 提示"落地。
+  交互式确认。规则里的 ``confirm`` 由 Hook 写成 ``action: ask``，引擎把它
+  转成用户确认框（提示词层确认是否发送，工具层确认是否执行），确认后放行；
+  引擎无法询问或用户拒绝时按 ``block`` 兜底（fail-closed）。要改回静默，
+  把 ``settings.confirm_disposition`` 改成 ``block`` 或 ``notify``。
 * Hook 只看得到**入参**，看不到工具返回值，所以输出侧的扫描不在本层。
 * 与主程序零耦合：本模块只用标准库，不 import 任何 ``chrys`` 包；规则与词典
   全部外置在 ``rules.json``，改词典不需要改代码。
@@ -166,7 +166,7 @@ def _validated_rules(value: Any, label: str) -> list[dict[str, Any]]:
 def _validate_settings(value: Any) -> dict[str, Any]:
     settings = _optional_mapping(value, "settings")
     confirm_disposition = settings.get("confirm_disposition")
-    if confirm_disposition is not None and str(confirm_disposition) not in {"block", "notify"}:
+    if confirm_disposition is not None and str(confirm_disposition) not in {"ask", "block", "notify"}:
         raise GuardError(f"settings.confirm_disposition 非法：{confirm_disposition!r}")
     for key in ("fail_closed", "audit_on_allow"):
         if key in settings and not isinstance(settings[key], bool):
@@ -176,10 +176,8 @@ def _validate_settings(value: Any) -> dict[str, Any]:
         if nested is not None and not isinstance(nested, dict):
             raise GuardError(f"settings.{key} 必须是对象")
     network = settings.get("network") or {}
-    if network.get("default_disposition") is not None:
-        default_disposition = str(network["default_disposition"])
-        if default_disposition not in _VALID_DISPOSITIONS:
-            raise GuardError(f"settings.network.default_disposition 非法：{default_disposition!r}")
+    for key in ("blocked_hosts", "blocked_networks"):
+        _validate_string_list(network.get(key), f"settings.network.{key}")
     mcp = settings.get("mcp") or {}
     for key in ("allowed_servers", "allowed_profiles", "allowed_workspaces"):
         _validate_string_list(mcp.get(key), f"settings.mcp.{key}")
@@ -679,6 +677,13 @@ def _as_ip(host: str) -> Any:
         return None
 
 
+def _is_loopback_target(name: str, address: Any) -> bool:
+    """回环目标：``127.0.0.0/8``、``::1`` 与 ``localhost`` / ``*.localhost``。"""
+    if address is not None:
+        return address.is_loopback
+    return name == "localhost" or name.endswith(".localhost")
+
+
 def _network_or_none(entry: Any) -> Any:
     try:
         return ipaddress.ip_network(str(entry), strict=False)
@@ -687,20 +692,51 @@ def _network_or_none(entry: Any) -> Any:
 
 
 def _networks(entries: list[Any]) -> list[Any]:
-    nets = [_network_or_none(entry) for entry in entries]
-    return [net for net in nets if net is not None]
+    nets: list[Any] = []
+    for entry in entries:
+        net = _network_or_none(entry)
+        if net is None:
+            # D7 承诺坏条目忽略不误拦，但削弱保护的黑名单配置错误必须可查——全引擎
+            # 唯一无日志的配置降级路径，不留静默失效。
+            _log(f"黑名单网段条目不是合法 CIDR，已忽略：{entry!r}")
+            continue
+        nets.append(net)
+    return nets
 
 
-def _allowed_networks(config: GuardConfig) -> list[Any]:
-    """``settings.network.allowed_networks``——提示词层 ip_cidr 检测器的白名单。
+def _blocked_hosts(config: GuardConfig) -> list[str]:
+    """``settings.network.blocked_hosts``——网络黑名单主机。
 
-    出厂只有回环（``127.0.0.0/8``、``::1/128``），所以 ``127.0.0.1`` 放行而RFC1918
-    整段仍拦。原先这个设置只有 url 检测器读，ip_cidr 只看 ``internal_networks`` 词典，
-    于是提示词层把 ``127.0.0.1`` 也拦了；现在两层读同一份配置，工具层另外叠加
-    ``internal_networks``（把私有段当“内网”而非“公网访问”），行为不受这里影响。
-    要放行某段私有网，往 ``allowed_networks`` 加即可。
+    出厂为禁止攻击的目标（``*.bocsys.cn``）。条目匹配规则见
+    :func:`_host_matches`：``*.domain`` 含裸域与任意子域，带 ``*``/``?``
+    的按通配符匹配，其余按子串匹配（兼容只写域名片段的老配置）。
     """
-    entries = config.sub_setting("network", {}).get("allowed_networks") or []
+    entries = config.sub_setting("network", {}).get("blocked_hosts") or []
+    return [str(entry).strip().lower() for entry in entries if str(entry).strip()]
+
+
+def _host_matches(entry: str, host: str) -> bool:
+    """黑名单条日记是否命中主机名（``host`` 已小写）。
+
+    ``*.bocsys.cn`` 同时命中 ``bocsys.cn`` 与 ``a.bocsys.cn``，但不命中
+    ``notbocsys.cn``（后缀锚定）；其余条目保持历史语义，按子串匹配。
+    """
+    if entry.startswith("*."):
+        suffix = entry[2:]
+        return host == suffix or host.endswith("." + suffix)
+    if "*" in entry or "?" in entry:
+        return fnmatch(host, entry)
+    return entry in host
+
+
+def _blocked_networks(config: GuardConfig) -> list[Any]:
+    """``settings.network.blocked_networks``——网络黑名单网段。
+
+    出厂为 ``22.122.49.168/32``（禁止攻击的单个目标）；坏条目（不是合法
+    CIDR）忽略。回环地址（``127.0.0.0/8``、``::1``）不受黑名单影响，始终
+    放行。
+    """
+    entries = config.sub_setting("network", {}).get("blocked_networks") or []
     return _networks([str(entry) for entry in entries])
 
 
@@ -726,22 +762,23 @@ def _detect_patterns(config: GuardConfig, detector: dict[str, Any], ctx: ScanCon
     return _match_patterns(compile_patterns(config, detector, mode=mode), ctx.texts)
 
 
-def _detect_ip_cidr(config: GuardConfig, detector: dict[str, Any], ctx: ScanContext) -> list[Evidence]:
-    networks = _networks(config.dictionary(str(detector.get("dictionary") or "")))
+def _detect_ip_cidr(config: GuardConfig, ctx: ScanContext) -> list[Evidence]:
+    """提示词里的 IP 字面量落在 ``settings.network.blocked_networks`` 即命中。
+
+    出厂含 ``22.122.49.168/32``；其余网段不拦；回环地址永远豁免。
+    """
+    networks = _blocked_networks(config)
     if not networks:
         return []
-    allowed = _allowed_networks(config)
     evidence: list[Evidence] = []
     for label, text in ctx.texts:
         for raw in _IPV4_IN_TEXT.findall(text):
             address = _as_ip(raw)
-            if address is None:
-                continue
-            if any(address.version == net.version and address in net for net in allowed):
+            if address is None or address.is_loopback:
                 continue
             for network in networks:
                 if address.version == network.version and address in network:
-                    evidence.append(Evidence(str(network), raw, label))
+                    evidence.append(Evidence(f"黑名单网段 {network}", raw, label))
                     break
     return evidence
 
@@ -1250,52 +1287,44 @@ def _is_session_temp(target: str, temp_root: str, prefixes: list[str]) -> bool:
     )
 
 
-_LOOPBACK_HOSTNAMES = ("localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback")
+def _detect_url(ctx: ScanContext) -> list[Evidence]:
+    """网络黑名单：回环最先豁免，然后危险端口，最后黑名单主机 / 黑名单网段。
 
-
-def _is_allowed_hostname(config: GuardConfig, host: str) -> bool:
-    """主机名白名单——``allowed_networks`` 只管 IP 字面量，``localhost`` 是名字。
-
-    出厂含回环名与 RFC 6761 的 ``.localhost`` 伪 TLD；配置项是
-    ``settings.network.allowed_hosts``，可自行追加。
+    黑名单是 ``settings.network.blocked_hosts`` / ``blocked_networks``（出厂
+    含 ``*.bocsys.cn`` 与 ``22.122.49.168/32``）；危险端口对非回环目标始终
+    生效。回环目标（``127.0.0.0/8``、``::1``、``localhost`` / ``*.localhost``）
+    完全豁免，危险端口也不例外。没命中黑名单的地址一律放行，不再有
+    "默认处置"。
     """
-    entries = config.sub_setting("network", {}).get("allowed_hosts")
-    names = [str(item).strip().lower() for item in entries] if entries else list(_LOOPBACK_HOSTNAMES)
-    if host in names:
-        return True
-    return any(host.endswith("." + name) for name in names)
-
-
-def _detect_url(ctx: ScanContext, mode: str) -> list[Evidence]:
-    """网络分类：``blocked`` 命中黑名单/危险端口，``default`` 命中非白名单地址。"""
-    if not url_values(ctx.args):
+    targets = url_values(ctx.args)
+    if not targets:
         return []
-    blocked_hosts = compile_patterns(ctx.config, {"dictionary": "blocked_hosts", "names": None}, mode="plain")
     dangerous_ports = {int(p) for p in ctx.config.dictionary("dangerous_ports") if isinstance(p, (int, float))}
-    allowed = _networks(ctx.config.dictionary("internal_networks"))
-    allowed.extend(_allowed_networks(ctx.config))
+    blocked_hosts = _blocked_hosts(ctx.config)
+    blocked_networks = _blocked_networks(ctx.config)
 
     evidence: list[Evidence] = []
-    for raw in url_values(ctx.args):
+    for raw in targets:
         host, port = split_host_port(raw)
         if not host:
             continue
-        if mode == "blocked":
-            if port is not None and port in dangerous_ports:
-                evidence.append(Evidence(f"危险端口 {port}", raw, "url"))
-                continue
-            for pattern in blocked_hosts:
-                if pattern.regex.search(host):
-                    evidence.append(Evidence(pattern.label, raw, "url"))
-                    break
-        elif mode == "default":
-            name = host.lower().rstrip(".")
-            if _is_allowed_hostname(ctx.config, name):
-                continue
-            address = _as_ip(name)
-            in_network = address is not None and any(address.version == n.version and address in n for n in allowed)
-            if not in_network:
-                evidence.append(Evidence("非白名单地址", raw, "url"))
+        name = host.rstrip(".")
+        address = _as_ip(name)
+        if _is_loopback_target(name, address):
+            continue
+        if port is not None and port in dangerous_ports:
+            evidence.append(Evidence(f"危险端口 {port}", raw, "url"))
+            continue
+        matched = next((entry for entry in blocked_hosts if _host_matches(entry, name)), None)
+        if matched is not None:
+            evidence.append(Evidence(f"黑名单主机 {matched}", raw, "url"))
+            continue
+        if address is None:
+            continue
+        for network in blocked_networks:
+            if address.version == network.version and address in network:
+                evidence.append(Evidence(f"黑名单网段 {network}", raw, "url"))
+                break
     return evidence
 
 
@@ -1377,7 +1406,7 @@ def _run_detectors(detectors: list[Any], ctx: ScanContext, depth: int = 0) -> li
         elif kind in ("regex", "secret"):
             found = _detect_patterns(ctx.config, detector, ctx, mode="regex")
         elif kind == "ip_cidr":
-            found = _detect_ip_cidr(ctx.config, detector, ctx)
+            found = _detect_ip_cidr(ctx.config, ctx)
         elif kind == "extension":
             found = _detect_extension(ctx.config, detector, ctx)
         elif kind == "write_scope":
@@ -1385,7 +1414,7 @@ def _run_detectors(detectors: list[Any], ctx: ScanContext, depth: int = 0) -> li
         elif kind == "shell_write_target":
             found = _detect_shell_write_scope(ctx)
         elif kind == "url":
-            found = _detect_url(ctx, str(detector.get("mode") or "blocked"))
+            found = _detect_url(ctx)
         elif kind == "mcp_server":
             found = _detect_mcp_server(ctx)
         elif kind == "mcp_args_schema":
@@ -1425,16 +1454,23 @@ def _applies_to(rule: dict[str, Any], ctx: ScanContext) -> bool:
 def effective_disposition(rule: dict[str, Any], config: GuardConfig) -> str:
     """把规则里的 ``block`` / ``confirm`` 映射成实际处置。
 
-    ``settings.confirm_disposition`` 是全局开关：默认 ``block``，表里的
-    ``confirm`` 一律打断并提示；改成 ``notify`` 则 confirm 类规则只留痕、
-    提示词层额外给模型一条 ``system_reminder``。
+    ``settings.confirm_disposition`` 是全局开关，出厂 ``ask``：表里的
+    ``confirm`` 落成 ``ask``，Hook 写 ``action: ask``，引擎弹用户确认框，
+    确认后放行、无法询问或拒绝时按 block 兜底。改成 ``block`` 则 confirm
+    类规则直接打断；改成 ``notify`` 只留痕（提示词层额外给模型一条
+    ``system_reminder``）。
     """
     disposition = str(rule.get("disposition") or "confirm").lower()
     if disposition not in _VALID_DISPOSITIONS:
         raise GuardError(f"未知的 disposition：{disposition!r}")
     if disposition != "confirm":
         return disposition
-    return "block" if str(config.setting("confirm_disposition", "block")) == "block" else "notify"
+    setting = str(config.setting("confirm_disposition", "ask"))
+    if setting == "block":
+        return "block"
+    if setting == "notify":
+        return "notify"
+    return "ask"
 
 
 def _check_deadline(deadline: float | None) -> None:
@@ -1491,6 +1527,8 @@ def evaluate_tool_call(config: GuardConfig, payload: dict[str, Any], *, deadline
 
 DEFAULT_BLOCK_MESSAGE = "操作不合规，请修改后重试。"
 
+DEFAULT_ASK_MESSAGE = "检测到较高风险操作，是否继续？"
+
 
 def format_message(config: GuardConfig) -> str:
     """生成给用户看的拦截提示。
@@ -1500,6 +1538,11 @@ def format_message(config: GuardConfig) -> str:
     改，不必动代码。
     """
     return str(config.setting("block_message") or DEFAULT_BLOCK_MESSAGE)
+
+
+def format_ask_message(config: GuardConfig) -> str:
+    """生成确认框里的提示；文案可用 ``settings.ask_message`` 改。"""
+    return str(config.setting("ask_message") or DEFAULT_ASK_MESSAGE)
 
 
 def audit_path(config: GuardConfig) -> Path:
@@ -1614,18 +1657,25 @@ def run_hook(layer: str) -> int:
             return 0
 
         blocking = [h for h in hits if h.disposition == "block"]
-        write_audit(audit_records(layer, hits, payload, action="block" if blocking else "notify"), config)
-        if not blocking:
-            # confirm_disposition=notify：提示词层把命中规则告诉模型让它自己调整，
-            # 工具层只留痕。system_reminder 不直接展示给用户，所以带上规则 ID。
-            if layer == "prompt":
-                ids = ", ".join(hit.rule_id for hit in hits)
-                write_decision({"system_reminder": f"[安全策略] {DEFAULT_BLOCK_MESSAGE}命中规则：{ids}"})
+        asking = [h for h in hits if h.disposition == "ask"]
+        action = "block" if blocking else ("ask" if asking else "notify")
+        write_audit(audit_records(layer, hits, payload, action=action), config)
+        if blocking:
+            if not write_decision({"action": "block", "reason": format_message(config)}):
+                # A rule fired but the result file is unusable. Exit non-zero so
+                # ``on_error: block`` stops the call instead of treating it as allow.
+                return 1
             return 0
-        if not write_decision({"action": "block", "reason": format_message(config)}):
-            # A rule fired but the result file is unusable. Exit non-zero so
-            # ``on_error: block`` stops the call instead of treating it as allow.
-            return 1
+        if asking:
+            # 引擎弹确认框：确认放行，拒绝 / 无法询问时按 block 兜底。
+            if not write_decision({"action": "ask", "reason": format_ask_message(config)}):
+                return 1
+            return 0
+        # confirm_disposition=notify：提示词层把命中规则告诉模型让它自己调整，
+        # 工具层只留痕。system_reminder 不直接展示给用户，所以带上规则 ID。
+        if layer == "prompt":
+            ids = ", ".join(hit.rule_id for hit in hits)
+            write_decision({"system_reminder": f"[安全策略] {DEFAULT_BLOCK_MESSAGE}命中规则：{ids}"})
         return 0
     except (DeadlineExceeded, GuardError) as exc:
         return _fail_closed(config, _layer_title(layer), str(exc))

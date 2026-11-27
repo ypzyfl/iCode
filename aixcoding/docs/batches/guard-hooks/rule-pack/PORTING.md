@@ -209,21 +209,26 @@ iCode                                    脚本
 | 字段 | 作用 |
 | --- | --- |
 | `{"action": "block", "reason": "..."}` | **拦下**，reason 是给用户看的原因 |
+| `{"action": "ask", "reason": "..."}` | **弹确认框**：确认后放行，拒绝或客户端无法询问时按 block 处理（reason 是确认框文案） |
 | `{"action": "allow"}` 或不写文件 | 放行 |
 | `{"system_reminder": "..."}` | 不拦，但把这段话塞进 `<system-reminder>` 给模型 |
 | `{"args_override": {...}}` | 不拦，但改写工具入参 |
 
-本规则包只用到前两种，外加提示词层的 `system_reminder`（`confirm` 类规则在 `notify` 模式下用）。
+本规则包只用到前三种，外加提示词层的 `system_reminder`（`notify` 模式下用）。
 
 **文件必须为空或不存在才表示"没意见"**；写坏了当放行处理。
 
-### 3.6 一个硬约束：hook 不能交互
+### 3.6 一个硬约束：hook 进程本身不能交互
 
 Hook 子进程的 **stdin 是 `DEVNULL`** —— 这是 iCode 的设计，不是配置问题。
 
-意味着脚本里不能弹确认框、不能等用户输入、不能读 stdin。所以规则只有"拦"和"放"两种结果，没有"问用户一次再决定"。
+意味着脚本里不能弹确认框、不能等用户输入、不能读 stdin。要询问用户，靠的是
+**决策文件**而不是进程内对话：脚本写 `{"action": "ask", "reason": ...}`，iCode 的
+hook 引擎在前端（TUI / 声明支持该能力的 ACP 客户端）弹确认框，把结果落到本次调用；
+客户端无法询问或用户拒绝时按 **block** 处理（fail-closed）。
 
-规则表里的 `confirm` 档位只能落成两种：全局开关 `settings.confirm_disposition` 决定是 `block`（默认）还是 `notify`。
+规则表里的 `confirm` 档位就是落成 `ask`（默认）：全局开关
+`settings.confirm_disposition` 可改为 `block`（直接打断）或 `notify`（只留痕）。
 
 ### 3.7 脚本用哪个 Python 跑（以及“系统里没装 Python”这个问题）
 
