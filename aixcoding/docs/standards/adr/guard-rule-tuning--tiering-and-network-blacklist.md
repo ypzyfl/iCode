@@ -37,7 +37,10 @@ block 落地，网络按白名单（只放回环）。现场误报把日常开�
 2. **7 条中高风险规则改 confirm，出厂 `confirm_disposition: ask`**（`IN-05`/`IN-06`/`IN-08`、
    `T-SHELL-01`、`T-FS-02`/`T-FS-03`、`T-OUT-01`）：Hook 写 `action: ask`，引擎弹确认框
    ——继续放行、拒绝拦截；客户端无法询问（headless）或用户拒绝时按 block 兜底
-   （fail-closed，依赖引擎既有 `GATED_EVENTS`/`_confirm` 语义，零上游改动）；
+   （fail-closed，依赖引擎既有 `GATED_EVENTS`/`_confirm` 语义，零上游改动；规范载体
+   `docs/en/reference/hooks.md`）；其余 **12 条原 confirm 规则显式钉为 block**
+   （`IN-01`/`IN-02`、`T-SHELL-02-1/-4/-5/-6`、`T-SHELL-03-2`~`-5`、`T-PS-03`、`T-OUT-02`），
+   不再随 `confirm_disposition` 变化；
 3. **网络白名单翻转为黑名单**：出厂含禁止攻击目标 `*.bocsys.cn` 与 `22.122.49.168/32`；
    求值顺序＝**回环最先完全豁免**（`127.0.0.0/8`、`::1`、`localhost`、`*.localhost`——
    危险端口也不例外；2026-11-26 责任人 F2 裁决，适配改动包 (4)）→ 危险端口
@@ -64,6 +67,9 @@ block 落地，网络按白名单（只放回环）。现场误报把日常开�
   消除「名字与 IP 待遇不一」的新误报源。
 - **ask 零成本**：引擎已支持 `action: ask`（门控事件确认卡、不可询问 fail-closed），
   本决策只消费该契约，不改上游一行。
+- **重新开启的代价（接受，PR 评审补记）**：launcher 解释器探测失败即 fail-closed 全拦
+  （可观测、可恢复）；每次调用冷启动 hook 子进程，评审实测约 0.29 s/次——与「全停换
+  零延迟」相比，接受该开销。
 
 ## 后果
 

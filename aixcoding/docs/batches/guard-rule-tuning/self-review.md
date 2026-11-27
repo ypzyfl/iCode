@@ -87,3 +87,24 @@
     实际执行口径）。
 - 验证声明：自检/部署验证由评审 AI 独立重跑一致（107 / 69 0 失败）；ty/ruff 全量
   采信开发侧三平台声明（本轮增量经评审逐行审读）。
+
+## 2026-11-27 第 3 轮：PR #155 评审（责任人转发评审人意见 8 条）处置——全部实质项已修
+
+> 记录档追加（签认一次，追加不重签）。评审条目甄别口径＝责任人指示：纯规则/流程类条目无视，
+> 实质缺陷修复。8 条中 7 条实质项＋1 条（suggestion-5）计次修正为实质、§7 结构部分属
+> 仓库规则但随 PR 描述重写一并满足。
+
+| # | 评审条目 | 处置 |
+|---|---|---|
+| 候选 blocker-1 | 「block 优先于 ask」合成决策无测试（变异 `if blocking and not asking:` 后 107/69 全绿，混合输入如 `sudo echo \`whoami\`` 从 block 变 ask） | **修**：`verify_guard_deployed.py` +P13（提示词层：IN-01 block＋IN-05 confirm → block）、+S29（工具层：T-SHELL-01 confirm＋T-SHELL-03-2 block → block），69→71 条，构造上钉死优先级 |
+| 候选 blocker-2 | 坏 CIDR 黑名单条目静默失效（无日志，削弱保护不可追溯） | **修**（首轮 F4 由责任人经本评审改判为修）：`_networks` 对被丢弃条目 `_log` 一行 stderr（保持 D7「忽略不误拦」承诺，不采 GuardError 抛错方案——单条手误会 fail-closed 全拦，与 D7 冲突） |
+| suggestion-3 | 「另 12 条原 confirm 规则显式钉为 block」未在 design/ADR 补记 | **修**：design 方案概述＋变更清单 rules.json 行；ADR 决策 2（列明 12 条 ID） |
+| suggestion-4 | 重新开启的两项代价（launcher 失败即全拦、冷启动约 0.29 s/次）未记 | **修**：design 风险节＋ADR 理由节，含接受结论（评审实测数值，注明来源） |
+| suggestion-5 | PR 描述补 §7 结构；「67→69」应为「64→69」 | **修**（计数：AST 核实 main 基线 64 条确认）；PR 描述按 §7 五段重写、计数 64→71，待责任人授权后更新 PR body |
+| suggestion-6 | 回环优先于黑名单的两处断言是平凡的（黑名单未含回环条目） | **修**：自检 `test_tnet01_blocked_hosts_is_the_switch` 黑名单加入 `localhost`/`127.0.0.1`、`test_in06_blocked_networks_is_the_switch` 加入 `127.0.0.0/8` 后再断言放行（非平凡豁免） |
+| nit-7 | SWITCHES §5.3 ip_cidr 行仍写需要 dictionary 参数 | **修**：改为「读 settings.network.blocked_networks，回环豁免；无词典参数」 |
+| nit-8 | design 判定④/ADR 的 ask 载体应指向 docs/en/reference/hooks.md（authoring.md 未枚举） | **修**：design 假设 1＋判定④、ADR 决策 2 均指向该文件 |
+
+修复后验证（2026-11-27）：自检 `Ran 107 tests / OK (skipped=1)`；pytest `27 passed, 1 skipped`；
+临时目录部署验证 `共 71 条，失败 0 条：[]`；ruff＋format（guard 路径）通过；ty win32/linux/darwin
+三平台通过；Smart Test PASSED（tests 1684＋architecture 323）。改动仍全部在定制目录，上游接触面 0。

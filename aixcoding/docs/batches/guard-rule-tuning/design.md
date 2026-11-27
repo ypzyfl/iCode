@@ -41,7 +41,9 @@
 出厂开关                     enabled: false（PR #129 临时停用）→ true
 ```
 
-规则规模 40 → 33（开 32 · 关 1，`T-OUT-02` 高熵长串出厂仍关）。现场效应：已部署机器
+规则规模 40 → 33（开 32 · 关 1，`T-OUT-02` 高熵长串出厂仍关）。其中 **12 条原 confirm
+规则显式钉为 block**（`IN-01`/`IN-02`、`T-SHELL-02-1/-4/-5/-6`、`T-SHELL-03-2`~`-5`、
+`T-PS-03`、`T-OUT-02`），不再随 `confirm_disposition` 变化（PR 评审补记）。现场效应：已部署机器
 下次启动即收敛到新包（安装器整条覆盖受管条目与规则文件）——从「护栏停用」变为
 「分档护栏开启」。
 
@@ -60,7 +62,7 @@
 
 | 文件 | 改什么 |
 |---|---|
-| `rules.json` | 40→33 条（删 7）；7 条 confirm；`confirm_disposition` block→ask；新增 `ask_message`；network 键白名单→黑名单（出厂 `*.bocsys.cn`、`22.122.49.168/32`，删 `allowed_networks`/`allowed_hosts`/`default_disposition`）；`T-OUT-02` 出厂仍关；**两处 note 修正**（见下） |
+| `rules.json` | 40→33 条（删 7）；7 条 confirm＋12 条原 confirm 显式钉为 block；`confirm_disposition` block→ask；新增 `ask_message`；network 键白名单→黑名单（出厂 `*.bocsys.cn`、`22.122.49.168/32`，删 `allowed_networks`/`allowed_hosts`/`default_disposition`）；`T-OUT-02` 出厂仍关；**两处 note 修正**（见下） |
 | `_guard_core.py` | confirm 三态映射（ask）；`DEFAULT_ASK_MESSAGE`/`format_ask_message`；ask 决策写出（写不出→非零退出走 `on_error: block`）；网络黑名单引擎（`_host_matches` 后缀锚定/通配/子串、`_blocked_hosts`/`_blocked_networks`、`_is_loopback_target` 回环最先完全豁免——127/8、`::1`、`localhost`、`*.localhost`，危险端口也不例外（**F2 责任人裁决**，适配包 (4)）、危险端口对非回环恒拦）；`_detect_ip_cidr` 改读黑名单；settings 校验随键名更新 |
 | `_prompt_guard.py` / `_tool_guard.py` | 模块 docstring 随规则集与 ask 语义更新（行为无变化） |
 | `hooks.yaml` | 两个受管条目 `enabled: false`→`true`；注释与 description 随新口径 |
@@ -73,7 +75,7 @@
 | `guard_pack_selftest.py` | 100→107 条：被删 7 条的正例改「保持删除」回归；confirm→ask 映射与文案用例；网络黑名单组（后缀锚定、通配、网段开关、回环豁免、**回环+危险端口放行（F2）**、未列入放行）；Hook 写 `ask` 的两个入口子进程用例 |
 | `test_anchors.py` | 出厂锚 `enabled` 断言 false→true |
 | `test_guard_install.py` | 安装后出厂 `enabled: true`＋手改关被模板拉回（方向翻转）；状态示例 `IN-07`→`IN-05` |
-| `verify_guard_deployed.py` | 期望从 bool 改三态（block/ask/allow）；69 条口径（含 N12/N13 回环+危险端口放行）；S04/S09 显式写回出厂写范围，避免 confirm 被 `T-SHELL-05` 的 block 盖住 |
+| `verify_guard_deployed.py` | 期望从 bool 改三态（block/ask/allow）；71 条口径（含 N12/N13 回环+危险端口放行、P13/S29 混合命中合成 block——PR 评审补强，钉死「block 优先于 ask」）；S04/S09 显式写回出厂写范围，避免 confirm 被 `T-SHELL-05` 的 block 盖住 |
 
 **文档 `aixcoding/docs/batches/guard-hooks/rule-pack/`（5）**：`README.md`、`OPERATIONS.md`、
 `PORTING.md`、`SWITCHES.md`、`MANUAL_TESTS.md` 随新口径（分档表、黑名单与回环完全豁免
@@ -93,7 +95,8 @@
    declined / timed_out / unavailable（含 headless `cannot_ask`、`frontend_unavailable`）→
    `decision.blocked = True`（**fail-closed 兜底成立**）→ 失效表现：上游若移除 ask 支持或
    改兜底语义，confirm 规则在引擎侧被忽略（`ignoring ask` warning）或行为漂移——
-   升级时按 UPGRADE-RUNBOOK 核对 hooks spec 与 `_confirm`。
+   升级时按 UPGRADE-RUNBOOK 核对 hooks 规范（`docs/en/reference/hooks.md`，含确认框
+   语义；`service/hooks/docs/authoring.md` 未枚举 ask）与 `_confirm`。
 2. **安装器整条覆盖收敛** → `guard_install.py` 按同 id 整条替换受管条目与规则文件
    → 已部署机器首次启动后从「停用＋40 条白名单」收敛到「开启＋33 条黑名单」→
    失效表现：老机器在下次启动前维持旧态；`test_guard_install.py` 已锚定拉回行为。
@@ -117,6 +120,9 @@
   弹确认框——是本批次目标，但属可见变化，PR 描述需显著标注。
 - **confirm 打断流**：`rm -rf /tmp/testdir` 这类清理也要确认一次；拒绝/无人确认＝拦
   （fail-closed），不会静默放行。
+- **重新开启的运行代价（已接受，PR 评审补记）**：① launcher 现找解释器失败 → fail-closed
+  全拦（可观测、可恢复，`hook list` 可查）；② 每次调用冷启动 hook 子进程，评审本机实测
+  约 0.29 s/次——对比 PR #129 全停（保护归零换零延迟），接受该开销。
 - **已删规则被静默加回**：自检「保持删除」回归用例＋verify 用例双锚。
 - **回滚**：单 commit revert 即回到「出厂停用＋40 条＋白名单」；现场应急关闭用
   `guardctl off`，无需回滚代码。
@@ -130,7 +136,8 @@
   不构成对外契约；旧键消失由覆盖安装收敛，无状态迁移。
 - ③ 约束未来工作模式，后来者会问「为什么」 → **是**——出厂重新开启＋网络改黑名单＋
   删除 7 条规则，后来者必然问「为什么默认放行内网」「为什么这 7 条没了」。
-- ④ 依赖上游非公开接口或行为 → 否——ask 为上游公开契约（hooks spec），且已核验。
+- ④ 依赖上游非公开接口或行为 → 否——ask 为上游公开契约（`docs/en/reference/hooks.md`），
+  且已核验。
 
 结论：①③ 成立 → 决策记录为
 `standards/adr/guard-rule-tuning--tiering-and-network-blacklist.md`（草案随本 design 一并呈报）。

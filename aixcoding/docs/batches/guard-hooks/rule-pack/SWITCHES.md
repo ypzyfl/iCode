@@ -250,7 +250,7 @@ guardctl.py show IN-05
 | `path` | 按**普通子串**匹配词典条目（大小写不敏感） | `dictionary` |
 | `regex` / `secret` | 按正则匹配词典条目 | `dictionary` |
 | `extension` | 扩展名匹配 | `dictionary` |
-| `ip_cidr` | IP / 网段匹配 | `dictionary` |
+| `ip_cidr` | IP / 网段匹配（读 `settings.network.blocked_networks`，回环豁免；无词典参数） | — |
 | `url` | 网络黑名单：危险端口 + `settings.network` 黑名单（该检测器无词典参数） | — |
 | `write_scope` | 写入是否超出允许范围 | — |
 | `shell_write_target` | shell 命令的写文件目标 | — |

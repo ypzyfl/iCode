@@ -49,7 +49,7 @@
 - [ ] `uv run pytest aixcoding/tests/guard -q` 全绿（测试用例文档基线 27 passed, 1 skipped；
       实际数字记入 verification.md）
 - [ ] 临时目录部署验证（`AIXCODING_GUARD_HOOKS_DIR` 指向临时目录，不触碰本机配置）→
-      `共 69 条，失败 0 条`
+      `共 71 条，失败 0 条`
 - [ ] `uv run ruff check` 与 `ruff format --check`（guard 相关路径）通过；
       `uv run ty check --error-on-warning`（win32 / linux / darwin）通过
 - [ ] hooks.yaml 两个受管条目出厂 `enabled: true`；安装后 `guardctl status` 显示

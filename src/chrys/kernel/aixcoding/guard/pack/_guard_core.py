@@ -692,8 +692,16 @@ def _network_or_none(entry: Any) -> Any:
 
 
 def _networks(entries: list[Any]) -> list[Any]:
-    nets = [_network_or_none(entry) for entry in entries]
-    return [net for net in nets if net is not None]
+    nets: list[Any] = []
+    for entry in entries:
+        net = _network_or_none(entry)
+        if net is None:
+            # D7 承诺坏条目忽略不误拦，但削弱保护的黑名单配置错误必须可查——全引擎
+            # 唯一无日志的配置降级路径，不留静默失效。
+            _log(f"黑名单网段条目不是合法 CIDR，已忽略：{entry!r}")
+            continue
+        nets.append(net)
+    return nets
 
 
 def _blocked_hosts(config: GuardConfig) -> list[str]:

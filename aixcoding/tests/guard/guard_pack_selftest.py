@@ -180,11 +180,11 @@ class PromptGuardTests(GuardTestCase):
             self.assertNotIn("IN-06", self.prompt_ids(text), msg=f"未列入黑名单的地址被拦：{text!r}")
 
     def test_in06_blocked_networks_is_the_switch(self) -> None:
-        config = self.config_with_network(blocked_networks=["10.0.0.0/8"])
+        config = self.config_with_network(blocked_networks=["10.0.0.0/8", "127.0.0.0/8"])
         self.assertIn("IN-06", self.prompt_ids("查一下 10.1.2.3 这个机器", config))
         # 未列入的网段不受影响。
         self.assertNotIn("IN-06", self.prompt_ids("看 http://192.168.1.10/", config))
-        # 回环永远豁免。
+        # 回环优先于黑名单：条目已列入黑名单也放行（非平凡豁免）。
         self.assertNotIn("IN-06", self.prompt_ids("访问 http://127.0.0.1:8000", config))
 
     def test_removed_high_false_positive_prompt_rules_stay_removed(self) -> None:
@@ -457,14 +457,16 @@ class NetworkGuardTests(GuardTestCase):
                 self.assertEqual([], self.tool_ids("web_fetch", "web_fetch", {"url": url, "prompt": "read"}), msg=url)
 
     def test_tnet01_blocked_hosts_is_the_switch(self) -> None:
-        config = self.config_with_network(blocked_hosts=["prod-db.internal", "203.0.113.9"])
+        config = self.config_with_network(blocked_hosts=["prod-db.internal", "203.0.113.9", "localhost", "127.0.0.1"])
         for url in ("https://203.0.113.9/portal", "http://prod-db.internal:8080/x"):
             with self.subTest(url=url):
                 hit = self.tool_ids_for(config, "web_fetch", "web_fetch", {"url": url, "prompt": "read"})
                 self.assertIn("T-NET-01", hit, msg=url)
-        # 回环不受黑名单影响。
-        loopback = self.tool_ids_for(config, "web_fetch", "web_fetch", {"url": "http://127.0.0.1/x", "prompt": "read"})
-        self.assertEqual([], loopback)
+        # 回环优先于黑名单：条目已列入黑名单也放行（非平凡豁免）。
+        for url in ("http://127.0.0.1/x", "http://localhost:8080/x"):
+            with self.subTest(url=url):
+                loopback = self.tool_ids_for(config, "web_fetch", "web_fetch", {"url": url, "prompt": "read"})
+                self.assertEqual([], loopback, msg=url)
 
     def test_tnet01_wildcard_host_matches_bare_and_subdomains(self) -> None:
         config = self.config_with_network(blocked_hosts=["*.blocked.test"])

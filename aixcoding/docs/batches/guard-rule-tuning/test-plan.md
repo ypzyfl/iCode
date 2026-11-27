@@ -14,7 +14,8 @@
 2. **pytest 收集层**（`aixcoding/tests/guard/`）：安装器（出厂 enabled + 手改拉回）、
    hooks.yaml 模板锚、打包（wheel 单副本）、核心回归。
 3. **部署验证**（`aixcoding/tests/guard/verify_guard_deployed.py`，`AIXCODING_GUARD_HOOKS_DIR`
-   指向临时目录，不触碰本机真实配置）：69 条三态期望（block / ask / allow）。
+   指向临时目录，不触碰本机真实配置）：71 条三态期望（block / ask / allow），含混合命中
+   用例（P13/S29：confirm 与 block 同现时合成决策必须 block）。
 
 上游 anchor（引擎 ask 兜底语义，design 假设 1）为上游公开契约：其单元行为由上游测试集
 （`tests/service/hooks`）覆盖；本批次以部署验证＋手工 B16 锚定可观察结果，**不 mock 引擎**。
@@ -25,7 +26,7 @@
 |---|---|---|
 | 自检 107 条全过 | `guard_pack_selftest.py`（`-m` 直跑） | 端到端（真实子进程） |
 | pytest 层全绿 | `test_guard_install.py::test_managed_entries_ship_enabled_and_pull_back_a_manual_disable` 等 | 契约 |
-| 部署验证 69 条 0 失败 | `verify_guard_deployed.py`（临时目录安装） | 端到端 |
+| 部署验证 71 条 0 失败 | `verify_guard_deployed.py`（临时目录安装） | 端到端 |
 | 出厂 enabled: true / 33 条 · 开 32 · 关 1 | `test_anchors.py`（模板锚）＋ `guard_pack_selftest.py` 安装器组 ＋ 手工 `guardctl status` | 契约＋手工 |
 | IN-05 confirm / T-NET-01 block | `guard_pack_selftest.py::test_confirm_maps_to_ask_by_default`、`NetworkGuardTests` ＋ 手工 `guardctl show` | 单元＋手工 |
 | 已删 7 条保持删除 | `guard_pack_selftest.py::test_removed_high_false_positive_prompt_rules_stay_removed`、`::test_removed_high_false_positive_shell_rules_stay_removed`；verify P03/P04/P09、S11/S16/S27 | 回归 |

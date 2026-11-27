@@ -89,3 +89,21 @@ Error: hook 'security-prompt-guard' asked for confirmation (检测到较高风�
 自检重跑 `Ran 107 tests in 2.191s / OK (skipped=1)`；本机安装副本同步后
 `guardctl.cmd show T-NET-01` 核验为新文案 ✓。评审 AI 第 2 轮独立重跑：自检 107 OK、
 部署验证 69 条 0 失败，与开发侧一致。
+
+## 2026-11-27 PR #155 评审修复后回归（第 3 轮）
+
+评审修复面：`_guard_core.py`（坏 CIDR 条目 `_log`）＋`verify_guard_deployed.py`（+P13/S29 混合
+命中，69→71）＋自检两处回环断言强化（黑名单含回环条目后断言放行）＋文档（SWITCHES/design/ADR/
+批次计数）。
+
+| # | 命令 | 结果 |
+|---|---|---|
+| 1 | `uv run python -m aixcoding.tests.guard.guard_pack_selftest` | `Ran 107 tests in 2.887s` / `OK (skipped=1)` ✓ |
+| 2 | `uv run pytest aixcoding/tests/guard -q` | `27 passed, 1 skipped` ✓ |
+| 3 | 临时目录部署验证（`AIXCODING_GUARD_HOOKS_DIR` 指向 `%TEMP%`） | `共 71 条，失败 0 条：[]` ✓（P13/S29 混合命中按期望 block） |
+| 4 | `uv run ruff check`＋`ruff format --check`（guard 路径） | `All checks passed!` / `13 files already formatted` ✓ |
+| 5 | `uv run ty check --error-on-warning`（win32/linux/darwin） | 三平台 `All checks passed!` ✓ |
+| 6 | `uv run python scripts/chrys_test.py --smart --paths _guard_core.py guard_pack_selftest.py verify_guard_deployed.py` | `Summary: PASSED (exit 0)`：tests 1684＋architecture 323 ✓ |
+
+基线计数核实（AST 解析 main `b2385928` 的 verify 用例表）：PROMPT 12＋TOOL 52＝**64 条**
+（PR 描述原写「67→69」口径错误，正确为 64→71）；自检 main 基线 101 个 def test（README 旧称 100）。
